@@ -1,3 +1,5 @@
+SUPERSEDED by "campotech-architecture-complete.md"
+
 # CampoTech: Argentina MVP Roadmap v7 - Part 2
 ## Security, Encryption & Abuse Prevention (Continued)
 
