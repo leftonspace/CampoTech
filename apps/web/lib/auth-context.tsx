@@ -43,20 +43,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Check if user is authenticated on mount
   useEffect(() => {
     const checkAuth = async () => {
+      console.log('checkAuth running...');
       const token = getAccessToken();
+      console.log('Token from storage:', token ? `${token.substring(0, 20)}...` : 'null');
+
       if (!token) {
+        console.log('No token found, setting isLoading to false');
         setIsLoading(false);
         return;
       }
 
       try {
+        console.log('Calling /api/auth/me...');
         const response = await api.auth.me();
+        console.log('auth/me response:', JSON.stringify(response, null, 2));
+
         if (response.success && response.data) {
           setUser(response.data as User);
         } else {
+          console.log('auth/me failed, clearing tokens');
           clearTokens();
         }
-      } catch {
+      } catch (err) {
+        console.log('auth/me error:', err);
         clearTokens();
       } finally {
         setIsLoading(false);
@@ -80,6 +89,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async (phone: string, code: string) => {
     const response = await api.auth.verifyOtp(phone, code);
 
+    console.log('Login response:', JSON.stringify(response, null, 2));
+
     if (response.success && response.data) {
       const data = response.data as {
         accessToken: string;
@@ -87,7 +98,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: User;
       };
 
+      console.log('Setting tokens, accessToken length:', data.accessToken?.length);
       setTokens(data.accessToken, data.refreshToken);
+
+      // Verify tokens were stored
+      const storedToken = localStorage.getItem('accessToken');
+      console.log('Stored token length:', storedToken?.length);
+
       setUser(data.user);
 
       return { success: true };
