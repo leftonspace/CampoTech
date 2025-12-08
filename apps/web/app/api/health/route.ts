@@ -3,12 +3,30 @@ import { prisma } from '@/lib/prisma';
 
 // Health check endpoint for debugging database connectivity
 export async function GET() {
+  // Parse DATABASE_URL to show structure without exposing password
+  const dbUrl = process.env.DATABASE_URL || '';
+  let dbInfo = {};
+  try {
+    const url = new URL(dbUrl);
+    dbInfo = {
+      protocol: url.protocol,
+      username: url.username,
+      host: url.host,
+      port: url.port,
+      pathname: url.pathname,
+      search: url.search,
+    };
+  } catch {
+    dbInfo = { parseError: 'Could not parse DATABASE_URL' };
+  }
+
   const checks: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
     env: {
       hasDbUrl: !!process.env.DATABASE_URL,
-      dbUrlStart: process.env.DATABASE_URL?.substring(0, 30) + '...',
+      dbUrlLength: dbUrl.length,
     },
+    connectionInfo: dbInfo,
   };
 
   try {
