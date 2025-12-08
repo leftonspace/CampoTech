@@ -32,6 +32,10 @@ export interface QueueOptions {
   };
   /** Default job options for this queue */
   defaultJobOptions?: JobsOptions;
+  /** Job lock duration in ms (how long a job can run before stalling) */
+  lockDuration?: number;
+  /** How often to check for stalled jobs in ms */
+  stalledInterval?: number;
 }
 
 export interface JobData {
@@ -255,6 +259,17 @@ export class QueueManager {
 
     const queueConfig = this.config.queues?.[queueName];
 
+    // Default timeouts by queue type (in ms)
+    const defaultTimeouts: Record<string, number> = {
+      [QueueNames.CAE]: 60000,        // 60s - AFIP can be slow
+      [QueueNames.WHATSAPP]: 30000,   // 30s
+      [QueueNames.PAYMENT]: 120000,   // 120s - Payment APIs can be slow
+      [QueueNames.NOTIFICATION]: 15000, // 15s - Should be fast
+      [QueueNames.DLQ]: 30000,        // 30s
+    };
+
+    const lockDuration = queueConfig?.lockDuration || defaultTimeouts[queueName] || 30000;
+
     const worker = new Worker<JobData, JobResult>(
       queueName,
       processor,
@@ -262,6 +277,8 @@ export class QueueManager {
         connection: this.connection.duplicate(),
         concurrency: queueConfig?.concurrency || 5,
         limiter: queueConfig?.rateLimit,
+        lockDuration,
+        stalledInterval: queueConfig?.stalledInterval || 30000, // Check every 30s
         ...options,
       }
     );

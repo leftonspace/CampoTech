@@ -270,10 +270,11 @@ export class IdempotencyService {
 
   /**
    * Generate fingerprint from request body
+   * Uses SHA-256 for consistency with other hashing
    */
   static generateFingerprint(data: any): string {
     const normalized = JSON.stringify(data, Object.keys(data).sort());
-    return crypto.createHash('md5').update(normalized).digest('hex');
+    return crypto.createHash('sha256').update(normalized).digest('hex').substring(0, 32);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════

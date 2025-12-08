@@ -12,6 +12,7 @@ import {
   UserRole,
   AuthErrorCode,
 } from '../types/auth.types';
+import { getTokenBlacklist } from './token-blacklist.service';
 
 // Configuration
 const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;        // 15 minutes
@@ -177,6 +178,28 @@ export class TokenService {
     // Check issued at (not in the future)
     if (payload.iat && payload.iat > now + 60) {
       throw new TokenError(AuthErrorCode.INVALID_TOKEN, 'Token issued in the future');
+    }
+
+    // Check if token is revoked (blacklisted)
+    try {
+      const blacklist = getTokenBlacklist();
+      if (payload.jti && payload.sub && payload.iat) {
+        const isRevoked = await blacklist.isTokenRevoked(
+          payload.jti,
+          payload.sub,
+          payload.iat
+        );
+        if (isRevoked) {
+          throw new TokenError(AuthErrorCode.TOKEN_REVOKED, 'Token has been revoked');
+        }
+      }
+    } catch (error) {
+      // If blacklist service not initialized, skip check (for backwards compatibility)
+      if (error instanceof TokenError) {
+        throw error;
+      }
+      // Log but don't fail if blacklist unavailable
+      console.warn('Token blacklist check skipped:', error);
     }
 
     return payload;

@@ -23,6 +23,23 @@ export interface EncryptedData {
   algorithm: 'aes-256-gcm';
   /** Key version for key rotation support */
   keyVersion: number;
+  /** AAD context hash for verification (optional) */
+  aadHash?: string;
+}
+
+/**
+ * Context for AAD (Additional Authenticated Data)
+ * Binds ciphertext to specific context - prevents ciphertext from being moved between contexts
+ */
+export interface AADContext {
+  /** Organization ID - prevents cross-org data access */
+  orgId?: string;
+  /** Purpose of the encryption (e.g., 'afip-certificate', 'api-key') */
+  purpose?: string;
+  /** Resource ID the data belongs to */
+  resourceId?: string;
+  /** Additional context fields */
+  [key: string]: string | undefined;
 }
 
 export interface EncryptionConfig {
@@ -58,9 +75,34 @@ export class EncryptionService {
   }
 
   /**
-   * Encrypt plaintext data
+   * Build AAD buffer from context
+   * Canonical format: sorted key=value pairs joined with |
    */
-  encrypt(plaintext: string | Buffer): EncryptedData {
+  private buildAAD(context?: AADContext): Buffer | null {
+    if (!context) return null;
+
+    // Filter undefined values and sort keys for canonical representation
+    const entries = Object.entries(context)
+      .filter(([, v]) => v !== undefined)
+      .sort(([a], [b]) => a.localeCompare(b));
+
+    if (entries.length === 0) return null;
+
+    const aadString = entries.map(([k, v]) => `${k}=${v}`).join('|');
+    return Buffer.from(aadString, 'utf8');
+  }
+
+  /**
+   * Generate AAD hash for storage/verification
+   */
+  private hashAAD(aad: Buffer): string {
+    return crypto.createHash('sha256').update(aad).digest('hex').substring(0, 16);
+  }
+
+  /**
+   * Encrypt plaintext data with optional AAD context binding
+   */
+  encrypt(plaintext: string | Buffer, aadContext?: AADContext): EncryptedData {
     const plaintextBuffer = typeof plaintext === 'string'
       ? Buffer.from(plaintext, 'utf8')
       : plaintext;
@@ -72,6 +114,12 @@ export class EncryptionService {
     const cipher = crypto.createCipheriv(ALGORITHM, this.config.masterKey, iv, {
       authTagLength: AUTH_TAG_LENGTH,
     });
+
+    // Set AAD if provided (binds ciphertext to context)
+    const aad = this.buildAAD(aadContext);
+    if (aad) {
+      cipher.setAAD(aad);
+    }
 
     // Encrypt
     const encrypted = Buffer.concat([
@@ -88,13 +136,15 @@ export class EncryptionService {
       authTag: authTag.toString('base64'),
       algorithm: ALGORITHM,
       keyVersion: this.config.keyVersion,
+      aadHash: aad ? this.hashAAD(aad) : undefined,
     };
   }
 
   /**
-   * Decrypt encrypted data
+   * Decrypt encrypted data with optional AAD context verification
+   * If data was encrypted with AAD, the same context must be provided for decryption
    */
-  decrypt(encryptedData: EncryptedData): Buffer {
+  decrypt(encryptedData: EncryptedData, aadContext?: AADContext): Buffer {
     // Get appropriate key for this version
     const key = this.getKeyForVersion(encryptedData.keyVersion);
 
@@ -112,6 +162,19 @@ export class EncryptionService {
       authTagLength: AUTH_TAG_LENGTH,
     });
 
+    // Set AAD if provided (must match encryption context)
+    const aad = this.buildAAD(aadContext);
+    if (aad) {
+      // Verify AAD hash matches if stored
+      if (encryptedData.aadHash && this.hashAAD(aad) !== encryptedData.aadHash) {
+        throw new Error('AAD context mismatch - decryption context does not match encryption context');
+      }
+      decipher.setAAD(aad);
+    } else if (encryptedData.aadHash) {
+      // Data was encrypted with AAD but none provided for decryption
+      throw new Error('AAD context required - data was encrypted with context binding');
+    }
+
     decipher.setAuthTag(authTag);
 
     // Decrypt
@@ -126,23 +189,23 @@ export class EncryptionService {
   /**
    * Decrypt to string (UTF-8)
    */
-  decryptToString(encryptedData: EncryptedData): string {
-    return this.decrypt(encryptedData).toString('utf8');
+  decryptToString(encryptedData: EncryptedData, aadContext?: AADContext): string {
+    return this.decrypt(encryptedData, aadContext).toString('utf8');
   }
 
   /**
    * Re-encrypt data with current key version
-   * Used during key rotation
+   * Used during key rotation - preserves AAD context
    */
-  reencrypt(encryptedData: EncryptedData): EncryptedData {
+  reencrypt(encryptedData: EncryptedData, aadContext?: AADContext): EncryptedData {
     // Already using current version
     if (encryptedData.keyVersion === this.config.keyVersion) {
       return encryptedData;
     }
 
-    // Decrypt with old key, encrypt with new
-    const plaintext = this.decrypt(encryptedData);
-    return this.encrypt(plaintext);
+    // Decrypt with old key, encrypt with new (preserving AAD context)
+    const plaintext = this.decrypt(encryptedData, aadContext);
+    return this.encrypt(plaintext, aadContext);
   }
 
   /**
@@ -195,12 +258,12 @@ export class EncryptionService {
 
 /**
  * Derive encryption key from password/passphrase
- * Uses PBKDF2 with high iteration count
+ * Uses PBKDF2 with OWASP 2023 recommended iteration count
  */
 export function deriveKeyFromPassword(
   password: string,
   salt: Buffer,
-  iterations: number = 100000
+  iterations: number = 310000
 ): Buffer {
   return crypto.pbkdf2Sync(
     password,

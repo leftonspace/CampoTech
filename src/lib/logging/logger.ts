@@ -274,17 +274,205 @@ export class Logger {
 // TRANSPORTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
+export interface FileTransportConfig {
+  /** Base file path (without extension) */
+  filePath: string;
+  /** Maximum file size in bytes before rotation (default: 10MB) */
+  maxSize?: number;
+  /** Maximum number of rotated files to keep (default: 5) */
+  maxFiles?: number;
+  /** Compress rotated files (default: false) */
+  compress?: boolean;
+}
+
 /**
- * Create file transport (appends to file)
+ * Create production-ready file transport with rotation
  */
-export function createFileTransport(filePath: string): Transport {
+export function createFileTransport(config: string | FileTransportConfig): Transport {
   const fs = require('fs');
+  const path = require('path');
+
+  // Handle simple string config (backwards compatible)
+  const options: FileTransportConfig = typeof config === 'string'
+    ? { filePath: config }
+    : config;
+
+  const {
+    filePath,
+    maxSize = 10 * 1024 * 1024, // 10MB
+    maxFiles = 5,
+  } = options;
+
+  // Ensure directory exists
+  const dir = path.dirname(filePath);
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+
+  let currentSize = 0;
+  let writeStream: ReturnType<typeof fs.createWriteStream> | null = null;
+
+  // Initialize stream
+  const initStream = () => {
+    if (writeStream) {
+      writeStream.end();
+    }
+    writeStream = fs.createWriteStream(filePath, { flags: 'a' });
+    try {
+      const stats = fs.statSync(filePath);
+      currentSize = stats.size;
+    } catch {
+      currentSize = 0;
+    }
+  };
+
+  // Rotate log files
+  const rotate = () => {
+    if (writeStream) {
+      writeStream.end();
+      writeStream = null;
+    }
+
+    // Shift existing rotated files
+    for (let i = maxFiles - 1; i >= 1; i--) {
+      const oldPath = `${filePath}.${i}`;
+      const newPath = `${filePath}.${i + 1}`;
+      if (fs.existsSync(oldPath)) {
+        if (i === maxFiles - 1) {
+          fs.unlinkSync(oldPath); // Delete oldest
+        } else {
+          fs.renameSync(oldPath, newPath);
+        }
+      }
+    }
+
+    // Rotate current file
+    if (fs.existsSync(filePath)) {
+      fs.renameSync(filePath, `${filePath}.1`);
+    }
+
+    // Create new file
+    initStream();
+  };
+
+  initStream();
 
   return {
     log: (entry: LogEntry) => {
-      fs.appendFileSync(filePath, JSON.stringify(entry) + '\n');
+      const line = JSON.stringify(entry) + '\n';
+      const lineSize = Buffer.byteLength(line);
+
+      // Check if rotation needed
+      if (currentSize + lineSize > maxSize) {
+        rotate();
+      }
+
+      // Write to file
+      if (writeStream) {
+        writeStream.write(line);
+        currentSize += lineSize;
+      }
     },
   };
+}
+
+/**
+ * Create async file transport for high-throughput logging
+ */
+export function createAsyncFileTransport(config: FileTransportConfig): Transport {
+  const fs = require('fs').promises;
+  const path = require('path');
+
+  const {
+    filePath,
+    maxSize = 10 * 1024 * 1024,
+    maxFiles = 5,
+  } = config;
+
+  let buffer: string[] = [];
+  let currentSize = 0;
+  let isWriting = false;
+  let flushTimer: NodeJS.Timeout | null = null;
+
+  // Flush buffer to file
+  const flush = async () => {
+    if (buffer.length === 0 || isWriting) return;
+
+    isWriting = true;
+    const lines = buffer.join('');
+    buffer = [];
+
+    try {
+      // Check if rotation needed
+      try {
+        const stats = await fs.stat(filePath);
+        if (stats.size + Buffer.byteLength(lines) > maxSize) {
+          await rotateFiles(filePath, maxFiles, fs);
+          currentSize = 0;
+        }
+      } catch {
+        // File doesn't exist, ensure directory does
+        const dir = path.dirname(filePath);
+        await fs.mkdir(dir, { recursive: true }).catch(() => {});
+      }
+
+      await fs.appendFile(filePath, lines);
+      currentSize += Buffer.byteLength(lines);
+    } catch (err) {
+      console.error('Failed to write to log file:', err);
+    } finally {
+      isWriting = false;
+    }
+  };
+
+  // Schedule periodic flush
+  const scheduleFlush = () => {
+    if (!flushTimer) {
+      flushTimer = setTimeout(async () => {
+        flushTimer = null;
+        await flush();
+      }, 1000); // Flush every second
+    }
+  };
+
+  return {
+    log: (entry: LogEntry) => {
+      buffer.push(JSON.stringify(entry) + '\n');
+      scheduleFlush();
+
+      // Flush immediately if buffer is large
+      if (buffer.length >= 100) {
+        flush();
+      }
+    },
+  };
+}
+
+/**
+ * Helper to rotate log files
+ */
+async function rotateFiles(filePath: string, maxFiles: number, fs: any): Promise<void> {
+  // Shift existing rotated files
+  for (let i = maxFiles - 1; i >= 1; i--) {
+    const oldPath = `${filePath}.${i}`;
+    const newPath = `${filePath}.${i + 1}`;
+    try {
+      if (i === maxFiles - 1) {
+        await fs.unlink(oldPath).catch(() => {});
+      } else {
+        await fs.rename(oldPath, newPath).catch(() => {});
+      }
+    } catch {
+      // Ignore errors
+    }
+  }
+
+  // Rotate current file
+  try {
+    await fs.rename(filePath, `${filePath}.1`);
+  } catch {
+    // Ignore if file doesn't exist
+  }
 }
 
 /**

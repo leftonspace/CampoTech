@@ -3,10 +3,15 @@
  * ===========
  *
  * Handles phone OTP generation, storage, and verification.
+ * Uses scrypt (bcrypt-equivalent) for secure OTP hashing.
  */
 
 import * as crypto from 'crypto';
+import { promisify } from 'util';
 import { OTPCode, AuthErrorCode } from '../types/auth.types';
+
+// Promisify scrypt for async usage
+const scryptAsync = promisify(crypto.scrypt);
 
 // Configuration
 const OTP_LENGTH = 6;
@@ -14,6 +19,13 @@ const OTP_TTL_MINUTES = 5;
 const MAX_ATTEMPTS = 3;
 const RATE_LIMIT_WINDOW_MINUTES = 15;
 const MAX_REQUESTS_PER_WINDOW = 5;
+
+// Scrypt parameters (OWASP recommendations)
+const SCRYPT_SALT_LENGTH = 16;
+const SCRYPT_KEY_LENGTH = 64;
+const SCRYPT_N = 16384;  // CPU/memory cost
+const SCRYPT_R = 8;      // Block size
+const SCRYPT_P = 1;      // Parallelization
 
 // In-memory rate limiting (use Redis in production)
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
@@ -59,10 +71,42 @@ export class OTPService {
   }
 
   /**
-   * Hash OTP code for storage
+   * Hash OTP code for storage using scrypt
+   * Format: salt$hash (both hex encoded)
    */
-  private hashCode(code: string): string {
-    return crypto.createHash('sha256').update(code).digest('hex');
+  private async hashCode(code: string): Promise<string> {
+    const salt = crypto.randomBytes(SCRYPT_SALT_LENGTH);
+    const hash = await scryptAsync(code, salt, SCRYPT_KEY_LENGTH, {
+      N: SCRYPT_N,
+      r: SCRYPT_R,
+      p: SCRYPT_P,
+    }) as Buffer;
+    return `${salt.toString('hex')}$${hash.toString('hex')}`;
+  }
+
+  /**
+   * Verify OTP code against stored hash using constant-time comparison
+   */
+  private async verifyHash(code: string, storedHash: string): Promise<boolean> {
+    const [saltHex, hashHex] = storedHash.split('$');
+    if (!saltHex || !hashHex) {
+      return false;
+    }
+
+    const salt = Buffer.from(saltHex, 'hex');
+    const expectedHash = Buffer.from(hashHex, 'hex');
+
+    const actualHash = await scryptAsync(code, salt, SCRYPT_KEY_LENGTH, {
+      N: SCRYPT_N,
+      r: SCRYPT_R,
+      p: SCRYPT_P,
+    }) as Buffer;
+
+    // Use timing-safe comparison to prevent timing attacks
+    if (actualHash.length !== expectedHash.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(actualHash, expectedHash);
   }
 
   /**
@@ -103,7 +147,7 @@ export class OTPService {
 
     // Generate code
     const code = this.generateCode();
-    const codeHash = this.hashCode(code);
+    const codeHash = await this.hashCode(code);
     const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
 
     // Store OTP
@@ -146,9 +190,9 @@ export class OTPService {
       throw new OTPError(AuthErrorCode.TOO_MANY_ATTEMPTS, 'Too many failed attempts');
     }
 
-    // Verify code
-    const codeHash = this.hashCode(code);
-    if (codeHash !== otp.codeHash) {
+    // Verify code using timing-safe comparison
+    const isValid = await this.verifyHash(code, otp.codeHash);
+    if (!isValid) {
       await this.dbAdapter.incrementAttempts(otp.id);
       throw new OTPError(AuthErrorCode.INVALID_OTP, 'Invalid OTP code');
     }
