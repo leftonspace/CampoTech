@@ -290,6 +290,22 @@ P4 (Low) - Daily digest:
 | WhatsApp | > 20% delivery failures | Fall back to SMS | Manual recovery (template issues) |
 | Voice AI | > 40% confidence < 0.5 | Route to human review | Auto-recover when accuracy > 70% |
 
+### Circuit Breaker Configuration
+
+| Service | Failure Threshold | Open Duration | Half-Open Probes | Panic Threshold |
+|---------|-------------------|---------------|------------------|-----------------|
+| AFIP | 5 consecutive | 5 min | 1 every 30 sec | 15 min open → Panic |
+| WhatsApp | 10 consecutive | 1 min | 1 every 15 sec | 10 min open → Panic |
+| Mercado Pago | 5 consecutive | 2 min | 1 every 30 sec | 10 min open → Panic |
+| OpenAI (Voice) | 3 consecutive | 30 sec | 1 every 10 sec | 5 min open → Panic |
+
+**Circuit Breaker States:**
+```
+CLOSED → (failures >= threshold) → OPEN → (timeout) → HALF_OPEN → (probe success) → CLOSED
+                                                    → (probe fails) → OPEN
+                                                    → (open too long) → PANIC
+```
+
 ---
 
 # 3. SYSTEM ARCHITECTURE (HIGH LEVEL)
@@ -1029,6 +1045,20 @@ Queue Types:
 ---
 
 # 7. API ARCHITECTURE
+
+## Base URL Structure
+
+```
+Production:  https://api.campotech.com/v1
+Staging:     https://api.staging.campotech.com/v1
+Development: http://localhost:3000/api
+
+Full endpoint example:
+  https://api.campotech.com/v1/customers
+  https://api.campotech.com/v1/jobs/123/status
+```
+
+**Note:** This document uses `/api/` prefix for readability. The actual deployed URLs use `/v1/` as shown above. The OpenAPI spec (`campotech-openapi-spec.yaml`) reflects the production URL structure.
 
 ## Endpoint Structure
 
