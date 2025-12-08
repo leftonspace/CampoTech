@@ -844,6 +844,7 @@ export enum PaymentStatus {
 
 ```typescript
 export enum MessageStatus {
+  RECEIVED = 'received',           // Inbound message received
   QUEUED = 'queued',               // In outbound queue
   SENT = 'sent',                   // Sent to WhatsApp API
   DELIVERED = 'delivered',         // Delivered to device
@@ -853,7 +854,7 @@ export enum MessageStatus {
   UNDELIVERABLE = 'undeliverable', // Permanently failed (no retry)
 }
 
-// DB: CREATE TYPE message_status AS ENUM ('queued', 'sent', 'delivered', 'read', 'failed', 'fallback_sms', 'undeliverable');
+// DB: CREATE TYPE message_status AS ENUM ('received', 'queued', 'sent', 'delivered', 'read', 'failed', 'fallback_sms', 'undeliverable');
 ```
 
 ### Sync Status (Offline Operations)
@@ -1508,10 +1509,16 @@ statuses       → Delivery status updates (sent, delivered, read, failed)
 
 ### Rate Limits
 ```
-Per phone number:
+Meta Official Limits (per phone number):
   - 1000 business-initiated conversations/day
-  - Template messages: 50/second
+  - Template messages: 50/second (Meta API max)
   - 24-hour session window for free-form replies
+
+CampoTech Internal Limits (conservative):
+  - 50 messages/minute per organization (queue rate limit)
+  - Prevents hitting Meta limits due to multi-tenant bursts
+  - Critical messages (payments, job confirmations) have priority
+  - Non-critical messages queue and delay if limit approached
 ```
 
 ### SMS Fallback

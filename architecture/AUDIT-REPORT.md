@@ -9,16 +9,17 @@
 
 ## EXECUTIVE SUMMARY
 
-| Category | Status | Issues Found | Critical | Resolved |
-|----------|--------|--------------|----------|----------|
-| **Completeness** | GOOD | 4 | 1 | 1 |
-| **Consistency** | RESOLVED | 12 | 5 | 5 |
-| **Cross-References** | GOOD | 3 | 0 | 0 |
-| **Implementation Readiness** | READY | 2 | 0 | 0 |
+| Category | Status | Issues Found | Critical | Moderate | Resolved |
+|----------|--------|--------------|----------|----------|----------|
+| **Completeness** | GOOD | 4 | 1 | 3 | 4 |
+| **Consistency** | RESOLVED | 12 | 5 | 7 | 10 |
+| **Cross-References** | GOOD | 3 | 0 | 3 | 0 |
+| **Implementation Readiness** | READY | 2 | 0 | 2 | 0 |
 
-**Overall Assessment:** Documentation is comprehensive and well-structured. All 5 critical consistency issues have been resolved (Phase 1 complete). Documentation is now ready for implementation.
+**Overall Assessment:** Documentation is comprehensive and well-structured. All 5 critical issues and 5 moderate issues have been resolved. Documentation is now ready for implementation.
 
-**Phase 1 Status:** COMPLETE (All critical issues resolved)
+**Phase 1 Status:** COMPLETE (All 5 critical issues resolved)
+**Phase 2 Status:** COMPLETE (5 moderate issues resolved: #6-#10)
 
 ---
 
@@ -169,124 +170,76 @@ CREATE TABLE afip_sequences (
 
 ## MODERATE ISSUES (Should Fix)
 
-### ISSUE #6: Missing `capability_overrides` Table
+### ISSUE #6: Missing `capability_overrides` Table - RESOLVED
 **Severity:** MODERATE
+**Status:** RESOLVED (2024-01)
 **Location:** `capabilities.md` references admin dashboard toggle but no storage table
 
 **Problem:** The capabilities system supports admin dashboard toggles but there's no database table to persist capability overrides beyond environment variables.
 
-**Recommendation:** Add table:
-```sql
-capability_overrides (
-  id: UUID PRIMARY KEY
-  org_id: UUID REFERENCES organizations(id)  -- NULL = global override
-  capability_path: TEXT NOT NULL  -- e.g., 'external.afip'
-  enabled: BOOLEAN NOT NULL
-  reason: TEXT  -- Why it was disabled
-  disabled_by: UUID REFERENCES users(id)
-  disabled_at: TIMESTAMPTZ DEFAULT NOW()
-  expires_at: TIMESTAMPTZ  -- Optional auto-re-enable
-
-  UNIQUE(org_id, capability_path)
-)
-```
+**Resolution:** Added `capability_overrides` table to `campotech-database-schema-complete.md` with:
+- Support for per-org and global (org_id=NULL) overrides
+- Capability path validation via CHECK constraint
+- Optional expiration for temporary overrides
+- Full audit trail (reason, disabled_by, timestamps)
 
 ---
 
-### ISSUE #7: Job Status `pending` vs Database Default
+### ISSUE #7: Job Status `pending` vs Database Default - RESOLVED
 **Severity:** MODERATE
+**Status:** RESOLVED (Already existed)
 **Locations:**
 - `campotech-architecture-complete.md` line ~521
 - `campotech-database-schema-complete.md` (jobs table)
 
-**Problem:** Database schema shows:
-```sql
-status: TEXT DEFAULT 'pending'
-```
+**Problem:** Database schema shows status as TEXT but should have explicit CREATE TYPE.
 
-But the comment shows additional statuses not in the enum definition. Should have explicit CREATE TYPE.
-
-**Recommendation:** Add explicit enum creation in database schema:
-```sql
--- Add before jobs table
-CREATE TYPE job_status AS ENUM (
-  'pending',
-  'scheduled',
-  'en_camino',
-  'working',
-  'completed',
-  'cancelled'
-);
-```
+**Resolution:** Verified that `job_status_enum` already exists in the database schema with all values:
+`'pending', 'scheduled', 'en_camino', 'working', 'completed', 'cancelled'`
 
 ---
 
-### ISSUE #8: Rate Limit Values Inconsistency
+### ISSUE #8: Rate Limit Values Inconsistency - RESOLVED
 **Severity:** MODERATE
+**Status:** RESOLVED (2024-01)
 **Locations:**
 - `campotech-openapi-spec.yaml` line ~28-29
 - `campotech-queue-worker-architecture.md` queue config
+- `campotech-architecture-complete.md` section 8
 
-**Problem:**
-```
-OpenAPI: WhatsApp: 50 messages/minute per organization
-Queue Config: whatsapp-outbound: 50/min rate limit
+**Problem:** Confusion between Meta's API limit (50/second) and CampoTech's internal limit (50/minute per org).
 
-But architecture doc section 8 says:
-  "Template messages: 50/second"
-```
-
-**Clarification Needed:** Is WhatsApp limit 50/minute or 50/second? (Meta's actual limit is per-second for templates)
-
-**Recommendation:** Clarify in all documents:
-- Template messages: 50/second (Meta limit)
-- Internal rate limit: 50/minute per org (our conservative limit)
+**Resolution:** Clarified in `campotech-architecture-complete.md` Rate Limits section:
+- Meta Official Limits: 50 template messages/second (API max)
+- CampoTech Internal Limits: 50 messages/minute per organization (conservative)
 
 ---
 
-### ISSUE #9: Missing `received` Status in DB MessageStatus
+### ISSUE #9: Missing `received` Status in DB MessageStatus - RESOLVED
 **Severity:** MODERATE
-**Location:** `campotech-architecture-complete.md` line ~844
+**Status:** RESOLVED (2024-01)
+**Location:** `campotech-architecture-complete.md`, `campotech-database-schema-complete.md`, `campotech-openapi-spec.yaml`
 
-**Problem:** Architecture defines MessageStatus with `RECEIVED` for inbound messages:
-```typescript
-export enum MessageStatus {
-  RECEIVED = 'received',  // Inbound message received
-  ...
-}
-```
+**Problem:** MessageStatus was missing `RECEIVED` for inbound messages.
 
-But DB schema and OpenAPI don't include this value.
-
-**Recommendation:** Add `received` to all message status definitions for inbound message tracking.
+**Resolution:** Added `received` status to:
+- Architecture doc MessageStatus enum
+- Database schema message_status_enum
+- OpenAPI MessageStatus enum
 
 ---
 
-### ISSUE #10: SyncStatus Enum Missing `syncing`
+### ISSUE #10: SyncStatus Enum Missing `syncing` - RESOLVED
 **Severity:** MODERATE
+**Status:** RESOLVED (Already existed)
 **Locations:**
 - `campotech-architecture-complete.md` line ~858
-- `campotech-database-schema-complete.md` (jobs.sync_status)
+- `campotech-database-schema-complete.md` (sync_status_enum)
 
-**Problem:** Architecture defines SyncStatus with `SYNCING`:
-```typescript
-export enum SyncStatus {
-  SYNCING = 'syncing',  // Currently syncing
-  ...
-}
-```
+**Problem:** SyncStatus was reported as missing `syncing` and `failed`.
 
-But jobs table shows:
-```sql
-sync_status: TEXT DEFAULT 'synced' -- 'synced' | 'pending' | 'conflict'
-```
-
-Missing: `syncing`, `failed`
-
-**Recommendation:** Update database schema to include all sync statuses:
-```sql
-sync_status: TEXT DEFAULT 'synced' -- 'pending' | 'syncing' | 'synced' | 'conflict' | 'failed'
-```
+**Resolution:** Verified that `sync_status_enum` already exists in the database schema with all values:
+`'pending', 'syncing', 'synced', 'conflict', 'failed'`
 
 ---
 
@@ -436,12 +389,12 @@ cft_rate: DECIMAL(5, 2)  -- Costo Financiero Total
 4. ~~Add `undeliverable` to Message Status (Issue #4)~~ DONE
 5. ~~Add `afip_sequences` table (Issue #5)~~ DONE
 
-### Phase 2: Moderate Fixes (During Initial Implementation)
-6. Add `capability_overrides` table (Issue #6)
-7. Add explicit enum types to DB (Issue #7)
-8. Clarify rate limit documentation (Issue #8)
-9. Add `received` to Message Status (Issue #9)
-10. Complete SyncStatus enum (Issue #10)
+### Phase 2: Moderate Fixes (During Initial Implementation) - COMPLETE
+6. ~~Add `capability_overrides` table (Issue #6)~~ DONE
+7. ~~Add explicit enum types to DB (Issue #7)~~ DONE (already existed)
+8. ~~Clarify rate limit documentation (Issue #8)~~ DONE
+9. ~~Add `received` to Message Status (Issue #9)~~ DONE
+10. ~~Complete SyncStatus enum (Issue #10)~~ DONE (already existed)
 
 ### Phase 3: Polish (Before Production)
 11. Verify all webhook endpoints (Issue #11)

@@ -472,7 +472,8 @@ CREATE TYPE message_type_enum AS ENUM (
 
 -- WhatsApp Message Status
 CREATE TYPE message_status_enum AS ENUM (
-    'queued',           -- In send queue
+    'received',         -- Inbound message received
+    'queued',           -- In outbound send queue
     'sent',             -- Sent to WhatsApp
     'delivered',        -- Delivered to device
     'read',             -- Read by recipient
@@ -1624,8 +1625,71 @@ CREATE TABLE sync_queue (
 -- Indexes
 CREATE INDEX idx_sync_queue_org_status ON sync_queue(org_id, status);
 CREATE INDEX idx_sync_queue_user_status ON sync_queue(user_id, status);
-CREATE INDEX idx_sync_queue_pending ON sync_queue(created_at) 
+CREATE INDEX idx_sync_queue_pending ON sync_queue(created_at)
     WHERE status = 'pending';
+```
+
+## Capability Overrides Table
+
+```sql
+-- ============================================================================
+-- CAPABILITY OVERRIDES
+-- Persists capability toggle states beyond environment variables
+-- Supports per-org and global overrides with optional expiration
+-- ============================================================================
+
+CREATE TABLE capability_overrides (
+    -- Primary Key
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    -- Organization (NULL = global override affecting all orgs)
+    org_id UUID REFERENCES organizations(id) ON DELETE CASCADE,
+
+    -- Capability Path
+    capability_path TEXT NOT NULL,          -- e.g., 'external.afip', 'domain.payments'
+
+    -- Override State
+    enabled BOOLEAN NOT NULL,               -- true = force enabled, false = force disabled
+
+    -- Audit Info
+    reason TEXT,                            -- Why this override was applied
+    disabled_by UUID REFERENCES users(id) ON DELETE SET NULL,
+
+    -- Expiration (optional auto-re-enable)
+    expires_at TIMESTAMPTZ,                 -- NULL = permanent override
+
+    -- Timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Constraints
+    CONSTRAINT capability_overrides_org_path_unique UNIQUE (org_id, capability_path),
+    CONSTRAINT capability_overrides_path_format CHECK (
+        capability_path ~ '^(external|domain|services|ui)\.[a-z_]+$'
+    )
+);
+
+-- Indexes
+CREATE INDEX idx_capability_overrides_org ON capability_overrides(org_id)
+    WHERE org_id IS NOT NULL;
+CREATE INDEX idx_capability_overrides_global ON capability_overrides(capability_path)
+    WHERE org_id IS NULL;
+CREATE INDEX idx_capability_overrides_active ON capability_overrides(expires_at)
+    WHERE expires_at IS NOT NULL AND expires_at > NOW();
+
+-- Trigger
+CREATE TRIGGER capability_overrides_updated_at
+    BEFORE UPDATE ON capability_overrides
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Comments
+COMMENT ON TABLE capability_overrides IS
+    'Persists capability toggle states. org_id=NULL means global override.
+     Used by admin dashboard to disable features without code deploys.';
+COMMENT ON COLUMN capability_overrides.capability_path IS
+    'Dot-notation path matching Capabilities object: external.afip, domain.payments, etc.';
+COMMENT ON COLUMN capability_overrides.expires_at IS
+    'Optional expiration for temporary overrides. NULL = permanent until manually changed.';
 ```
 
 ## Failed Jobs Table (DLQ)
