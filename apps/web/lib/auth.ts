@@ -1,11 +1,11 @@
-import { SignJWT, jwtVerify } from 'jose';
+import { SignJWT, jwtVerify, JWTPayload } from 'jose';
 import { cookies } from 'next/headers';
 
 const JWT_SECRET = new TextEncoder().encode(
   process.env.NEXTAUTH_SECRET || 'fallback-secret-change-in-production'
 );
 
-export interface TokenPayload {
+export interface TokenPayload extends JWTPayload {
   userId: string;
   email: string;
   role: string;
@@ -13,7 +13,7 @@ export interface TokenPayload {
 }
 
 export async function createToken(payload: TokenPayload): Promise<string> {
-  return new SignJWT(payload)
+  return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
