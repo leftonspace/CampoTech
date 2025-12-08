@@ -1780,7 +1780,282 @@ LOG_LEVEL=info
 
 ---
 
-## 14. Summary
+## 14. Operations Playbook
+
+> This section defines operational procedures for monitoring, triaging, and resolving queue issues.
+
+### 14.1 Queue Overview Dashboard
+
+Every operator should have access to Bull Board (`/admin/queues`) showing:
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ QUEUE HEALTH DASHBOARD                                         │
+├────────────────────────────────────────────────────────────────┤
+│ Queue              │ Waiting │ Active │ Delayed │ Failed │ DLQ │
+├────────────────────┼─────────┼────────┼─────────┼────────┼─────┤
+│ afip:invoice       │    12   │   3    │    5    │   0    │  0  │
+│ payment:webhook    │     3   │   8    │    0    │   1    │  0  │
+│ whatsapp:outbound  │    45   │   5    │   20    │   2    │  1  │
+│ voice:transcription│     8   │   4    │    0    │   0    │  0  │
+│ sync:offline       │   120   │  10    │    0    │   5    │  2  │
+└────────────────────┴─────────┴────────┴─────────┴────────┴─────┘
+```
+
+### 14.2 Alert Thresholds & Response
+
+| Queue | Warning Threshold | Critical Threshold | On-Call Action |
+|-------|-------------------|-------------------|----------------|
+| **afip:invoice** | > 50 waiting | > 100 waiting OR p95 > 2min | Check AFIP status, enable panic mode |
+| **payment:webhook** | > 100 waiting | > 500 waiting | Check MP status, verify webhook endpoint |
+| **whatsapp:outbound** | > 200 waiting | > 500 waiting | Check WA API status, verify templates |
+| **voice:transcription** | > 30 waiting | > 100 waiting | Check OpenAI status, scale workers |
+| **sync:offline** | > 500 waiting | > 1000 waiting | Normal (batch sync), only alert on failures |
+| **Any queue DLQ** | > 10 items | > 50 items | Triage immediately |
+
+### 14.3 DLQ Triage Procedure
+
+```
+STEP 1: IDENTIFY THE PATTERN
+──────────────────────────────
+1. Open Bull Board → DLQ tab
+2. Filter by queue name
+3. Look for common error patterns:
+   - Same error message?
+   - Same org_id?
+   - Same time window?
+
+STEP 2: CLASSIFY THE FAILURE
+──────────────────────────────
+Category A: Transient (auto-retry safe)
+  - Connection timeouts
+  - Rate limits
+  - Service unavailable (502, 503)
+  → Action: Bulk retry after delay
+
+Category B: Data Issues (needs fix)
+  - Invalid CUIT
+  - Missing required fields
+  - Schema validation errors
+  → Action: Fix data, then retry individually
+
+Category C: Configuration Issues (needs admin)
+  - Invalid credentials
+  - Expired certificates
+  - Unauthorized punto de venta
+  → Action: Fix config, retry all affected
+
+Category D: Permanent Failures (discard)
+  - Customer deleted
+  - Invoice already cancelled
+  - Duplicate already processed
+  → Action: Mark as discarded with reason
+
+STEP 3: TAKE ACTION
+──────────────────────────────
+Via Bull Board Admin UI:
+  - [Retry] → Re-queue single job
+  - [Retry All] → Bulk retry (use with caution)
+  - [Discard] → Remove from DLQ with reason
+  - [View] → Inspect job data and error stack
+
+Via CLI (for bulk operations):
+  $ npm run dlq:list --queue=afip:invoice
+  $ npm run dlq:retry --queue=afip:invoice --ids=job1,job2
+  $ npm run dlq:retry-all --queue=afip:invoice --error-pattern="timeout"
+  $ npm run dlq:discard --ids=job1,job2 --reason="customer deleted"
+```
+
+### 14.4 Failure Severity by Queue
+
+| Queue | Severity | Business Impact | Max Time in DLQ |
+|-------|----------|-----------------|-----------------|
+| **afip:invoice** | CRITICAL | Customer can't issue fiscal invoices | 30 min |
+| **payment:webhook** | CRITICAL | Payments not recorded, reconciliation breaks | 15 min |
+| **whatsapp:outbound** | HIGH | Customer doesn't receive notifications | 2 hours |
+| **voice:transcription** | MEDIUM | Voice jobs not auto-created | 4 hours |
+| **sync:offline** | MEDIUM | Technician data not synced | 4 hours |
+| **invoice:pdf** | LOW | PDF generation delayed | 24 hours |
+| **analytics** | LOW | Metrics delayed | 48 hours |
+| **cleanup** | LOW | Cleanup tasks delayed | 1 week |
+
+### 14.5 Panic Mode Operations
+
+```
+AFIP PANIC MODE
+───────────────
+Trigger: > 50% failures in 5 min OR > 100 queued
+Effect:  All new CAE requests queued, not processed
+UI:      Shows "AFIP temporalmente no disponible"
+
+To Enable Manually:
+  $ npm run panic:enable --service=afip
+
+To Disable (after AFIP recovers):
+  $ npm run panic:disable --service=afip
+
+Recovery Procedure:
+  1. Verify AFIP is responding (check status page)
+  2. Disable panic mode
+  3. Monitor queue depth (should decrease)
+  4. If failures resume, re-enable and investigate
+
+─────────────────────────────────────────────────
+
+MERCADO PAGO PANIC MODE
+───────────────────────
+Trigger: > 30% webhook failures in 5 min
+Effect:  Fall back to polling, webhooks logged but not processed
+UI:      (invisible to user)
+
+Recovery:
+  1. Check MP status dashboard
+  2. Verify webhook signature config
+  3. Disable panic mode
+  4. Reprocess missed webhooks via reconciliation
+
+─────────────────────────────────────────────────
+
+WHATSAPP PANIC MODE
+───────────────────
+Trigger: > 20% delivery failures
+Effect:  Fall back to SMS for critical notifications
+UI:      (invisible, SMS shows different sender)
+
+Recovery:
+  1. Check Meta Business status
+  2. Verify message template status (may be paused)
+  3. If template issue: resubmit for approval
+  4. Disable panic mode when templates approved
+```
+
+### 14.6 Admin UI Specification (Minimal)
+
+```
+/admin/jobs (Queue Management Screen)
+────────────────────────────────────────────────
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ Queue Management                                        [Refresh]  │
+├─────────────────────────────────────────────────────────────────────┤
+│ Filter: [All Queues ▼] [All Statuses ▼] [Last 24h ▼] [Search...]   │
+├─────────────────────────────────────────────────────────────────────┤
+│ □ │ Queue           │ Job ID    │ Status  │ Error        │ Actions │
+├───┼─────────────────┼───────────┼─────────┼──────────────┼─────────┤
+│ □ │ afip:invoice    │ job_abc12 │ failed  │ Timeout      │ [↻][✕]  │
+│ □ │ afip:invoice    │ job_def34 │ failed  │ Invalid CUIT │ [↻][✕]  │
+│ □ │ whatsapp:out    │ job_ghi56 │ dlq     │ Rate limit   │ [↻][✕]  │
+├───┴─────────────────┴───────────┴─────────┴──────────────┴─────────┤
+│ Selected: 2                     [Retry Selected] [Discard Selected]│
+└─────────────────────────────────────────────────────────────────────┘
+
+Job Detail Modal (click job ID):
+┌─────────────────────────────────────────────────────────────────────┐
+│ Job: job_abc12                                              [Close]│
+├─────────────────────────────────────────────────────────────────────┤
+│ Queue:     afip:invoice                                            │
+│ Status:    failed (attempt 3/5)                                    │
+│ Org:       org_xyz (Plomería García)                               │
+│ Created:   2024-01-15 10:30:00                                     │
+│ Failed:    2024-01-15 10:32:15                                     │
+│                                                                     │
+│ Error:                                                              │
+│ ┌─────────────────────────────────────────────────────────────────┐│
+│ │ AfipTimeoutError: Connection timed out after 30000ms            ││
+│ │   at AfipService.requestCAE (afip-service.ts:123)               ││
+│ │   at AfipInvoiceWorker.process (afip-worker.ts:45)              ││
+│ └─────────────────────────────────────────────────────────────────┘│
+│                                                                     │
+│ Job Data:                                                           │
+│ ┌─────────────────────────────────────────────────────────────────┐│
+│ │ {                                                               ││
+│ │   "orgId": "org_xyz",                                           ││
+│ │   "invoiceId": "inv_123",                                       ││
+│ │   "idempotencyKey": "idem_org_xyz_invoice_inv_123_cae_..."      ││
+│ │ }                                                               ││
+│ └─────────────────────────────────────────────────────────────────┘│
+│                                                                     │
+│ [Retry Now]  [Move to DLQ]  [Discard]                              │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 14.7 Runbook Commands
+
+```bash
+# View queue status
+npm run queue:status
+
+# View specific queue
+npm run queue:status --queue=afip:invoice
+
+# Pause a queue (stop processing, keep accepting)
+npm run queue:pause --queue=afip:invoice
+
+# Resume a queue
+npm run queue:resume --queue=afip:invoice
+
+# Drain a queue (remove all waiting jobs)
+npm run queue:drain --queue=cleanup --confirm
+
+# List DLQ items
+npm run dlq:list
+npm run dlq:list --queue=afip:invoice
+npm run dlq:list --older-than=24h
+
+# Retry DLQ items
+npm run dlq:retry --id=dlq_123
+npm run dlq:retry-all --queue=afip:invoice
+npm run dlq:retry-all --error-contains="timeout"
+
+# Discard DLQ items
+npm run dlq:discard --id=dlq_123 --reason="duplicate"
+npm run dlq:discard-all --queue=analytics --older-than=7d
+
+# Export DLQ for analysis
+npm run dlq:export --queue=afip:invoice --format=csv > dlq-export.csv
+
+# Panic mode management
+npm run panic:status
+npm run panic:enable --service=afip
+npm run panic:disable --service=afip
+
+# Worker management
+npm run workers:status
+npm run workers:scale --pool=high --count=4
+npm run workers:restart --pool=normal
+```
+
+### 14.8 Monitoring Checklist (Daily)
+
+```
+DAILY OPS CHECKLIST (5 minutes)
+───────────────────────────────
+
+□ Check Bull Board dashboard
+  - Any queues with unusual depth?
+  - Any workers offline?
+
+□ Check DLQ count
+  - Target: < 10 total items
+  - If > 10: triage immediately
+
+□ Review panic mode status
+  - All services green?
+  - If any in panic: investigate
+
+□ Check key metrics (Grafana)
+  - AFIP p95 latency < 30s?
+  - MP webhook success rate > 99%?
+  - WA delivery rate > 95%?
+
+□ Review error logs (last 24h)
+  - Any new error patterns?
+  - Any repeated errors for same org?
+```
+
+---
+
+## 15. Summary
 
 ### Queue Technology Stack
 - **Primary**: BullMQ on Redis 7+
