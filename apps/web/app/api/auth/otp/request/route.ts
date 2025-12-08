@@ -45,8 +45,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Request OTP error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: { message: 'Error al enviar el código' } },
+      { success: false, error: { message: 'Error al enviar el código', debug: errorMessage } },
       { status: 500 }
     );
   }
