@@ -425,6 +425,7 @@ CREATE TYPE invoice_status_enum AS ENUM (
     'issued',       -- CAE received
     'sent',         -- Sent to customer
     'paid',         -- Payment received
+    'partial',      -- Partial payment received
     'overdue',      -- Past due date
     'cancelled',    -- Cancelled (nota de crédito issued)
     'refunded'      -- Refund processed
@@ -1068,6 +1069,55 @@ CREATE INDEX idx_price_book_org_category ON price_book(org_id, category);
 CREATE TRIGGER price_book_updated_at
     BEFORE UPDATE ON price_book
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+```
+
+## AFIP Sequences Table
+
+```sql
+-- ============================================================================
+-- AFIP SEQUENCES
+-- Manages sequential invoice numbering per organization/punto_venta/tipo
+-- CRITICAL: Used for AFIP-compliant invoice numbers (no gaps, never reused)
+-- ============================================================================
+
+CREATE TABLE afip_sequences (
+    -- Primary Key
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    -- Organization (tenant)
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+
+    -- AFIP Parameters
+    punto_venta INTEGER NOT NULL,           -- Point of sale (1-99999)
+    cbte_tipo TEXT NOT NULL,                -- Invoice type: 'A', 'B', 'C', 'E'
+
+    -- Sequence Counter
+    last_number INTEGER NOT NULL DEFAULT 0, -- Last used invoice number
+
+    -- Metadata
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Constraints
+    CONSTRAINT afip_sequences_org_pv_tipo_unique UNIQUE (org_id, punto_venta, cbte_tipo),
+    CONSTRAINT afip_sequences_punto_venta_range CHECK (punto_venta > 0 AND punto_venta <= 99999),
+    CONSTRAINT afip_sequences_cbte_tipo_valid CHECK (cbte_tipo IN ('A', 'B', 'C', 'E')),
+    CONSTRAINT afip_sequences_last_number_positive CHECK (last_number >= 0)
+);
+
+-- Indexes
+CREATE INDEX idx_afip_sequences_org ON afip_sequences(org_id);
+CREATE UNIQUE INDEX idx_afip_sequences_lookup ON afip_sequences(org_id, punto_venta, cbte_tipo);
+
+-- Trigger
+CREATE TRIGGER afip_sequences_updated_at
+    BEFORE UPDATE ON afip_sequences
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Comment
+COMMENT ON TABLE afip_sequences IS
+    'Manages AFIP invoice number sequences. Each org/punto_venta/tipo combination gets its own sequence.
+     Numbers must be sequential with no gaps per AFIP regulations.';
 ```
 
 ## Invoices Table
