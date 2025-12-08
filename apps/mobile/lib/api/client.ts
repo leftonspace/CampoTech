@@ -1,0 +1,264 @@
+/**
+ * API Client
+ * ==========
+ *
+ * HTTP client for server communication with automatic token refresh.
+ */
+
+import * as SecureStore from '../storage/secure-store';
+
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api';
+
+interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+interface RequestOptions {
+  method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+  body?: unknown;
+  headers?: Record<string, string>;
+  auth?: boolean;
+}
+
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+
+async function refreshAccessToken(): Promise<boolean> {
+  if (isRefreshing && refreshPromise) {
+    return refreshPromise;
+  }
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const refreshToken = await SecureStore.getRefreshToken();
+      if (!refreshToken) return false;
+
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) return false;
+
+      const data = await response.json();
+      if (data.success && data.data) {
+        await SecureStore.setTokens(
+          data.data.accessToken,
+          data.data.refreshToken
+        );
+        return true;
+      }
+
+      return false;
+    } catch {
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+export async function apiRequest<T>(
+  endpoint: string,
+  options: RequestOptions = {}
+): Promise<ApiResponse<T>> {
+  const { method = 'GET', body, headers = {}, auth = true } = options;
+
+  const requestHeaders: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...headers,
+  };
+
+  if (auth) {
+    const token = await SecureStore.getAccessToken();
+    if (token) {
+      requestHeaders['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
+  try {
+    let response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method,
+      headers: requestHeaders,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    // Handle token refresh on 401
+    if (response.status === 401 && auth) {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        const newToken = await SecureStore.getAccessToken();
+        requestHeaders['Authorization'] = `Bearer ${newToken}`;
+        response = await fetch(`${API_BASE_URL}${endpoint}`, {
+          method,
+          headers: requestHeaders,
+          body: body ? JSON.stringify(body) : undefined,
+        });
+      } else {
+        await SecureStore.clearAuth();
+        return {
+          success: false,
+          error: { code: 'AUTH_EXPIRED', message: 'Session expired' },
+        };
+      }
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    return {
+      success: false,
+      error: {
+        code: 'NETWORK_ERROR',
+        message: error instanceof Error ? error.message : 'Network error',
+      },
+    };
+  }
+}
+
+// API Methods
+export const api = {
+  // Auth
+  auth: {
+    requestOtp: (phone: string) =>
+      apiRequest<{ sent: boolean }>('/auth/otp/request', {
+        method: 'POST',
+        body: { phone },
+        auth: false,
+      }),
+
+    verifyOtp: (phone: string, code: string) =>
+      apiRequest<{
+        accessToken: string;
+        refreshToken: string;
+        user: {
+          id: string;
+          name: string;
+          phone: string;
+          role: string;
+          organizationId: string;
+        };
+      }>('/auth/otp/verify', {
+        method: 'POST',
+        body: { phone, code },
+        auth: false,
+      }),
+
+    logout: () => apiRequest('/auth/logout', { method: 'POST' }),
+
+    me: () =>
+      apiRequest<{
+        id: string;
+        name: string;
+        phone: string;
+        role: string;
+        organizationId: string;
+      }>('/auth/me'),
+  },
+
+  // Jobs
+  jobs: {
+    list: (params?: { status?: string; date?: string }) => {
+      const query = params
+        ? `?${new URLSearchParams(params as Record<string, string>)}`
+        : '';
+      return apiRequest<unknown[]>(`/jobs${query}`);
+    },
+
+    get: (id: string) => apiRequest<unknown>(`/jobs/${id}`),
+
+    updateStatus: (id: string, status: string, data?: Record<string, unknown>) =>
+      apiRequest(`/jobs/${id}/status`, {
+        method: 'PATCH',
+        body: { status, ...data },
+      }),
+
+    complete: (
+      id: string,
+      data: {
+        completionNotes: string;
+        materialsUsed: Array<{ name: string; quantity: number; price: number }>;
+        signatureUrl?: string;
+        photos?: string[];
+      }
+    ) =>
+      apiRequest(`/jobs/${id}/complete`, {
+        method: 'POST',
+        body: data,
+      }),
+
+    today: () => apiRequest<unknown[]>('/jobs/today'),
+
+    assigned: () => apiRequest<unknown[]>('/jobs/assigned'),
+  },
+
+  // Customers
+  customers: {
+    get: (id: string) => apiRequest<unknown>(`/customers/${id}`),
+    search: (query: string) =>
+      apiRequest<unknown[]>(`/customers/search?q=${encodeURIComponent(query)}`),
+  },
+
+  // Price Book
+  pricebook: {
+    list: () => apiRequest<unknown[]>('/pricebook'),
+  },
+
+  // Sync
+  sync: {
+    pull: (lastSync?: number) => {
+      const query = lastSync ? `?since=${lastSync}` : '';
+      return apiRequest<{
+        jobs: unknown[];
+        customers: unknown[];
+        priceBook: unknown[];
+        serverTime: number;
+      }>(`/sync/pull${query}`);
+    },
+
+    push: (operations: Array<{ type: string; entity: string; data: unknown }>) =>
+      apiRequest<{
+        processed: number;
+        conflicts: Array<{
+          entityType: string;
+          entityId: string;
+          serverData: unknown;
+        }>;
+      }>('/sync/push', {
+        method: 'POST',
+        body: { operations },
+      }),
+
+    uploadPhoto: async (localUri: string, jobId: string, type: string) => {
+      // This would use FormData for file upload
+      return apiRequest<{ url: string }>('/sync/upload-photo', {
+        method: 'POST',
+        body: { localUri, jobId, type },
+      });
+    },
+  },
+
+  // Push notifications
+  notifications: {
+    register: (token: string, platform: string) =>
+      apiRequest('/notifications/register', {
+        method: 'POST',
+        body: { token, platform },
+      }),
+
+    unregister: () =>
+      apiRequest('/notifications/unregister', { method: 'POST' }),
+  },
+};
+
+export default api;
