@@ -114,6 +114,7 @@ export enum AuthErrorCode {
   TOO_MANY_ATTEMPTS = 'AUTH_008',
   OTP_EXPIRED = 'AUTH_009',
   SESSION_REVOKED = 'AUTH_010',
+  TOKEN_REVOKED = 'AUTH_011',
 }
 
 // Permission definitions

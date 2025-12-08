@@ -100,12 +100,13 @@ function createRLSQuery(orgId: string, userId: string, role: string) {
  */
 async function setRLSContext(client: PoolClient, context: RLSContext): Promise<void> {
   // Use SET LOCAL so variables are transaction-scoped
-  // These are used by RLS policies: current_setting('app.org_id')
+  // These are used by RLS policies: current_setting('app.current_org_id')
+  // Variable names must match the migrations (001-014)
   await client.query(`
     SELECT
-      set_config('app.org_id', $1, true),
-      set_config('app.user_id', $2, true),
-      set_config('app.user_role', $3, true)
+      set_config('app.current_org_id', $1, true),
+      set_config('app.current_user_id', $2, true),
+      set_config('app.current_user_role', $3, true)
   `, [context.orgId, context.userId, context.role]);
 }
 
@@ -115,9 +116,9 @@ async function setRLSContext(client: PoolClient, context: RLSContext): Promise<v
 async function resetRLSContext(client: PoolClient): Promise<void> {
   await client.query(`
     SELECT
-      set_config('app.org_id', '', true),
-      set_config('app.user_id', '', true),
-      set_config('app.user_role', '', true)
+      set_config('app.current_org_id', '', true),
+      set_config('app.current_user_id', '', true),
+      set_config('app.current_user_role', '', true)
   `);
 }
 
