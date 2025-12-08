@@ -431,6 +431,7 @@ components:
         - issued
         - sent
         - paid
+        - partial
         - overdue
         - cancelled
         - refunded

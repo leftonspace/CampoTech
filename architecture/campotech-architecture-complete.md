@@ -830,12 +830,14 @@ export enum PaymentStatus {
   PROCESSING = 'processing',       // MP processing
   APPROVED = 'approved',           // Payment successful
   REJECTED = 'rejected',           // Payment failed
-  REFUNDED = 'refunded',           // Refund processed
-  CHARGEBACK = 'chargeback',       // Dispute opened
   CANCELLED = 'cancelled',         // Payment cancelled
+  REFUNDED = 'refunded',           // Full refund processed
+  PARTIAL_REFUND = 'partial_refund', // Partial refund processed
+  IN_DISPUTE = 'in_dispute',       // Chargeback/dispute initiated
+  CHARGEDBACK = 'chargedback',     // Chargeback resolved (customer won)
 }
 
-// DB: CREATE TYPE payment_status AS ENUM ('pending', 'processing', 'approved', 'rejected', 'refunded', 'chargeback', 'cancelled');
+// DB: CREATE TYPE payment_status AS ENUM ('pending', 'processing', 'approved', 'rejected', 'cancelled', 'refunded', 'partial_refund', 'in_dispute', 'chargedback');
 ```
 
 ### WhatsApp Message Status
@@ -847,10 +849,11 @@ export enum MessageStatus {
   DELIVERED = 'delivered',         // Delivered to device
   READ = 'read',                   // Read by recipient
   FAILED = 'failed',               // Delivery failed
-  RECEIVED = 'received',           // Inbound message received
+  FALLBACK_SMS = 'fallback_sms',   // Sent via SMS instead
+  UNDELIVERABLE = 'undeliverable', // Permanently failed (no retry)
 }
 
-// DB: CREATE TYPE message_status AS ENUM ('queued', 'sent', 'delivered', 'read', 'failed', 'received');
+// DB: CREATE TYPE message_status AS ENUM ('queued', 'sent', 'delivered', 'read', 'failed', 'fallback_sms', 'undeliverable');
 ```
 
 ### Sync Status (Offline Operations)
@@ -871,15 +874,16 @@ export enum SyncStatus {
 
 ```typescript
 export enum VoiceProcessingStatus {
-  RECEIVED = 'received',           // Audio received
+  PENDING = 'pending',             // Awaiting processing
   TRANSCRIBING = 'transcribing',   // Whisper processing
   EXTRACTING = 'extracting',       // GPT extraction
-  REVIEW = 'review',               // Needs human review
-  PROCESSED = 'processed',         // Job created successfully
+  COMPLETED = 'completed',         // Job created successfully
+  NEEDS_REVIEW = 'needs_review',   // Low confidence, needs human review
+  REVIEWED = 'reviewed',           // Human reviewed and confirmed
   FAILED = 'failed',               // Processing failed
 }
 
-// DB: CREATE TYPE voice_processing_status AS ENUM ('received', 'transcribing', 'extracting', 'review', 'processed', 'failed');
+// DB: CREATE TYPE voice_status_enum AS ENUM ('pending', 'transcribing', 'extracting', 'completed', 'needs_review', 'reviewed', 'failed');
 ```
 
 ## Status Value Generation
