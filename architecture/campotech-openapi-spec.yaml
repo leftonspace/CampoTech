@@ -478,6 +478,7 @@ components:
     MessageStatus:
       type: string
       enum:
+        - received
         - queued
         - sent
         - delivered
