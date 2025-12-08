@@ -308,6 +308,15 @@ export const api = {
       disconnect: () =>
         apiRequest('/settings/mercadopago/disconnect', { method: 'POST' }),
     },
+    whatsapp: {
+      get: () => apiRequest<unknown>('/settings/whatsapp'),
+      save: (data: unknown) =>
+        apiRequest('/settings/whatsapp', { method: 'PUT', body: data }),
+      testConnection: () =>
+        apiRequest('/settings/whatsapp/test', { method: 'POST' }),
+      resolvePanic: () =>
+        apiRequest('/settings/whatsapp/resolve-panic', { method: 'POST' }),
+    },
     pricebook: {
       list: () => apiRequest<unknown[]>('/settings/pricebook'),
       create: (data: unknown) =>
@@ -317,5 +326,32 @@ export const api = {
       delete: (id: string) =>
         apiRequest(`/settings/pricebook/${id}`, { method: 'DELETE' }),
     },
+  },
+
+  // WhatsApp
+  whatsapp: {
+    conversations: {
+      list: (params?: { filter?: string }) => {
+        const query = params?.filter ? `?filter=${params.filter}` : '';
+        return apiRequest<unknown[]>(`/whatsapp/conversations${query}`);
+      },
+      get: (id: string) => apiRequest<unknown>(`/whatsapp/conversations/${id}`),
+    },
+    messages: {
+      list: (conversationId: string) =>
+        apiRequest<unknown[]>(`/whatsapp/conversations/${conversationId}/messages`),
+      send: (conversationId: string, data: { text: string }) =>
+        apiRequest(`/whatsapp/conversations/${conversationId}/messages`, {
+          method: 'POST',
+          body: data,
+        }),
+    },
+    templates: {
+      list: () => apiRequest<unknown[]>('/whatsapp/templates'),
+      sync: () => apiRequest('/whatsapp/templates/sync', { method: 'POST' }),
+      send: (data: { templateName: string; phone: string; params: Record<string, string> }) =>
+        apiRequest('/whatsapp/templates/send', { method: 'POST', body: data }),
+    },
+    stats: () => apiRequest<unknown>('/whatsapp/stats'),
   },
 };

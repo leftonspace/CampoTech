@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   Bell,
+  MessageCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -25,6 +26,7 @@ const navigation = [
   { name: 'Clientes', href: '/dashboard/customers', icon: Users },
   { name: 'Facturas', href: '/dashboard/invoices', icon: FileText },
   { name: 'Pagos', href: '/dashboard/payments', icon: CreditCard },
+  { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle },
   { name: 'Configuración', href: '/dashboard/settings', icon: Settings },
 ];
 

@@ -11,6 +11,7 @@ import {
   ChevronRight,
   CheckCircle,
   AlertCircle,
+  MessageCircle,
 } from 'lucide-react';
 
 interface SettingCard {
@@ -48,6 +49,14 @@ export default function SettingsPage() {
       href: '/dashboard/settings/mercadopago',
       icon: CreditCard,
       status: 'configured',
+      adminOnly: true,
+    },
+    {
+      title: 'WhatsApp',
+      description: 'Mensajería y notificaciones',
+      href: '/dashboard/settings/whatsapp',
+      icon: MessageCircle,
+      status: 'not_configured',
       adminOnly: true,
     },
     {
