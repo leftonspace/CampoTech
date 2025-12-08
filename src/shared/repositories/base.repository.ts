@@ -28,6 +28,48 @@ export interface CreateResult<T> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SECURITY: ALLOWED SORT COLUMNS (prevents SQL injection)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Whitelist of allowed sort columns to prevent SQL injection
+ * These are snake_case database column names
+ */
+const ALLOWED_SORT_COLUMNS = new Set([
+  'id', 'created_at', 'updated_at', 'name', 'full_name', 'email', 'phone',
+  'status', 'scheduled_at', 'completed_at', 'cancelled_at', 'due_date',
+  'total', 'subtotal', 'amount', 'unit_price', 'quantity',
+  'invoice_number', 'invoice_type', 'punto_venta',
+  'city', 'province', 'address', 'code', 'category', 'sort_order',
+  'issued_at', 'sent_at', 'paid_at', 'voided_at',
+  'last_login_at', 'role', 'is_active',
+]);
+
+/**
+ * Validate and sanitize sort column name
+ * Throws error if column is not in whitelist
+ */
+export function validateSortColumn(column: string): string {
+  const snakeColumn = toSnakeCase(column);
+  if (!ALLOWED_SORT_COLUMNS.has(snakeColumn)) {
+    throw new Error(`Invalid sort column: ${column}`);
+  }
+  return snakeColumn;
+}
+
+/**
+ * Validate sort order
+ */
+export function validateSortOrder(order?: string): 'ASC' | 'DESC' {
+  if (!order) return 'ASC';
+  const upper = order.toUpperCase();
+  if (upper !== 'ASC' && upper !== 'DESC') {
+    throw new Error('Sort order must be ASC or DESC');
+  }
+  return upper as 'ASC' | 'DESC';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // CASE CONVERSION
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -154,8 +196,9 @@ export abstract class BaseRepository<T extends BaseEntity> {
     let query = `SELECT * FROM ${this.tableName} ${whereClause}`;
 
     if (pagination.sortBy) {
-      const field = toSnakeCase(pagination.sortBy);
-      const order = pagination.sortOrder?.toUpperCase() || 'ASC';
+      // SECURITY: Validate sort column against whitelist to prevent SQL injection
+      const field = validateSortColumn(pagination.sortBy);
+      const order = validateSortOrder(pagination.sortOrder);
       query += ` ORDER BY ${field} ${order}`;
     } else {
       query += ` ORDER BY created_at DESC`;
