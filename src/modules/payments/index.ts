@@ -5,11 +5,12 @@
  * Payment processing with state machine and refund support.
  */
 
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 import { Router, Request, Response, NextFunction } from 'express';
 import { OrgScopedRepository, objectToCamel } from '../../shared/repositories/base.repository';
 import { Payment, PaymentStatus, PaymentMethod, PaginatedResult, PaginationParams, DateRange } from '../../shared/types/domain.types';
 import { createPaymentStateMachine } from '../../shared/utils/state-machine';
+import { withTransaction, validateMoney } from '../../shared/utils/database.utils';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -205,6 +206,12 @@ export class PaymentService {
   }
 
   async create(orgId: string, data: CreatePaymentDTO): Promise<Payment> {
+    // Validate payment amount
+    validateMoney(data.amount, 'payment amount');
+    if (data.amount <= 0) {
+      throw new Error('Payment amount must be greater than zero');
+    }
+
     // Verify invoice exists and get amount due
     const invoiceResult = await this.pool.query(
       `SELECT * FROM invoices WHERE org_id = $1 AND id = $2`,
@@ -250,23 +257,34 @@ export class PaymentService {
       throw new Error('Payment must be pending to process');
     }
 
-    // In real implementation, this would integrate with payment gateway
-    // For now, mark as completed
-    await this.repo.updateStatus(id, 'completed');
+    // Use transaction to ensure atomicity of payment + invoice update
+    await withTransaction(this.pool, async (client: PoolClient) => {
+      // Mark payment as completed
+      await client.query(
+        `UPDATE payments SET status = 'completed', completed_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        [id]
+      );
 
-    // Check if invoice is fully paid
-    const totalPaid = await this.repo.getTotalPaidForInvoice(orgId, payment.invoiceId);
-    const invoiceResult = await this.pool.query(
-      `SELECT total FROM invoices WHERE id = $1`,
-      [payment.invoiceId]
-    );
+      // Check if invoice is fully paid
+      const paidResult = await client.query(
+        `SELECT COALESCE(SUM(amount), 0) as total FROM payments
+         WHERE org_id = $1 AND invoice_id = $2 AND status IN ('completed', 'partial_refund')`,
+        [orgId, payment.invoiceId]
+      );
+      const totalPaid = parseFloat(paidResult.rows[0].total) + payment.amount;
 
-    if (invoiceResult.rows[0] && totalPaid >= invoiceResult.rows[0].total) {
-      await this.pool.query(
-        `UPDATE invoices SET status = 'paid', paid_at = NOW(), updated_at = NOW() WHERE id = $1`,
+      const invoiceResult = await client.query(
+        `SELECT total FROM invoices WHERE id = $1`,
         [payment.invoiceId]
       );
-    }
+
+      if (invoiceResult.rows[0] && totalPaid >= invoiceResult.rows[0].total) {
+        await client.query(
+          `UPDATE invoices SET status = 'paid', paid_at = NOW(), updated_at = NOW() WHERE id = $1`,
+          [payment.invoiceId]
+        );
+      }
+    });
 
     return this.getById(orgId, id);
   }
@@ -291,6 +309,9 @@ export class PaymentService {
       throw new Error('Payment must be completed to refund');
     }
 
+    // Validate refund amount
+    validateMoney(data.amount, 'refund amount');
+
     // Check refund doesn't exceed payment amount
     const totalRefunded = await this.repo.getTotalRefundedForPayment(id);
     const refundable = payment.amount - totalRefunded;
@@ -299,33 +320,52 @@ export class PaymentService {
       throw new Error(`Refund amount exceeds refundable balance of ${refundable}`);
     }
 
-    // Create refund record
-    await this.repo.createRefund(id, data.amount, data.reason);
-
-    // Update payment status
-    const newTotalRefunded = totalRefunded + data.amount;
-    const newStatus: PaymentStatus = newTotalRefunded >= payment.amount ? 'refunded' : 'partial_refund';
-    await this.repo.updateStatus(id, newStatus);
-
-    // Update invoice status if fully refunded
-    if (newStatus === 'refunded') {
-      // Recalculate invoice payment status
-      const totalPaid = await this.repo.getTotalPaidForInvoice(orgId, payment.invoiceId);
-      const invoiceResult = await this.pool.query(
-        `SELECT total, status FROM invoices WHERE id = $1`,
-        [payment.invoiceId]
+    // Use transaction for refund record + payment status + invoice status updates
+    await withTransaction(this.pool, async (client: PoolClient) => {
+      // Create refund record
+      await client.query(
+        `INSERT INTO payment_refunds (id, payment_id, amount, reason, created_at)
+         VALUES (gen_random_uuid(), $1, $2, $3, NOW())`,
+        [id, data.amount, data.reason]
       );
 
-      if (invoiceResult.rows[0] && totalPaid < invoiceResult.rows[0].total) {
-        // Revert to sent status if was paid
-        if (invoiceResult.rows[0].status === 'paid') {
-          await this.pool.query(
-            `UPDATE invoices SET status = 'sent', paid_at = NULL, updated_at = NOW() WHERE id = $1`,
-            [payment.invoiceId]
-          );
+      // Update payment status
+      const newTotalRefunded = totalRefunded + data.amount;
+      const newStatus: PaymentStatus = newTotalRefunded >= payment.amount ? 'refunded' : 'partial_refund';
+
+      await client.query(
+        `UPDATE payments SET status = $2, refunded_at = NOW(), updated_at = NOW() WHERE id = $1`,
+        [id, newStatus]
+      );
+
+      // Update invoice status if fully refunded
+      if (newStatus === 'refunded') {
+        // Recalculate invoice payment status
+        const paidResult = await client.query(
+          `SELECT COALESCE(SUM(p.amount), 0) - COALESCE(SUM(r.amount), 0) as net_paid
+           FROM payments p
+           LEFT JOIN payment_refunds r ON r.payment_id = p.id
+           WHERE p.org_id = $1 AND p.invoice_id = $2 AND p.status IN ('completed', 'partial_refund', 'refunded')`,
+          [orgId, payment.invoiceId]
+        );
+        const netPaid = parseFloat(paidResult.rows[0]?.net_paid || '0');
+
+        const invoiceResult = await client.query(
+          `SELECT total, status FROM invoices WHERE id = $1`,
+          [payment.invoiceId]
+        );
+
+        if (invoiceResult.rows[0] && netPaid < invoiceResult.rows[0].total) {
+          // Revert to sent status if was paid
+          if (invoiceResult.rows[0].status === 'paid') {
+            await client.query(
+              `UPDATE invoices SET status = 'sent', paid_at = NULL, updated_at = NOW() WHERE id = $1`,
+              [payment.invoiceId]
+            );
+          }
         }
       }
-    }
+    });
 
     return this.getById(orgId, id);
   }
