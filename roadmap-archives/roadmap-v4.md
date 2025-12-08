@@ -1,3 +1,5 @@
+SUPERSEDED by "campotech-architecture-complete.md"
+
 # CampoTech: Argentina MVP Roadmap v4
 ## 12 Core Workflows | Modular Architecture | 14-Week Launch
 
