@@ -1,0 +1,239 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "campotech-infra",
+    "title": "CampoTech - Infrastructure",
+    "tags": ["campotech", "infrastructure"],
+    "timezone": "America/Argentina/Buenos_Aires",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "CPU Usage",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 0, "w": 8, "h": 8 },
+        "targets": [
+          {
+            "expr": "100 - (avg(irate(node_cpu_seconds_total{mode=\"idle\"}[5m])) * 100)",
+            "legendFormat": "CPU Usage %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 70 },
+                { "color": "red", "value": 90 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Memory Usage",
+        "type": "timeseries",
+        "gridPos": { "x": 8, "y": 0, "w": 8, "h": 8 },
+        "targets": [
+          {
+            "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
+            "legendFormat": "Memory Usage %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 70 },
+                { "color": "red", "value": 90 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Disk Usage",
+        "type": "gauge",
+        "gridPos": { "x": 16, "y": 0, "w": 8, "h": 8 },
+        "targets": [
+          {
+            "expr": "(1 - (node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"})) * 100",
+            "legendFormat": "Disk Usage"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "max": 100,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 70 },
+                { "color": "red", "value": 85 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "PostgreSQL Connections",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "pg_stat_activity_count",
+            "legendFormat": "Active Connections"
+          },
+          {
+            "expr": "pg_settings_max_connections",
+            "legendFormat": "Max Connections"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": { "mode": "palette-classic" }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Redis Memory",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "redis_memory_used_bytes",
+            "legendFormat": "Used Memory"
+          },
+          {
+            "expr": "redis_memory_max_bytes",
+            "legendFormat": "Max Memory"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "bytes",
+            "color": { "mode": "palette-classic" }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Network I/O",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(node_network_receive_bytes_total{device!=\"lo\"}[5m])",
+            "legendFormat": "Receive - {{device}}"
+          },
+          {
+            "expr": "-rate(node_network_transmit_bytes_total{device!=\"lo\"}[5m])",
+            "legendFormat": "Transmit - {{device}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "Bps",
+            "color": { "mode": "palette-classic" }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "Container Stats",
+        "type": "table",
+        "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "container_memory_usage_bytes{name=~\"campotech.*\"}",
+            "legendFormat": "{{name}}",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {
+                "Time": true,
+                "__name__": true
+              },
+              "renameByName": {
+                "Value": "Memory (bytes)",
+                "name": "Container"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 8,
+        "title": "PostgreSQL Query Performance",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(pg_stat_database_tup_fetched[5m])",
+            "legendFormat": "Rows Fetched/sec"
+          },
+          {
+            "expr": "rate(pg_stat_database_tup_inserted[5m])",
+            "legendFormat": "Rows Inserted/sec"
+          },
+          {
+            "expr": "rate(pg_stat_database_tup_updated[5m])",
+            "legendFormat": "Rows Updated/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "color": { "mode": "palette-classic" }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Redis Operations",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "rate(redis_commands_processed_total[5m])",
+            "legendFormat": "Commands/sec"
+          },
+          {
+            "expr": "redis_connected_clients",
+            "legendFormat": "Connected Clients"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "ops",
+            "color": { "mode": "palette-classic" }
+          }
+        }
+      }
+    ]
+  }
+}

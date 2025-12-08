@@ -1,0 +1,265 @@
+{
+  "dashboard": {
+    "id": null,
+    "uid": "campotech-app",
+    "title": "CampoTech - Application Overview",
+    "tags": ["campotech", "application"],
+    "timezone": "America/Argentina/Buenos_Aires",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-1h",
+      "to": "now"
+    },
+    "templating": {
+      "list": [
+        {
+          "name": "environment",
+          "type": "custom",
+          "options": [
+            { "text": "production", "value": "production" },
+            { "text": "staging", "value": "staging" },
+            { "text": "development", "value": "development" }
+          ],
+          "current": { "text": "production", "value": "production" }
+        }
+      ]
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Request Rate",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 0, "w": 8, "h": 8 },
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{environment=\"$environment\"}[5m]))",
+            "legendFormat": "Requests/sec"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "reqps",
+            "color": { "mode": "palette-classic" }
+          }
+        }
+      },
+      {
+        "id": 2,
+        "title": "Error Rate",
+        "type": "timeseries",
+        "gridPos": { "x": 8, "y": 0, "w": 8, "h": 8 },
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total{environment=\"$environment\",status=~\"5..\"}[5m])) / sum(rate(http_requests_total{environment=\"$environment\"}[5m])) * 100",
+            "legendFormat": "Error %"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "color": { "fixedColor": "red", "mode": "fixed" },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 1 },
+                { "color": "red", "value": 5 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Response Time P95",
+        "type": "timeseries",
+        "gridPos": { "x": 16, "y": 0, "w": 8, "h": 8 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{environment=\"$environment\"}[5m])) by (le))",
+            "legendFormat": "P95 Latency"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "color": { "mode": "palette-classic" }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Active Users",
+        "type": "stat",
+        "gridPos": { "x": 0, "y": 8, "w": 6, "h": 4 },
+        "targets": [
+          {
+            "expr": "sum(active_websocket_connections{environment=\"$environment\"})",
+            "legendFormat": "Active Users"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "title": "Jobs Created Today",
+        "type": "stat",
+        "gridPos": { "x": 6, "y": 8, "w": 6, "h": 4 },
+        "targets": [
+          {
+            "expr": "sum(increase(jobs_created_total{environment=\"$environment\"}[24h]))",
+            "legendFormat": "Jobs"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "blue", "value": null }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "title": "Voice Messages Processed",
+        "type": "stat",
+        "gridPos": { "x": 12, "y": 8, "w": 6, "h": 4 },
+        "targets": [
+          {
+            "expr": "sum(increase(voice_messages_processed_total{environment=\"$environment\"}[24h]))",
+            "legendFormat": "Voice Messages"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "purple", "value": null }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 7,
+        "title": "WhatsApp Messages Sent",
+        "type": "stat",
+        "gridPos": { "x": 18, "y": 8, "w": 6, "h": 4 },
+        "targets": [
+          {
+            "expr": "sum(increase(whatsapp_messages_sent_total{environment=\"$environment\"}[24h]))",
+            "legendFormat": "Messages"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                { "color": "green", "value": null }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 8,
+        "title": "Request Duration by Endpoint",
+        "type": "heatmap",
+        "gridPos": { "x": 0, "y": 12, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "sum(increase(http_request_duration_seconds_bucket{environment=\"$environment\"}[5m])) by (le, path)",
+            "format": "heatmap"
+          }
+        ],
+        "options": {
+          "calculate": false,
+          "color": {
+            "scheme": "Oranges"
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Top Endpoints by Request Count",
+        "type": "table",
+        "gridPos": { "x": 12, "y": 12, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "topk(10, sum(increase(http_requests_total{environment=\"$environment\"}[1h])) by (path))",
+            "legendFormat": "{{path}}",
+            "format": "table",
+            "instant": true
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "renameByName": {
+                "Value": "Requests",
+                "path": "Endpoint"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Database Query Duration",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 20, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket{environment=\"$environment\"}[5m])) by (le, operation))",
+            "legendFormat": "{{operation}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "color": { "mode": "palette-classic" }
+          }
+        }
+      },
+      {
+        "id": 11,
+        "title": "Queue Sizes",
+        "type": "timeseries",
+        "gridPos": { "x": 12, "y": 20, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "bullmq_queue_size{environment=\"$environment\"}",
+            "legendFormat": "{{queue}}"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "short",
+            "color": { "mode": "palette-classic" }
+          }
+        }
+      }
+    ]
+  }
+}
