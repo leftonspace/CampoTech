@@ -1,3 +1,5 @@
+SUPERSEDED by "campotech-architecture-complete.md"
+
 # CampoTech: Complete Development Roadmap v2.0
 ## Full-Stack FSM Platform for Argentina | Web + iOS + Android
 ## 100% Workiz Feature Parity + Argentina-Specific Integrations
