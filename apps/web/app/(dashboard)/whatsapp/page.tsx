@@ -65,10 +65,7 @@ export default function WhatsAppPage() {
 
   const { data: messagesData, isLoading: loadingMessages } = useQuery({
     queryKey: ['whatsapp-messages', selectedConversation],
-    queryFn: () =>
-      selectedConversation
-        ? api.whatsapp.messages.list(selectedConversation)
-        : Promise.resolve({ data: [] }),
+    queryFn: () => api.whatsapp.messages.list(selectedConversation!),
     enabled: !!selectedConversation,
   });
 
