@@ -59,6 +59,74 @@
 | Duplicate invoices | 0 | 0 |
 | Monthly churn | - | < 10% |
 
+## Module Classification & Launch Requirements
+
+### Launch Tiers
+
+| Module | Tier | Launch Status | Notes |
+|--------|------|---------------|-------|
+| **Auth & Onboarding** | CORE | Required | Cannot launch without user accounts |
+| **CRM (Customers)** | CORE | Required | Fundamental to all workflows |
+| **Jobs & Scheduling** | CORE | Required | Primary value proposition |
+| **AFIP Invoicing** | CORE | Required | Legal requirement for Argentine businesses |
+| **Mercado Pago Payments** | CORE | Required | Primary monetization path |
+| **WhatsApp Comms** | OPTIONAL | Feature-flagged | Can launch with manual notifications; enable when WA Business approved |
+| **Voice AI Processing** | OPTIONAL | Feature-flagged | Can launch without; enable after accuracy validation |
+| **Offline Mobile Sync** | OPTIONAL | Feature-flagged | Can launch online-only; enable after sync tested |
+
+### Launch Requirements (Minimum Viable)
+
+```
+MUST HAVE for Launch:
+├── Auth: Phone OTP login, session management
+├── Onboarding: CUIT + Company Name (2 fields only)
+├── Customers: Create, list, edit, search
+├── Jobs: Create, assign, status transitions, complete
+├── Invoices: Draft, CAE request, PDF generation
+├── Payments: MP preference creation, webhook handling
+└── Admin: Basic dashboard, job list, invoice list
+
+NICE TO HAVE (Feature-Flagged):
+├── WhatsApp: Template messages, inbound handling
+├── Voice AI: Transcription, extraction, auto-job-creation
+├── Offline: WatermelonDB sync, conflict resolution
+├── Advanced Reports: Revenue analytics, technician metrics
+└── Automation: Auto-invoice on complete, reminder scheduling
+```
+
+### Degraded But Usable Product
+
+The system MUST remain functional when optional modules are disabled:
+
+| Disabled Module | Degraded Behavior | User Impact |
+|-----------------|-------------------|-------------|
+| **WhatsApp** | Manual phone calls for notifications; email fallback for invoices | Higher manual effort; still fully functional |
+| **Voice AI** | Jobs created manually only; voice messages logged but not processed | No auto-job-creation; core workflows unaffected |
+| **Offline Mode** | Mobile app requires connectivity; shows "No connection" when offline | Technicians need signal; can still use web portal |
+| **MP Payments** | Cash/transfer only; manual payment recording | No card payments; invoicing still works |
+| **AFIP** (emergency) | Invoices saved as drafts; queued for CAE when service recovers | Delayed fiscal compliance; jobs/payments unaffected |
+
+### Feature Flag Configuration
+
+```typescript
+// Feature flags for optional modules
+const FEATURE_FLAGS = {
+  // Module toggles (can be disabled for launch)
+  WHATSAPP_ENABLED: process.env.FF_WHATSAPP ?? false,
+  VOICE_AI_ENABLED: process.env.FF_VOICE_AI ?? false,
+  OFFLINE_SYNC_ENABLED: process.env.FF_OFFLINE_SYNC ?? false,
+
+  // Automation toggles
+  AUTO_INVOICE_ON_COMPLETE: process.env.FF_AUTO_INVOICE ?? true,
+  AUTO_SEND_REMINDERS: process.env.FF_AUTO_REMINDERS ?? false,
+
+  // Kill switches (emergency disable)
+  AFIP_KILL_SWITCH: process.env.KILL_AFIP ?? false,
+  MP_KILL_SWITCH: process.env.KILL_MP ?? false,
+  WA_KILL_SWITCH: process.env.KILL_WA ?? false,
+};
+```
+
 ---
 
 # 2. CORE PRINCIPLES & NON-FUNCTIONAL REQUIREMENTS
@@ -110,6 +178,99 @@
 - Support 10K concurrent users at launch
 - Horizontal scaling for queue workers
 - Database read replicas for reporting
+
+---
+
+## Performance & Reliability SLIs/SLOs
+
+> **Note:** These are concrete, measurable targets that define system health. Queue workers and monitoring dashboards MUST track these metrics and alert on violations.
+
+### Mobile App Performance (Target Devices: Samsung A10, Moto G7, Xiaomi Redmi 8)
+
+| Metric | SLI Definition | SLO Target | Alert Threshold |
+|--------|----------------|------------|-----------------|
+| Cold Start | Time from app icon tap to interactive job list | < 5s (p95) | > 7s triggers investigation |
+| Job List Load | Time to render 200 jobs with scroll ready | < 1.5s (p95) | > 3s |
+| Photo Capture to Queue | Time from shutter to "queued for upload" | < 500ms (p95) | > 1s |
+| Memory Usage | Peak RAM during normal operation | < 150MB | > 200MB crashes on 2GB devices |
+| Bundle Size | Initial JS + assets download | < 5MB compressed | > 8MB |
+| Offline Queue Capacity | Max operations before warning | 50 ops / 20MB | > 100 ops shows "sync required" |
+
+### API Performance
+
+| Metric | SLI Definition | SLO Target | Alert Threshold |
+|--------|----------------|------------|-----------------|
+| Response Time | Time from request received to response sent | < 200ms (p95) | > 500ms (p99) |
+| Availability | Successful responses / Total requests | 99.5% monthly | < 99% in 1 hour |
+| Error Rate | 5xx responses / Total requests | < 0.5% | > 2% in 5 minutes |
+| Throughput | Requests handled per second | 500 req/s sustained | < 100 req/s |
+
+### Queue & Background Job Performance
+
+| Queue | SLI Definition | SLO Target | Alert Threshold |
+|-------|----------------|------------|-----------------|
+| **AFIP Invoice (afip:invoice)** | Time from enqueue to CAE received | < 30s (p95) | > 2 min |
+| **Payment Webhook (payment:webhook)** | Time from MP callback to DB updated | < 5s (p95) | > 30s |
+| **WhatsApp Outbound (whatsapp:outbound)** | Time from enqueue to delivered | < 10s (p95) | > 60s |
+| **Voice Transcription (voice:transcription)** | Time from audio received to text | < 15s (p95) | > 45s |
+| **Offline Sync (sync:offline)** | Time from device online to sync complete | < 30s (p95) | > 2 min |
+| **All Queues** | Jobs in DLQ per hour | < 5 | > 20 triggers panic mode |
+
+### External Service Latency Budgets
+
+| Service | Expected Latency | Timeout | Retry Strategy |
+|---------|------------------|---------|----------------|
+| AFIP WSFE | 2-10s typical | 30s | 5 retries, AFIP backoff (30s, 2m, 5m, 15m, 30m) |
+| Mercado Pago API | 200-500ms | 10s | 3 retries, exponential (1s, 2s, 4s) |
+| WhatsApp Cloud API | 100-300ms | 15s | 3 retries, WA backoff (5s, 15s, 60s) |
+| OpenAI Whisper | 3-8s (30s audio) | 60s | 2 retries, exponential |
+| Supabase | 10-50ms | 5s | 3 retries, exponential |
+
+### Offline Mode Constraints
+
+| Constraint | Limit | Rationale |
+|------------|-------|-----------|
+| Max queued operations | 50 | Prevents unbounded memory growth |
+| Max queued photos | 20 (10MB total) | Storage constraints on low-end devices |
+| Max offline duration | 72 hours | After this, force sync on next connection |
+| Sync batch size | 10 operations | Prevents timeout on slow connections |
+| Conflict warning threshold | 5 conflicts | More than 5 prompts "contact support" |
+
+### Alerting & Escalation
+
+```
+SEVERITY LEVELS:
+
+P1 (Critical) - Page on-call immediately:
+  - AFIP queue depth > 100 OR latency > 5 min
+  - Payment webhook processing stopped
+  - API error rate > 5%
+  - Database connection failures
+
+P2 (High) - Slack alert, respond within 1 hour:
+  - Any queue DLQ > 20 items
+  - Mobile cold start > 7s (p95)
+  - WhatsApp delivery rate < 90%
+
+P3 (Medium) - Slack alert, respond within 4 hours:
+  - Voice AI accuracy < 65%
+  - Offline sync failures > 10%
+  - Memory usage approaching limits
+
+P4 (Low) - Daily digest:
+  - Performance degradation trends
+  - Error rate increases within SLO
+  - Capacity planning warnings
+```
+
+### Panic Mode Thresholds
+
+| Service | Trigger Condition | Panic Behavior | Recovery |
+|---------|-------------------|----------------|----------|
+| AFIP | > 50% failures in 5 min OR > 100 queued | Stop new requests, queue all | Auto-recover when < 10% failures for 5 min |
+| Mercado Pago | > 30% webhook failures | Fall back to polling | Auto-recover on 3 consecutive successes |
+| WhatsApp | > 20% delivery failures | Fall back to SMS | Manual recovery (template issues) |
+| Voice AI | > 40% confidence < 0.5 | Route to human review | Auto-recover when accuracy > 70% |
 
 ---
 
@@ -543,6 +704,181 @@ audit_logs (
 
 ---
 
+# 5.5 NAMING & STATUS CONVENTIONS
+
+> **Single Source of Truth:** This section defines ALL naming conventions and status values. DB enums, API schemas, and mobile constants MUST be generated from these definitions.
+
+## Naming Conventions
+
+### Database (PostgreSQL)
+
+| Element | Convention | Example |
+|---------|------------|---------|
+| Tables | `snake_case`, plural | `customers`, `job_photos` |
+| Columns | `snake_case` | `org_id`, `created_at` |
+| Primary Keys | `id` (UUID) | `id UUID PRIMARY KEY` |
+| Foreign Keys | `{table}_id` | `customer_id`, `job_id` |
+| Timestamps | `{action}_at` | `created_at`, `updated_at`, `deleted_at` |
+| Enums | `snake_case` | `job_status`, `invoice_status` |
+| Indexes | `idx_{table}_{columns}` | `idx_jobs_org_status` |
+| Constraints | `{table}_{type}_{columns}` | `invoices_unique_cae` |
+
+### API (REST/JSON)
+
+| Element | Convention | Example |
+|---------|------------|---------|
+| Endpoints | `kebab-case`, plural | `/api/v1/customers`, `/api/v1/job-photos` |
+| Request/Response fields | `camelCase` | `orgId`, `createdAt` |
+| Query params | `camelCase` | `?customerId=123&pageSize=20` |
+| Enum values | `snake_case` (match DB) | `"status": "pending_cae"` |
+
+### Mobile (React Native/TypeScript)
+
+| Element | Convention | Example |
+|---------|------------|---------|
+| Types/Interfaces | `PascalCase` | `Customer`, `JobStatus` |
+| Variables/Functions | `camelCase` | `customerId`, `fetchJobs()` |
+| Constants | `SCREAMING_SNAKE_CASE` | `MAX_OFFLINE_QUEUE` |
+| Enum values | `PascalCase` | `JobStatus.EnCamino` |
+
+### Mapping Layer
+
+```typescript
+// lib/mapping.ts - Automatic conversion between DB and API
+
+// DB → API (snake_case → camelCase)
+export function toApiFormat<T>(dbRecord: Record<string, any>): T {
+  return Object.entries(dbRecord).reduce((acc, [key, value]) => {
+    const camelKey = key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+    acc[camelKey] = value;
+    return acc;
+  }, {} as T);
+}
+
+// API → DB (camelCase → snake_case)
+export function toDbFormat<T>(apiPayload: Record<string, any>): T {
+  return Object.entries(apiPayload).reduce((acc, [key, value]) => {
+    const snakeKey = key.replace(/[A-Z]/g, c => `_${c.toLowerCase()}`);
+    acc[snakeKey] = value;
+    return acc;
+  }, {} as T);
+}
+```
+
+## Status Values (Canonical Definitions)
+
+> **IMPORTANT:** These are the ONLY valid status values. Any addition requires updating this section, DB enum, API schema, AND mobile constants.
+
+### Job Status
+
+```typescript
+// CANONICAL DEFINITION
+export enum JobStatus {
+  PENDING = 'pending',       // Created, not scheduled
+  SCHEDULED = 'scheduled',   // Has technician + date/time
+  EN_CAMINO = 'en_camino',   // Technician traveling
+  WORKING = 'working',       // Technician on-site
+  COMPLETED = 'completed',   // Work finished
+  CANCELLED = 'cancelled',   // Job cancelled
+}
+
+// DB: CREATE TYPE job_status AS ENUM ('pending', 'scheduled', 'en_camino', 'working', 'completed', 'cancelled');
+// API: oneOf: ["pending", "scheduled", "en_camino", "working", "completed", "cancelled"]
+```
+
+### Invoice Status
+
+```typescript
+export enum InvoiceStatus {
+  DRAFT = 'draft',                 // Editable, no CAE requested
+  PENDING_CAE = 'pending_cae',     // CAE request in progress
+  ISSUED = 'issued',               // CAE received, not sent
+  SENT = 'sent',                   // Sent to customer
+  PAID = 'paid',                   // Full payment received
+  PARTIAL = 'partial',             // Partial payment received
+  OVERDUE = 'overdue',             // Past due date
+  CANCELLED = 'cancelled',         // Cancelled (no CAE) or voided
+  REFUNDED = 'refunded',           // Full refund issued
+}
+
+// DB: CREATE TYPE invoice_status AS ENUM ('draft', 'pending_cae', 'issued', 'sent', 'paid', 'partial', 'overdue', 'cancelled', 'refunded');
+```
+
+### Payment Status
+
+```typescript
+export enum PaymentStatus {
+  PENDING = 'pending',             // Awaiting payment
+  PROCESSING = 'processing',       // MP processing
+  APPROVED = 'approved',           // Payment successful
+  REJECTED = 'rejected',           // Payment failed
+  REFUNDED = 'refunded',           // Refund processed
+  CHARGEBACK = 'chargeback',       // Dispute opened
+  CANCELLED = 'cancelled',         // Payment cancelled
+}
+
+// DB: CREATE TYPE payment_status AS ENUM ('pending', 'processing', 'approved', 'rejected', 'refunded', 'chargeback', 'cancelled');
+```
+
+### WhatsApp Message Status
+
+```typescript
+export enum MessageStatus {
+  QUEUED = 'queued',               // In outbound queue
+  SENT = 'sent',                   // Sent to WhatsApp API
+  DELIVERED = 'delivered',         // Delivered to device
+  READ = 'read',                   // Read by recipient
+  FAILED = 'failed',               // Delivery failed
+  RECEIVED = 'received',           // Inbound message received
+}
+
+// DB: CREATE TYPE message_status AS ENUM ('queued', 'sent', 'delivered', 'read', 'failed', 'received');
+```
+
+### Sync Status (Offline Operations)
+
+```typescript
+export enum SyncStatus {
+  PENDING = 'pending',             // Waiting to sync
+  SYNCING = 'syncing',             // Currently syncing
+  SYNCED = 'synced',               // Successfully synced
+  CONFLICT = 'conflict',           // Conflict detected
+  FAILED = 'failed',               // Sync failed
+}
+
+// DB: CREATE TYPE sync_status AS ENUM ('pending', 'syncing', 'synced', 'conflict', 'failed');
+```
+
+### Voice Message Processing Status
+
+```typescript
+export enum VoiceProcessingStatus {
+  RECEIVED = 'received',           // Audio received
+  TRANSCRIBING = 'transcribing',   // Whisper processing
+  EXTRACTING = 'extracting',       // GPT extraction
+  REVIEW = 'review',               // Needs human review
+  PROCESSED = 'processed',         // Job created successfully
+  FAILED = 'failed',               // Processing failed
+}
+
+// DB: CREATE TYPE voice_processing_status AS ENUM ('received', 'transcribing', 'extracting', 'review', 'processed', 'failed');
+```
+
+## Status Value Generation
+
+```bash
+# Generate all status-related code from canonical definitions
+# Run: npm run generate:statuses
+
+# Outputs:
+# - prisma/enums.prisma          (DB enum definitions)
+# - src/types/statuses.ts        (TypeScript enums)
+# - openapi/schemas/statuses.yaml (OpenAPI enum schemas)
+# - mobile/src/constants/statuses.ts (React Native constants)
+```
+
+---
+
 # 6. STATE MACHINES
 
 ## Job State Machine
@@ -877,6 +1213,176 @@ Permanent (fail):
   - Certificate expired
 ```
 
+### AFIP Invariance & Compliance Rules
+
+> **CRITICAL:** Violating these rules creates tax/audit risk for customers. These are NON-NEGOTIABLE.
+
+#### Invoice Numbering Rules
+
+```
+AFIP NUMBERING INVARIANT:
+1. Invoice numbers are SEQUENTIAL per (org_id, punto_venta, cbte_tipo)
+2. NO GAPS allowed in production sequences
+3. Numbers are NEVER reused
+4. Numbers are NEVER skipped (even on error)
+5. Sequence is PER invoice type:
+   - Factura A: 00001-00000001, 00001-00000002, ...
+   - Factura B: 00001-00000001, 00001-00000002, ... (separate sequence)
+   - Factura C: 00001-00000001, 00001-00000002, ... (separate sequence)
+```
+
+#### Sequence Reservation Strategy
+
+```typescript
+// CORRECT: Reserve number BEFORE calling AFIP
+async function requestCAE(invoice: Invoice): Promise<CAEResult> {
+  // 1. Get and lock next number in transaction
+  const nextNumber = await db.$transaction(async (tx) => {
+    const seq = await tx.afip_sequences.update({
+      where: {
+        org_id_punto_venta_cbte_tipo: {
+          org_id: invoice.org_id,
+          punto_venta: invoice.punto_venta,
+          cbte_tipo: invoice.cbte_tipo
+        }
+      },
+      data: { last_number: { increment: 1 } },
+    });
+    return seq.last_number;
+  });
+
+  // 2. Call AFIP with reserved number
+  const result = await afip.FECAESolicitar(invoice, nextNumber);
+
+  // 3. On success OR failure, the number is consumed
+  //    (never decrement, never reuse)
+  await db.invoices.update({
+    where: { id: invoice.id },
+    data: {
+      invoice_number: nextNumber,
+      cae: result.success ? result.cae : null,
+      cae_expiry: result.success ? result.cae_expiry : null,
+      afip_status: result.success ? 'approved' : 'rejected',
+      afip_error: result.error || null,
+    }
+  });
+
+  return result;
+}
+```
+
+#### Immutable Fields After CAE
+
+| Field | Mutable Before CAE | Mutable After CAE | Notes |
+|-------|-------------------|-------------------|-------|
+| `invoice_number` | Yes | **NO** | AFIP sequence locked |
+| `cbte_tipo` | Yes | **NO** | Invoice type is fiscal |
+| `cbte_desde` / `cbte_hasta` | Yes | **NO** | Range is fiscal |
+| `punto_venta` | Yes | **NO** | Billing point is fiscal |
+| `customer_cuit` | Yes | **NO** | Taxpayer ID is fiscal |
+| `customer_name` | Yes | **NO** | Must match CUIT holder |
+| `total_amount` | Yes | **NO** | Amount is fiscal |
+| `subtotal` | Yes | **NO** | Base for IVA is fiscal |
+| `iva_amount` | Yes | **NO** | Tax amount is fiscal |
+| `cae` | N/A | **NO** | AFIP-issued, never changes |
+| `cae_expiry` | N/A | **NO** | AFIP-issued, never changes |
+| `emission_date` | Yes | **NO** | Fiscal date locked |
+| `qr_data` | N/A | **NO** | Based on CAE |
+| `pdf_url` | N/A | Can regenerate | PDF is a representation |
+| `internal_notes` | Yes | Yes | Not fiscal data |
+| `metadata` | Yes | Yes | Not fiscal data |
+
+#### Handling Draft vs CAE Request vs Rejection
+
+```
+INVOICE LIFECYCLE:
+
+[draft] ──> User edits freely (all fields mutable)
+   │
+   ▼
+[cae_pending] ──> Number reserved, AFIP call in progress
+   │              (fields now LOCKED, no edits allowed)
+   │
+   ├──(success)──> [cae_issued] ──> Invoice is FINAL
+   │                               (only internal_notes mutable)
+   │
+   └──(failure)──> [cae_rejected] ──> Number CONSUMED but no CAE
+                                      (cannot edit and retry with same number)
+
+REJECTED INVOICE HANDLING:
+1. Invoice stays rejected with consumed number
+2. User must create NEW invoice (new draft, new number)
+3. Original rejected invoice archived for audit trail
+4. NEVER: edit rejected invoice and re-submit
+```
+
+#### AFIP Error Codes & UI Behavior
+
+| Error Code | Description | UI Behavior | System Action |
+|------------|-------------|-------------|---------------|
+| `10016` | Invalid CUIT | Show: "CUIT inválido. Verificá los datos del cliente." | Block resubmit, require customer edit |
+| `10048` | Duplicate invoice | Show: "Factura ya procesada" | Check existing CAE, recover if exists |
+| `10013` | Invalid punto de venta | Show: "Punto de venta no autorizado" | Contact admin (config issue) |
+| `10018` | Date out of range | Show: "Fecha fuera de rango permitido" | Auto-adjust to today |
+| `10017` | Total mismatch | Show: "Error de cálculo. Contacta soporte." | Log for investigation |
+| `502/503` | Service unavailable | Show: "AFIP no disponible. Reintentando..." | Auto-retry with backoff |
+| `Token expired` | Auth expired | (invisible to user) | Re-authenticate, retry |
+
+#### Retention & Audit Requirements
+
+```
+LEGAL RETENTION (Argentina):
+- Invoices: 10 years from emission date
+- Cannot be deleted, only archived
+- Must preserve: CAE, amounts, customer data, dates
+- PDF regeneration allowed (from immutable data)
+
+AUDIT TRAIL REQUIREMENTS:
+- Every invoice state change logged
+- CAE request/response stored
+- User who created/modified tracked
+- Timestamp for all operations
+- Error responses preserved
+
+STORAGE STRATEGY:
+- Active invoices: Primary database (hot)
+- Invoices > 2 years: Archive table (warm)
+- Invoices > 5 years: Cold storage (S3 Glacier)
+- All tiers: Same query interface via view
+```
+
+#### Database Enforcement
+
+```sql
+-- Prevent updates to fiscal fields after CAE issued
+CREATE OR REPLACE FUNCTION prevent_fiscal_field_mutation()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF OLD.cae IS NOT NULL THEN
+    -- CAE exists, check for illegal mutations
+    IF NEW.invoice_number != OLD.invoice_number OR
+       NEW.cbte_tipo != OLD.cbte_tipo OR
+       NEW.punto_venta != OLD.punto_venta OR
+       NEW.customer_cuit != OLD.customer_cuit OR
+       NEW.total_amount != OLD.total_amount OR
+       NEW.subtotal != OLD.subtotal OR
+       NEW.iva_amount != OLD.iva_amount OR
+       NEW.emission_date != OLD.emission_date OR
+       NEW.cae != OLD.cae OR
+       NEW.cae_expiry != OLD.cae_expiry THEN
+      RAISE EXCEPTION 'Cannot modify fiscal fields after CAE issued';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER enforce_invoice_immutability
+  BEFORE UPDATE ON invoices
+  FOR EACH ROW
+  EXECUTE FUNCTION prevent_fiscal_field_mutation();
+```
+
 ### Homologation vs Production
 ```
 Homologation:
@@ -1113,7 +1619,266 @@ Scaling rules:
 | Invoices (PDF) | Storage encryption | TLS 1.3 | Yearly |
 | Audit Logs | Storage encryption | TLS 1.3 | Immutable |
 
-## Key Management
+## Secrets & Key Management
+
+> **CRITICAL:** This section defines where sensitive credentials are stored, rotation policies, and environment separation requirements.
+
+### Secret Categories
+
+| Secret Type | Storage Location | Access Pattern | Rotation |
+|-------------|-----------------|----------------|----------|
+| AFIP Certificates (.pfx) | AWS Secrets Manager | Worker on startup | Manual (2yr cert expiry) |
+| AFIP Private Key | AWS KMS (CMK) | Never leaves KMS | Never (bound to cert) |
+| Mercado Pago Access Token | AWS Secrets Manager | API on request | Auto (6hr via refresh) |
+| Mercado Pago Refresh Token | AWS Secrets Manager (encrypted) | Auth service | On access token refresh |
+| WhatsApp Access Token | AWS Secrets Manager | Worker on request | Manual (Meta doesn't expire) |
+| OpenAI API Key | AWS Secrets Manager | Voice worker | Manual (quarterly review) |
+| Database URL | Environment variable | App on startup | On credential rotation |
+| Redis URL | Environment variable | App on startup | On credential rotation |
+| JWT Signing Key | AWS Secrets Manager | Auth service | Yearly |
+| Encryption Keys | AWS KMS (CMK) | Via envelope encryption | Yearly (auto) |
+
+### Storage Architecture
+
+```
+SECRET STORAGE HIERARCHY
+========================
+
+AWS Secrets Manager (for rotatable secrets):
+├── campotech/production/afip/{org_id}/certificate
+├── campotech/production/afip/{org_id}/private_key_ref (KMS ARN)
+├── campotech/production/mp/{org_id}/access_token
+├── campotech/production/mp/{org_id}/refresh_token
+├── campotech/production/whatsapp/access_token
+├── campotech/production/openai/api_key
+└── campotech/production/jwt/signing_key
+
+AWS KMS (for encryption keys - never leave AWS):
+├── campotech-production-master-key (CMK)
+├── campotech-production-afip-key (for AFIP private keys)
+├── campotech-production-pii-key (for customer PII)
+└── campotech-production-tokens-key (for stored tokens)
+
+Environment Variables (injected at deploy):
+├── DATABASE_URL (Supabase connection string)
+├── REDIS_URL (Upstash connection string)
+├── AWS_REGION
+├── AWS_ACCESS_KEY_ID (for Secrets Manager access)
+└── AWS_SECRET_ACCESS_KEY (for Secrets Manager access)
+```
+
+### Rotation Policies
+
+```
+AUTOMATIC ROTATION
+──────────────────
+Mercado Pago Access Token:
+  - Trigger: On 401 response OR proactively at 5hr mark
+  - Action: Use refresh_token to get new access_token
+  - Fallback: If refresh fails, alert + require re-authorization
+
+JWT Signing Key:
+  - Trigger: Annual (January 1st)
+  - Action: Generate new key, keep old for 30 days (validation)
+  - Rollout: New tokens use new key, old tokens still valid
+
+Encryption Keys (KMS):
+  - Trigger: Annual (automatic via KMS policy)
+  - Action: KMS rotates, old versions kept for decryption
+  - Re-encryption: Background job re-encrypts active data
+
+MANUAL ROTATION
+───────────────
+AFIP Certificate:
+  - Trigger: 30 days before expiry (alert)
+  - Action: Owner generates new cert in AFIP portal, uploads
+  - Validation: Test CAE request before switching
+
+WhatsApp Token:
+  - Trigger: Meta policy change or security incident
+  - Action: Generate new token in Meta Business, update secret
+
+OpenAI API Key:
+  - Trigger: Quarterly review or security incident
+  - Action: Generate new key, update secret, delete old
+
+Database/Redis URLs:
+  - Trigger: Security incident or credential exposure
+  - Action: Rotate credentials in provider, update env vars, redeploy
+```
+
+### Environment Separation
+
+```
+STRICT ENVIRONMENT ISOLATION
+════════════════════════════
+
+Production:
+  AWS Account: campotech-prod (123456789012)
+  Secrets Manager: campotech/production/*
+  KMS Keys: arn:aws:kms:us-east-1:123456789012:key/prod-*
+  Database: Supabase project: campotech-prod
+  Redis: Upstash cluster: campotech-prod
+  Domain: app.campotech.com
+
+Staging:
+  AWS Account: campotech-staging (234567890123) [SEPARATE ACCOUNT]
+  Secrets Manager: campotech/staging/*
+  KMS Keys: arn:aws:kms:us-east-1:234567890123:key/staging-*
+  Database: Supabase project: campotech-staging
+  Redis: Upstash cluster: campotech-staging
+  Domain: staging.campotech.com
+
+Development (Local):
+  Secrets: .env.local (gitignored, never committed)
+  Database: Local Docker PostgreSQL
+  Redis: Local Docker Redis
+  AFIP: Homologation credentials only
+  MP: Sandbox mode only
+
+NEVER:
+  ✗ Share credentials between environments
+  ✗ Use production database in staging
+  ✗ Use production AFIP cert in testing
+  ✗ Commit .env files to git
+  ✗ Log secrets (redaction enforced)
+```
+
+### Secret Access Patterns
+
+```typescript
+// lib/secrets/manager.ts
+
+import { SecretsManager } from '@aws-sdk/client-secrets-manager';
+import { KMS } from '@aws-sdk/client-kms';
+
+class SecretManager {
+  private cache: Map<string, { value: string; expiry: number }> = new Map();
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+  // Get secret with caching
+  async getSecret(name: string): Promise<string> {
+    const cached = this.cache.get(name);
+    if (cached && cached.expiry > Date.now()) {
+      return cached.value;
+    }
+
+    const secret = await this.fetchFromSecretsManager(name);
+    this.cache.set(name, {
+      value: secret,
+      expiry: Date.now() + this.CACHE_TTL
+    });
+
+    return secret;
+  }
+
+  // Get AFIP cert for specific org
+  async getAfipCertificate(orgId: string): Promise<AfipCredentials> {
+    const certPath = `campotech/${process.env.ENV}/afip/${orgId}/certificate`;
+    const cert = await this.getSecret(certPath);
+
+    // Private key stays in KMS, return reference
+    return {
+      certificate: Buffer.from(cert, 'base64'),
+      privateKeyArn: `${certPath}/private_key`,
+    };
+  }
+
+  // Sign with AFIP key (never leaves KMS)
+  async signWithAfipKey(orgId: string, data: Buffer): Promise<Buffer> {
+    const keyArn = await this.getSecret(
+      `campotech/${process.env.ENV}/afip/${orgId}/private_key_ref`
+    );
+
+    const kms = new KMS({});
+    const result = await kms.sign({
+      KeyId: keyArn,
+      Message: data,
+      SigningAlgorithm: 'RSASSA_PKCS1_V1_5_SHA_256',
+    });
+
+    return Buffer.from(result.Signature!);
+  }
+}
+```
+
+### RLS Policy Examples
+
+```sql
+-- Row Level Security for multi-tenant isolation
+
+-- Organizations: Users can only see their org
+ALTER TABLE organizations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY org_isolation ON organizations
+  FOR ALL
+  USING (id = current_setting('app.current_org_id')::uuid);
+
+-- Customers: Isolated by org
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY customer_org_isolation ON customers
+  FOR ALL
+  USING (org_id = current_setting('app.current_org_id')::uuid);
+
+-- Jobs: Isolated by org, technicians see assigned jobs
+ALTER TABLE jobs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY job_org_isolation ON jobs
+  FOR ALL
+  USING (org_id = current_setting('app.current_org_id')::uuid);
+
+CREATE POLICY job_technician_view ON jobs
+  FOR SELECT
+  USING (
+    org_id = current_setting('app.current_org_id')::uuid
+    AND (
+      current_setting('app.current_user_role') IN ('owner', 'admin', 'dispatcher')
+      OR technician_id = current_setting('app.current_user_id')::uuid
+    )
+  );
+
+-- Invoices: Only org members with invoice permission
+ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY invoice_org_isolation ON invoices
+  FOR ALL
+  USING (
+    org_id = current_setting('app.current_org_id')::uuid
+    AND current_setting('app.current_user_role') IN ('owner', 'admin', 'dispatcher')
+  );
+
+-- Set context on each request (middleware)
+-- SELECT set_config('app.current_org_id', $1, true);
+-- SELECT set_config('app.current_user_id', $2, true);
+-- SELECT set_config('app.current_user_role', $3, true);
+```
+
+### Secret Audit Requirements
+
+```
+AUDIT LOGGING FOR SECRETS
+═════════════════════════
+
+All secret access logged to CloudTrail:
+  - Who accessed (IAM principal)
+  - What secret (ARN)
+  - When (timestamp)
+  - From where (source IP)
+
+Alert triggers:
+  - Any access from unexpected IP
+  - Access outside business hours (first time)
+  - Bulk secret retrieval (>10 in 1 minute)
+  - Failed access attempts
+
+Retention:
+  - CloudTrail logs: 1 year
+  - Secrets Manager audit: 1 year
+  - KMS audit: 1 year
+```
+
+## Key Hierarchy
 
 ```
 Key hierarchy:
@@ -1322,6 +2087,335 @@ On sync:
 4. If conflict cannot be auto-resolved:
    - Mark as 'conflict'
    - Show in app for manual resolution
+```
+
+## Detailed Conflict Resolution Scenarios
+
+> **CRITICAL:** Poor conflict handling causes lost data and broken trust. These scenarios define EXACT behavior.
+
+### Field-Level Resolution Rules
+
+| Field | Conflict Strategy | Rationale |
+|-------|-------------------|-----------|
+| **status** | Special rules (see below) | Status transitions are business logic |
+| **scheduled_date/time** | Server wins | Dispatcher controls schedule |
+| **technician_id** | Server wins | Dispatcher controls assignment |
+| **customer address** | Server wins | Customer may have corrected |
+| **notes** | Append (offline + server) | Both may have added notes |
+| **internal_notes** | Append (offline + server) | Both may have added |
+| **photos** | Merge (union) | Never lose photos |
+| **signature** | Mobile wins | Only tech can capture |
+| **completion_data** | Mobile wins | Only tech knows what happened |
+| **customer_name** | Server wins | Admin corrections |
+| **customer_phone** | Server wins | Admin corrections |
+
+### Status Conflict Resolution Matrix
+
+```
+When mobile has status X and server has status Y:
+
+            SERVER STATUS
+            pending | scheduled | en_camino | working | completed | cancelled
+MOBILE   ───────────────────────────────────────────────────────────────────
+pending  │ no-op   | server   | server    | server  | server    | server
+scheduled│ mobile  | no-op    | mobile    | mobile  | server    | server
+en_camino│ mobile  | mobile   | no-op     | mobile  | server    | server
+working  │ mobile  | mobile   | mobile    | no-op   | server    | server
+completed│ mobile  | mobile   | mobile    | mobile  | no-op     | CONFLICT
+cancelled│ server  | server   | server    | server  | CONFLICT  | no-op
+
+SPECIAL RULES:
+1. completed vs cancelled → Show conflict UI, user must choose
+2. Mobile 'completed' always wins UNLESS server is 'cancelled'
+3. Cancelled by server = dispatcher override, must respect
+```
+
+### Scenario 1: Two Technicians Edit Same Job Offline
+
+```
+SCENARIO:
+- Tech A and Tech B both assigned to job (handoff scenario)
+- Tech A goes offline at 10:00, marks job 'en_camino' at 10:05
+- Tech B goes offline at 10:00, marks job 'working' at 10:10
+- Both come online at 10:30
+
+RESOLUTION:
+1. Server receives Tech A's sync first (10:30:01)
+   - Job status: pending → en_camino (accepted)
+   - Server version: en_camino, updated_at: 10:30:01
+
+2. Server receives Tech B's sync second (10:30:02)
+   - Tech B's local version was based on 'pending'
+   - Server is now 'en_camino'
+   - Mobile status 'working' > 'en_camino' in progression
+   - Result: Accept 'working' (mobile wins, forward progress)
+
+3. Final state: working
+```
+
+### Scenario 2: Dispatcher Cancels While Tech Working Offline
+
+```
+SCENARIO:
+- Dispatcher cancels job at 10:00 (customer called to cancel)
+- Tech is offline since 9:30, marked 'working' at 9:45
+- Tech completes job at 10:15 with photos/signature
+- Tech comes online at 10:30
+
+RESOLUTION:
+1. Server has: status=cancelled, updated_at=10:00
+
+2. Mobile has: status=completed, completion_data={...}
+   - Photos: 3
+   - Signature: captured
+   - Notes: "Replaced faucet, tested ok"
+   - Local updated_at: 10:15
+
+3. CONFLICT DETECTED: completed vs cancelled
+   - Cannot auto-resolve (work done but job cancelled)
+   - Mark sync_status='conflict'
+   - Show conflict UI to technician
+
+4. CONFLICT UI:
+   ┌─────────────────────────────────────────────────┐
+   │ ⚠️ Conflict Detected                            │
+   ├─────────────────────────────────────────────────┤
+   │ This job was cancelled by dispatch at 10:00    │
+   │ while you were offline.                        │
+   │                                                 │
+   │ Your completion data:                          │
+   │ • 3 photos captured                            │
+   │ • Signature captured                           │
+   │ • Notes: "Replaced faucet, tested ok"          │
+   │                                                 │
+   │ What do you want to do?                        │
+   │                                                 │
+   │ [Keep My Completion]  [Accept Cancellation]    │
+   │                                                 │
+   │ Note: If you keep completion, dispatch will    │
+   │ be notified to review.                         │
+   └─────────────────────────────────────────────────┘
+
+5. If "Keep My Completion":
+   - Update server: status=completed, keep all data
+   - Send notification to dispatcher: "Tech completed cancelled job"
+   - Invoice may still be created (manual review)
+
+6. If "Accept Cancellation":
+   - Discard completion_data (photos kept as orphans)
+   - Accept server status: cancelled
+   - Show confirmation: "Completion data discarded"
+```
+
+### Scenario 3: Notes Added by Both Sides
+
+```
+SCENARIO:
+- Dispatcher adds note at 10:00: "Customer requests morning appointment"
+- Tech offline, adds note at 10:15: "Arrived, customer not home"
+- Tech syncs at 10:30
+
+RESOLUTION:
+1. Server notes: "Customer requests morning appointment"
+2. Mobile notes: "Arrived, customer not home"
+
+3. Strategy: APPEND (never lose information)
+   Result:
+   "Customer requests morning appointment
+    ---
+    [Offline sync - Tech at 10:15]
+    Arrived, customer not home"
+
+4. No conflict UI needed (auto-merged)
+```
+
+### Scenario 4: Address Changed While Offline
+
+```
+SCENARIO:
+- Customer calls to correct address at 10:00
+- Dispatcher updates: "Av. Corrientes 1234" → "Av. Corrientes 1234, Piso 3"
+- Tech offline since 9:30, still has old address
+- Tech syncs at 10:30
+
+RESOLUTION:
+1. Server address: "Av. Corrientes 1234, Piso 3" (updated 10:00)
+2. Mobile address: "Av. Corrientes 1234" (stale)
+
+3. Strategy: SERVER WINS (dispatcher has authoritative info)
+   - Update mobile address to match server
+   - Show toast: "Address updated: Piso 3 added"
+
+4. No conflict UI needed (silent update with notification)
+```
+
+### Scenario 5: Photos Captured by Multiple Techs
+
+```
+SCENARIO:
+- Tech A captures 2 photos offline
+- Tech B (reassigned) captures 3 photos offline
+- Both sync around same time
+
+RESOLUTION:
+1. Strategy: MERGE (union of all photos)
+   - Server receives Tech A's 2 photos
+   - Server receives Tech B's 3 photos
+   - Final: 5 photos attached to job
+
+2. No conflicts possible (photos are append-only)
+3. Deduplication: By photo hash (SHA-256 of content)
+```
+
+### Sync Algorithm Implementation
+
+```typescript
+// lib/sync/conflict-resolver.ts
+
+interface SyncResult {
+  accepted: 'server' | 'mobile' | 'merged';
+  conflicts: ConflictField[];
+  requiresUI: boolean;
+}
+
+async function resolveJobConflict(
+  serverJob: Job,
+  mobileJob: Job,
+  pendingOps: SyncOperation[]
+): Promise<SyncResult> {
+  const conflicts: ConflictField[] = [];
+  const merged: Partial<Job> = {};
+
+  // 1. Status resolution (most complex)
+  const statusResult = resolveStatus(serverJob.status, mobileJob.status);
+  if (statusResult.conflict) {
+    conflicts.push({
+      field: 'status',
+      serverValue: serverJob.status,
+      mobileValue: mobileJob.status,
+      requiresUserChoice: true,
+    });
+  } else {
+    merged.status = statusResult.winner;
+  }
+
+  // 2. Server-wins fields
+  const serverWinsFields = ['scheduled_date', 'scheduled_time', 'technician_id',
+                           'address', 'customer_name', 'customer_phone'];
+  for (const field of serverWinsFields) {
+    if (serverJob[field] !== mobileJob[field]) {
+      merged[field] = serverJob[field];
+    }
+  }
+
+  // 3. Mobile-wins fields
+  const mobileWinsFields = ['signature', 'completion_data'];
+  for (const field of mobileWinsFields) {
+    if (mobileJob[field] && !serverJob[field]) {
+      merged[field] = mobileJob[field];
+    }
+  }
+
+  // 4. Append fields
+  if (serverJob.notes !== mobileJob.notes) {
+    merged.notes = mergeNotes(serverJob.notes, mobileJob.notes);
+  }
+
+  // 5. Merge photos (union)
+  merged.photos = [...new Set([
+    ...serverJob.photos || [],
+    ...mobileJob.photos || [],
+  ])];
+
+  return {
+    accepted: conflicts.length > 0 ? 'pending' : 'merged',
+    conflicts,
+    requiresUI: conflicts.some(c => c.requiresUserChoice),
+    mergedData: merged,
+  };
+}
+
+function resolveStatus(serverStatus: string, mobileStatus: string): {
+  winner: string;
+  conflict: boolean;
+} {
+  const progression = ['pending', 'scheduled', 'en_camino', 'working', 'completed'];
+
+  // Special case: cancelled vs completed
+  if (serverStatus === 'cancelled' && mobileStatus === 'completed') {
+    return { winner: null, conflict: true };
+  }
+  if (mobileStatus === 'cancelled' && serverStatus === 'completed') {
+    return { winner: null, conflict: true };
+  }
+
+  // Cancelled always wins over non-completed
+  if (serverStatus === 'cancelled') {
+    return { winner: 'cancelled', conflict: false };
+  }
+
+  // Forward progress: higher status wins
+  const serverIdx = progression.indexOf(serverStatus);
+  const mobileIdx = progression.indexOf(mobileStatus);
+
+  return {
+    winner: mobileIdx > serverIdx ? mobileStatus : serverStatus,
+    conflict: false,
+  };
+}
+```
+
+### Append-Only Data (No Conflicts Possible)
+
+These entities are NEVER updated, only created:
+
+| Entity | Strategy | Notes |
+|--------|----------|-------|
+| Photos | Append only | New photos added, never deleted/edited |
+| Signatures | Write once | Only one signature per job completion |
+| Status history | Append only | Every transition logged, never modified |
+| Audit logs | Append only | Immutable by design |
+| Sync queue entries | Append only | Processed and archived, never edited |
+
+### Conflict UI Component
+
+```
+CONFLICT RESOLUTION SCREEN (Mobile)
+════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────┐
+│ ⚠️ Sync Conflicts (2)                           [Sync Now] │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│ Job #1234 - García Residence                               │
+│ ┌─────────────────────────────────────────────────────────┐│
+│ │ Status Conflict                                         ││
+│ │                                                         ││
+│ │ Your device: ✅ Completed (10:15)                       ││
+│ │ Server:      ❌ Cancelled (10:00)                       ││
+│ │                                                         ││
+│ │ Your completion data will be lost if you accept cancel. ││
+│ │                                                         ││
+│ │ [Keep Mine]              [Accept Server]                ││
+│ └─────────────────────────────────────────────────────────┘│
+│                                                             │
+│ Job #1235 - López Office                                   │
+│ ┌─────────────────────────────────────────────────────────┐│
+│ │ Notes Conflict (Auto-merged)                            ││
+│ │                                                         ││
+│ │ Both you and dispatch added notes. They have been      ││
+│ │ combined automatically.                                 ││
+│ │                                                         ││
+│ │ [View Merged Notes]                           [OK ✓]    ││
+│ └─────────────────────────────────────────────────────────┘│
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+BEHAVIOR:
+- Conflicts block further sync until resolved
+- Max 5 conflicts shown at once
+- > 5 conflicts: Show "Contact support" message
+- Timeout: If unresolved for 24h, auto-resolve to server version + alert admin
 ```
 
 ---
@@ -1819,6 +2913,259 @@ Human review queue:
   - Shows AI extraction (if available)
   - Dispatcher corrects/completes
   - Correction feeds training data
+```
+
+## Voice AI Guardrails & Confidence Handling
+
+> **CRITICAL:** Voice AI that "feels magic" when working and "feels scammy" when failing will destroy trust. These guardrails ensure safe, predictable behavior.
+
+### Confidence Thresholds & Actions
+
+| Confidence Range | Action | User Experience |
+|-----------------|--------|-----------------|
+| **≥ 0.85** (High) | Auto-create job | Job created, WhatsApp confirms: "Trabajo creado: [summary]" |
+| **0.70 - 0.84** (Medium-High) | Auto-create + flag | Job created, marked for review, notification to dispatcher |
+| **0.50 - 0.69** (Medium) | Create draft, require confirmation | WhatsApp: "Entendí: [summary]. ¿Está bien? Responde SI o NO" |
+| **0.30 - 0.49** (Low) | Human review queue | WhatsApp: "Recibimos tu mensaje de voz. Un operador lo revisará." |
+| **< 0.30** (Very Low) | Log only, no action | WhatsApp: "No pudimos entender el mensaje. ¿Podés enviarlo de nuevo o llamar?" |
+
+### Per-Field Confidence Scores
+
+```typescript
+interface ExtractionResult {
+  overallConfidence: number;     // Combined score
+
+  fields: {
+    customerName: {
+      value: string | null;
+      confidence: number;        // 0-1
+      source: 'explicit' | 'inferred' | 'matched';  // How we got it
+    };
+    customerPhone: {
+      value: string | null;
+      confidence: number;
+    };
+    address: {
+      value: string | null;
+      confidence: number;
+      normalized: string | null;  // Google Maps normalized
+    };
+    serviceType: {
+      value: string | null;
+      confidence: number;
+      matchedCategory: string | null;  // Matched to price book
+    };
+    preferredDate: {
+      value: string | null;       // ISO date
+      confidence: number;
+      wasRelative: boolean;       // "mañana" vs "15 de enero"
+    };
+    preferredTime: {
+      value: string | null;       // "morning" | "afternoon" | "HH:mm"
+      confidence: number;
+    };
+    problemDescription: {
+      value: string | null;
+      confidence: number;
+    };
+    urgency: {
+      value: 'normal' | 'urgent' | 'emergency';
+      confidence: number;
+    };
+  };
+
+  missingRequiredFields: string[];  // Fields we need but don't have
+  ambiguities: string[];            // Things that need clarification
+}
+```
+
+### Minimum Required Fields for Job Creation
+
+```
+REQUIRED (must have ≥0.6 confidence each):
+├── customerPhone OR customerName (to identify)
+├── address OR "same as before" indicator
+└── serviceType OR problemDescription
+
+OPTIONAL (nice to have):
+├── preferredDate (default: "lo antes posible")
+├── preferredTime (default: "cualquier hora")
+└── urgency (default: normal)
+
+BLOCKING ISSUES (prevent auto-creation):
+├── No way to contact customer (no phone, unknown customer)
+├── No address and no previous address on file
+└── Transcription confidence < 0.4 (audio quality issue)
+```
+
+### Confirmation Flow (Medium Confidence)
+
+```
+SCENARIO: Customer sends voice message, confidence is 0.65
+
+1. AI extracts:
+   - Customer: "García" (confidence: 0.7)
+   - Address: "Corrientes 1234" (confidence: 0.6)
+   - Problem: "pérdida de agua" (confidence: 0.8)
+   - Date: "mañana" (confidence: 0.5)
+
+2. Overall confidence: 0.65 → REQUIRES CONFIRMATION
+
+3. System sends WhatsApp template:
+   ┌─────────────────────────────────────────────────┐
+   │ 📝 Confirmá tu pedido:                          │
+   │                                                  │
+   │ Cliente: García                                  │
+   │ Dirección: Corrientes 1234                       │
+   │ Problema: Pérdida de agua                        │
+   │ Fecha: Mañana (15 ene)                          │
+   │                                                  │
+   │ ¿Está todo bien?                                │
+   │ Responde SI para confirmar                      │
+   │ Responde NO para corregir                       │
+   └─────────────────────────────────────────────────┘
+
+4. Customer response handling:
+   - "SI" / "Si" / "sí" / "Sí" / "👍" → Create job
+   - "NO" / "No" / "no" → Route to human review
+   - No response in 30 min → Send reminder
+   - No response in 2 hours → Move to human review
+   - Other text → Try to parse as correction
+```
+
+### V1 Limitations & Structured Prompts
+
+```
+V1 LIMITATIONS (clearly documented for users):
+
+What works well:
+✓ Clear, slow speech
+✓ Standard Argentine Spanish
+✓ Common service types (plomería, gas, electricidad)
+✓ Simple addresses (calle + número)
+✓ Explicit dates ("el lunes", "mañana", "15 de enero")
+
+What may struggle:
+△ Heavy accents or dialects
+△ Fast/mumbled speech
+△ Background noise (street, construction)
+△ Complex addresses (intersecciones, edificios sin número)
+△ Vague timing ("cuando puedas", "esta semana")
+
+What doesn't work:
+✗ Non-Spanish languages
+✗ Multiple jobs in one message
+✗ Cancellations or modifications (use text)
+✗ Payment questions
+✗ Technical questions about services
+
+RECOMMENDED PROMPT FOR CUSTOMERS (shown in WhatsApp):
+"Para crear un trabajo nuevo, enviá un audio diciendo:
+- Tu nombre y dirección
+- Qué problema tenés
+- Cuándo te gustaría que vayamos
+
+Ejemplo: 'Soy Juan García de Corrientes 1234, tengo una pérdida
+en el baño, si puede ser mañana a la mañana'"
+```
+
+### Language & Dialect Handling
+
+```
+SUPPORTED:
+- Spanish (Argentina) - primary
+- Lunfardo common terms (recognized but normalized)
+- Common misspellings/pronunciation
+
+DIALECT NORMALIZATION:
+- "laburo" → "trabajo"
+- "plomo" → "plomero"
+- "cañería" = "caño" = "tubo" → normalized to service category
+- "aire" (short for "aire acondicionado") → HVAC category
+
+CONFIDENCE PENALTIES:
+- Heavy Lunfardo: -0.1 to confidence
+- Mixed language: -0.2 to confidence
+- Very fast speech (>200 wpm): -0.15 to confidence
+- Lots of filler words ("ehh", "este"): -0.05 to confidence
+
+WHISPER CONFIGURATION:
+{
+  language: 'es',
+  task: 'transcribe',
+  prompt: 'El siguiente audio es un mensaje de un cliente solicitando
+           un servicio de plomería, gas, o electricidad en Argentina.',
+  temperature: 0,  // Deterministic
+}
+```
+
+### Human Review Queue UI
+
+```
+/admin/voice-review (Voice Review Queue)
+════════════════════════════════════════
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ Voice Messages Pending Review (12)                    [Auto-refresh]│
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│ ┌─────────────────────────────────────────────────────────────────┐│
+│ │ 📱 +54 9 11 5555-1234                    Received: 10:32        ││
+│ │                                                                 ││
+│ │ [▶ Play Audio] ─────────────○──── 0:45                        ││
+│ │                                                                 ││
+│ │ Transcription (confidence: 0.72):                              ││
+│ │ "Hola soy García de Corrientes mil doscientos treinta y cuatro ││
+│ │  tengo una pérdida grande en el baño si puede ser hoy..."      ││
+│ │                                                                 ││
+│ │ AI Extraction:                                                  ││
+│ │ ┌───────────────────────────────────────────────────────────┐  ││
+│ │ │ Customer: García (0.70)  ⚠️                                │  ││
+│ │ │ Address: Corrientes 1234 (0.85) ✓                         │  ││
+│ │ │ Problem: Pérdida en baño (0.90) ✓                         │  ││
+│ │ │ Urgency: Urgent (0.75)                                     │  ││
+│ │ │ Date: Hoy (0.60) ⚠️                                        │  ││
+│ │ └───────────────────────────────────────────────────────────┘  ││
+│ │                                                                 ││
+│ │ [Create Job]  [Edit & Create]  [Can't Understand]  [Discard]   ││
+│ └─────────────────────────────────────────────────────────────────┘│
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+
+ACTIONS:
+- Create Job: Use AI extraction as-is
+- Edit & Create: Open form with pre-filled values, allow correction
+- Can't Understand: Mark as unprocessable, send "please resend" to customer
+- Discard: Mark as spam/irrelevant, no customer notification
+
+METRICS TRACKED:
+- Time to review (target: <5 min)
+- Correction rate (how often AI was wrong)
+- Field-level accuracy (which fields need improvement)
+```
+
+### Voice AI Monitoring & Improvement
+
+```
+DAILY METRICS:
+├── Total voice messages processed
+├── Auto-created jobs (high confidence)
+├── Confirmation-required (medium confidence)
+├── Human review queue additions
+├── Failed/unprocessable
+└── Average confidence score
+
+WEEKLY REVIEW:
+├── Listen to 10% sample of low-confidence messages
+├── Identify common failure patterns
+├── Update extraction prompts if needed
+└── Add new training examples
+
+IMPROVEMENT TRIGGERS:
+- Accuracy drops below 65%: Alert, investigate
+- Same customer fails 3x: Flag for manual follow-up
+- New service type mentioned often: Add to extraction
+- Common address format not recognized: Update parser
 ```
 
 ---
