@@ -51,6 +51,27 @@ export interface DLQAlertConfig {
   onAlert: (stats: DLQStats) => void | Promise<void>;
   /** Check interval in ms */
   checkInterval: number;
+  /** Critical queues that trigger immediate alerts */
+  criticalQueues?: string[];
+  /** Webhook URL for external alerting (Slack, PagerDuty, etc.) */
+  webhookUrl?: string;
+  /** Enable Sentry integration */
+  enableSentry?: boolean;
+}
+
+export interface DLQAlert {
+  /** Alert type */
+  type: 'threshold_exceeded' | 'critical_job_failed' | 'rate_spike';
+  /** Alert severity */
+  severity: 'warning' | 'error' | 'critical';
+  /** Alert message */
+  message: string;
+  /** DLQ statistics at time of alert */
+  stats: DLQStats;
+  /** Specific job that triggered alert (if applicable) */
+  job?: DLQEntry;
+  /** Timestamp */
+  timestamp: Date;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -61,6 +82,12 @@ export class DLQHandler {
   private dlqQueue: Queue;
   private alertConfig?: DLQAlertConfig;
   private alertInterval?: NodeJS.Timeout;
+  private lastAlertTime: Map<string, number> = new Map();
+  private previousCount = 0;
+  private sentryClient?: any;
+
+  // Alert cooldown to prevent spam (5 minutes)
+  private readonly ALERT_COOLDOWN_MS = 5 * 60 * 1000;
 
   constructor() {
     // Queue will be set during initialization
@@ -77,9 +104,168 @@ export class DLQHandler {
     if (alertConfig) {
       this.alertConfig = alertConfig;
       this.startAlertMonitoring();
+
+      // Initialize Sentry if enabled
+      if (alertConfig.enableSentry) {
+        await this.initializeSentry();
+      }
     }
 
     console.log('DLQ handler initialized');
+  }
+
+  /**
+   * Initialize Sentry for error tracking
+   */
+  private async initializeSentry(): Promise<void> {
+    try {
+      this.sentryClient = await import('@sentry/node');
+      console.log('DLQ Sentry integration enabled');
+    } catch {
+      console.warn('Sentry not available for DLQ alerting');
+    }
+  }
+
+  /**
+   * Send alert for a job that was moved to DLQ
+   */
+  async alertOnJobFailure(entry: DLQEntry): Promise<void> {
+    if (!this.alertConfig) return;
+
+    // Check if this is a critical queue
+    const isCritical = this.alertConfig.criticalQueues?.includes(entry.sourceQueue);
+
+    if (isCritical) {
+      const stats = await this.getStats();
+      const alert: DLQAlert = {
+        type: 'critical_job_failed',
+        severity: 'critical',
+        message: `Critical job failed in ${entry.sourceQueue}: ${entry.originalJob.failedReason || 'Unknown error'}`,
+        stats,
+        job: entry,
+        timestamp: new Date(),
+      };
+
+      await this.sendAlert(alert);
+    }
+  }
+
+  /**
+   * Send an alert through all configured channels
+   */
+  private async sendAlert(alert: DLQAlert): Promise<void> {
+    // Check cooldown
+    const alertKey = `${alert.type}:${alert.job?.sourceQueue || 'general'}`;
+    const lastAlert = this.lastAlertTime.get(alertKey) || 0;
+    if (Date.now() - lastAlert < this.ALERT_COOLDOWN_MS) {
+      return; // Skip - still in cooldown
+    }
+    this.lastAlertTime.set(alertKey, Date.now());
+
+    console.log(`[DLQ ALERT] ${alert.severity.toUpperCase()}: ${alert.message}`);
+
+    // Call custom callback
+    if (this.alertConfig?.onAlert) {
+      try {
+        await this.alertConfig.onAlert(alert.stats);
+      } catch (error) {
+        console.error('Alert callback failed:', error);
+      }
+    }
+
+    // Send to Sentry
+    if (this.sentryClient && this.alertConfig?.enableSentry) {
+      await this.sendToSentry(alert);
+    }
+
+    // Send to webhook
+    if (this.alertConfig?.webhookUrl) {
+      await this.sendToWebhook(alert);
+    }
+  }
+
+  /**
+   * Send alert to Sentry
+   */
+  private async sendToSentry(alert: DLQAlert): Promise<void> {
+    if (!this.sentryClient) return;
+
+    try {
+      this.sentryClient.withScope((scope: any) => {
+        scope.setTag('alert_type', alert.type);
+        scope.setTag('severity', alert.severity);
+        scope.setLevel(alert.severity === 'critical' ? 'fatal' : alert.severity);
+
+        if (alert.job) {
+          scope.setTag('source_queue', alert.job.sourceQueue);
+          scope.setTag('org_id', alert.job.originalJob.data.orgId);
+          scope.setExtras({
+            jobId: alert.job.originalJob.id,
+            jobName: alert.job.originalJob.name,
+            attemptsMade: alert.job.originalJob.attemptsMade,
+            failedReason: alert.job.originalJob.failedReason,
+          });
+        }
+
+        scope.setExtras({
+          dlqTotal: alert.stats.total,
+          byQueue: alert.stats.byQueue,
+          byErrorType: alert.stats.byErrorType,
+        });
+
+        this.sentryClient.captureMessage(alert.message, alert.severity);
+      });
+    } catch (error) {
+      console.error('Failed to send DLQ alert to Sentry:', error);
+    }
+  }
+
+  /**
+   * Send alert to webhook (Slack, PagerDuty, etc.)
+   */
+  private async sendToWebhook(alert: DLQAlert): Promise<void> {
+    if (!this.alertConfig?.webhookUrl) return;
+
+    try {
+      const payload = {
+        text: `🚨 DLQ Alert: ${alert.message}`,
+        attachments: [
+          {
+            color: alert.severity === 'critical' ? 'danger' : alert.severity === 'error' ? 'warning' : '#439FE0',
+            fields: [
+              { title: 'Type', value: alert.type, short: true },
+              { title: 'Severity', value: alert.severity, short: true },
+              { title: 'Total in DLQ', value: String(alert.stats.total), short: true },
+              { title: 'Time', value: alert.timestamp.toISOString(), short: true },
+            ],
+          },
+        ],
+        // For PagerDuty Events API v2
+        routing_key: undefined, // Set if using PagerDuty
+        event_action: alert.severity === 'critical' ? 'trigger' : 'acknowledge',
+        payload: {
+          summary: alert.message,
+          severity: alert.severity,
+          source: 'campotech-dlq',
+          custom_details: {
+            stats: alert.stats,
+            job: alert.job,
+          },
+        },
+      };
+
+      const response = await fetch(this.alertConfig.webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        console.error(`Webhook alert failed: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Failed to send DLQ alert to webhook:', error);
+    }
   }
 
   /**
@@ -318,9 +504,31 @@ export class DLQHandler {
       try {
         const stats = await this.getStats();
 
+        // Check threshold exceeded
         if (stats.total >= this.alertConfig!.threshold) {
-          await this.alertConfig!.onAlert(stats);
+          const alert: DLQAlert = {
+            type: 'threshold_exceeded',
+            severity: stats.total >= this.alertConfig!.threshold * 2 ? 'critical' : 'warning',
+            message: `DLQ threshold exceeded: ${stats.total} jobs (threshold: ${this.alertConfig!.threshold})`,
+            stats,
+            timestamp: new Date(),
+          };
+          await this.sendAlert(alert);
         }
+
+        // Check for rate spike (>50% increase since last check)
+        if (this.previousCount > 0 && stats.total > this.previousCount * 1.5) {
+          const alert: DLQAlert = {
+            type: 'rate_spike',
+            severity: 'error',
+            message: `DLQ rate spike detected: ${this.previousCount} → ${stats.total} jobs (+${Math.round((stats.total / this.previousCount - 1) * 100)}%)`,
+            stats,
+            timestamp: new Date(),
+          };
+          await this.sendAlert(alert);
+        }
+
+        this.previousCount = stats.total;
       } catch (error) {
         console.error('DLQ alert check failed:', error);
       }

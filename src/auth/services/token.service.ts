@@ -137,15 +137,26 @@ export class TokenService {
 
     const [headerB64, payloadB64, signatureB64] = parts;
 
-    // Verify signature
+    // Verify signature using timing-safe comparison to prevent timing attacks
     const signatureInput = `${headerB64}.${payloadB64}`;
     const expectedSignature = crypto
       .createHmac('sha256', secret)
       .update(signatureInput)
       .digest();
-    const expectedSignatureB64 = base64UrlEncode(expectedSignature);
 
-    if (signatureB64 !== expectedSignatureB64) {
+    // Decode the provided signature for comparison
+    const providedSignaturePadded = signatureB64 + '='.repeat((4 - (signatureB64.length % 4)) % 4);
+    const providedSignatureBase64 = providedSignaturePadded.replace(/-/g, '+').replace(/_/g, '/');
+    let providedSignature: Buffer;
+    try {
+      providedSignature = Buffer.from(providedSignatureBase64, 'base64');
+    } catch {
+      throw new TokenError(AuthErrorCode.INVALID_TOKEN, 'Invalid token signature format');
+    }
+
+    // Use timing-safe comparison to prevent timing attacks
+    if (providedSignature.length !== expectedSignature.length ||
+        !crypto.timingSafeEqual(providedSignature, expectedSignature)) {
       throw new TokenError(AuthErrorCode.INVALID_TOKEN, 'Invalid token signature');
     }
 
