@@ -930,7 +930,7 @@ After re-enabling any capability:
 | **Version** | 1.0 |
 | **Status** | Active |
 | **Author** | CampoTech Architecture Team |
-| **Last Updated** | 2024-01 |
+| **Last Updated** | 2024-01-15 |
 | **Related Documents** | campotech-architecture-complete.md, campotech-queue-worker-architecture.md |
 | **Runtime File** | core/config/capabilities.ts |
 
