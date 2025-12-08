@@ -1,0 +1,281 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 6 * * *' # Daily at 6 AM UTC (3 AM Argentina)
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+  PNPM_VERSION: '8'
+
+jobs:
+  e2e-web:
+    name: E2E Web Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: campotech_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Run database migrations
+        run: pnpm db:migrate:deploy
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/campotech_test
+
+      - name: Seed test data
+        run: pnpm db:seed:test
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/campotech_test
+
+      - name: Build application
+        run: pnpm build
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/campotech_test
+          REDIS_URL: redis://localhost:6379
+
+      - name: Start application
+        run: |
+          pnpm start &
+          sleep 15
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/campotech_test
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
+          PORT: 3000
+
+      - name: Wait for application
+        run: |
+          for i in {1..30}; do
+            if curl -s http://localhost:3000/health > /dev/null; then
+              echo "Application is ready"
+              exit 0
+            fi
+            echo "Waiting for application... attempt $i"
+            sleep 2
+          done
+          echo "Application failed to start"
+          exit 1
+
+      - name: Run E2E tests
+        run: pnpm test:e2e
+        env:
+          BASE_URL: http://localhost:3000
+          DATABASE_URL: postgresql://test:test@localhost:5432/campotech_test
+          REDIS_URL: redis://localhost:6379
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
+
+  e2e-mobile:
+    name: E2E Mobile Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: campotech_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Run database migrations
+        run: pnpm db:migrate:deploy
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/campotech_test
+
+      - name: Build API
+        run: pnpm --filter api build
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/campotech_test
+
+      - name: Start API
+        run: |
+          pnpm --filter api start &
+          sleep 10
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/campotech_test
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
+          PORT: 3001
+
+      - name: Run mobile E2E tests
+        run: pnpm --filter mobile test:e2e
+        env:
+          API_URL: http://localhost:3001
+
+      - name: Upload test artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mobile-e2e-results
+          path: apps/mobile/e2e-results/
+          retention-days: 7
+
+  api-e2e:
+    name: API E2E Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: campotech_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Run database migrations
+        run: pnpm db:migrate:deploy
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/campotech_test
+
+      - name: Seed test data
+        run: pnpm db:seed:test
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/campotech_test
+
+      - name: Build API
+        run: pnpm --filter api build
+
+      - name: Start API
+        run: |
+          pnpm --filter api start &
+          sleep 10
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/campotech_test
+          REDIS_URL: redis://localhost:6379
+          NODE_ENV: test
+          PORT: 3001
+
+      - name: Run API E2E tests
+        run: pnpm --filter api test:e2e
+        env:
+          API_URL: http://localhost:3001
+          DATABASE_URL: postgresql://test:test@localhost:5432/campotech_test
