@@ -1,3 +1,5 @@
+SUPERSEDED by "campotech-architecture-complete.md"
+
 # CampoTech: Complete Development Roadmap
 ## Full-Stack FSM Platform for Argentina | Web + iOS + Android
 
