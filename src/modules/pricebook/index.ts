@@ -9,6 +9,7 @@ import { Pool } from 'pg';
 import { Router, Request, Response, NextFunction } from 'express';
 import { OrgScopedRepository, objectToCamel } from '../../shared/repositories/base.repository';
 import { PriceBookItem, PaginatedResult, PaginationParams } from '../../shared/types/domain.types';
+import { validateMoney, validateTaxRate, validatePercentage } from '../../shared/utils/database.utils';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -367,6 +368,10 @@ export class PriceBookService {
   }
 
   async createItem(orgId: string, data: CreatePriceBookItemDTO): Promise<PriceBookItem> {
+    // Validate numeric fields
+    validateMoney(data.unitPrice, 'unitPrice');
+    validateTaxRate(data.taxRate, 'taxRate');
+
     // Check for duplicate code
     const existing = await this.itemRepo.findByCode(orgId, data.code);
     if (existing) {
@@ -392,6 +397,14 @@ export class PriceBookService {
   }
 
   async updateItem(orgId: string, id: string, data: UpdatePriceBookItemDTO): Promise<PriceBookItem> {
+    // Validate numeric fields if provided
+    if (data.unitPrice !== undefined) {
+      validateMoney(data.unitPrice, 'unitPrice');
+    }
+    if (data.taxRate !== undefined) {
+      validateTaxRate(data.taxRate, 'taxRate');
+    }
+
     await this.getItem(orgId, id);
 
     if (data.categoryId) {
@@ -404,16 +417,27 @@ export class PriceBookService {
   }
 
   async updateItemPrice(orgId: string, id: string, unitPrice: number): Promise<PriceBookItem> {
+    validateMoney(unitPrice, 'unitPrice');
     const updated = await this.itemRepo.updatePrice(orgId, id, unitPrice);
     if (!updated) throw new Error('Failed to update price');
     return updated;
   }
 
   async bulkUpdatePrices(orgId: string, updates: { id: string; unitPrice: number }[]): Promise<number> {
+    // Validate all prices before updating
+    for (const update of updates) {
+      validateMoney(update.unitPrice, `updates[${update.id}].unitPrice`);
+    }
     return this.itemRepo.bulkUpdatePrices(orgId, updates);
   }
 
   async applyPriceAdjustment(orgId: string, categoryId: string | null, adjustmentPercent: number): Promise<number> {
+    // Validate adjustment percentage (-100% to +1000%)
+    validatePercentage(Math.abs(adjustmentPercent), 'adjustmentPercent');
+    if (adjustmentPercent < -100 || adjustmentPercent > 1000) {
+      throw new Error('Adjustment percent must be between -100 and 1000');
+    }
+
     // Get items to update
     const filters: PriceBookFilters = { isActive: true };
     if (categoryId) filters.categoryId = categoryId;

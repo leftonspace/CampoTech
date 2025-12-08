@@ -11,6 +11,7 @@ import { OrgScopedRepository, objectToCamel } from '../../shared/repositories/ba
 import { Invoice, InvoiceStatus, InvoiceType, InvoiceLineItem, IVACondition, PaginatedResult, PaginationParams, DateRange } from '../../shared/types/domain.types';
 import { createInvoiceStateMachine, InvoiceTransitionContext } from '../../shared/utils/state-machine';
 import { determineInvoiceType, calculateTax, IVA_RATES } from '../../shared/utils/validation';
+import { validateMoney, validateQuantity, validateTaxRate } from '../../shared/utils/database.utils';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -201,11 +202,21 @@ export class InvoiceService {
     // Determine invoice type based on IVA conditions
     const invoiceType = determineInvoiceType(sellerIVA, buyerIVA);
 
+    // Validate line items
+    if (!data.lineItems || data.lineItems.length === 0) {
+      throw new Error('Invoice must have at least one line item');
+    }
+
     // Calculate totals
     let subtotal = 0;
     let taxAmount = 0;
 
-    const lineItems: InvoiceLineItem[] = data.lineItems.map(item => {
+    const lineItems: InvoiceLineItem[] = data.lineItems.map((item, index) => {
+      // Validate numeric fields
+      validateQuantity(item.quantity, `lineItems[${index}].quantity`);
+      validateMoney(item.unitPrice, `lineItems[${index}].unitPrice`);
+      validateTaxRate(item.taxRate, `lineItems[${index}].taxRate`);
+
       const itemSubtotal = Math.round(item.quantity * item.unitPrice * 100) / 100;
       const itemTax = Math.round(itemSubtotal * item.taxRate * 100) / 100;
       const itemTotal = itemSubtotal + itemTax;
