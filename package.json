@@ -1,0 +1,46 @@
+{
+  "name": "campotech",
+  "version": "1.0.0",
+  "description": "Field service management platform for the Argentine market",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "jest",
+
+    "panic:status": "ts-node scripts/panic/panic-cli.ts status",
+    "panic:enable": "ts-node scripts/panic/panic-cli.ts enable",
+    "panic:disable": "ts-node scripts/panic/panic-cli.ts disable",
+
+    "capability:status": "ts-node scripts/capability-status.ts",
+    "capability:report": "ts-node scripts/capability-status.ts --report",
+    "capability:clear-env-overrides": "ts-node scripts/clear-env-overrides.ts",
+
+    "health:check": "ts-node scripts/health-check.ts",
+    "health:quick": "ts-node scripts/health-check.ts --quick",
+
+    "queue:status": "ts-node scripts/queue-status.ts",
+    "queue:metrics": "ts-node scripts/queue-status.ts --metrics",
+
+    "metrics:export": "ts-node scripts/metrics-export.ts",
+
+    "migration:create": "ts-node scripts/migrations/create.ts",
+    "migration:run": "ts-node scripts/migrations/run.ts"
+  },
+  "dependencies": {
+    "bullmq": "^4.0.0",
+    "ioredis": "^5.0.0",
+    "pg": "^8.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/pg": "^8.0.0",
+    "jest": "^29.0.0",
+    "ts-node": "^10.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
