@@ -1,3 +1,5 @@
+SUPERSEDED by "campotech-architecture-complete.md"
+
 # CampoTech: Argentina MVP Roadmap
 ## 12 Core Workflows | WhatsApp-Native | 10-Week Launch
 
