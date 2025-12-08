@@ -16,7 +16,7 @@ import * as path from 'path';
 
 // Database client interface
 interface DatabaseClient {
-  query: (sql: string) => Promise<{ rows: unknown[] }>;
+  query: (sql: string, params?: unknown[]) => Promise<{ rows: unknown[] }>;
 }
 
 // Migration record
@@ -69,7 +69,7 @@ async function runMigration(db: DatabaseClient, filename: string): Promise<void>
     await db.query(sql);
     await db.query(
       'INSERT INTO _migrations (name) VALUES ($1)',
-      // @ts-ignore - params not in interface
+      [filename]
     );
     await db.query('COMMIT');
     console.log(`✅ Completed: ${filename}`);
