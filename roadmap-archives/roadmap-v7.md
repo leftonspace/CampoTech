@@ -1,3 +1,5 @@
+SUPERSEDED by "campotech-architecture-complete.md"
+
 # CampoTech: Argentina MVP Roadmap v7
 ## 12 Core Workflows | Production-Grade | Enterprise Security
 
