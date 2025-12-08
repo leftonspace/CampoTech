@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Health check endpoint for debugging database connectivity
 export async function GET() {
   const checks: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
