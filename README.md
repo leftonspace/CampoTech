@@ -17,6 +17,7 @@ This repository contains the complete technical specification for CampoTech. **R
 | [campotech-openapi-spec.yaml](./architecture/campotech-openapi-spec.yaml) | ✅ Active | OpenAPI 3.1 REST API specification |
 | [campotech-queue-worker-architecture.md](./architecture/campotech-queue-worker-architecture.md) | ✅ Active | BullMQ queues, workers, DLQ, ops playbook |
 | [campotech-end-to-end-flows.md](./architecture/campotech-end-to-end-flows.md) | ✅ Active | Sequence diagrams for 6 major flows |
+| [capabilities.md](./architecture/capabilities.md) | ✅ Active | Master kill-switch architecture (Capability Map) |
 
 ### Reading Order (Recommended)
 
@@ -25,6 +26,7 @@ This repository contains the complete technical specification for CampoTech. **R
 3. **For APIs:** `campotech-openapi-spec.yaml` - Endpoint details
 4. **For background jobs:** `campotech-queue-worker-architecture.md` - Worker design
 5. **For flows:** `campotech-end-to-end-flows.md` - Visual diagrams
+6. **For kill switches:** `capabilities.md` - Feature toggle system
 
 ---
 
@@ -44,6 +46,16 @@ This repository contains the complete technical specification for CampoTech. **R
 | §11 Offline Mode | **Conflict resolution scenarios** |
 | §14 Workflows | 12 core workflows with step-by-step |
 | §15 Fallbacks | **Voice AI guardrails, panic modes** |
+
+### Key Sections in Capability Map Doc
+
+| Section | What You'll Find |
+|---------|------------------|
+| §4 Master Matrix | Complete capability definitions with categories |
+| §5 Fallback Behavior | What happens when each capability is disabled |
+| §7 Guard Pattern | How to implement capability checks in code |
+| §9 Operations | How to toggle, monitor, and troubleshoot capabilities |
+| §10 Emergency | Runbooks for common failure scenarios |
 
 ---
 

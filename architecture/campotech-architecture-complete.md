@@ -25,6 +25,9 @@
 18. Implementation Snippets
 19. Glossary
 
+**Related Documents:**
+- **[capabilities.md](./capabilities.md)** - Master Kill-Switch Architecture (Capability Map)
+
 ---
 
 # 1. OVERVIEW & SYSTEM GOALS
@@ -108,23 +111,38 @@ The system MUST remain functional when optional modules are disabled:
 
 ### Feature Flag Configuration
 
+> **IMPORTANT:** CampoTech uses a comprehensive **Capability Map** architecture for all feature toggles and kill switches. See **[capabilities.md](./capabilities.md)** for the complete documentation and **`/core/config/capabilities.ts`** for the runtime implementation.
+
+The Capability Map provides:
+- **Centralized Control:** One file controls all inter-module toggles
+- **Runtime Flexibility:** Turn off any subsystem instantly without code changes
+- **Graceful Degradation:** Prevent code from calling broken dependencies
+- **Observable State:** All capability checks are logged
+
 ```typescript
-// Feature flags for optional modules
-const FEATURE_FLAGS = {
-  // Module toggles (can be disabled for launch)
-  WHATSAPP_ENABLED: process.env.FF_WHATSAPP ?? false,
-  VOICE_AI_ENABLED: process.env.FF_VOICE_AI ?? false,
-  OFFLINE_SYNC_ENABLED: process.env.FF_OFFLINE_SYNC ?? false,
+// Import the capability system
+import { Capabilities, ensureCapability } from '@/core/config/capabilities';
 
-  // Automation toggles
-  AUTO_INVOICE_ON_COMPLETE: process.env.FF_AUTO_INVOICE ?? true,
-  AUTO_SEND_REMINDERS: process.env.FF_AUTO_REMINDERS ?? false,
+// Example: Guard AFIP calls with fallback
+if (!ensureCapability("external.afip", Capabilities.external.afip)) {
+  return createDraftInvoice(data); // fallback when AFIP disabled
+}
+return AfipService.requestCAE(data); // normal flow
 
-  // Kill switches (emergency disable)
-  AFIP_KILL_SWITCH: process.env.KILL_AFIP ?? false,
-  MP_KILL_SWITCH: process.env.KILL_MP ?? false,
-  WA_KILL_SWITCH: process.env.KILL_WA ?? false,
-};
+// Capability categories:
+// - external: afip, mercadopago, whatsapp, whatsapp_voice_ai, push_notifications
+// - domain: invoicing, payments, scheduling, job_assignment, offline_sync, technician_gps
+// - services: cae_queue, whatsapp_queue, payment_reconciliation, abuse_detection, rate_limiting, analytics_pipeline
+// - ui: simple_mode, advanced_mode, pricebook, reporting_dashboard
+```
+
+**Environment Variable Overrides:**
+```bash
+# Disable AFIP at runtime
+CAPABILITY_EXTERNAL_AFIP=false
+
+# Disable WhatsApp at runtime
+CAPABILITY_EXTERNAL_WHATSAPP=false
 ```
 
 ---
@@ -3318,19 +3336,29 @@ Worker deployment:
   3. Terminate old workers
 ```
 
-## Feature Flags
+## Feature Flags & Capability Map
+
+> **See [capabilities.md](./capabilities.md)** for the complete kill-switch architecture documentation.
+
+CampoTech uses a **Capability Map** (`/core/config/capabilities.ts`) as the single source of truth for all feature toggles:
 
 ```
-Flags by category:
-  - Module toggles: afip_enabled, whatsapp_enabled, voice_ai_enabled
-  - Kill switches: afip_kill, whatsapp_kill, mp_kill
-  - Gradual rollout: new_invoice_ui, voice_v2
-  - Org-specific: beta_features
+Capability Categories:
+  - external: afip, mercadopago, whatsapp, whatsapp_voice_ai, push_notifications
+  - domain: invoicing, payments, scheduling, job_assignment, offline_sync, technician_gps
+  - services: cae_queue, whatsapp_queue, payment_reconciliation, abuse_detection, rate_limiting, analytics_pipeline
+  - ui: simple_mode, advanced_mode, pricebook, reporting_dashboard
 
-Implementation:
-  - Stored in Redis for speed
-  - Admin UI to toggle
-  - Audit logged
+Runtime Control:
+  - Environment variables: CAPABILITY_EXTERNAL_AFIP=false
+  - Admin dashboard toggle UI
+  - Instant effect (no redeploy required)
+  - All changes audit logged
+
+Fallback Behavior:
+  - Every disabled capability has defined fallback
+  - System never throws exceptions when feature disabled
+  - Graceful degradation to maintain core functionality
 ```
 
 ## Rollback Mechanisms
