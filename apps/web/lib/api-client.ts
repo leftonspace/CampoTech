@@ -354,4 +354,35 @@ export const api = {
     },
     stats: () => apiRequest<unknown>('/whatsapp/stats'),
   },
+
+  // Voice AI
+  voice: {
+    messages: {
+      get: (id: string) => apiRequest<unknown>(`/voice/messages/${id}`),
+      retry: (id: string) =>
+        apiRequest(`/voice/messages/${id}/retry`, { method: 'POST' }),
+    },
+    reviewQueue: {
+      list: (params?: { status?: string }) => {
+        const query = params?.status ? `?status=${params.status}` : '';
+        return apiRequest<unknown[]>(`/voice/review-queue${query}`);
+      },
+      stats: () => apiRequest<unknown>('/voice/review-queue/stats'),
+    },
+    review: {
+      submit: (
+        id: string,
+        data: {
+          action: 'approve' | 'edit' | 'reject';
+          corrections?: Record<string, unknown>;
+          notes?: string;
+        }
+      ) =>
+        apiRequest(`/voice/messages/${id}/review`, {
+          method: 'POST',
+          body: data,
+        }),
+    },
+    stats: () => apiRequest<unknown>('/voice/stats'),
+  },
 };
