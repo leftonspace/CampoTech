@@ -1,3 +1,5 @@
+SUPERSEDED by "campotech-architecture-complete.md"
+
 # CampoTech: Argentina MVP Roadmap v5
 ## 12 Core Workflows | Minimal Onboarding | Reliability-First Architecture
 
