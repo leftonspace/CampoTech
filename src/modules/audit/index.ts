@@ -63,8 +63,25 @@ export interface AuditIntegrityResult {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
- * Calculate hash for an audit entry
+ * Get HMAC secret for audit hash chain
+ * SECURITY: Must be set in production to prevent hash recalculation attacks
+ */
+function getAuditHmacSecret(): string {
+  const secret = process.env.AUDIT_HMAC_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('AUDIT_HMAC_SECRET environment variable is required in production');
+    }
+    console.warn('WARNING: AUDIT_HMAC_SECRET not set. Using fallback for development only.');
+    return 'DEVELOPMENT_ONLY_AUDIT_SECRET_DO_NOT_USE_IN_PRODUCTION';
+  }
+  return secret;
+}
+
+/**
+ * Calculate HMAC hash for an audit entry
  * Creates tamper-evident chain by including previous hash
+ * Uses HMAC-SHA256 for stronger security (prevents hash recalculation attacks)
  */
 export function calculateAuditHash(entry: {
   id: string;
@@ -93,7 +110,8 @@ export function calculateAuditHash(entry: {
     previousHash: entry.previousHash,
   });
 
-  return crypto.createHash('sha256').update(data).digest('hex');
+  // SECURITY: Use HMAC-SHA256 with server secret for tamper protection
+  return crypto.createHmac('sha256', getAuditHmacSecret()).update(data).digest('hex');
 }
 
 /**

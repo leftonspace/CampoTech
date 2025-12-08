@@ -30,11 +30,10 @@ export type InvoiceType = 'A' | 'B' | 'C' | 'E';
 
 export type PaymentStatus =
   | 'pending'
-  | 'approved'
-  | 'rejected'
+  | 'completed'
+  | 'failed'
   | 'refunded'
-  | 'disputed'
-  | 'cancelled';
+  | 'partial_refund';
 
 export type PaymentMethod =
   | 'mercadopago'
@@ -280,17 +279,21 @@ export interface PriceBookItem extends OrgScopedEntity {
 // AUDIT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export interface AuditLog extends OrgScopedEntity {
-  userId: string;
-  action: AuditAction;
+export interface AuditLog {
+  id: string;
+  orgId?: string;
+  userId?: string;
+  action: string;
   entityType: string;
-  entityId: string;
-  changes?: Record<string, { old: any; new: any }>;
+  entityId?: string;
+  oldValue?: Record<string, any>;
+  newValue?: Record<string, any>;
   metadata?: Record<string, any>;
   ipAddress?: string;
   userAgent?: string;
-  previousHash?: string;
+  previousHash: string;
   hash: string;
+  createdAt: Date;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -334,6 +337,12 @@ export interface PaginatedResult<T> {
 }
 
 export interface DateRange {
+  /** Start date (alias: from) */
+  start?: Date;
+  /** End date (alias: to) */
+  end?: Date;
+  /** @deprecated Use start instead */
   from?: Date;
+  /** @deprecated Use end instead */
   to?: Date;
 }
