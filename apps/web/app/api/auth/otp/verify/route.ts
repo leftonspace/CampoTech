@@ -56,7 +56,8 @@ export async function POST(request: NextRequest) {
     // For simplicity, use same token as refresh token
     const refreshToken = accessToken;
 
-    return NextResponse.json({
+    // Create response with user data
+    const response = NextResponse.json({
       success: true,
       data: {
         accessToken,
@@ -74,6 +75,17 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Also set token as HTTP cookie for reliability
+    response.cookies.set('auth-token', accessToken, {
+      httpOnly: false, // Allow JS access for now
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     console.error('Verify OTP error:', error);
     return NextResponse.json(

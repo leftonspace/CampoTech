@@ -30,7 +30,22 @@ export function getAccessToken(): string | null {
   if (accessToken) return accessToken;
 
   if (typeof window !== 'undefined') {
+    // Try localStorage first
     accessToken = localStorage.getItem('accessToken');
+
+    // Fallback to cookie if localStorage is empty
+    if (!accessToken) {
+      const cookies = document.cookie.split(';');
+      for (const cookie of cookies) {
+        const [name, value] = cookie.trim().split('=');
+        if (name === 'auth-token') {
+          accessToken = value;
+          // Sync to localStorage
+          localStorage.setItem('accessToken', value);
+          break;
+        }
+      }
+    }
   }
 
   return accessToken;
@@ -43,6 +58,8 @@ export function clearTokens(): void {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
+    // Also clear cookie
+    document.cookie = 'auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
   }
 }
 
