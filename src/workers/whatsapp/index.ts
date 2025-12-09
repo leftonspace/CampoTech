@@ -42,3 +42,14 @@ export type {
   PanicState,
   PanicEvaluationResult,
 } from './panic-mode.service';
+
+// Aggregation workers (Phase 9.8)
+export {
+  startAggregationWorker,
+  processExpiredBuffer,
+} from './aggregation-processor.worker';
+
+export {
+  startBufferCleanupWorker,
+  runBufferCleanup,
+} from './buffer-cleanup.worker';
