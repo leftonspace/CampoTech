@@ -24,9 +24,34 @@ interface TeamMember {
   phone: string;
   email?: string;
   role: 'OWNER' | 'ADMIN' | 'TECHNICIAN' | 'VIEWER';
+  specialty?: string;
+  skillLevel?: string;
   isActive: boolean;
   createdAt: string;
 }
+
+// Argentine construction trade categories (UOCRA CCT 76/75)
+const SKILL_LEVELS = {
+  AYUDANTE: { label: 'Ayudante', description: 'Tareas generales no calificadas' },
+  MEDIO_OFICIAL: { label: 'Medio Oficial', description: 'Conocimientos prácticos básicos' },
+  OFICIAL: { label: 'Oficial', description: 'Trabajador calificado' },
+  OFICIAL_ESPECIALIZADO: { label: 'Oficial Especializado', description: 'Nivel máximo de especialización' },
+};
+
+const TRADE_SPECIALTIES = {
+  PLOMERO: { label: 'Plomero', icon: '🔧' },
+  ELECTRICISTA: { label: 'Electricista', icon: '⚡' },
+  GASISTA: { label: 'Gasista', icon: '🔥' },
+  CALEFACCIONISTA: { label: 'Calefaccionista', icon: '🌡️' },
+  REFRIGERACION: { label: 'Refrigeración/HVAC', icon: '❄️' },
+  ALBANIL: { label: 'Albañil', icon: '🧱' },
+  PINTOR: { label: 'Pintor', icon: '🎨' },
+  CARPINTERO: { label: 'Carpintero', icon: '🪚' },
+  TECHISTA: { label: 'Techista', icon: '🏠' },
+  HERRERO: { label: 'Herrero', icon: '🔨' },
+  SOLDADOR: { label: 'Soldador', icon: '🔥' },
+  OTRO: { label: 'Otro', icon: '🛠️' },
+};
 
 const ROLE_CONFIG = {
   OWNER: {
@@ -167,6 +192,9 @@ export default function TeamSettingsPage() {
                   Contacto
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Especialidad / Nivel
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   Rol
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -181,7 +209,7 @@ export default function TeamSettingsPage() {
               {isLoading ? (
                 Array.from({ length: 3 }).map((_, i) => (
                   <tr key={i}>
-                    <td colSpan={5} className="px-4 py-3">
+                    <td colSpan={6} className="px-4 py-3">
                       <div className="h-4 w-full animate-pulse rounded bg-gray-200" />
                     </td>
                   </tr>
@@ -191,6 +219,8 @@ export default function TeamSettingsPage() {
                   const roleConfig = ROLE_CONFIG[member.role] || ROLE_CONFIG.VIEWER;
                   const RoleIcon = roleConfig.icon;
                   const isCurrentUser = member.id === currentUser?.id;
+                  const specialtyConfig = member.specialty ? TRADE_SPECIALTIES[member.specialty as keyof typeof TRADE_SPECIALTIES] : null;
+                  const skillLevelConfig = member.skillLevel ? SKILL_LEVELS[member.skillLevel as keyof typeof SKILL_LEVELS] : null;
 
                   return (
                     <tr key={member.id} className="hover:bg-gray-50">
@@ -213,6 +243,21 @@ export default function TeamSettingsPage() {
                         <p className="text-gray-900">{member.phone}</p>
                         {member.email && (
                           <p className="text-sm text-gray-500">{member.email}</p>
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3">
+                        {specialtyConfig ? (
+                          <div>
+                            <p className="text-gray-900">
+                              <span className="mr-1">{specialtyConfig.icon}</span>
+                              {specialtyConfig.label}
+                            </p>
+                            {skillLevelConfig && (
+                              <p className="text-xs text-gray-500">{skillLevelConfig.label}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400">-</span>
                         )}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3">
@@ -259,7 +304,7 @@ export default function TeamSettingsPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={6} className="px-4 py-8 text-center text-gray-500">
                     <Users className="mx-auto h-12 w-12 text-gray-300" />
                     <p className="mt-2">No hay miembros en el equipo</p>
                   </td>
@@ -326,6 +371,8 @@ function TeamMemberModal({
     phone: member?.phone?.replace(/^\+\d+/, '') || '',
     email: member?.email || '',
     role: member?.role || 'TECHNICIAN',
+    specialty: member?.specialty || '',
+    skillLevel: member?.skillLevel || '',
     isActive: member?.isActive ?? true,
   });
 
@@ -337,6 +384,8 @@ function TeamMemberModal({
       phone: fullPhone,
       email: formData.email || undefined,
       role: formData.role as TeamMember['role'],
+      specialty: formData.specialty || undefined,
+      skillLevel: formData.skillLevel || undefined,
       isActive: formData.isActive,
     });
   };
@@ -455,6 +504,50 @@ function TeamMemberModal({
                   El rol de propietario no se puede cambiar
                 </p>
               )}
+            </div>
+
+            <div>
+              <label htmlFor="specialty" className="label mb-1 block">
+                Especialidad
+              </label>
+              <select
+                id="specialty"
+                value={formData.specialty}
+                onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
+                className="input"
+              >
+                <option value="">Sin especialidad</option>
+                {Object.entries(TRADE_SPECIALTIES).map(([key, config]) => (
+                  <option key={key} value={key}>
+                    {config.icon} {config.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Oficio o área de trabajo del empleado
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="skillLevel" className="label mb-1 block">
+                Nivel de Calificación
+              </label>
+              <select
+                id="skillLevel"
+                value={formData.skillLevel}
+                onChange={(e) => setFormData({ ...formData, skillLevel: e.target.value })}
+                className="input"
+              >
+                <option value="">Sin nivel asignado</option>
+                {Object.entries(SKILL_LEVELS).map(([key, config]) => (
+                  <option key={key} value={key}>
+                    {config.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-gray-500">
+                Según categorías UOCRA (CCT 76/75)
+              </p>
             </div>
 
             {!isSelf && (
