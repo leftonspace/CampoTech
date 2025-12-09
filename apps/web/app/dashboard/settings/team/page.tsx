@@ -441,7 +441,7 @@ function TeamMemberModal({
               <select
                 id="role"
                 value={formData.role}
-                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, role: e.target.value as TeamMember['role'] })}
                 className="input"
                 disabled={isOwner}
               >

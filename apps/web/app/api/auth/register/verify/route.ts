@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { createToken } from '@/lib/auth';
 import { verifyOTP } from '@/lib/otp';
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create organization and user in a transaction
-    const { organization, user } = await prisma.$transaction(async (tx) => {
+    const { organization, user } = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create organization
       const org = await tx.organization.create({
         data: {

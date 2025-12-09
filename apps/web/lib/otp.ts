@@ -106,7 +106,7 @@ export async function requestOTP(phone: string): Promise<OTPRequestResult> {
     if (oldOTPs.length > 0) {
       await prisma.otpCode.deleteMany({
         where: {
-          id: { in: oldOTPs.map(o => o.id) },
+          id: { in: oldOTPs.map((o: { id: string }) => o.id) },
         },
       });
     }
