@@ -11,7 +11,6 @@ import {
   FileText,
   CreditCard,
   Settings,
-  Shield,
   LogOut,
   Menu,
   X,
@@ -30,10 +29,6 @@ const navigation = [
   { name: 'Configuración', href: '/dashboard/settings', icon: Settings },
 ];
 
-const adminNavigation = [
-  { name: 'Admin', href: '/dashboard/admin', icon: Shield },
-];
-
 export default function DashboardLayout({
   children,
 }: {
@@ -44,10 +39,6 @@ export default function DashboardLayout({
   const notificationRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { user, logout } = useAuth();
-
-  // Check role case-insensitively
-  const userRole = user?.role?.toLowerCase();
-  const isAdmin = userRole === 'owner' || userRole === 'admin';
 
   // Close notifications dropdown when clicking outside
   useEffect(() => {
@@ -120,34 +111,6 @@ export default function DashboardLayout({
                 })}
               </ul>
 
-              {isAdmin && (
-                <>
-                  <div className="my-4 border-t" />
-                  <ul className="space-y-1">
-                    {adminNavigation.map((item) => {
-                      const isActive = pathname.startsWith(item.href);
-
-                      return (
-                        <li key={item.name}>
-                          <Link
-                            href={item.href}
-                            className={cn(
-                              'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                              isActive
-                                ? 'bg-primary-50 text-primary-600'
-                                : 'text-gray-700 hover:bg-gray-100'
-                            )}
-                            onClick={() => setSidebarOpen(false)}
-                          >
-                            <item.icon className="h-5 w-5" />
-                            {item.name}
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </>
-              )}
             </nav>
 
             {/* User section */}
