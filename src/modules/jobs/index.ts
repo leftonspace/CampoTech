@@ -11,6 +11,8 @@ import { OrgScopedRepository, objectToCamel, objectToSnake } from '../../shared/
 import { Job, JobStatus, JobLineItem, PaginatedResult, PaginationParams, DateRange } from '../../shared/types/domain.types';
 import { createJobStateMachine, JobTransitionContext } from '../../shared/utils/state-machine';
 import { startOfDay, endOfDay } from '../../shared/utils/validation';
+import { createTrackingSession, completeSession, cancelSession } from '../tracking/tracking.service';
+import { log } from '../../lib/logging/logger';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -401,6 +403,34 @@ export class JobService {
 
     const updated = await this.repo.updateStatus(id, data.status, extras);
     if (!updated) throw new Error('Failed to update job status');
+
+    // Handle tracking session based on status transition
+    try {
+      if (data.status === 'en_camino' && job.assignedTo) {
+        // Auto-start tracking session when technician marks "en route"
+        const trackingResult = await createTrackingSession(id, job.assignedTo, orgId);
+        log.info('Tracking session auto-started', {
+          jobId: id,
+          sessionId: trackingResult.sessionId,
+          technicianId: job.assignedTo,
+        });
+      } else if (data.status === 'completed') {
+        // Complete tracking session when job is completed
+        await completeSession(id);
+        log.info('Tracking session completed', { jobId: id });
+      } else if (data.status === 'cancelled') {
+        // Cancel tracking session when job is cancelled
+        await cancelSession(id);
+        log.info('Tracking session cancelled', { jobId: id });
+      }
+    } catch (trackingError) {
+      // Log but don't fail the job transition if tracking fails
+      log.error('Tracking session error (non-blocking)', {
+        jobId: id,
+        status: data.status,
+        error: trackingError instanceof Error ? trackingError.message : 'Unknown',
+      });
+    }
 
     // TODO: Emit job.status_changed event
     // TODO: Trigger auto-invoice if completed and org settings allow

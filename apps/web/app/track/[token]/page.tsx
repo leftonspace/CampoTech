@@ -1,8 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { MapPin, Phone, MessageCircle, User, Clock, Truck } from 'lucide-react';
+
+// Dynamically import the map component to avoid SSR issues with Leaflet
+const TrackingMap = dynamic(
+  () => import('@/components/maps/TrackingMap'),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-64 bg-gradient-to-br from-blue-100 to-green-100 flex items-center justify-center rounded-xl">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-3 text-sm text-gray-600">Cargando mapa...</p>
+        </div>
+      </div>
+    ),
+  }
+);
 
 interface TrackingData {
   technicianName: string;
@@ -116,40 +133,16 @@ export default function TrackingPage() {
       </header>
 
       <main className="max-w-lg mx-auto p-4 space-y-4">
-        {/* Map Placeholder */}
+        {/* Interactive Map */}
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div className="h-64 bg-gradient-to-br from-blue-100 to-green-100 flex items-center justify-center relative">
-            {trackingData.status === 'active' ? (
-              <div className="text-center">
-                <div className="relative">
-                  <div className="w-16 h-16 bg-primary-600 rounded-full flex items-center justify-center text-white text-2xl animate-pulse">
-                    🚐
-                  </div>
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-green-500 rounded-full border-2 border-white"></div>
-                </div>
-                <p className="mt-3 text-sm text-gray-600">
-                  Técnico en movimiento
-                </p>
-              </div>
-            ) : (
-              <div className="text-center">
-                <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center text-white text-2xl">
-                  ✓
-                </div>
-                <p className="mt-3 text-sm text-gray-600">
-                  {trackingData.status === 'arrived' ? 'El técnico llegó' : 'Servicio completado'}
-                </p>
-              </div>
-            )}
-
-            {/* Destination marker */}
-            <div className="absolute bottom-4 right-4 bg-white rounded-lg px-3 py-2 shadow-md">
-              <div className="flex items-center gap-2 text-sm">
-                <MapPin className="h-4 w-4 text-red-500" />
-                <span className="text-gray-700">Tu ubicación</span>
-              </div>
-            </div>
-          </div>
+          <TrackingMap
+            technicianPosition={trackingData.currentPosition}
+            destination={trackingData.destination}
+            status={trackingData.status as 'active' | 'arrived' | 'completed' | 'cancelled'}
+            movementMode={trackingData.movementMode}
+            className="h-64"
+            showRoute={trackingData.status === 'active'}
+          />
         </div>
 
         {/* ETA Card */}
