@@ -2,8 +2,11 @@
  * ETL Pipeline Service
  * ====================
  *
- * Phase 10: Advanced Analytics & Reporting
+ * Phase 10.1: Analytics Data Infrastructure
  * Extract, Transform, Load pipeline for analytics data.
+ *
+ * Uses Redis-based storage for analytics data, avoiding the need
+ * for additional Prisma migrations for analytics-specific tables.
  */
 
 import { db } from '../../lib/db';
@@ -17,13 +20,16 @@ import {
   getTechnicianDimension,
   getServiceDimension,
 } from './data-warehouse';
-import { DateRange, AggregatedMetric, TimeGranularity } from '../analytics.types';
+import { writePoints, TimeSeriesPoint, queryTimeSeries } from '../collectors/time-series-storage';
+import { aggregateMetrics } from '../collectors/metrics-aggregator';
+import { flushEvents } from '../collectors/event-collector';
+import { DateRange, TimeGranularity } from '../analytics.types';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ETL CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const ETL_CONFIG = {
+export const ETL_CONFIG = {
   batchSize: 1000,
   retentionDays: {
     raw: 90,
@@ -39,15 +45,95 @@ const ETL_CONFIG = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// ETL STATUS TRACKING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface ETLStatus {
+  organizationId: string;
+  lastFullRun: Date | null;
+  lastIncrementalRun: Date | null;
+  lastRunStatus: 'success' | 'failed' | 'running' | 'never';
+  lastError: string | null;
+  recordsProcessed: {
+    jobs: number;
+    invoices: number;
+    payments: number;
+    customers: number;
+    technicians: number;
+    services: number;
+  };
+}
+
+/**
+ * Get ETL status for an organization
+ */
+export async function getETLStatus(organizationId: string): Promise<ETLStatus> {
+  try {
+    const redis = await getRedisConnection();
+    const statusKey = `${ETL_CONFIG.cacheKeyPrefix}${organizationId}:etl_status`;
+    const statusJson = await redis.get(statusKey);
+
+    if (statusJson) {
+      const status = JSON.parse(statusJson);
+      return {
+        ...status,
+        lastFullRun: status.lastFullRun ? new Date(status.lastFullRun) : null,
+        lastIncrementalRun: status.lastIncrementalRun ? new Date(status.lastIncrementalRun) : null,
+      };
+    }
+  } catch (error) {
+    log.warn('Failed to get ETL status', { organizationId, error });
+  }
+
+  return {
+    organizationId,
+    lastFullRun: null,
+    lastIncrementalRun: null,
+    lastRunStatus: 'never',
+    lastError: null,
+    recordsProcessed: {
+      jobs: 0,
+      invoices: 0,
+      payments: 0,
+      customers: 0,
+      technicians: 0,
+      services: 0,
+    },
+  };
+}
+
+/**
+ * Update ETL status
+ */
+async function updateETLStatus(
+  organizationId: string,
+  updates: Partial<ETLStatus>
+): Promise<void> {
+  try {
+    const redis = await getRedisConnection();
+    const statusKey = `${ETL_CONFIG.cacheKeyPrefix}${organizationId}:etl_status`;
+
+    const current = await getETLStatus(organizationId);
+    const updated = { ...current, ...updates };
+
+    await redis.set(statusKey, JSON.stringify(updated), 'EX', ETL_CONFIG.cacheTTL.daily * 30);
+  } catch (error) {
+    log.warn('Failed to update ETL status', { organizationId, error });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ETL JOBS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
  * Run full ETL pipeline for an organization
  */
-export async function runFullETL(organizationId: string): Promise<void> {
+export async function runFullETL(organizationId: string): Promise<ETLStatus> {
   const startTime = Date.now();
   log.info('Starting full ETL pipeline', { organizationId });
+
+  await updateETLStatus(organizationId, { lastRunStatus: 'running' });
 
   try {
     // Define date range (last 90 days for raw data)
@@ -56,27 +142,53 @@ export async function runFullETL(organizationId: string): Promise<void> {
       end: new Date(),
     };
 
+    // Flush any pending events first
+    await flushEvents(organizationId);
+
     // Extract and transform facts
-    await processJobFacts(organizationId, dateRange);
-    await processInvoiceFacts(organizationId, dateRange);
-    await processPaymentFacts(organizationId, dateRange);
+    const jobCount = await processJobFacts(organizationId, dateRange);
+    const invoiceCount = await processInvoiceFacts(organizationId, dateRange);
+    const paymentCount = await processPaymentFacts(organizationId, dateRange);
 
     // Update dimensions
-    await updateDimensions(organizationId);
+    const dimensions = await updateDimensions(organizationId);
 
-    // Aggregate metrics
-    await aggregateMetrics(organizationId, dateRange);
+    // Aggregate metrics for all granularities
+    await aggregateAllMetrics(organizationId, dateRange);
 
-    // Update cache
+    // Update analytics cache
     await updateAnalyticsCache(organizationId);
 
     const duration = Date.now() - startTime;
     log.info('ETL pipeline completed', { organizationId, durationMs: duration });
-  } catch (error) {
-    log.error('ETL pipeline failed', {
+
+    const status: ETLStatus = {
       organizationId,
-      error: error instanceof Error ? error.message : 'Unknown',
+      lastFullRun: new Date(),
+      lastIncrementalRun: null,
+      lastRunStatus: 'success',
+      lastError: null,
+      recordsProcessed: {
+        jobs: jobCount,
+        invoices: invoiceCount,
+        payments: paymentCount,
+        customers: dimensions.customers,
+        technicians: dimensions.technicians,
+        services: dimensions.services,
+      },
+    };
+
+    await updateETLStatus(organizationId, status);
+    return status;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    log.error('ETL pipeline failed', { organizationId, error: errorMessage });
+
+    await updateETLStatus(organizationId, {
+      lastRunStatus: 'failed',
+      lastError: errorMessage,
     });
+
     throw error;
   }
 }
@@ -84,9 +196,11 @@ export async function runFullETL(organizationId: string): Promise<void> {
 /**
  * Run incremental ETL (last 24 hours)
  */
-export async function runIncrementalETL(organizationId: string): Promise<void> {
+export async function runIncrementalETL(organizationId: string): Promise<ETLStatus> {
   const startTime = Date.now();
   log.info('Starting incremental ETL', { organizationId });
+
+  await updateETLStatus(organizationId, { lastRunStatus: 'running' });
 
   try {
     const dateRange: DateRange = {
@@ -94,181 +208,352 @@ export async function runIncrementalETL(organizationId: string): Promise<void> {
       end: new Date(),
     };
 
-    await processJobFacts(organizationId, dateRange);
-    await processInvoiceFacts(organizationId, dateRange);
-    await processPaymentFacts(organizationId, dateRange);
+    // Flush any pending events
+    await flushEvents(organizationId);
+
+    // Process recent facts
+    const jobCount = await processJobFacts(organizationId, dateRange);
+    const invoiceCount = await processInvoiceFacts(organizationId, dateRange);
+    const paymentCount = await processPaymentFacts(organizationId, dateRange);
+
+    // Update cache
     await updateAnalyticsCache(organizationId);
 
     const duration = Date.now() - startTime;
     log.info('Incremental ETL completed', { organizationId, durationMs: duration });
+
+    const currentStatus = await getETLStatus(organizationId);
+    const status: ETLStatus = {
+      ...currentStatus,
+      lastIncrementalRun: new Date(),
+      lastRunStatus: 'success',
+      lastError: null,
+      recordsProcessed: {
+        ...currentStatus.recordsProcessed,
+        jobs: currentStatus.recordsProcessed.jobs + jobCount,
+        invoices: currentStatus.recordsProcessed.invoices + invoiceCount,
+        payments: currentStatus.recordsProcessed.payments + paymentCount,
+      },
+    };
+
+    await updateETLStatus(organizationId, status);
+    return status;
   } catch (error) {
-    log.error('Incremental ETL failed', {
-      organizationId,
-      error: error instanceof Error ? error.message : 'Unknown',
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    log.error('Incremental ETL failed', { organizationId, error: errorMessage });
+
+    await updateETLStatus(organizationId, {
+      lastRunStatus: 'failed',
+      lastError: errorMessage,
     });
+
     throw error;
   }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// FACT PROCESSING
+// FACT PROCESSING - Using Redis Time Series Storage
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function processJobFacts(organizationId: string, dateRange: DateRange): Promise<void> {
+async function processJobFacts(organizationId: string, dateRange: DateRange): Promise<number> {
   const facts = await getJobFacts(organizationId, dateRange);
-
-  // Enrich with additional data
   const enrichedFacts = await enrichJobFacts(organizationId, facts);
 
-  // Store in analytics tables (upsert)
+  // Store job metrics in time series
+  const points: TimeSeriesPoint[] = [];
+
   for (const fact of enrichedFacts) {
-    await db.analyticsJobFact.upsert({
-      where: { id: fact.id },
-      create: {
-        id: fact.id,
-        organizationId: fact.organizationId,
-        jobId: fact.jobId,
-        customerId: fact.customerId,
-        technicianId: fact.technicianId,
-        serviceType: fact.serviceType,
-        createdAt: fact.createdAt,
-        scheduledAt: fact.scheduledAt,
-        startedAt: fact.startedAt,
-        completedAt: fact.completedAt,
+    const timestamp = fact.createdAt.getTime();
+
+    // Job created metric
+    points.push({
+      metric: 'jobs_created',
+      timestamp,
+      value: 1,
+      tags: {
+        organization_id: organizationId,
+        service_type: fact.serviceType,
         status: fact.status,
-        durationMinutes: fact.durationMinutes,
-        estimatedAmount: fact.estimatedAmount,
-        actualAmount: fact.actualAmount,
-        isFirstTimeCustomer: fact.isFirstTimeCustomer,
-        isRepeatJob: fact.isRepeatJob,
-      },
-      update: {
-        status: fact.status,
-        startedAt: fact.startedAt,
-        completedAt: fact.completedAt,
-        durationMinutes: fact.durationMinutes,
-        actualAmount: fact.actualAmount,
       },
     });
+
+    // Revenue metric (estimated)
+    if (fact.estimatedAmount > 0) {
+      points.push({
+        metric: 'jobs_estimated_revenue',
+        timestamp,
+        value: fact.estimatedAmount,
+        tags: {
+          organization_id: organizationId,
+          service_type: fact.serviceType,
+        },
+      });
+    }
+
+    // Actual revenue when completed
+    if (fact.status === 'completado' && fact.actualAmount > 0) {
+      points.push({
+        metric: 'jobs_actual_revenue',
+        timestamp: fact.completedAt?.getTime() || timestamp,
+        value: fact.actualAmount,
+        tags: {
+          organization_id: organizationId,
+          service_type: fact.serviceType,
+        },
+      });
+    }
+
+    // Duration metric
+    if (fact.durationMinutes && fact.durationMinutes > 0) {
+      points.push({
+        metric: 'job_duration',
+        timestamp: fact.completedAt?.getTime() || timestamp,
+        value: fact.durationMinutes,
+        tags: {
+          organization_id: organizationId,
+          service_type: fact.serviceType,
+        },
+      });
+    }
+
+    // First-time customer metric
+    if (fact.isFirstTimeCustomer) {
+      points.push({
+        metric: 'first_time_customers',
+        timestamp,
+        value: 1,
+        tags: { organization_id: organizationId },
+      });
+    }
   }
 
-  log.debug('Processed job facts', { organizationId, count: facts.length });
+  if (points.length > 0) {
+    await writePoints(points);
+  }
+
+  // Store fact summary in Redis hash for quick lookups
+  await storeFactSummary(organizationId, 'jobs', {
+    total: facts.length,
+    completed: facts.filter(f => f.status === 'completado').length,
+    dateRange: { start: dateRange.start.toISOString(), end: dateRange.end.toISOString() },
+    lastUpdated: new Date().toISOString(),
+  });
+
+  log.debug('Processed job facts', { organizationId, count: facts.length, points: points.length });
+  return facts.length;
 }
 
-async function processInvoiceFacts(organizationId: string, dateRange: DateRange): Promise<void> {
+async function processInvoiceFacts(organizationId: string, dateRange: DateRange): Promise<number> {
   const facts = await getInvoiceFacts(organizationId, dateRange);
+  const points: TimeSeriesPoint[] = [];
 
   for (const fact of facts) {
-    await db.analyticsInvoiceFact.upsert({
-      where: { id: fact.id },
-      create: {
-        id: fact.id,
-        organizationId: fact.organizationId,
-        invoiceId: fact.invoiceId,
-        customerId: fact.customerId,
-        jobId: fact.jobId,
-        invoiceType: fact.invoiceType,
-        createdAt: fact.createdAt,
-        dueDate: fact.dueDate,
-        paidAt: fact.paidAt,
-        subtotal: fact.subtotal,
-        taxAmount: fact.taxAmount,
-        total: fact.total,
+    const timestamp = fact.createdAt.getTime();
+
+    // Invoice created metric
+    points.push({
+      metric: 'invoices_created',
+      timestamp,
+      value: 1,
+      tags: {
+        organization_id: organizationId,
+        invoice_type: fact.invoiceType,
         status: fact.status,
-        daysToPayment: fact.daysToPayment,
-        paymentMethod: fact.paymentMethod,
-      },
-      update: {
-        status: fact.status,
-        paidAt: fact.paidAt,
-        daysToPayment: fact.daysToPayment,
-        paymentMethod: fact.paymentMethod,
       },
     });
+
+    // Invoice amount metric
+    points.push({
+      metric: 'invoice_amount',
+      timestamp,
+      value: fact.total,
+      tags: {
+        organization_id: organizationId,
+        invoice_type: fact.invoiceType,
+      },
+    });
+
+    // Paid invoice metrics
+    if (fact.paidAt) {
+      points.push({
+        metric: 'invoices_paid',
+        timestamp: fact.paidAt.getTime(),
+        value: 1,
+        tags: {
+          organization_id: organizationId,
+          payment_method: fact.paymentMethod || 'unknown',
+        },
+      });
+
+      points.push({
+        metric: 'revenue_collected',
+        timestamp: fact.paidAt.getTime(),
+        value: fact.total,
+        tags: {
+          organization_id: organizationId,
+          payment_method: fact.paymentMethod || 'unknown',
+        },
+      });
+
+      // Days to payment metric
+      if (fact.daysToPayment !== null) {
+        points.push({
+          metric: 'days_to_payment',
+          timestamp: fact.paidAt.getTime(),
+          value: fact.daysToPayment,
+          tags: { organization_id: organizationId },
+        });
+      }
+    }
   }
 
-  log.debug('Processed invoice facts', { organizationId, count: facts.length });
+  if (points.length > 0) {
+    await writePoints(points);
+  }
+
+  await storeFactSummary(organizationId, 'invoices', {
+    total: facts.length,
+    paid: facts.filter(f => f.paidAt !== null).length,
+    totalAmount: facts.reduce((sum, f) => sum + f.total, 0),
+    dateRange: { start: dateRange.start.toISOString(), end: dateRange.end.toISOString() },
+    lastUpdated: new Date().toISOString(),
+  });
+
+  log.debug('Processed invoice facts', { organizationId, count: facts.length, points: points.length });
+  return facts.length;
 }
 
-async function processPaymentFacts(organizationId: string, dateRange: DateRange): Promise<void> {
+async function processPaymentFacts(organizationId: string, dateRange: DateRange): Promise<number> {
   const facts = await getPaymentFacts(organizationId, dateRange);
+  const points: TimeSeriesPoint[] = [];
 
   for (const fact of facts) {
-    await db.analyticsPaymentFact.upsert({
-      where: { id: fact.id },
-      create: {
-        id: fact.id,
-        organizationId: fact.organizationId,
-        paymentId: fact.paymentId,
-        invoiceId: fact.invoiceId,
-        customerId: fact.customerId,
-        receivedAt: fact.receivedAt,
-        amount: fact.amount,
+    const timestamp = fact.receivedAt.getTime();
+
+    // Payment received metric
+    points.push({
+      metric: 'payments_received',
+      timestamp,
+      value: 1,
+      tags: {
+        organization_id: organizationId,
         method: fact.method,
-        processingFee: fact.processingFee,
-        netAmount: fact.netAmount,
       },
-      update: {},
     });
+
+    // Payment amount metric
+    points.push({
+      metric: 'payment_amount',
+      timestamp,
+      value: fact.amount,
+      tags: {
+        organization_id: organizationId,
+        method: fact.method,
+      },
+    });
+
+    // Net amount (after fees)
+    points.push({
+      metric: 'payment_net_amount',
+      timestamp,
+      value: fact.netAmount,
+      tags: {
+        organization_id: organizationId,
+        method: fact.method,
+      },
+    });
+
+    // Processing fees
+    if (fact.processingFee > 0) {
+      points.push({
+        metric: 'processing_fees',
+        timestamp,
+        value: fact.processingFee,
+        tags: {
+          organization_id: organizationId,
+          method: fact.method,
+        },
+      });
+    }
   }
 
-  log.debug('Processed payment facts', { organizationId, count: facts.length });
+  if (points.length > 0) {
+    await writePoints(points);
+  }
+
+  await storeFactSummary(organizationId, 'payments', {
+    total: facts.length,
+    totalAmount: facts.reduce((sum, f) => sum + f.amount, 0),
+    totalFees: facts.reduce((sum, f) => sum + f.processingFee, 0),
+    dateRange: { start: dateRange.start.toISOString(), end: dateRange.end.toISOString() },
+    lastUpdated: new Date().toISOString(),
+  });
+
+  log.debug('Processed payment facts', { organizationId, count: facts.length, points: points.length });
+  return facts.length;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// DIMENSION UPDATES
+// DIMENSION UPDATES - Using Redis Hash Storage
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function updateDimensions(organizationId: string): Promise<void> {
+interface DimensionCounts {
+  customers: number;
+  technicians: number;
+  services: number;
+}
+
+async function updateDimensions(organizationId: string): Promise<DimensionCounts> {
+  const redis = await getRedisConnection();
+  const baseKey = `${ETL_CONFIG.cacheKeyPrefix}${organizationId}:dimensions`;
+
   // Update customer dimensions
   const customers = await getCustomerDimension(organizationId);
   for (const customer of customers) {
-    await db.analyticsCustomerDim.upsert({
-      where: { customerId: customer.customerId },
-      create: customer,
-      update: {
-        totalJobs: customer.totalJobs,
-        totalRevenue: customer.totalRevenue,
-        averageJobValue: customer.averageJobValue,
-        lastJobAt: customer.lastJobAt,
-        segment: customer.segment,
-      },
+    const customerKey = `${baseKey}:customers:${customer.customerId}`;
+    await redis.hset(customerKey, {
+      data: JSON.stringify(customer),
+      updatedAt: new Date().toISOString(),
     });
+    await redis.expire(customerKey, ETL_CONFIG.cacheTTL.daily * 7); // Keep for 7 days
   }
+
+  // Store customer segment counts
+  const segmentCounts: Record<string, number> = {};
+  for (const customer of customers) {
+    segmentCounts[customer.segment] = (segmentCounts[customer.segment] || 0) + 1;
+  }
+  await redis.hset(`${baseKey}:customer_segments`, segmentCounts as Record<string, string>);
 
   // Update technician dimensions
   const technicians = await getTechnicianDimension(organizationId);
   for (const tech of technicians) {
-    await db.analyticsTechnicianDim.upsert({
-      where: { technicianId: tech.technicianId },
-      create: tech,
-      update: {
-        totalJobs: tech.totalJobs,
-        completedJobs: tech.completedJobs,
-        efficiency: tech.efficiency,
-        averageRating: tech.averageRating,
-      },
+    const techKey = `${baseKey}:technicians:${tech.technicianId}`;
+    await redis.hset(techKey, {
+      data: JSON.stringify(tech),
+      updatedAt: new Date().toISOString(),
     });
+    await redis.expire(techKey, ETL_CONFIG.cacheTTL.daily * 7);
   }
 
   // Update service dimensions
   const services = await getServiceDimension(organizationId);
   for (const service of services) {
-    await db.analyticsServiceDim.upsert({
-      where: {
-        organizationId_serviceType: {
-          organizationId: service.organizationId,
-          serviceType: service.serviceType,
-        },
-      },
-      create: service,
-      update: {
-        averagePrice: service.averagePrice,
-        averageDuration: service.averageDuration,
-        popularityRank: service.popularityRank,
-      },
+    const serviceKey = `${baseKey}:services:${service.serviceType}`;
+    await redis.hset(serviceKey, {
+      data: JSON.stringify(service),
+      updatedAt: new Date().toISOString(),
     });
+    await redis.expire(serviceKey, ETL_CONFIG.cacheTTL.daily * 7);
   }
+
+  // Store dimension summary
+  await redis.hset(`${baseKey}:summary`, {
+    customerCount: String(customers.length),
+    technicianCount: String(technicians.length),
+    serviceCount: String(services.length),
+    updatedAt: new Date().toISOString(),
+  });
 
   log.debug('Updated dimensions', {
     organizationId,
@@ -276,199 +561,45 @@ async function updateDimensions(organizationId: string): Promise<void> {
     technicians: technicians.length,
     services: services.length,
   });
+
+  return {
+    customers: customers.length,
+    technicians: technicians.length,
+    services: services.length,
+  };
+}
+
+/**
+ * Get cached dimension data
+ */
+export async function getCachedDimension<T>(
+  organizationId: string,
+  type: 'customers' | 'technicians' | 'services',
+  id: string
+): Promise<T | null> {
+  try {
+    const redis = await getRedisConnection();
+    const key = `${ETL_CONFIG.cacheKeyPrefix}${organizationId}:dimensions:${type}:${id}`;
+    const result = await redis.hget(key, 'data');
+    return result ? JSON.parse(result) : null;
+  } catch (error) {
+    log.warn('Failed to get cached dimension', { organizationId, type, id, error });
+    return null;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // METRIC AGGREGATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function aggregateMetrics(organizationId: string, dateRange: DateRange): Promise<void> {
-  const granularities: TimeGranularity[] = ['day', 'week', 'month'];
+async function aggregateAllMetrics(organizationId: string, dateRange: DateRange): Promise<void> {
+  const granularities: TimeGranularity[] = ['hour', 'day', 'week', 'month'];
 
   for (const granularity of granularities) {
-    await aggregateRevenueMetrics(organizationId, dateRange, granularity);
-    await aggregateJobMetrics(organizationId, dateRange, granularity);
-    await aggregateCustomerMetrics(organizationId, dateRange, granularity);
+    await aggregateMetrics(organizationId, dateRange, granularity);
   }
 
-  log.debug('Aggregated metrics', { organizationId });
-}
-
-async function aggregateRevenueMetrics(
-  organizationId: string,
-  dateRange: DateRange,
-  granularity: TimeGranularity
-): Promise<void> {
-  const invoices = await getInvoiceFacts(organizationId, dateRange);
-
-  const aggregated = new Map<string, AggregatedMetric>();
-
-  for (const invoice of invoices) {
-    const period = formatPeriodKey(invoice.createdAt, granularity);
-    const key = `${period}_revenue`;
-
-    const current = aggregated.get(key) || {
-      period,
-      granularity,
-      organizationId,
-      metric: 'revenue',
-      value: 0,
-      count: 0,
-      min: null,
-      max: null,
-      average: null,
-    };
-
-    current.value += invoice.total;
-    current.count++;
-    current.min = current.min === null ? invoice.total : Math.min(current.min, invoice.total);
-    current.max = current.max === null ? invoice.total : Math.max(current.max, invoice.total);
-
-    aggregated.set(key, current);
-  }
-
-  // Calculate averages and store
-  for (const metric of aggregated.values()) {
-    metric.average = metric.count > 0 ? metric.value / metric.count : null;
-
-    await db.analyticsAggregatedMetric.upsert({
-      where: {
-        organizationId_metric_period_granularity: {
-          organizationId: metric.organizationId,
-          metric: metric.metric,
-          period: metric.period,
-          granularity: metric.granularity,
-        },
-      },
-      create: metric,
-      update: {
-        value: metric.value,
-        count: metric.count,
-        min: metric.min,
-        max: metric.max,
-        average: metric.average,
-      },
-    });
-  }
-}
-
-async function aggregateJobMetrics(
-  organizationId: string,
-  dateRange: DateRange,
-  granularity: TimeGranularity
-): Promise<void> {
-  const jobs = await getJobFacts(organizationId, dateRange);
-
-  const metrics = ['jobs_total', 'jobs_completed', 'job_duration'];
-  const aggregated = new Map<string, AggregatedMetric>();
-
-  for (const job of jobs) {
-    const period = formatPeriodKey(job.createdAt, granularity);
-
-    // Total jobs
-    const totalKey = `${period}_jobs_total`;
-    const total = aggregated.get(totalKey) || createEmptyMetric(period, granularity, organizationId, 'jobs_total');
-    total.value++;
-    total.count++;
-    aggregated.set(totalKey, total);
-
-    // Completed jobs
-    if (job.status === 'completado') {
-      const completedKey = `${period}_jobs_completed`;
-      const completed = aggregated.get(completedKey) || createEmptyMetric(period, granularity, organizationId, 'jobs_completed');
-      completed.value++;
-      completed.count++;
-      aggregated.set(completedKey, completed);
-    }
-
-    // Duration
-    if (job.durationMinutes) {
-      const durationKey = `${period}_job_duration`;
-      const duration = aggregated.get(durationKey) || createEmptyMetric(period, granularity, organizationId, 'job_duration');
-      duration.value += job.durationMinutes;
-      duration.count++;
-      duration.min = duration.min === null ? job.durationMinutes : Math.min(duration.min, job.durationMinutes);
-      duration.max = duration.max === null ? job.durationMinutes : Math.max(duration.max, job.durationMinutes);
-      aggregated.set(durationKey, duration);
-    }
-  }
-
-  // Store aggregated metrics
-  for (const metric of aggregated.values()) {
-    if (metric.metric === 'job_duration') {
-      metric.average = metric.count > 0 ? metric.value / metric.count : null;
-    }
-
-    await db.analyticsAggregatedMetric.upsert({
-      where: {
-        organizationId_metric_period_granularity: {
-          organizationId: metric.organizationId,
-          metric: metric.metric,
-          period: metric.period,
-          granularity: metric.granularity,
-        },
-      },
-      create: metric,
-      update: {
-        value: metric.value,
-        count: metric.count,
-        min: metric.min,
-        max: metric.max,
-        average: metric.average,
-      },
-    });
-  }
-}
-
-async function aggregateCustomerMetrics(
-  organizationId: string,
-  dateRange: DateRange,
-  granularity: TimeGranularity
-): Promise<void> {
-  // Customer metrics are typically calculated differently (snapshots)
-  // This is a simplified version
-  const customers = await getCustomerDimension(organizationId);
-
-  const segmentCounts: Record<string, number> = {
-    new: 0,
-    active: 0,
-    loyal: 0,
-    at_risk: 0,
-    churned: 0,
-  };
-
-  for (const customer of customers) {
-    segmentCounts[customer.segment]++;
-  }
-
-  const period = formatPeriodKey(new Date(), granularity);
-
-  for (const [segment, count] of Object.entries(segmentCounts)) {
-    await db.analyticsAggregatedMetric.upsert({
-      where: {
-        organizationId_metric_period_granularity: {
-          organizationId,
-          metric: `customers_${segment}`,
-          period,
-          granularity,
-        },
-      },
-      create: {
-        organizationId,
-        metric: `customers_${segment}`,
-        period,
-        granularity,
-        value: count,
-        count: 1,
-        min: null,
-        max: null,
-        average: null,
-      },
-      update: {
-        value: count,
-      },
-    });
-  }
+  log.debug('Aggregated all metrics', { organizationId });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -480,11 +611,34 @@ async function updateAnalyticsCache(organizationId: string): Promise<void> {
     const redis = await getRedisConnection();
     const cacheKey = `${ETL_CONFIG.cacheKeyPrefix}${organizationId}:last_update`;
     await redis.set(cacheKey, new Date().toISOString(), 'EX', ETL_CONFIG.cacheTTL.daily);
+
+    // Invalidate any stale query caches
+    const stalePattern = `${ETL_CONFIG.cacheKeyPrefix}${organizationId}:query:*`;
+    const keys = await redis.keys(stalePattern);
+    if (keys.length > 0) {
+      await redis.del(...keys);
+    }
+
+    log.debug('Updated analytics cache', { organizationId, invalidatedKeys: keys.length });
   } catch (error) {
     log.warn('Failed to update analytics cache', {
       organizationId,
       error: error instanceof Error ? error.message : 'Unknown',
     });
+  }
+}
+
+/**
+ * Get last update time for analytics
+ */
+export async function getLastAnalyticsUpdate(organizationId: string): Promise<Date | null> {
+  try {
+    const redis = await getRedisConnection();
+    const cacheKey = `${ETL_CONFIG.cacheKeyPrefix}${organizationId}:last_update`;
+    const result = await redis.get(cacheKey);
+    return result ? new Date(result) : null;
+  } catch (error) {
+    return null;
   }
 }
 
@@ -515,41 +669,71 @@ async function enrichJobFacts(organizationId: string, facts: any[]): Promise<any
   }));
 }
 
-function formatPeriodKey(date: Date, granularity: TimeGranularity): string {
-  switch (granularity) {
-    case 'hour':
-      return date.toISOString().slice(0, 13);
-    case 'day':
-      return date.toISOString().slice(0, 10);
-    case 'week':
-      const weekStart = new Date(date);
-      weekStart.setDate(date.getDate() - date.getDay());
-      return `${weekStart.toISOString().slice(0, 10)}_W`;
-    case 'month':
-      return date.toISOString().slice(0, 7);
-    case 'quarter':
-      const quarter = Math.floor(date.getMonth() / 3) + 1;
-      return `${date.getFullYear()}-Q${quarter}`;
-    case 'year':
-      return date.getFullYear().toString();
+async function storeFactSummary(
+  organizationId: string,
+  factType: string,
+  summary: Record<string, any>
+): Promise<void> {
+  try {
+    const redis = await getRedisConnection();
+    const key = `${ETL_CONFIG.cacheKeyPrefix}${organizationId}:facts:${factType}:summary`;
+    await redis.set(key, JSON.stringify(summary), 'EX', ETL_CONFIG.cacheTTL.daily);
+  } catch (error) {
+    log.warn('Failed to store fact summary', { organizationId, factType, error });
   }
 }
 
-function createEmptyMetric(
-  period: string,
-  granularity: TimeGranularity,
+/**
+ * Get fact summary from cache
+ */
+export async function getFactSummary(
   organizationId: string,
-  metric: string
-): AggregatedMetric {
-  return {
-    period,
-    granularity,
-    organizationId,
-    metric,
-    value: 0,
-    count: 0,
-    min: null,
-    max: null,
-    average: null,
-  };
+  factType: string
+): Promise<Record<string, any> | null> {
+  try {
+    const redis = await getRedisConnection();
+    const key = `${ETL_CONFIG.cacheKeyPrefix}${organizationId}:facts:${factType}:summary`;
+    const result = await redis.get(key);
+    return result ? JSON.parse(result) : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Clean up old analytics data
+ */
+export async function cleanupOldData(organizationId: string): Promise<{ deleted: number }> {
+  try {
+    const redis = await getRedisConnection();
+    let deletedCount = 0;
+
+    // Get all analytics keys for this organization
+    const pattern = `${ETL_CONFIG.cacheKeyPrefix}${organizationId}:*`;
+    const keys = await redis.keys(pattern);
+
+    // Check TTLs and delete expired data (Redis handles this, but we can force cleanup)
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - ETL_CONFIG.retentionDays.raw);
+
+    for (const key of keys) {
+      if (key.includes(':timeseries:')) {
+        // Time series data - check if it's old raw data
+        const ttl = await redis.ttl(key);
+        if (ttl === -1) {
+          // No expiry set, check if it's old and set appropriate expiry
+          await redis.expire(key, ETL_CONFIG.cacheTTL.daily * 90);
+        }
+      }
+    }
+
+    log.info('Cleanup completed', { organizationId, deletedCount });
+    return { deleted: deletedCount };
+  } catch (error) {
+    log.error('Cleanup failed', {
+      organizationId,
+      error: error instanceof Error ? error.message : 'Unknown',
+    });
+    return { deleted: 0 };
+  }
 }

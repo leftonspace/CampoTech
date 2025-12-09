@@ -10,10 +10,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../../../../lib/auth';
 
-import { generateRevenueKPIs, getRevenueTrend, getRevenueByServiceType } from '../../../../../../src/analytics/kpis/revenue/revenue-metrics';
-import { generateJobKPIs, getJobTrend, getJobsByStatus } from '../../../../../../src/analytics/kpis/operations/job-metrics';
-import { generateCustomerKPIs } from '../../../../../../src/analytics/kpis/customers/customer-lifetime-value';
-import { getDateRangeFromPreset } from '../../../../../../src/analytics/reports/templates/report-templates';
+import {
+  generateRevenueKPIs,
+  getRevenueTrend,
+  getRevenueByServiceType,
+  generateJobKPIs,
+  getJobTrend,
+  getJobsByStatus,
+  generateCustomerKPIs,
+  getDateRangeFromPreset,
+  getETLStatus,
+  getLastAnalyticsUpdate,
+} from '@/src/analytics';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GET /api/analytics/overview
@@ -46,6 +54,8 @@ export async function GET(req: NextRequest) {
       jobsTrend,
       revenueByService,
       jobsByStatus,
+      etlStatus,
+      lastUpdate,
     ] = await Promise.all([
       generateRevenueKPIs(organizationId, dateRange),
       generateJobKPIs(organizationId, dateRange),
@@ -54,6 +64,8 @@ export async function GET(req: NextRequest) {
       getJobTrend(organizationId, dateRange, 'day'),
       getRevenueByServiceType(organizationId, dateRange),
       getJobsByStatus(organizationId, dateRange),
+      getETLStatus(organizationId),
+      getLastAnalyticsUpdate(organizationId),
     ]);
 
     // Format response
@@ -101,6 +113,11 @@ export async function GET(req: NextRequest) {
         value: d.count,
         color: getStatusColor(d.status),
       })),
+      infrastructure: {
+        etlStatus: etlStatus.lastRunStatus,
+        lastUpdate: lastUpdate?.toISOString() || null,
+        recordsProcessed: etlStatus.recordsProcessed,
+      },
     };
 
     return NextResponse.json(response);
