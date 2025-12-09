@@ -93,6 +93,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if session has organizationId
+    if (!session.organizationId) {
+      return NextResponse.json(
+        { success: false, error: 'Session missing organizationId. Please log out and log back in.' },
+        { status: 400 }
+      );
+    }
+
     // Only OWNER and ADMIN can create users
     if (!['OWNER', 'ADMIN'].includes(session.role)) {
       return NextResponse.json(
@@ -111,7 +119,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if phone already exists in organization
+    // Check if phone already exists
     const existingPhone = await prisma.user.findFirst({
       where: {
         phone: body.phone,
@@ -171,8 +179,6 @@ export async function POST(request: NextRequest) {
         skillLevel: true,
         avatar: true,
         isActive: true,
-        createdAt: true,
-        updatedAt: true,
       },
     });
 
@@ -182,8 +188,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Create user error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: 'Error creating user' },
+      { success: false, error: `Error creating user: ${errorMessage}` },
       { status: 500 }
     );
   }

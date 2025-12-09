@@ -31,19 +31,6 @@ export async function GET(
         skillLevel: true,
         avatar: true,
         isActive: true,
-        createdAt: true,
-        updatedAt: true,
-        assignedJobs: {
-          orderBy: { createdAt: 'desc' },
-          take: 10,
-          select: {
-            id: true,
-            jobNumber: true,
-            description: true,
-            status: true,
-            scheduledDate: true,
-          },
-        },
       },
     });
 
@@ -78,6 +65,14 @@ export async function PUT(
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 401 }
+      );
+    }
+
+    // Check if session has organizationId
+    if (!session.organizationId) {
+      return NextResponse.json(
+        { success: false, error: 'Session missing organizationId. Please log out and log back in.' },
+        { status: 400 }
       );
     }
 
@@ -164,8 +159,6 @@ export async function PUT(
         skillLevel: true,
         avatar: true,
         isActive: true,
-        createdAt: true,
-        updatedAt: true,
       },
     });
 
@@ -175,8 +168,9 @@ export async function PUT(
     });
   } catch (error) {
     console.error('Update user error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: 'Error updating user' },
+      { success: false, error: `Error updating user: ${errorMessage}` },
       { status: 500 }
     );
   }
