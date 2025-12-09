@@ -4,11 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
+import { useAuth } from '@/lib/auth-context';
 import { ArrowLeft, Search, Calendar, Clock, User } from 'lucide-react';
 import Link from 'next/link';
 
 export default function NewJobPage() {
   const router = useRouter();
+  const { user: currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
@@ -34,13 +36,14 @@ export default function NewJobPage() {
     enabled: customerSearch.length > 2 && !selectedCustomer,
   });
 
+  // Fetch all team members (admins and technicians)
   const { data: usersData } = useQuery({
-    queryKey: ['users'],
-    queryFn: () => api.users.list({ role: 'technician' }),
+    queryKey: ['users-all'],
+    queryFn: () => api.users.list(),
   });
 
   const customers = customersData?.data as Array<{ id: string; name: string; phone: string }> | undefined;
-  const technicians = usersData?.data as Array<{ id: string; name: string }> | undefined;
+  const teamMembers = usersData?.data as Array<{ id: string; name: string; role: string }> | undefined;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -255,10 +258,10 @@ export default function NewJobPage() {
           </div>
         </div>
 
-        {/* Technician assignment */}
+        {/* Team member assignment */}
         <div>
           <label htmlFor="assignedToId" className="label mb-1 block">
-            Asignar a técnico
+            Asignar a
           </label>
           <div className="relative">
             <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -271,11 +274,18 @@ export default function NewJobPage() {
               className="input pl-10"
             >
               <option value="">Sin asignar</option>
-              {technicians?.map((tech) => (
-                <option key={tech.id} value={tech.id}>
-                  {tech.name}
+              {currentUser && (
+                <option value={currentUser.id}>
+                  Yo ({currentUser.name})
                 </option>
-              ))}
+              )}
+              {teamMembers
+                ?.filter((member) => member.id !== currentUser?.id)
+                .map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.name} {member.role === 'TECHNICIAN' ? '(Técnico)' : member.role === 'ADMIN' ? '(Admin)' : ''}
+                  </option>
+                ))}
             </select>
           </div>
         </div>
