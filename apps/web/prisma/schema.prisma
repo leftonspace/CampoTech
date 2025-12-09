@@ -453,3 +453,19 @@ model MessageBufferStats {
   @@unique([organizationId, date])
   @@map("message_buffer_stats")
 }
+
+model MessageAggregationEvent {
+  id               String   @id @default(cuid())
+  organizationId   String
+  customerPhone    String
+  combinedContent  String
+  messageCount     Int
+  triggerReason    String   // voice_message, long_message, question, request_verb, urgency, address, schedule, price_inquiry, max_buffer, timeout, immediate
+  processedAt      DateTime @default(now())
+  createdAt        DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([triggerReason])
+  @@index([createdAt])
+  @@map("message_aggregation_events")
+}

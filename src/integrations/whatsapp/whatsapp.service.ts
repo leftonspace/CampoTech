@@ -34,6 +34,11 @@ import {
 } from './webhook/webhook.handler';
 import { processAutoResponse } from '../../modules/localization/auto-responder.service';
 import { processAudioMessage } from './messages/audio.handler';
+import {
+  getMessageAggregator,
+  BufferedMessage,
+  AggregationResult,
+} from './aggregation/message-aggregator.service';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -688,11 +693,83 @@ export async function processInboundMessage(
     });
   }
 
+  // Feed message to aggregator for intelligent batching
+  try {
+    const bufferedMessage: BufferedMessage = {
+      id: message.id,
+      content,
+      type: message.type,
+      timestamp: Date.now(),
+      mediaId: mediaId || undefined,
+    };
+
+    const aggregator = getMessageAggregator();
+    const result = await aggregator.handleMessage(
+      organizationId,
+      message.from,
+      bufferedMessage
+    );
+
+    // If aggregator returns a result, process the aggregated content
+    if (result && result.shouldProcess) {
+      await processAggregatedMessage(organizationId, message.from, result, contactName);
+    }
+  } catch (error) {
+    log.error('Error in message aggregation', {
+      organizationId,
+      messageId: message.id,
+      error: error instanceof Error ? error.message : 'Unknown',
+    });
+  }
+
   log.info('Inbound message processed', {
     organizationId,
     conversationId,
     messageType: message.type,
   });
+}
+
+/**
+ * Process aggregated messages (after buffer triggers)
+ */
+async function processAggregatedMessage(
+  organizationId: string,
+  phone: string,
+  result: AggregationResult,
+  contactName?: string
+): Promise<void> {
+  log.info('Processing aggregated message', {
+    organizationId,
+    phone,
+    messageCount: result.messageCount,
+    triggerReason: result.triggerReason,
+    hasContext: !!result.context,
+  });
+
+  // Store aggregation event for analytics
+  try {
+    await db.messageAggregationEvent.create({
+      data: {
+        organizationId,
+        customerPhone: phone,
+        customerName: contactName || result.context?.customerName,
+        messageCount: result.messageCount,
+        combinedContent: result.combinedContent,
+        triggerReason: result.triggerReason || 'unknown',
+        customerId: result.context?.customerId,
+        activeJobId: result.context?.activeJobId,
+        processedAt: new Date(),
+      },
+    });
+  } catch (error) {
+    // Table may not exist yet, log and continue
+    log.debug('Could not store aggregation event', { error });
+  }
+
+  // Future: This is where GPT/AI processing would happen
+  // For now, we just log and let the human agents handle it
+  // The aggregated content is available in result.combinedContent
+  // The context includes customer info, active job, previous messages
 }
 
 /**
