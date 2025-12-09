@@ -7,8 +7,21 @@ import { useAuth } from '@/lib/auth-context';
 
 type Step = 'phone' | 'otp';
 
+// Country codes for phone input
+const COUNTRY_CODES = [
+  { code: '+54', country: 'Argentina', flag: '🇦🇷' },
+  { code: '+1', country: 'USA/Canada', flag: '🇺🇸' },
+  { code: '+52', country: 'México', flag: '🇲🇽' },
+  { code: '+55', country: 'Brasil', flag: '🇧🇷' },
+  { code: '+56', country: 'Chile', flag: '🇨🇱' },
+  { code: '+57', country: 'Colombia', flag: '🇨🇴' },
+  { code: '+58', country: 'Venezuela', flag: '🇻🇪' },
+  { code: '+34', country: 'España', flag: '🇪🇸' },
+];
+
 export default function LoginPage() {
   const [step, setStep] = useState<Step>('phone');
+  const [countryCode, setCountryCode] = useState('+54'); // Default to Argentina
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
@@ -17,12 +30,19 @@ export default function LoginPage() {
   const { requestOtp, login } = useAuth();
   const router = useRouter();
 
+  // Get full phone number with country code
+  const getFullPhone = () => {
+    const phoneDigits = phone.replace(/\D/g, '');
+    return `${countryCode}${phoneDigits}`;
+  };
+
   const handlePhoneSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
-    const result = await requestOtp(phone);
+    const fullPhone = getFullPhone();
+    const result = await requestOtp(fullPhone);
 
     if (result.success) {
       setStep('otp');
@@ -38,7 +58,8 @@ export default function LoginPage() {
     setError('');
     setIsLoading(true);
 
-    const result = await login(phone, otp);
+    const fullPhone = getFullPhone();
+    const result = await login(fullPhone, otp);
 
     if (result.success) {
       router.push('/dashboard');
@@ -66,16 +87,29 @@ export default function LoginPage() {
                 <label htmlFor="phone" className="label mb-1 block">
                   Teléfono
                 </label>
-                <input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="+54 11 1234-5678"
-                  className="input"
-                  required
-                  autoFocus
-                />
+                <div className="flex gap-2">
+                  <select
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    className="input w-32 px-2"
+                  >
+                    {COUNTRY_CODES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.flag} {c.code}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                    placeholder="11 1234 5678"
+                    className="input flex-1"
+                    required
+                    autoFocus
+                  />
+                </div>
               </div>
 
               {error && (
@@ -110,7 +144,7 @@ export default function LoginPage() {
                   autoFocus
                 />
                 <p className="mt-2 text-sm text-gray-500">
-                  Enviamos un código a {phone}
+                  Enviamos un código a {getFullPhone()}
                 </p>
               </div>
 

@@ -13,6 +13,18 @@ interface FormError {
   field?: string;
 }
 
+// Country codes for phone input
+const COUNTRY_CODES = [
+  { code: '+54', country: 'Argentina', flag: '🇦🇷' },
+  { code: '+1', country: 'USA/Canada', flag: '🇺🇸' },
+  { code: '+52', country: 'México', flag: '🇲🇽' },
+  { code: '+55', country: 'Brasil', flag: '🇧🇷' },
+  { code: '+56', country: 'Chile', flag: '🇨🇱' },
+  { code: '+57', country: 'Colombia', flag: '🇨🇴' },
+  { code: '+58', country: 'Venezuela', flag: '🇻🇪' },
+  { code: '+34', country: 'España', flag: '🇪🇸' },
+];
+
 export default function SignupPage() {
   const [step, setStep] = useState<Step>('info');
   const [formData, setFormData] = useState({
@@ -22,10 +34,17 @@ export default function SignupPage() {
     phone: '',
     email: '',
   });
+  const [countryCode, setCountryCode] = useState('+54'); // Default to Argentina
   const [otp, setOtp] = useState('');
   const [error, setError] = useState<FormError | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [devMode, setDevMode] = useState(false);
+
+  // Get full phone number with country code
+  const getFullPhone = () => {
+    const phoneDigits = formData.phone.replace(/\D/g, '');
+    return `${countryCode}${phoneDigits}`;
+  };
 
   const router = useRouter();
 
@@ -61,12 +80,14 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
+      const fullPhone = getFullPhone();
+
       // Call registration endpoint
       const response = await api.auth.register({
         cuit: formData.cuit,
         businessName: formData.businessName,
         adminName: formData.name,
-        phone: formData.phone,
+        phone: fullPhone,
         email: formData.email || undefined,
       });
 
@@ -95,7 +116,8 @@ export default function SignupPage() {
     setIsLoading(true);
 
     try {
-      const response = await api.auth.verifyRegistration(formData.phone, otp);
+      const fullPhone = getFullPhone();
+      const response = await api.auth.verifyRegistration(fullPhone, otp);
 
       if (response.success && response.data) {
         const data = response.data as {
@@ -262,18 +284,31 @@ export default function SignupPage() {
                 <label htmlFor="phone" className="label mb-1 block">
                   Tu teléfono celular
                 </label>
-                <input
-                  id="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                  placeholder="+54 11 1234-5678"
-                  className={`input ${getFieldError('phone') ? 'border-danger-500' : ''}`}
-                  required
-                  autoFocus
-                />
+                <div className="flex gap-2">
+                  <select
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    className="input w-32 px-2"
+                  >
+                    {COUNTRY_CODES.map((c) => (
+                      <option key={c.code} value={c.code}>
+                        {c.flag} {c.code}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    id="phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) =>
+                      setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') })
+                    }
+                    placeholder="11 1234 5678"
+                    className={`input flex-1 ${getFieldError('phone') ? 'border-danger-500' : ''}`}
+                    required
+                    autoFocus
+                  />
+                </div>
                 {getFieldError('phone') && (
                   <p className="mt-1 text-sm text-danger-500">{getFieldError('phone')}</p>
                 )}
@@ -327,7 +362,7 @@ export default function SignupPage() {
                   autoFocus
                 />
                 <p className="mt-2 text-sm text-gray-500">
-                  Enviamos un código a {formData.phone}
+                  Enviamos un código a {getFullPhone()}
                 </p>
                 {devMode && (
                   <p className="mt-1 text-xs text-amber-600">
