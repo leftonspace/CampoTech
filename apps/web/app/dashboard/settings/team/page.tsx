@@ -16,6 +16,10 @@ import {
   Shield,
   Wrench,
   Eye,
+  AlertCircle,
+  CheckCircle,
+  RefreshCw,
+  MessageCircle,
 } from 'lucide-react';
 
 interface TeamMember {
@@ -28,6 +32,16 @@ interface TeamMember {
   skillLevel?: string;
   avatar?: string;
   isActive: boolean;
+  isVerified?: boolean;
+}
+
+interface PendingVerification {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  role: string;
+  createdAt: string;
 }
 
 // Argentine construction trade categories (UOCRA CCT 76/75)
@@ -91,6 +105,7 @@ export default function TeamSettingsPage() {
   const { user: currentUser } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  const [showPendingVerifications, setShowPendingVerifications] = useState(true);
 
   const { data, isLoading } = useQuery({
     queryKey: ['users-all'],
@@ -98,6 +113,49 @@ export default function TeamSettingsPage() {
   });
 
   const members = (data?.data as TeamMember[]) || [];
+
+  // Fetch pending verifications
+  const { data: pendingData, isLoading: pendingLoading } = useQuery({
+    queryKey: ['pending-verifications'],
+    queryFn: async () => {
+      const response = await fetch('/api/users/pending-verifications');
+      return response.json();
+    },
+    enabled: ['OWNER', 'ADMIN'].includes(currentUser?.role || ''),
+  });
+
+  const pendingVerifications = (pendingData?.data as PendingVerification[]) || [];
+
+  // Manual verify mutation
+  const manualVerifyMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await fetch('/api/users/pending-verifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'manual-verify', userId }),
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['pending-verifications'] });
+      queryClient.invalidateQueries({ queryKey: ['users-all'] });
+    },
+  });
+
+  // Resend code mutation
+  const resendCodeMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await fetch('/api/users/pending-verifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'resend-code', userId }),
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      alert('Código de verificación reenviado');
+    },
+  });
 
   const [mutationError, setMutationError] = useState<string | null>(null);
 
@@ -215,6 +273,73 @@ export default function TeamSettingsPage() {
           })}
         </div>
       </div>
+
+      {/* Pending verifications */}
+      {['OWNER', 'ADMIN'].includes(currentUser?.role || '') && pendingVerifications.length > 0 && (
+        <div className="card overflow-hidden border-yellow-200 bg-yellow-50">
+          <div
+            className="flex cursor-pointer items-center justify-between p-4"
+            onClick={() => setShowPendingVerifications(!showPendingVerifications)}
+          >
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-yellow-600" />
+              <h3 className="font-medium text-yellow-900">
+                Verificaciones pendientes ({pendingVerifications.length})
+              </h3>
+            </div>
+            <span className="text-sm text-yellow-700">
+              {showPendingVerifications ? 'Ocultar' : 'Mostrar'}
+            </span>
+          </div>
+
+          {showPendingVerifications && (
+            <div className="border-t border-yellow-200 bg-white">
+              <div className="divide-y divide-gray-100">
+                {pendingVerifications.map((user) => (
+                  <div key={user.id} className="flex items-center justify-between p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-yellow-100 text-yellow-600 font-medium">
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{user.name}</p>
+                        <p className="text-sm text-gray-500">{user.phone}</p>
+                        <p className="text-xs text-gray-400">
+                          Agregado {new Date(user.createdAt).toLocaleDateString('es-AR')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => resendCodeMutation.mutate(user.id)}
+                        disabled={resendCodeMutation.isPending}
+                        className="flex items-center gap-1 rounded-md bg-blue-50 px-3 py-1.5 text-sm font-medium text-blue-700 hover:bg-blue-100"
+                        title="Reenviar código por WhatsApp"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        Reenviar código
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`¿Verificar manualmente a ${user.name}?`)) {
+                            manualVerifyMutation.mutate(user.id);
+                          }
+                        }}
+                        disabled={manualVerifyMutation.isPending}
+                        className="flex items-center gap-1 rounded-md bg-green-50 px-3 py-1.5 text-sm font-medium text-green-700 hover:bg-green-100"
+                        title="Verificar manualmente"
+                      >
+                        <CheckCircle className="h-4 w-4" />
+                        Verificar
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Members list */}
       <div className="card overflow-hidden">
@@ -648,7 +773,7 @@ function TeamMemberModal({
             )}
 
             {!member && (
-              <div className="rounded-lg bg-blue-50 p-3">
+              <div className="rounded-lg bg-green-50 p-3">
                 <label className="flex items-center gap-2">
                   <input
                     type="checkbox"
@@ -658,12 +783,12 @@ function TeamMemberModal({
                     }
                     className="rounded text-primary-600"
                   />
-                  <span className="text-sm font-medium text-blue-900">
-                    Enviar notificación de bienvenida
+                  <span className="text-sm font-medium text-green-900">
+                    Enviar bienvenida y código de verificación
                   </span>
                 </label>
-                <p className="mt-1 ml-6 text-xs text-blue-700">
-                  Se enviará un SMS al empleado con los datos de acceso
+                <p className="mt-1 ml-6 text-xs text-green-700">
+                  Se enviará por WhatsApp un mensaje de bienvenida con código de verificación (6 dígitos)
                 </p>
               </div>
             )}
