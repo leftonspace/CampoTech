@@ -1,8 +1,8 @@
 # CampoTech Full Implementation Plan
 
 **Based on:** `campotech-architecture-complete.md`
-**Target Timeline:** 18-Week MVP + 18-Week Post-MVP (36 weeks total)
-**Total Estimated Effort:** ~4600 developer hours (MVP: ~2500 | Post-MVP: ~2100)
+**Target Timeline:** 18-Week MVP + 2-Week Enhanced MVP + 18-Week Post-MVP (38 weeks total)
+**Total Estimated Effort:** ~5000 developer hours (MVP: ~2500 | Enhanced: ~400 | Post-MVP: ~2100)
 
 ---
 
@@ -20,15 +20,22 @@
 | **Phase 8** | Voice AI Processing | Week 16-17 | Phase 6 | Feature-flagged |
 | **Phase 9** | Observability & Hardening | Week 18 | All | YES |
 
+### Enhanced MVP Phases (Post-Launch, Pre-Scaling)
+
+| Phase | Focus | Duration | Dependencies | Priority |
+|-------|-------|----------|--------------|----------|
+| **Phase 9.5** | Employee Onboarding & Verification | Week 19 | Phase 9 | High |
+| **Phase 9.6** | Notification Preferences System | Weeks 19-20 | Phase 9 | High |
+
 ### Post-MVP Phases
 
 | Phase | Focus | Duration | Dependencies | Priority |
 |-------|-------|----------|--------------|----------|
-| **Phase 10** | Advanced Analytics & Reporting | Weeks 19-21 | Phase 9 | High |
-| **Phase 11** | Multi-Location Support | Weeks 22-24 | Phase 10 | High |
-| **Phase 12** | Inventory Management | Weeks 25-28 | Phase 11 | Medium |
-| **Phase 13** | Customer Self-Service Portal | Weeks 29-32 | Phases 10-12 | Medium |
-| **Phase 14** | API for Third-Party Integrations | Weeks 33-36 | Phase 13 | Medium |
+| **Phase 10** | Advanced Analytics & Reporting | Weeks 21-23 | Phase 9.6 | High |
+| **Phase 11** | Multi-Location Support | Weeks 24-26 | Phase 10 | High |
+| **Phase 12** | Inventory Management | Weeks 27-30 | Phase 11 | Medium |
+| **Phase 13** | Customer Self-Service Portal | Weeks 31-34 | Phases 10-12 | Medium |
+| **Phase 14** | API for Third-Party Integrations | Weeks 35-38 | Phase 13 | Medium |
 
 ---
 
@@ -890,12 +897,344 @@ Files to create:
 
 ---
 
+## PHASE 9.5: EMPLOYEE ONBOARDING & VERIFICATION
+**Duration:** Week 19 (1 week)
+**Team:** 1 Backend Engineer, 1 Frontend Engineer
+**Priority:** High - Critical for security and compliance
+
+### 9.5.1 Employee SMS Verification System
+```
+Location: /src/modules/users/onboarding/
+Files to create:
+├── employee-verification.service.ts
+├── onboarding-workflow.ts
+├── verification-token.service.ts
+├── onboarding.types.ts
+└── onboarding.controller.ts
+```
+
+**Tasks:**
+- [ ] 9.5.1.1 Create employee verification token generation (6-digit code, 15min expiry)
+- [ ] 9.5.1.2 Implement verification SMS sending via Twilio
+- [ ] 9.5.1.3 Build verification code validation endpoint
+- [ ] 9.5.1.4 Add `isVerified` flag to User model (default: false for new employees)
+- [ ] 9.5.1.5 Enforce verification before first login
+- [ ] 9.5.1.6 Implement verification retry limits (3 attempts, then 1h cooldown)
+- [ ] 9.5.1.7 Create resend verification code endpoint
+- [ ] 9.5.1.8 Add verification status to user API responses
+
+### 9.5.2 Employee Onboarding Workflow
+```
+Location: /src/modules/users/onboarding/
+Files to create:
+├── welcome-message.service.ts
+├── onboarding-checklist.ts
+└── first-login-handler.ts
+```
+
+**Tasks:**
+- [ ] 9.5.2.1 Create customizable welcome SMS/WhatsApp message
+- [ ] 9.5.2.2 Implement onboarding checklist for new employees:
+  - Verify phone number
+  - Accept terms & conditions
+  - Set profile photo (optional)
+  - Complete first job tutorial (mobile)
+- [ ] 9.5.2.3 Create first login detection and onboarding flow trigger
+- [ ] 9.5.2.4 Build admin notification on employee verification completion
+- [ ] 9.5.2.5 Implement onboarding progress tracking
+
+### 9.5.3 Admin Onboarding Management UI
+```
+Files to create:
+├── app/(dashboard)/settings/team/onboarding/
+│   ├── page.tsx (Pending Verifications)
+│   └── templates/page.tsx (Welcome Message Templates)
+├── components/team/
+│   ├── PendingVerifications.tsx
+│   ├── VerificationStatus.tsx
+│   └── ResendVerification.tsx
+```
+
+**Tasks:**
+- [ ] 9.5.3.1 Build pending verifications list in team settings
+- [ ] 9.5.3.2 Create verification status indicators
+- [ ] 9.5.3.3 Implement manual verification trigger (for admin use)
+- [ ] 9.5.3.4 Build welcome message template editor
+- [ ] 9.5.3.5 Create verification analytics (time to verify, completion rate)
+
+### 9.5.4 Mobile Onboarding Experience
+```
+Files to create (mobile):
+├── app/(auth)/verify/
+│   ├── page.tsx
+│   └── success.tsx
+├── app/(onboarding)/
+│   ├── layout.tsx
+│   ├── welcome.tsx
+│   ├── terms.tsx
+│   ├── profile.tsx
+│   └── tutorial.tsx
+├── components/onboarding/
+│   ├── OnboardingProgress.tsx
+│   ├── TermsAcceptance.tsx
+│   └── TutorialSteps.tsx
+```
+
+**Tasks:**
+- [ ] 9.5.4.1 Build verification code entry screen
+- [ ] 9.5.4.2 Create terms & conditions acceptance flow
+- [ ] 9.5.4.3 Build profile completion screen
+- [ ] 9.5.4.4 Implement interactive app tutorial
+- [ ] 9.5.4.5 Add skip tutorial option for experienced users
+
+---
+
+## PHASE 9.6: NOTIFICATION PREFERENCES SYSTEM
+**Duration:** Weeks 19-20 (2 weeks, overlaps with Phase 9.5)
+**Team:** 1 Backend Engineer, 1 Frontend Engineer, 1 Mobile Engineer
+**Priority:** High - Essential for user engagement and retention
+
+### 9.6.1 Notification Preferences Database Schema
+```
+Location: /database/migrations/
+Files to create:
+├── 015_create_notification_preferences.sql
+├── 016_create_notification_templates.sql
+├── 017_create_notification_logs.sql
+└── 018_create_scheduled_reminders.sql
+```
+
+**Database Schema:**
+```sql
+-- User notification preferences
+CREATE TABLE notification_preferences (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    organization_id UUID NOT NULL REFERENCES organizations(id),
+
+    -- Channel preferences
+    web_enabled BOOLEAN DEFAULT true,
+    push_enabled BOOLEAN DEFAULT true,
+    sms_enabled BOOLEAN DEFAULT false,
+    email_enabled BOOLEAN DEFAULT true,
+    whatsapp_enabled BOOLEAN DEFAULT false,
+
+    -- Event type preferences (JSON for flexibility)
+    event_preferences JSONB DEFAULT '{
+        "job_assigned": {"web": true, "push": true, "email": false},
+        "job_reminder": {"web": true, "push": true, "sms": false},
+        "job_completed": {"web": true, "push": false, "email": true},
+        "invoice_created": {"web": true, "push": false, "email": true},
+        "payment_received": {"web": true, "push": true, "email": true},
+        "team_member_added": {"web": true, "push": false, "email": true},
+        "system_alert": {"web": true, "push": true, "email": true}
+    }',
+
+    -- Reminder timing preferences (minutes before)
+    reminder_intervals JSONB DEFAULT '[1440, 60, 30]', -- 24h, 1h, 30min
+
+    -- Quiet hours (don't disturb)
+    quiet_hours_enabled BOOLEAN DEFAULT false,
+    quiet_hours_start TIME DEFAULT '22:00',
+    quiet_hours_end TIME DEFAULT '08:00',
+    quiet_hours_timezone TEXT DEFAULT 'America/Argentina/Buenos_Aires',
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    UNIQUE(user_id)
+);
+
+-- Notification event types
+CREATE TYPE notification_event_type AS ENUM (
+    'job_assigned',
+    'job_updated',
+    'job_reminder',
+    'job_completed',
+    'job_cancelled',
+    'invoice_created',
+    'invoice_sent',
+    'payment_received',
+    'payment_failed',
+    'team_member_added',
+    'team_member_removed',
+    'sync_conflict',
+    'system_alert',
+    'custom'
+);
+
+-- Notification delivery channel
+CREATE TYPE notification_channel AS ENUM (
+    'web',
+    'push',
+    'sms',
+    'email',
+    'whatsapp'
+);
+```
+
+**Tasks:**
+- [ ] 9.6.1.1 Create notification_preferences table
+- [ ] 9.6.1.2 Create notification_logs table for delivery tracking
+- [ ] 9.6.1.3 Create scheduled_reminders table for job reminders
+- [ ] 9.6.1.4 Add default preferences on user creation
+- [ ] 9.6.1.5 Create indexes for efficient queries
+
+### 9.6.2 Notification Service
+```
+Location: /src/modules/notifications/
+Files to create:
+├── notification.service.ts
+├── notification.repository.ts
+├── notification.controller.ts
+├── notification.routes.ts
+├── preferences.service.ts
+├── delivery/
+│   ├── delivery-orchestrator.ts
+│   ├── web-push.service.ts
+│   ├── email.service.ts
+│   ├── sms.service.ts
+│   └── whatsapp-notification.service.ts
+├── reminders/
+│   ├── reminder-scheduler.ts
+│   ├── reminder.worker.ts
+│   └── reminder.types.ts
+└── notification.types.ts
+```
+
+**Tasks:**
+- [ ] 9.6.2.1 Implement notification preferences CRUD API
+- [ ] 9.6.2.2 Create notification delivery orchestrator (routes to channels based on preferences)
+- [ ] 9.6.2.3 Implement web push notifications (browser notifications API)
+- [ ] 9.6.2.4 Create email notification delivery via Resend/SendGrid
+- [ ] 9.6.2.5 Implement SMS notification via Twilio
+- [ ] 9.6.2.6 Create WhatsApp notification via existing integration
+- [ ] 9.6.2.7 Build quiet hours enforcement
+- [ ] 9.6.2.8 Implement notification logging and delivery status tracking
+
+### 9.6.3 Job Reminder System
+```
+Location: /src/modules/notifications/reminders/
+Files to create:
+├── reminder-scheduler.ts
+├── reminder-calculator.ts
+├── reminder.worker.ts
+└── reminder.types.ts
+```
+
+**Default Reminder Schedule:**
+- **24 hours before** (day before) - Email/Web notification
+- **1 hour before** - Push notification + optional SMS
+- **30 minutes before** - Push notification (high priority)
+
+**Tasks:**
+- [ ] 9.6.3.1 Create reminder scheduling service (on job creation/update)
+- [ ] 9.6.3.2 Implement configurable reminder intervals per user
+- [ ] 9.6.3.3 Build reminder worker (processes scheduled reminders)
+- [ ] 9.6.3.4 Handle job time changes (reschedule reminders)
+- [ ] 9.6.3.5 Handle job cancellation (cancel reminders)
+- [ ] 9.6.3.6 Implement batch reminder processing for efficiency
+- [ ] 9.6.3.7 Create reminder delivery with escalation (if not acknowledged)
+
+### 9.6.4 Real-Time Web Notifications
+```
+Location: /src/modules/notifications/websocket/
+Files to create:
+├── notification-socket.ts
+├── socket-manager.ts
+├── connection-tracker.ts
+└── broadcast.service.ts
+```
+
+**Tasks:**
+- [ ] 9.6.4.1 Implement WebSocket connection for real-time notifications
+- [ ] 9.6.4.2 Create browser notification API integration
+- [ ] 9.6.4.3 Build notification center component (bell icon with dropdown)
+- [ ] 9.6.4.4 Implement notification read/unread status
+- [ ] 9.6.4.5 Create notification badge count
+- [ ] 9.6.4.6 Build notification history page
+- [ ] 9.6.4.7 Implement notification actions (mark all as read, clear)
+
+### 9.6.5 Notification Preferences UI (Web)
+```
+Files to create:
+├── app/(dashboard)/settings/notifications/
+│   ├── page.tsx (Notification Settings)
+│   └── history/page.tsx (Notification History)
+├── components/notifications/
+│   ├── NotificationCenter.tsx
+│   ├── NotificationBell.tsx
+│   ├── NotificationDropdown.tsx
+│   ├── NotificationItem.tsx
+│   ├── NotificationPreferencesForm.tsx
+│   ├── ChannelToggle.tsx
+│   ├── EventTypeSettings.tsx
+│   ├── ReminderIntervalPicker.tsx
+│   └── QuietHoursSettings.tsx
+```
+
+**Tasks:**
+- [ ] 9.6.5.1 Build notification settings page with channel toggles
+- [ ] 9.6.5.2 Create event type configuration matrix
+- [ ] 9.6.5.3 Implement reminder interval customization
+- [ ] 9.6.5.4 Build quiet hours configuration
+- [ ] 9.6.5.5 Create notification center (bell icon) in header
+- [ ] 9.6.5.6 Build notification dropdown with recent notifications
+- [ ] 9.6.5.7 Create notification history page with filters
+- [ ] 9.6.5.8 Implement test notification button
+
+### 9.6.6 Mobile Notification Enhancements
+```
+Files to create (mobile):
+├── app/(tabs)/notifications/
+│   └── index.tsx (Notification History)
+├── app/settings/notifications/
+│   └── page.tsx (Notification Preferences)
+├── components/notifications/
+│   ├── NotificationList.tsx
+│   ├── NotificationCard.tsx
+│   └── NotificationPreferences.tsx
+├── lib/notifications/
+│   ├── reminder-manager.ts
+│   └── notification-sync.ts
+```
+
+**Tasks:**
+- [ ] 9.6.6.1 Enhance push notification with multiple reminder intervals
+- [ ] 9.6.6.2 Build notification history screen
+- [ ] 9.6.6.3 Create notification preferences screen
+- [ ] 9.6.6.4 Implement notification sync with server
+- [ ] 9.6.6.5 Add notification actions (quick reply, mark complete)
+- [ ] 9.6.6.6 Handle notification grouping for multiple job reminders
+
+### 9.6.7 Organization-Level Notification Defaults
+```
+Location: /src/modules/organizations/notifications/
+Files to create:
+├── org-notification-defaults.service.ts
+├── notification-policy.ts
+└── mandatory-notifications.ts
+```
+
+**Tasks:**
+- [ ] 9.6.7.1 Create organization-level notification defaults
+- [ ] 9.6.7.2 Implement role-based notification policies:
+  - Owners/Admins: All notifications by default
+  - Dispatchers: Job assignments, completions, customer messages
+  - Technicians: Job assignments, reminders, schedule changes
+  - Viewers: Read-only summaries
+- [ ] 9.6.7.3 Build mandatory notification types (cannot be disabled)
+- [ ] 9.6.7.4 Create notification policy management UI for admins
+- [ ] 9.6.7.5 Implement notification override hierarchy (org → role → user)
+
+---
+
 ## POST-MVP ROADMAP
 
 ---
 
 ## PHASE 10: ADVANCED ANALYTICS & REPORTING
-**Duration:** Weeks 19-21
+**Duration:** Weeks 21-23
 **Team:** 1 Backend Engineer, 1 Frontend Engineer, 1 Data Engineer
 
 ### 10.1 Analytics Data Infrastructure
