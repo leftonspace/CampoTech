@@ -28,7 +28,7 @@ async function main() {
   const adminPassword = await bcrypt.hash('admin123', 10);
 
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@campotech.com.ar' },
+    where: { phone: '+5491112345678' },
     update: {},
     create: {
       email: 'admin@campotech.com.ar',
@@ -41,7 +41,7 @@ async function main() {
   });
 
   const technician1 = await prisma.user.upsert({
-    where: { email: 'tecnico1@campotech.com.ar' },
+    where: { phone: '+5491198765432' },
     update: {},
     create: {
       email: 'tecnico1@campotech.com.ar',
@@ -49,12 +49,14 @@ async function main() {
       name: 'Juan Técnico',
       passwordHash: adminPassword,
       role: 'TECHNICIAN',
+      specialty: 'ELECTRICISTA',
+      skillLevel: 'OFICIAL',
       organizationId: org.id,
     },
   });
 
   const technician2 = await prisma.user.upsert({
-    where: { email: 'tecnico2@campotech.com.ar' },
+    where: { phone: '+5491155556666' },
     update: {},
     create: {
       email: 'tecnico2@campotech.com.ar',
@@ -62,6 +64,8 @@ async function main() {
       name: 'María Técnica',
       passwordHash: adminPassword,
       role: 'TECHNICIAN',
+      specialty: 'PLOMERO',
+      skillLevel: 'MEDIO_OFICIAL',
       organizationId: org.id,
     },
   });
