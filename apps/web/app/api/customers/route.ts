@@ -23,10 +23,13 @@ export async function GET(request: NextRequest) {
     };
 
     if (search) {
+      // Remove dashes from search for CUIT matching
+      const cleanSearch = search.replace(/-/g, '');
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search } },
         { email: { contains: search, mode: 'insensitive' } },
+        { cuit: { contains: cleanSearch } },
       ];
     }
 
@@ -77,6 +80,8 @@ export async function POST(request: NextRequest) {
         name: body.name,
         phone: body.phone,
         email: body.email,
+        cuit: body.cuit || null,
+        ivaCondition: body.ivaCondition || 'CONSUMIDOR_FINAL',
         address: body.address || {},
         notes: body.notes,
         organizationId: session.organizationId,

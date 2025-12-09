@@ -4,7 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
-import { ArrowLeft } from 'lucide-react';
+import { validateCUIT } from '@/lib/cuit';
+import { ArrowLeft, AlertCircle, CheckCircle } from 'lucide-react';
 
 // Country codes for phone input
 const COUNTRY_CODES = [
@@ -27,6 +28,8 @@ export default function NewCustomerPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [countryCode, setCountryCode] = useState('+54');
+  const [cuitError, setCuitError] = useState('');
+  const [cuitValid, setCuitValid] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -42,6 +45,29 @@ export default function NewCustomerPage() {
     notes: '',
   });
 
+  const handleCuitChange = (value: string) => {
+    setFormData({ ...formData, cuit: value });
+    const digits = value.replace(/\D/g, '');
+
+    // Only validate when we have 11 digits
+    if (digits.length === 11) {
+      const result = validateCUIT(digits);
+      if (result.valid) {
+        setCuitError('');
+        setCuitValid(true);
+      } else {
+        setCuitError(result.error || 'CUIT inválido');
+        setCuitValid(false);
+      }
+    } else if (digits.length > 0) {
+      setCuitError('');
+      setCuitValid(false);
+    } else {
+      setCuitError('');
+      setCuitValid(false);
+    }
+  };
+
   const formatCuit = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, 11);
     if (digits.length <= 2) return digits;
@@ -54,13 +80,30 @@ export default function NewCustomerPage() {
     setIsSubmitting(true);
     setError('');
 
+    // Validate CUIT if provided
+    const cuitDigits = formData.cuit.replace(/\D/g, '');
+    if (cuitDigits.length > 0 && cuitDigits.length !== 11) {
+      setError('El CUIT debe tener 11 dígitos');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (cuitDigits.length === 11) {
+      const cuitResult = validateCUIT(cuitDigits);
+      if (!cuitResult.valid) {
+        setError(cuitResult.error || 'CUIT inválido');
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     const fullPhone = `${countryCode}${formData.phone.replace(/\D/g, '')}`;
 
     const response = await api.customers.create({
       name: formData.name,
       phone: fullPhone,
       email: formData.email || undefined,
-      cuit: formData.cuit.replace(/\D/g, '') || undefined,
+      cuit: cuitDigits || undefined,
       ivaCondition: formData.ivaCondition,
       address: formData.address,
       notes: formData.notes || undefined,
@@ -160,14 +203,28 @@ export default function NewCustomerPage() {
             <label htmlFor="cuit" className="label mb-1 block">
               CUIT
             </label>
-            <input
-              id="cuit"
-              type="text"
-              value={formatCuit(formData.cuit)}
-              onChange={(e) => setFormData({ ...formData, cuit: e.target.value })}
-              placeholder="XX-XXXXXXXX-X"
-              className="input"
-            />
+            <div className="relative">
+              <input
+                id="cuit"
+                type="text"
+                value={formatCuit(formData.cuit)}
+                onChange={(e) => handleCuitChange(e.target.value)}
+                placeholder="XX-XXXXXXXX-X"
+                className={`input pr-10 ${cuitError ? 'border-danger-500' : cuitValid ? 'border-success-500' : ''}`}
+              />
+              {(cuitValid || cuitError) && (
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {cuitValid ? (
+                    <CheckCircle className="h-5 w-5 text-success-500" />
+                  ) : (
+                    <AlertCircle className="h-5 w-5 text-danger-500" />
+                  )}
+                </div>
+              )}
+            </div>
+            {cuitError && (
+              <p className="mt-1 text-sm text-danger-500">{cuitError}</p>
+            )}
           </div>
           <div>
             <label htmlFor="ivaCondition" className="label mb-1 block">
