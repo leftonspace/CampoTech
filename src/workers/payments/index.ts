@@ -44,3 +44,38 @@ export type {
   CircuitState,
   RetryWithCircuitBreakerOptions,
 } from './mp-retry.strategy';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PANIC CONTROLLER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export {
+  MPPanicController,
+  getMPPanicController,
+  initializeMPPanicController,
+  resetMPPanicController,
+  canProcessMPPayment,
+  recordMPPaymentResult,
+} from './mp-panic-controller';
+export type {
+  MPPanicConfig,
+  PaymentMetrics,
+  PanicCheckResult,
+} from './mp-panic-controller';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FALLBACK HANDLER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export {
+  MPFallbackHandler,
+  getMPFallbackHandler,
+  initializeMPFallbackHandler,
+  handleMPFallback,
+} from './mp-fallback.handler';
+export type {
+  FallbackReason,
+  FallbackPayment,
+  FallbackResult,
+  FallbackConfig,
+} from './mp-fallback.handler';
