@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { scheduleJobReminders } from '@/../../src/workers/notifications/reminder-scheduler';
+import { sendNotification } from '@/../../src/modules/notifications/notification.service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -110,6 +112,45 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Send notification to assigned technician
+    if (job.technicianId) {
+      try {
+        await sendNotification({
+          eventType: 'job_assigned',
+          userId: job.technicianId,
+          organizationId: session.organizationId,
+          title: 'Nuevo trabajo asignado',
+          body: `Te asignaron: ${job.description || 'Sin descripción'} - ${job.customer?.name || 'Cliente'}`,
+          entityType: 'job',
+          entityId: job.id,
+          templateName: 'job_assigned_tech',
+          templateParams: {
+            '1': job.technician?.name || 'Técnico',
+            '2': job.customer?.name || 'Cliente',
+            '3': job.description || 'Servicio técnico',
+            '4': job.scheduledDate
+              ? new Intl.DateTimeFormat('es-AR', {
+                  weekday: 'long',
+                  day: 'numeric',
+                  month: 'long',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  timeZone: 'America/Argentina/Buenos_Aires',
+                }).format(new Date(job.scheduledDate))
+              : 'Fecha a confirmar',
+          },
+        });
+
+        // Schedule reminders if job has scheduled date
+        if (job.scheduledDate) {
+          await scheduleJobReminders(job.id);
+        }
+      } catch (notifError) {
+        console.error('Error sending job notification:', notifError);
+        // Don't fail job creation if notification fails
+      }
+    }
 
     return NextResponse.json({
       success: true,
