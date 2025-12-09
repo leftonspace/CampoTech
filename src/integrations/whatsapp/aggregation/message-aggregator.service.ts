@@ -292,7 +292,7 @@ export class MessageAggregatorService {
    * Load conversation context from database
    */
   async loadContext(organizationId: string, phone: string): Promise<ConversationContext | undefined> {
-    const dbContext = await db.conversationContexts.findUnique({
+    const dbContext = await db.conversationContext.findUnique({
       where: {
         organizationId_customerPhone: {
           organizationId,
@@ -372,7 +372,7 @@ export class MessageAggregatorService {
     }
 
     // Upsert context
-    await db.conversationContexts.upsert({
+    await db.conversationContext.upsert({
       where: {
         organizationId_customerPhone: {
           organizationId,

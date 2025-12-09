@@ -78,7 +78,7 @@ export async function scheduleJobReminders(jobId: string): Promise<void> {
 
       // Only schedule if reminder time is in the future
       if (reminderTime > now) {
-        await db.scheduledReminders.create({
+        await db.scheduledReminder.create({
           data: {
             organizationId: job.organizationId,
             jobId: job.id,
@@ -111,7 +111,7 @@ export async function scheduleJobReminders(jobId: string): Promise<void> {
  * Cancel all pending reminders for a job
  */
 export async function cancelJobReminders(jobId: string): Promise<void> {
-  await db.scheduledReminders.updateMany({
+  await db.scheduledReminder.updateMany({
     where: { jobId, status: 'pending' },
     data: { status: 'cancelled' },
   });
@@ -127,7 +127,7 @@ export async function processDueReminders(): Promise<number> {
 
   try {
     // Get all due reminders
-    const dueReminders = await db.scheduledReminders.findMany({
+    const dueReminders = await db.scheduledReminder.findMany({
       where: {
         status: 'pending',
         scheduledFor: { lte: now },
@@ -176,7 +176,7 @@ async function processReminder(reminder: ScheduledReminder): Promise<void> {
 
   if (!job || job.status !== 'scheduled') {
     // Job no longer needs reminder (completed, cancelled, etc.)
-    await db.scheduledReminders.update({
+    await db.scheduledReminder.update({
       where: { id: reminder.id },
       data: { status: 'cancelled' },
     });
@@ -206,7 +206,7 @@ async function processReminder(reminder: ScheduledReminder): Promise<void> {
   });
 
   // Mark reminder as sent
-  await db.scheduledReminders.update({
+  await db.scheduledReminder.update({
     where: { id: reminder.id },
     data: {
       status: 'sent',
@@ -300,7 +300,7 @@ export async function cleanupOldReminders(daysOld: number = 30): Promise<number>
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-  const result = await db.scheduledReminders.deleteMany({
+  const result = await db.scheduledReminder.deleteMany({
     where: {
       status: { in: ['sent', 'cancelled'] },
       scheduledFor: { lt: cutoffDate },

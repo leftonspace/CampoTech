@@ -349,3 +349,107 @@ model PendingRegistration {
   @@index([expiresAt])
   @@map("pending_registrations")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 9.6: SCHEDULED REMINDERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model ScheduledReminder {
+  id             String   @id @default(cuid())
+  organizationId String
+  jobId          String
+  userId         String
+  reminderType   String   // 24h, 1h, 30min
+  scheduledFor   DateTime
+  status         String   @default("pending") // pending, sent, cancelled
+  sentAt         DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([status, scheduledFor])
+  @@map("scheduled_reminders")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 9.7: AUDIO MESSAGES & AUTO-RESPONDER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model AudioMessage {
+  id             String    @id @default(cuid())
+  organizationId String
+  waMessageId    String
+  senderPhone    String
+  senderName     String?
+  mediaId        String
+  mimeType       String    @default("audio/ogg")
+  mediaUrl       String?
+  isVoice        Boolean   @default(true)
+  duration       Int?
+  transcription  String?
+  status         String    @default("received") // received, downloading, downloaded, transcribing, transcribed, failed
+  reviewed       Boolean   @default(false)
+  reviewedAt     DateTime?
+  reviewedById   String?
+  transcribedAt  DateTime?
+  receivedAt     DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([senderPhone])
+  @@map("audio_messages")
+}
+
+model AutoResponseLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  recipientPhone String
+  responseType   String   // after_hours, audio_confirmation, message_received
+  message        String
+  sentAt         DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([recipientPhone])
+  @@map("auto_response_logs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 9.8: MESSAGE AGGREGATION CONTEXT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model ConversationContext {
+  id               String    @id @default(cuid())
+  organizationId   String
+  customerPhone    String
+  customerId       String?
+  customerName     String?
+  messageHistory   Json      @default("[]")
+  previousRequests String[]  @default([])
+  activeJobId      String?
+  lastMessageAt    DateTime  @default(now())
+  expiresAt        DateTime
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([organizationId, customerPhone])
+  @@index([expiresAt])
+  @@map("conversation_contexts")
+}
+
+model MessageBufferStats {
+  id                      String   @id @default(cuid())
+  organizationId          String
+  date                    DateTime @db.Date
+  totalBuffersCreated     Int      @default(0)
+  totalMessagesAggregated Int      @default(0)
+  totalImmediateTriggers  Int      @default(0)
+  totalTimeoutTriggers    Int      @default(0)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@unique([organizationId, date])
+  @@map("message_buffer_stats")
+}

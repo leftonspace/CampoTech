@@ -32,6 +32,8 @@ import {
   hasMedia,
   getMediaId,
 } from './webhook/webhook.handler';
+import { processAutoResponse } from '../../modules/localization/auto-responder.service';
+import { processAudioMessage } from './messages/audio.handler';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -661,6 +663,30 @@ export async function processInboundMessage(
       unreadCount: { increment: 1 },
     },
   });
+
+  // Process audio messages specially
+  if (message.type === 'audio') {
+    try {
+      await processAudioMessage(organizationId, message, contactName);
+    } catch (error) {
+      log.error('Error processing audio message', {
+        organizationId,
+        messageId: message.id,
+        error: error instanceof Error ? error.message : 'Unknown',
+      });
+    }
+  }
+
+  // Process auto-response (after-hours, audio confirmation)
+  try {
+    await processAutoResponse(organizationId, message, contactName);
+  } catch (error) {
+    log.error('Error processing auto-response', {
+      organizationId,
+      messageId: message.id,
+      error: error instanceof Error ? error.message : 'Unknown',
+    });
+  }
 
   log.info('Inbound message processed', {
     organizationId,
