@@ -164,11 +164,15 @@ export default function JobsPage() {
         </div>
       )}
 
-      {/* Calendar view placeholder */}
+      {/* Calendar view redirect */}
       {viewMode === 'calendar' && (
         <div className="card p-8 text-center">
           <Calendar className="mx-auto h-12 w-12 text-gray-400" />
-          <p className="mt-4 text-gray-500">Vista de calendario próximamente</p>
+          <p className="mt-4 text-gray-500">Ver trabajos en calendario</p>
+          <Link href="/dashboard/jobs/calendar" className="btn-primary mt-4 inline-flex">
+            <Calendar className="mr-2 h-4 w-4" />
+            Abrir calendario
+          </Link>
         </div>
       )}
     </div>
