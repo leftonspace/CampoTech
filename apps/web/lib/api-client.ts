@@ -179,6 +179,31 @@ export const api = {
         { method: 'POST', body: { phone, code }, auth: false }
       ),
 
+    // Registration
+    register: (data: {
+      cuit: string;
+      businessName: string;
+      adminName: string;
+      phone: string;
+      email?: string;
+    }) =>
+      apiRequest<{ sent: boolean; devMode?: boolean; expiresInMinutes: number }>(
+        '/auth/register',
+        { method: 'POST', body: data, auth: false }
+      ),
+
+    verifyRegistration: (phone: string, code: string) =>
+      apiRequest<{
+        accessToken: string;
+        refreshToken: string;
+        user: unknown;
+        isNewUser: boolean;
+      }>('/auth/register/verify', {
+        method: 'POST',
+        body: { phone, code },
+        auth: false,
+      }),
+
     logout: () => apiRequest('/auth/logout', { method: 'POST' }),
 
     me: () => apiRequest<unknown>('/auth/me'),

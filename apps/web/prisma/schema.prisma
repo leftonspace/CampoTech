@@ -320,3 +320,23 @@ model OtpCode {
   @@index([expiresAt])
   @@map("otp_codes")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PENDING REGISTRATIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model PendingRegistration {
+  id           String   @id @default(cuid())
+  phone        String   @unique
+  cuit         String   // Stored as digits only (11 chars)
+  businessName String
+  adminName    String
+  email        String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  @@index([phone])
+  @@index([cuit])
+  @@index([expiresAt])
+  @@map("pending_registrations")
+}
