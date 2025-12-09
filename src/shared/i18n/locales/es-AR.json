@@ -1,0 +1,356 @@
+{
+  "locale": "es-AR",
+  "language": "Español (Argentina)",
+  "direction": "ltr",
+
+  "common": {
+    "yes": "Sí",
+    "no": "No",
+    "ok": "Ok",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "create": "Crear",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "warning": "Advertencia",
+    "info": "Información",
+    "back": "Volver",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "close": "Cerrar",
+    "open": "Abrir",
+    "view": "Ver",
+    "details": "Detalles",
+    "actions": "Acciones",
+    "options": "Opciones",
+    "settings": "Configuración",
+    "help": "Ayuda",
+    "logout": "Cerrar sesión",
+    "profile": "Perfil",
+    "home": "Inicio"
+  },
+
+  "auth": {
+    "login": "Iniciar sesión",
+    "logout": "Cerrar sesión",
+    "register": "Registrarse",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "enterPhone": "Ingresá tu número de celular",
+    "enterOtp": "Ingresá el código que recibiste",
+    "otpSent": "Te enviamos un código por WhatsApp",
+    "otpResend": "Reenviar código",
+    "otpResendIn": "Reenviar en {{seconds}}s",
+    "changeNumber": "Cambiar número",
+    "continue": "Continuar",
+    "verifying": "Verificando...",
+    "invalidCode": "Código inválido",
+    "codeExpired": "El código expiró",
+    "welcomeBack": "¡Bienvenido de nuevo!",
+    "phoneFormat": "Ej: 11 1234-5678"
+  },
+
+  "navigation": {
+    "dashboard": "Panel",
+    "jobs": "Trabajos",
+    "customers": "Clientes",
+    "invoices": "Facturas",
+    "calendar": "Calendario",
+    "team": "Equipo",
+    "settings": "Configuración",
+    "reports": "Reportes",
+    "tracking": "Rastreo"
+  },
+
+  "jobs": {
+    "title": "Trabajos",
+    "newJob": "Nuevo trabajo",
+    "editJob": "Editar trabajo",
+    "jobDetails": "Detalles del trabajo",
+    "status": {
+      "pending": "Pendiente",
+      "scheduled": "Programado",
+      "confirmed": "Confirmado",
+      "en_camino": "En camino",
+      "in_progress": "En progreso",
+      "completed": "Completado",
+      "cancelled": "Cancelado",
+      "on_hold": "En espera"
+    },
+    "fields": {
+      "customer": "Cliente",
+      "address": "Dirección",
+      "serviceType": "Tipo de servicio",
+      "scheduledDate": "Fecha programada",
+      "scheduledTime": "Hora programada",
+      "assignedTo": "Asignado a",
+      "priority": "Prioridad",
+      "notes": "Notas",
+      "description": "Descripción",
+      "estimatedDuration": "Duración estimada",
+      "actualDuration": "Duración real"
+    },
+    "priorities": {
+      "low": "Baja",
+      "normal": "Normal",
+      "high": "Alta",
+      "urgent": "Urgente"
+    },
+    "actions": {
+      "assign": "Asignar",
+      "reassign": "Reasignar",
+      "start": "Iniciar",
+      "complete": "Completar",
+      "cancel": "Cancelar",
+      "reschedule": "Reprogramar",
+      "startTracking": "Iniciar rastreo"
+    },
+    "messages": {
+      "created": "Trabajo creado exitosamente",
+      "updated": "Trabajo actualizado",
+      "assigned": "Trabajo asignado a {{name}}",
+      "completed": "Trabajo completado",
+      "cancelled": "Trabajo cancelado"
+    }
+  },
+
+  "customers": {
+    "title": "Clientes",
+    "newCustomer": "Nuevo cliente",
+    "editCustomer": "Editar cliente",
+    "customerDetails": "Detalles del cliente",
+    "fields": {
+      "name": "Nombre",
+      "phone": "Teléfono",
+      "email": "Email",
+      "address": "Dirección",
+      "cuit": "CUIT",
+      "taxCondition": "Condición fiscal",
+      "notes": "Notas"
+    },
+    "taxConditions": {
+      "responsable_inscripto": "Responsable Inscripto",
+      "monotributista": "Monotributista",
+      "consumidor_final": "Consumidor Final",
+      "exento": "Exento"
+    },
+    "messages": {
+      "created": "Cliente creado exitosamente",
+      "updated": "Cliente actualizado",
+      "deleted": "Cliente eliminado"
+    }
+  },
+
+  "invoices": {
+    "title": "Facturas",
+    "newInvoice": "Nueva factura",
+    "editInvoice": "Editar factura",
+    "invoiceDetails": "Detalles de la factura",
+    "types": {
+      "A": "Factura A",
+      "B": "Factura B",
+      "C": "Factura C",
+      "E": "Factura E (Exportación)"
+    },
+    "status": {
+      "draft": "Borrador",
+      "pending": "Pendiente",
+      "sent": "Enviada",
+      "paid": "Pagada",
+      "overdue": "Vencida",
+      "cancelled": "Anulada"
+    },
+    "fields": {
+      "number": "Número",
+      "date": "Fecha",
+      "dueDate": "Vencimiento",
+      "customer": "Cliente",
+      "items": "Items",
+      "subtotal": "Subtotal",
+      "tax": "IVA",
+      "total": "Total",
+      "cae": "CAE",
+      "caeExpiry": "Vencimiento CAE"
+    },
+    "actions": {
+      "send": "Enviar",
+      "download": "Descargar PDF",
+      "markPaid": "Marcar como pagada",
+      "cancel": "Anular"
+    },
+    "messages": {
+      "created": "Factura creada exitosamente",
+      "sent": "Factura enviada al cliente",
+      "paid": "Pago registrado"
+    }
+  },
+
+  "team": {
+    "title": "Equipo",
+    "newMember": "Nuevo miembro",
+    "editMember": "Editar miembro",
+    "roles": {
+      "owner": "Propietario",
+      "admin": "Administrador",
+      "dispatcher": "Despachador",
+      "technician": "Técnico",
+      "viewer": "Visualizador"
+    },
+    "specialties": {
+      "plomero": "Plomero",
+      "electricista": "Electricista",
+      "gasista": "Gasista",
+      "calefaccionista": "Calefaccionista",
+      "refrigeracion": "Refrigeración/HVAC",
+      "albanil": "Albañil",
+      "pintor": "Pintor",
+      "carpintero": "Carpintero",
+      "techista": "Techista",
+      "herrero": "Herrero",
+      "soldador": "Soldador",
+      "otro": "Otro"
+    },
+    "skillLevels": {
+      "ayudante": "Ayudante",
+      "medio_oficial": "Medio Oficial",
+      "oficial": "Oficial",
+      "oficial_especializado": "Oficial Especializado"
+    },
+    "verification": {
+      "pending": "Verificación pendiente",
+      "verified": "Verificado",
+      "resendCode": "Reenviar código",
+      "manualVerify": "Verificar manualmente"
+    },
+    "messages": {
+      "created": "Miembro agregado exitosamente",
+      "updated": "Miembro actualizado",
+      "deleted": "Miembro eliminado",
+      "verified": "Miembro verificado"
+    }
+  },
+
+  "tracking": {
+    "title": "Rastreo en vivo",
+    "technicianEnRoute": "Técnico en camino",
+    "eta": "Llegada estimada",
+    "etaMinutes": "{{minutes}} min",
+    "arriving": "Llegando",
+    "arrived": "Llegó",
+    "status": {
+      "active": "Activo",
+      "arrived": "Llegó",
+      "completed": "Completado",
+      "cancelled": "Cancelado"
+    },
+    "messages": {
+      "technicianOnWay": "{{name}} está en camino a tu ubicación",
+      "technicianArrived": "{{name}} llegó",
+      "trackingStarted": "Rastreo iniciado"
+    }
+  },
+
+  "notifications": {
+    "title": "Notificaciones",
+    "markAllRead": "Marcar todas leídas",
+    "noNotifications": "No tenés notificaciones",
+    "settings": "Configuración de notificaciones",
+    "channels": {
+      "whatsapp": "WhatsApp",
+      "push": "Notificaciones push",
+      "email": "Email",
+      "sms": "SMS"
+    },
+    "preferences": {
+      "quietHours": "Horario silencioso",
+      "quietHoursStart": "Desde",
+      "quietHoursEnd": "Hasta"
+    }
+  },
+
+  "settings": {
+    "title": "Configuración",
+    "sections": {
+      "profile": "Perfil",
+      "company": "Empresa",
+      "team": "Equipo",
+      "billing": "Facturación",
+      "integrations": "Integraciones",
+      "notifications": "Notificaciones"
+    }
+  },
+
+  "time": {
+    "today": "Hoy",
+    "tomorrow": "Mañana",
+    "yesterday": "Ayer",
+    "thisWeek": "Esta semana",
+    "nextWeek": "Próxima semana",
+    "thisMonth": "Este mes",
+    "hours": "horas",
+    "minutes": "minutos",
+    "seconds": "segundos"
+  },
+
+  "validation": {
+    "required": "Este campo es obligatorio",
+    "invalidEmail": "Email inválido",
+    "invalidPhone": "Teléfono inválido",
+    "invalidCuit": "CUIT inválido",
+    "minLength": "Mínimo {{min}} caracteres",
+    "maxLength": "Máximo {{max}} caracteres",
+    "passwordMismatch": "Las contraseñas no coinciden"
+  },
+
+  "errors": {
+    "generic": "Ocurrió un error. Por favor, intentá de nuevo.",
+    "network": "Error de conexión. Verificá tu internet.",
+    "unauthorized": "No autorizado",
+    "forbidden": "No tenés permisos para esta acción",
+    "notFound": "No encontrado",
+    "serverError": "Error del servidor"
+  },
+
+  "currency": {
+    "symbol": "$",
+    "code": "ARS",
+    "name": "Peso Argentino",
+    "format": "$ {{amount}}"
+  },
+
+  "date": {
+    "format": {
+      "short": "dd/MM/yyyy",
+      "long": "d 'de' MMMM 'de' yyyy",
+      "time": "HH:mm",
+      "datetime": "dd/MM/yyyy HH:mm"
+    },
+    "days": {
+      "monday": "Lunes",
+      "tuesday": "Martes",
+      "wednesday": "Miércoles",
+      "thursday": "Jueves",
+      "friday": "Viernes",
+      "saturday": "Sábado",
+      "sunday": "Domingo"
+    },
+    "months": {
+      "january": "Enero",
+      "february": "Febrero",
+      "march": "Marzo",
+      "april": "Abril",
+      "may": "Mayo",
+      "june": "Junio",
+      "july": "Julio",
+      "august": "Agosto",
+      "september": "Septiembre",
+      "october": "Octubre",
+      "november": "Noviembre",
+      "december": "Diciembre"
+    }
+  }
+}
