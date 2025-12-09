@@ -498,6 +498,39 @@ All previously identified gaps have been addressed:
 | Logs Table | ✅ | `notification_logs` |
 | Scheduled Reminders | ✅ | `scheduled_reminders` |
 
+### 9.6.2 API Routes ✅
+| Route | Status | Location |
+|-------|--------|----------|
+| GET/PUT/POST /api/notifications/preferences | ✅ | `/apps/web/app/api/notifications/preferences/route.ts` |
+| GET/PUT /api/notifications/history | ✅ | `/apps/web/app/api/notifications/history/route.ts` |
+| GET/PUT/POST /api/notifications/defaults | ✅ | `/apps/web/app/api/notifications/defaults/route.ts` |
+
+### 9.6.3 Reminder Scheduler ✅
+| Component | Status | Location |
+|-----------|--------|----------|
+| Reminder Scheduler Worker | ✅ | `/src/workers/notifications/reminder-scheduler.ts` |
+| scheduleJobReminders() | ✅ | Same file |
+| processDueReminders() | ✅ | Same file |
+| cancelJobReminders() | ✅ | Same file |
+| cleanupOldReminders() | ✅ | Same file |
+
+### 9.6.4 UI Components ✅
+| Component | Status | Location |
+|-----------|--------|----------|
+| Notification Settings Page | ✅ | `/apps/web/app/dashboard/settings/notifications/page.tsx` |
+| Channel toggles | ✅ | Same file |
+| Event preferences matrix | ✅ | Same file |
+| Reminder intervals selector | ✅ | Same file |
+| Quiet hours configuration | ✅ | Same file |
+| Settings page link | ✅ | `/apps/web/app/dashboard/settings/page.tsx` |
+
+### 9.6.5 Integration Points ✅
+| Integration | Status | Description |
+|-------------|--------|-------------|
+| Job Creation → Notifications | ✅ | Sends `job_assigned` notification in `/apps/web/app/api/jobs/route.ts` |
+| Job Creation → Reminders | ✅ | Calls `scheduleJobReminders()` for scheduled jobs |
+| Organization Defaults | ✅ | Argentine WhatsApp-first defaults |
+
 ### Features Implemented:
 - Multi-channel delivery (WhatsApp, Push, Email, SMS)
 - Event-based preferences per user
@@ -506,6 +539,10 @@ All previously identified gaps have been addressed:
 - Reminder intervals (24h, 1h, 30min)
 - Channel restrictions per notification type
 - Delivery logging and tracking
+- Notification history API
+- Organization-level default settings
+- Automatic reminder scheduling on job creation
+- User-friendly settings UI
 
 ---
 

@@ -12,6 +12,7 @@ import {
   CheckCircle,
   AlertCircle,
   MessageCircle,
+  Bell,
 } from 'lucide-react';
 
 interface SettingCard {
@@ -73,6 +74,12 @@ export default function SettingsPage() {
       description: 'Servicios y productos',
       href: '/dashboard/settings/pricebook',
       icon: DollarSign,
+    },
+    {
+      title: 'Notificaciones',
+      description: 'Canales, recordatorios y preferencias',
+      href: '/dashboard/settings/notifications',
+      icon: Bell,
     },
   ];
 
