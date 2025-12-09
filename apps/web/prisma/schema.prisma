@@ -40,8 +40,8 @@ model User {
   name           String
   passwordHash   String?
   role           UserRole        @default(TECHNICIAN)
-  specialty      TradeSpecialty?
-  skillLevel     SkillLevel?
+  specialty      String?         // Trade specialty (PLOMERO, ELECTRICISTA, etc.)
+  skillLevel     String?         // Skill level (AYUDANTE, MEDIO_OFICIAL, OFICIAL, OFICIAL_ESPECIALIZADO)
   avatar         String?
   isActive       Boolean         @default(true)
   organizationId String
@@ -65,29 +65,8 @@ enum UserRole {
   VIEWER
 }
 
-// Argentine construction trade categories (UOCRA CCT 76/75)
-enum SkillLevel {
-  AYUDANTE            // Entry-level helper
-  MEDIO_OFICIAL       // Semi-skilled worker
-  OFICIAL             // Fully qualified skilled worker
-  OFICIAL_ESPECIALIZADO // Master level with specialized skills
-}
-
-// Trade specialties for construction services
-enum TradeSpecialty {
-  PLOMERO             // Plumber
-  ELECTRICISTA        // Electrician
-  GASISTA             // Gas fitter
-  CALEFACCIONISTA     // Heating technician
-  REFRIGERACION       // HVAC/Refrigeration
-  ALBANIL             // Mason
-  PINTOR              // Painter
-  CARPINTERO          // Carpenter
-  TECHISTA            // Roofer
-  HERRERO             // Ironworker
-  SOLDADOR            // Welder
-  OTRO                // Other
-}
+// Valid values for specialty: PLOMERO, ELECTRICISTA, GASISTA, CALEFACCIONISTA, REFRIGERACION, ALBANIL, PINTOR, CARPINTERO, TECHISTA, HERRERO, SOLDADOR, OTRO
+// Valid values for skillLevel: AYUDANTE, MEDIO_OFICIAL, OFICIAL, OFICIAL_ESPECIALIZADO
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CUSTOMERS
