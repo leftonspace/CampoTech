@@ -90,8 +90,6 @@ export async function PUT(
         name: body.name,
         phone: body.phone,
         email: body.email,
-        cuit: body.cuit || null,
-        ivaCondition: body.ivaCondition,
         address: body.address || {},
         notes: body.notes,
       },

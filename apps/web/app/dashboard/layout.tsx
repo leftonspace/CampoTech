@@ -45,7 +45,9 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
-  const isAdmin = user?.role === 'owner' || user?.role === 'admin';
+  // Check role case-insensitively
+  const userRole = user?.role?.toLowerCase();
+  const isAdmin = userRole === 'owner' || userRole === 'admin';
 
   // Close notifications dropdown when clicking outside
   useEffect(() => {

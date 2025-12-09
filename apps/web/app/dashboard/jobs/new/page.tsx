@@ -288,6 +288,12 @@ export default function NewJobPage() {
                 ))}
             </select>
           </div>
+          <Link
+            href="/dashboard/settings/team"
+            className="mt-2 inline-block text-sm text-primary-600 hover:underline"
+          >
+            + Agregar nuevo miembro al equipo
+          </Link>
         </div>
 
         {error && <p className="text-sm text-danger-500">{error}</p>}
