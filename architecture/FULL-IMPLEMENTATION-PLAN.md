@@ -1,12 +1,14 @@
 # CampoTech Full Implementation Plan
 
-**Based on:** `campotech-architecture-complete.md`
-**Target Timeline:** 18-Week MVP + 3-Week Enhanced MVP + 17-Week Post-MVP (38 weeks total)
-**Total Estimated Effort:** ~5200 developer hours (MVP: ~2500 | Enhanced: ~600 | Post-MVP: ~2100)
+**Based on:** `campotech-architecture-complete.md` and `CAMPOTECH-SYSTEM-GUIDE.md`
+**Target Timeline:** 18-Week MVP + 9-Week Enhanced MVP + 17-Week Post-MVP (44 weeks total)
+**Total Estimated Effort:** ~6800 developer hours (MVP: ~2500 | Enhanced: ~1600 | Post-MVP: ~2700)
 
 ---
 
 ## EXECUTIVE OVERVIEW
+
+### MVP Phases (Weeks 1-18)
 
 | Phase | Focus | Duration | Dependencies | Launch Blocking? |
 |-------|-------|----------|--------------|------------------|
@@ -20,23 +22,36 @@
 | **Phase 8** | Voice AI Processing | Week 16-17 | Phase 6 | Feature-flagged |
 | **Phase 9** | Observability & Hardening | Week 18 | All | YES |
 
-### Enhanced MVP Phases (Post-Launch, Pre-Scaling)
+### Enhanced MVP Phases (Weeks 19-27) - Post-Launch, Pre-Scaling
 
 | Phase | Focus | Duration | Dependencies | Priority |
 |-------|-------|----------|--------------|----------|
 | **Phase 9.5** | Employee Onboarding & Verification | Week 19 | Phase 9 | High |
 | **Phase 9.6** | Notification Preferences System | Weeks 19-20 | Phase 9 | High |
 | **Phase 9.7** | Argentine Communication Localization | Week 21 | Phase 9.6 | High |
+| **Phase 9.8** | Message Aggregation System | Week 22 | Phase 9.7 | High |
+| **Phase 9.9** | Customer Live Tracking System | Weeks 23-24 | Phase 9.8 | High |
+| **Phase 9.10** | Mobile-First Architecture | Weeks 25-26 | Phase 9.9 | High |
+| **Phase 9.11** | Technical Architecture Documentation | Week 27 | All Enhanced | Medium |
 
-### Post-MVP Phases
+### Post-MVP Phases (Weeks 28-44)
 
 | Phase | Focus | Duration | Dependencies | Priority |
 |-------|-------|----------|--------------|----------|
-| **Phase 10** | Advanced Analytics & Reporting | Weeks 22-24 | Phase 9.7 | High |
-| **Phase 11** | Multi-Location Support | Weeks 24-26 | Phase 10 | High |
-| **Phase 12** | Inventory Management | Weeks 27-30 | Phase 11 | Medium |
-| **Phase 13** | Customer Self-Service Portal | Weeks 31-34 | Phases 10-12 | Medium |
-| **Phase 14** | API for Third-Party Integrations | Weeks 35-38 | Phase 13 | Medium |
+| **Phase 10** | Advanced Analytics & Reporting | Weeks 28-30 | Phase 9.11 | High |
+| **Phase 11** | Multi-Location Support | Weeks 31-33 | Phase 10 | High |
+| **Phase 12** | Inventory Management | Weeks 34-37 | Phase 11 | Medium |
+| **Phase 13** | Customer Self-Service Portal | Weeks 38-41 | Phases 10-12 | Medium |
+| **Phase 14** | API for Third-Party Integrations | Weeks 42-44 | Phase 13 | Medium |
+
+### New Enhanced MVP Features Summary
+
+| Phase | Key Deliverables | Business Impact |
+|-------|------------------|-----------------|
+| **9.8** | WhatsApp message buffering, 8-second aggregation window, trigger detection | Natural conversational AI responses |
+| **9.9** | Web-based live tracking, tier-based maps (Static/Mapbox/Google), animated markers | Competitive differentiator, customer satisfaction |
+| **9.10** | Full mobile feature parity, offline capability, voice input | Access 85%+ of Argentine SMB market |
+| **9.11** | Architecture docs, decision records, integration patterns | Team scaling, maintenance efficiency |
 
 ---
 
@@ -1540,12 +1555,1363 @@ These changes need to be applied to already-implemented code:
 
 ---
 
+## PHASE 9.8: MESSAGE AGGREGATION SYSTEM (WHATSAPP CONVERSATIONAL INTELLIGENCE)
+**Duration:** Week 22 (1 week)
+**Team:** 1 Backend Engineer, 1 Frontend Engineer
+**Priority:** High - Critical for natural WhatsApp conversations
+
+### Overview: The Problem with Sequential Message Processing
+
+Customers don't send one perfect message. They send conversational fragments:
+
+```
+Customer sends:
+├── 14:30:01  "Hola"
+├── 14:30:03  "Como estas?"
+├── 14:30:08  "Necesito ayuda"
+└── 14:30:15  "Se me rompió el aire, no enfría nada, pueden venir hoy?"
+```
+
+**Wrong approach:** Respond to each message individually
+- "Hola" → Auto-reply "¿En qué podemos ayudarte?" ❌
+- Creates fragmented, robotic experience
+- Confuses customers expecting human-like conversation
+
+**Correct approach:** Wait, aggregate, then respond once intelligently
+
+### 9.8.1 Message Buffer Database Schema
+```
+Location: /database/migrations/
+Files to create:
+├── 020_create_message_buffers.sql
+└── 021_create_conversation_contexts.sql
+```
+
+**Database Schema:**
+```sql
+-- Redis-backed buffer (in-memory, not SQL)
+-- This schema documents the buffer structure
+
+-- Conversation context for returning customers
+CREATE TABLE conversation_contexts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id),
+    customer_phone TEXT NOT NULL,
+
+    -- Last 10 messages for context
+    message_history JSONB DEFAULT '[]',
+
+    -- Customer identification
+    customer_id UUID REFERENCES customers(id),
+    customer_name TEXT,
+
+    -- Active job reference
+    active_job_id UUID REFERENCES jobs(id),
+
+    -- Service history for context
+    previous_requests TEXT[],
+
+    -- Timestamps
+    last_message_at TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Auto-expire after 24 hours of inactivity
+    expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '24 hours',
+
+    UNIQUE(organization_id, customer_phone)
+);
+
+-- Index for quick lookup
+CREATE INDEX idx_conversation_contexts_phone
+ON conversation_contexts(organization_id, customer_phone);
+
+CREATE INDEX idx_conversation_contexts_expiry
+ON conversation_contexts(expires_at);
+```
+
+**Tasks:**
+- [ ] 9.8.1.1 Create conversation_contexts table
+- [ ] 9.8.1.2 Design Redis buffer structure for active aggregation windows
+- [ ] 9.8.1.3 Create TTL-based buffer expiration
+- [ ] 9.8.1.4 Add indexes for fast phone lookup
+
+### 9.8.2 Message Aggregator Service
+```
+Location: /src/integrations/whatsapp/aggregation/
+Files to create:
+├── message-aggregator.service.ts
+├── buffer-manager.ts
+├── trigger-detector.ts
+├── conversation-context.service.ts
+├── aggregation.types.ts
+└── aggregation.constants.ts
+```
+
+**Configuration Constants:**
+```typescript
+// aggregation.constants.ts
+export const AGGREGATION_WINDOW_MS = 8000;  // 8 seconds
+export const MAX_BUFFER_MESSAGES = 10;       // Safety limit
+export const CONTEXT_HISTORY_SIZE = 10;      // Messages to keep for context
+export const CONTEXT_TTL_HOURS = 24;         // Context expiration
+
+// Trigger patterns that cause immediate processing
+export const TRIGGER_PATTERNS = {
+  REQUEST_VERBS: /necesito|quiero|pueden|vengan|arreglen|instalen|reparen/i,
+  QUESTION_MARK: /\?$/,
+  URGENCY: /urgente|emergencia|ahora|hoy|ya/i,
+  ADDRESS: /calle|avenida|av\.|piso|depto|departamento|entre/i,
+  SCHEDULE: /mañana|lunes|martes|miércoles|jueves|viernes|sábado|domingo/i,
+};
+
+// Length threshold for "complete" messages
+export const LONG_MESSAGE_THRESHOLD = 100;
+```
+
+**Tasks:**
+- [ ] 9.8.2.1 Implement MessageAggregator class with Redis backend
+- [ ] 9.8.2.2 Create buffer creation and message appending logic
+- [ ] 9.8.2.3 Implement 8-second sliding window timer (resets on each message)
+- [ ] 9.8.2.4 Build trigger detection for immediate processing
+- [ ] 9.8.2.5 Create buffer processing and cleanup
+- [ ] 9.8.2.6 Implement conversation context loading and saving
+- [ ] 9.8.2.7 Add metrics tracking (buffer sizes, processing times)
+
+### 9.8.3 Trigger Detection Logic
+```
+Location: /src/integrations/whatsapp/aggregation/trigger-detector.ts
+```
+
+**Trigger Conditions (Process Immediately):**
+
+| Condition | Detection | Reason |
+|-----------|-----------|--------|
+| Contains clear request | Request verbs detected | Complete intent detected |
+| Contains question mark | `\?$` at end | Expecting answer |
+| Message is long | >100 characters | Likely complete thought |
+| Contains urgency words | "urgente", "emergencia" | Time-sensitive |
+| Is a voice message | `type === 'voice'` | Usually complete request |
+| Contains address | Street/floor patterns | Booking intent |
+| Contains scheduling | Day names, "mañana" | Appointment intent |
+
+**Tasks:**
+- [ ] 9.8.3.1 Implement TriggerDetector class
+- [ ] 9.8.3.2 Add request verb detection
+- [ ] 9.8.3.3 Add question detection
+- [ ] 9.8.3.4 Add message length threshold
+- [ ] 9.8.3.5 Add urgency word detection
+- [ ] 9.8.3.6 Add voice message handling
+- [ ] 9.8.3.7 Add address pattern detection
+- [ ] 9.8.3.8 Add scheduling intent detection
+- [ ] 9.8.3.9 Make trigger patterns configurable per organization
+
+### 9.8.4 WhatsApp Webhook Integration
+```
+Location: /src/integrations/whatsapp/webhook/
+Files to modify:
+├── webhook.handler.ts (add aggregation)
+└── message.processor.ts (new flow)
+```
+
+**Updated Flow:**
+```
+Message arrives
+    │
+    ▼
+┌─────────────────────────────────┐
+│ MessageAggregator.handleMessage │
+└─────────────────────────────────┘
+    │
+    ├── Check for active buffer
+    │   │
+    │   ├── NO: Create new buffer, set 8s timer
+    │   │
+    │   └── YES: Append message, RESET timer
+    │
+    ▼
+┌─────────────────────────────────┐
+│ TriggerDetector.shouldProcess   │
+└─────────────────────────────────┘
+    │
+    ├── YES (trigger detected): Process immediately
+    │   └── Combine all buffered messages
+    │   └── Send to GPT-4o as single context
+    │   └── Route based on confidence
+    │
+    └── NO: Wait for timer or next message
+```
+
+**Tasks:**
+- [ ] 9.8.4.1 Modify webhook.handler.ts to route through aggregator
+- [ ] 9.8.4.2 Update message processor to handle combined messages
+- [ ] 9.8.4.3 Add buffer metadata to GPT context
+- [ ] 9.8.4.4 Implement graceful degradation (if Redis unavailable, process immediately)
+
+### 9.8.5 Worker for Timer-Based Processing
+```
+Location: /src/workers/whatsapp/
+Files to create:
+├── aggregation-processor.worker.ts
+└── buffer-cleanup.worker.ts
+```
+
+**Tasks:**
+- [ ] 9.8.5.1 Create scheduled worker to process expired buffers
+- [ ] 9.8.5.2 Implement Redis keyspace notifications for buffer expiry
+- [ ] 9.8.5.3 Create cleanup worker for orphaned buffers
+- [ ] 9.8.5.4 Add monitoring for buffer processing latency
+
+### 9.8.6 Conversation Context Service
+```
+Location: /src/integrations/whatsapp/aggregation/conversation-context.service.ts
+```
+
+**Context includes:**
+```typescript
+interface ConversationContext {
+  phone: string;
+
+  // Message history (last 10 messages, 24h window)
+  messages: {
+    content: string;
+    sender: 'customer' | 'business';
+    timestamp: number;
+  }[];
+
+  // Customer identification
+  customerId?: string;
+  customerName?: string;
+
+  // Active job reference
+  activeJobId?: string;
+
+  // Service history
+  previousRequests: string[];
+
+  // Timestamps
+  lastMessageAt: Date;
+}
+```
+
+**Tasks:**
+- [ ] 9.8.6.1 Implement ConversationContext loading from database
+- [ ] 9.8.6.2 Create context update on each message
+- [ ] 9.8.6.3 Build customer identification (phone → customer lookup)
+- [ ] 9.8.6.4 Implement active job detection
+- [ ] 9.8.6.5 Create service history extraction
+- [ ] 9.8.6.6 Add 24-hour context expiration
+
+### 9.8.7 GPT Prompt Enhancement
+```
+Location: /src/integrations/voice-ai/extraction/prompts/
+Files to modify:
+├── extraction.prompt.ts (add context handling)
+└── context-builder.ts (new)
+```
+
+**Enhanced Prompt Structure:**
+```typescript
+const buildContextualPrompt = (context: ConversationContext, buffer: MessageBuffer) => `
+## Conversation History (last 24h)
+${context.messages.map(m => `[${m.time}] ${m.sender}: ${m.content}`).join('\n')}
+
+## Customer Info
+${context.customerName ? `Name: ${context.customerName}` : 'Unknown customer'}
+${context.activeJobId ? `Active job: ${context.activeJobId}` : 'No active jobs'}
+${context.previousRequests.length > 0 ? `Previous services: ${context.previousRequests.join(', ')}` : ''}
+
+## Current Message(s) (${buffer.messages.length} messages, aggregated)
+${buffer.messages.map(m => m.content).join('\n')}
+
+## Instructions
+- Consider the conversation history when classifying
+- If customer has active job, check if they're asking about it
+- Respond in a natural, conversational tone
+- Use Argentine Spanish (vos form, informal)
+
+Classify and extract job request details if present.
+`;
+```
+
+**Tasks:**
+- [ ] 9.8.7.1 Create ContextBuilder class
+- [ ] 9.8.7.2 Modify extraction prompt to include conversation history
+- [ ] 9.8.7.3 Add message count metadata to prompt
+- [ ] 9.8.7.4 Implement customer context inclusion
+- [ ] 9.8.7.5 Add active job awareness
+
+### 9.8.8 Example Scenarios Implementation
+
+**Scenario Tests to Implement:**
+
+| Scenario | Input | Expected Behavior |
+|----------|-------|-------------------|
+| Greeting → Request | "Hola" → "El aire no enfría" | Wait, aggregate, classify as JOB_REQUEST |
+| Greeting only | "Hola" (8s passes) | Classify as GREETING, respond "¿En qué podemos ayudarte?" |
+| Complete request | Long message with address | Trigger immediately, create job |
+| Question | "Cuánto sale...?" | Trigger on ?, respond with pricing |
+| Existing customer | Known phone asks about job | Include active job in response |
+
+**Tasks:**
+- [ ] 9.8.8.1 Create test suite for aggregation scenarios
+- [ ] 9.8.8.2 Implement integration tests with mock Redis
+- [ ] 9.8.8.3 Add performance benchmarks (aggregation latency)
+
+### 9.8.9 Admin UI for Aggregation Monitoring
+```
+Files to create:
+├── app/(dashboard)/whatsapp/aggregation/
+│   ├── page.tsx (Buffer Status)
+│   └── settings/page.tsx (Configuration)
+├── components/whatsapp/
+│   ├── BufferMonitor.tsx
+│   ├── AggregationStats.tsx
+│   └── TriggerConfigEditor.tsx
+```
+
+**Tasks:**
+- [ ] 9.8.9.1 Build buffer monitoring dashboard
+- [ ] 9.8.9.2 Create aggregation statistics display (avg buffer size, trigger rates)
+- [ ] 9.8.9.3 Build trigger configuration editor (customize patterns per org)
+- [ ] 9.8.9.4 Add real-time buffer count display
+
+---
+
+## PHASE 9.9: CUSTOMER LIVE TRACKING SYSTEM
+**Duration:** Weeks 23-24 (2 weeks)
+**Team:** 2 Backend Engineers, 2 Frontend Engineers, 1 Mobile Engineer
+**Priority:** High - Major competitive differentiator
+
+### Overview: Why Web-Based Tracking (Not In-WhatsApp)
+
+**WhatsApp Limitations:**
+- ❌ Cannot send animated/live updating maps inside chat
+- ❌ Cannot programmatically share live location (user-initiated only)
+- ❌ Cannot embed interactive maps in messages
+- ✅ CAN send a tracking link that opens in browser
+- ✅ CAN send interactive buttons ("Ver ubicación" → opens link)
+
+**Solution:** Send WhatsApp message with tracking URL → Customer opens in browser → Live map experience
+
+### 9.9.1 Tracking Database Schema
+```
+Location: /database/migrations/
+Files to create:
+├── 022_create_tracking_sessions.sql
+├── 023_create_location_history.sql
+└── 024_create_tracking_tokens.sql
+```
+
+**Database Schema:**
+```sql
+-- Active tracking sessions
+CREATE TABLE tracking_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id UUID NOT NULL REFERENCES jobs(id) UNIQUE,
+    technician_id UUID NOT NULL REFERENCES users(id),
+    organization_id UUID NOT NULL REFERENCES organizations(id),
+
+    -- Current position (updated every 30 seconds)
+    current_lat DECIMAL(10, 8),
+    current_lng DECIMAL(11, 8),
+    current_speed DECIMAL(5, 2),      -- km/h
+    current_heading DECIMAL(5, 2),    -- degrees
+    movement_mode TEXT DEFAULT 'driving', -- 'driving', 'walking', 'stationary'
+
+    -- ETA information
+    eta_minutes INTEGER,
+    eta_updated_at TIMESTAMPTZ,
+    route_polyline TEXT,              -- Encoded polyline for route
+    traffic_aware BOOLEAN DEFAULT false,
+
+    -- Session state
+    status TEXT DEFAULT 'active',     -- 'active', 'arrived', 'completed', 'cancelled'
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    arrived_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+
+    -- Position update counter
+    position_update_count INTEGER DEFAULT 0,
+    last_position_at TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Location history for the session
+CREATE TABLE tracking_location_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID NOT NULL REFERENCES tracking_sessions(id) ON DELETE CASCADE,
+
+    lat DECIMAL(10, 8) NOT NULL,
+    lng DECIMAL(11, 8) NOT NULL,
+    speed DECIMAL(5, 2),
+    heading DECIMAL(5, 2),
+    accuracy DECIMAL(5, 2),           -- GPS accuracy in meters
+    movement_mode TEXT,
+
+    recorded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Short-lived tracking tokens
+CREATE TABLE tracking_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    token TEXT UNIQUE NOT NULL,
+    job_id UUID NOT NULL REFERENCES jobs(id),
+
+    -- Security
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,  -- 4 hours from creation
+    access_count INTEGER DEFAULT 0,
+    last_accessed_at TIMESTAMPTZ,
+
+    -- Optional: limit by IP for security
+    allowed_ip TEXT
+);
+
+-- Indexes
+CREATE INDEX idx_tracking_sessions_job ON tracking_sessions(job_id);
+CREATE INDEX idx_tracking_sessions_technician ON tracking_sessions(technician_id);
+CREATE INDEX idx_tracking_tokens_token ON tracking_tokens(token);
+CREATE INDEX idx_tracking_tokens_expiry ON tracking_tokens(expires_at);
+CREATE INDEX idx_location_history_session ON tracking_location_history(session_id, recorded_at);
+```
+
+**Tasks:**
+- [ ] 9.9.1.1 Create tracking_sessions table
+- [ ] 9.9.1.2 Create tracking_location_history table
+- [ ] 9.9.1.3 Create tracking_tokens table
+- [ ] 9.9.1.4 Add indexes for performance
+- [ ] 9.9.1.5 Create cleanup job for expired tokens and old history
+
+### 9.9.2 Tracking Session Service
+```
+Location: /src/modules/tracking/
+Files to create:
+├── tracking.service.ts
+├── tracking.repository.ts
+├── tracking.controller.ts
+├── tracking.routes.ts
+├── session-manager.ts
+├── eta-calculator.ts
+├── mode-detector.ts
+├── token-generator.ts
+└── tracking.types.ts
+```
+
+**Tasks:**
+- [ ] 9.9.2.1 Implement tracking session creation (triggered by job status → EN_ROUTE)
+- [ ] 9.9.2.2 Create position update endpoint (POST /api/tracking/update)
+- [ ] 9.9.2.3 Implement customer tracking endpoint (GET /api/tracking/:token)
+- [ ] 9.9.2.4 Build session lifecycle management (start, arrive, complete)
+- [ ] 9.9.2.5 Create token generation with 4-hour expiry
+- [ ] 9.9.2.6 Implement Redis caching for active sessions (TTL 2 hours)
+
+### 9.9.3 ETA Calculator Service
+```
+Location: /src/modules/tracking/eta/
+Files to create:
+├── eta-calculator.service.ts
+├── providers/
+│   ├── eta-provider.interface.ts
+│   ├── google-maps.provider.ts
+│   ├── mapbox.provider.ts
+│   └── basic.provider.ts
+├── haversine.ts
+└── eta.types.ts
+```
+
+**Tier-Based ETA Strategy:**
+
+| Tier | Provider | API | Traffic-Aware | Cost per 1000 |
+|------|----------|-----|---------------|---------------|
+| **BÁSICO** | Basic calculation | None | ❌ | $0 |
+| **PROFESIONAL** | Mapbox | Directions API | ❌ | ~$5 |
+| **EMPRESARIAL** | Google Maps | Directions API | ✅ | ~$12 |
+
+**Tasks:**
+- [ ] 9.9.3.1 Create ETAProvider interface
+- [ ] 9.9.3.2 Implement BasicETAProvider (haversine distance + speed estimate)
+- [ ] 9.9.3.3 Implement MapboxETAProvider (Directions API)
+- [ ] 9.9.3.4 Implement GoogleMapsETAProvider (with traffic via departure_time=now)
+- [ ] 9.9.3.5 Create ETA calculator factory (selects provider by tier)
+- [ ] 9.9.3.6 Implement ETA caching (refresh every 2 minutes, not every request)
+- [ ] 9.9.3.7 Add traffic condition monitoring for Empresarial tier
+
+### 9.9.4 Movement Mode Detector
+```
+Location: /src/modules/tracking/mode-detector.ts
+```
+
+**Detection Logic:**
+```typescript
+function detectMovementMode(
+  history: LocationUpdate[],
+  currentSpeed: number
+): 'walking' | 'driving' | 'stationary' {
+  // Stationary: < 1 km/h for 30+ seconds
+  if (currentSpeed < 1) {
+    const recent = history.filter(u => Date.now() - u.timestamp < 30000);
+    if (recent.every(u => u.speed < 1)) return 'stationary';
+  }
+
+  // Walking: 1-7 km/h
+  if (currentSpeed >= 1 && currentSpeed <= 7) return 'walking';
+
+  // Driving: > 7 km/h
+  return 'driving';
+}
+```
+
+**Tasks:**
+- [ ] 9.9.4.1 Implement ModeDetector class
+- [ ] 9.9.4.2 Add speed history analysis
+- [ ] 9.9.4.3 Create mode change event emission
+- [ ] 9.9.4.4 Update ETA calculation based on detected mode
+
+### 9.9.5 Map Provider Integration
+```
+Location: /src/modules/tracking/maps/
+Files to create:
+├── map-provider.service.ts
+├── providers/
+│   ├── google-static.provider.ts
+│   ├── mapbox.provider.ts
+│   └── google-maps.provider.ts
+├── route-renderer.ts
+└── map.types.ts
+```
+
+**Tier-Based Map Strategy:**
+
+| Tier | Provider | Map Type | Features |
+|------|----------|----------|----------|
+| **BÁSICO** | Google Static Maps | Static image | Single snapshot, ETA text only |
+| **PROFESIONAL** | Mapbox | Interactive JS | Live animation, route line |
+| **EMPRESARIAL** | Google Maps Platform | Interactive JS | Traffic layer, street view, walking detection |
+
+**Tasks:**
+- [ ] 9.9.5.1 Create MapProvider interface
+- [ ] 9.9.5.2 Implement GoogleStaticMapsProvider (generates image URL)
+- [ ] 9.9.5.3 Implement MapboxProvider (returns config for Mapbox GL JS)
+- [ ] 9.9.5.4 Implement GoogleMapsProvider (returns config for Google Maps JS API)
+- [ ] 9.9.5.5 Create provider factory (selects by organization tier)
+- [ ] 9.9.5.6 Implement route polyline encoding/decoding
+
+### 9.9.6 Technician Mobile App Integration
+```
+Location (mobile): /apps/mobile/
+Files to create:
+├── lib/tracking/
+│   ├── location-tracker.ts
+│   ├── background-location.ts
+│   ├── tracking-api.ts
+│   └── tracking.types.ts
+├── components/tracking/
+│   ├── TrackingStatusBar.tsx
+│   └── NavigationButton.tsx
+```
+
+**GPS Update Strategy:**
+- Update frequency: Every 30 seconds when in EN_ROUTE status
+- Background location: Use Expo Location with background permissions
+- Battery optimization: Reduce accuracy when stationary
+- Offline handling: Queue updates when offline, sync when back online
+
+**Tasks:**
+- [ ] 9.9.6.1 Implement background location tracking (Expo Location)
+- [ ] 9.9.6.2 Create 30-second position update interval
+- [ ] 9.9.6.3 Build tracking status indicator in app header
+- [ ] 9.9.6.4 Add deep link to navigation apps (Google Maps, Waze)
+- [ ] 9.9.6.5 Implement battery-efficient tracking modes
+- [ ] 9.9.6.6 Handle location permission requests
+- [ ] 9.9.6.7 Create offline queue for position updates
+
+### 9.9.7 Customer Tracking Web Page
+```
+Location: /apps/web/
+Files to create:
+├── app/track/
+│   ├── [token]/page.tsx
+│   └── layout.tsx
+├── components/tracking/
+│   ├── TrackingMap.tsx
+│   ├── MapboxTracker.tsx
+│   ├── GoogleMapsTracker.tsx
+│   ├── StaticMapView.tsx
+│   ├── TechnicianMarker.tsx
+│   ├── ETADisplay.tsx
+│   ├── ProgressBar.tsx
+│   ├── TechnicianCard.tsx
+│   └── ContactButtons.tsx
+├── lib/tracking/
+│   ├── tracking-client.ts
+│   ├── marker-animation.ts
+│   └── tracking.hooks.ts
+```
+
+**Page Design:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 🔧 ServiFrío - Tu servicio en camino          [Logo]       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                                                     │   │
+│  │    [LIVE MAP - Provider based on tier]              │   │
+│  │                                                     │   │
+│  │         📍 Tu casa                                  │   │
+│  │              ╲                                      │   │
+│  │               ╲  ← Animated route line              │   │
+│  │                ╲                                    │   │
+│  │              🚐 ← Cute van icon (moves every 10s)  │   │
+│  │             Carlos                                  │   │
+│  │                                                     │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  ⏱️ Llegada estimada: 12 min (~14:30)               │   │
+│  │  ████████████░░░░░░░░  ← Progress bar               │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌──────────────────┐  ┌──────────────────┐                │
+│  │ 👤 Carlos R.     │  │ 📞 Llamar        │                │
+│  │ ⭐ 4.8 (127)     │  │ 💬 WhatsApp      │                │
+│  └──────────────────┘  └──────────────────┘                │
+│                                                             │
+│  Servicio: Instalación split 3000 frigorías                │
+│  Referencia: #JOB-2024-001234                               │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│  Powered by CampoTech                                       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Tasks:**
+- [ ] 9.9.7.1 Create tracking page with token validation
+- [ ] 9.9.7.2 Implement tier-based map component selection
+- [ ] 9.9.7.3 Build animated technician marker (smooth 2-second transitions)
+- [ ] 9.9.7.4 Create ETA display with countdown
+- [ ] 9.9.7.5 Implement progress bar visualization
+- [ ] 9.9.7.6 Build technician profile card with rating
+- [ ] 9.9.7.7 Add contact buttons (call, WhatsApp)
+- [ ] 9.9.7.8 Create job details display
+- [ ] 9.9.7.9 Implement 10-second polling for position updates
+- [ ] 9.9.7.10 Add "arrived" state transition UI
+- [ ] 9.9.7.11 Apply organization branding (logo, colors)
+
+### 9.9.8 Marker Animation Implementation
+```
+Location: /apps/web/lib/tracking/marker-animation.ts
+```
+
+**Smooth Animation Logic:**
+```typescript
+class TechnicianMarker {
+  animateTo(newPosition: LatLng, duration = 2000) {
+    const start = this.marker.getPosition();
+    const startTime = performance.now();
+
+    // Calculate rotation angle (van faces direction of travel)
+    const angle = this.calculateBearing(start, newPosition);
+    this.element.style.transform = `rotate(${angle}deg)`;
+
+    // Smooth position animation with ease-out
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+
+      const lat = start.lat + (newPosition.lat - start.lat) * easeOut;
+      const lng = start.lng + (newPosition.lng - start.lng) * easeOut;
+
+      this.marker.setPosition({ lat, lng });
+
+      if (progress < 1) requestAnimationFrame(animate);
+    };
+
+    requestAnimationFrame(animate);
+  }
+}
+```
+
+**Tasks:**
+- [ ] 9.9.8.1 Implement TechnicianMarker class for Mapbox
+- [ ] 9.9.8.2 Implement TechnicianMarker class for Google Maps
+- [ ] 9.9.8.3 Add bearing calculation for marker rotation
+- [ ] 9.9.8.4 Create custom van/truck SVG marker
+- [ ] 9.9.8.5 Implement ease-out animation curve
+
+### 9.9.9 WhatsApp Template for Tracking
+```
+Location: /src/integrations/whatsapp/templates/
+Files to modify:
+└── template-registry.ts (add tracking template)
+```
+
+**Template Definition:**
+```typescript
+{
+  name: 'technician_en_route_tracking',
+  language: 'es_AR',
+  category: 'UTILITY',
+  components: [
+    {
+      type: 'HEADER',
+      format: 'TEXT',
+      text: '🔧 Tu técnico está en camino'
+    },
+    {
+      type: 'BODY',
+      text: '{{1}} salió hacia tu ubicación.\n\nLlegada estimada: ~{{2}} minutos\n\nPodés seguir su ubicación en tiempo real:',
+      example: { body_text: [['Carlos R.', '12']] }
+    },
+    {
+      type: 'BUTTONS',
+      buttons: [
+        {
+          type: 'URL',
+          text: '📍 Ver ubicación en vivo',
+          url: 'https://track.campotech.com.ar/{{1}}',
+          example: ['xK9mNp2qR5tY8wZ1']
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Tasks:**
+- [ ] 9.9.9.1 Create tracking WhatsApp template
+- [ ] 9.9.9.2 Submit template to Meta for approval
+- [ ] 9.9.9.3 Implement template sending when job status → EN_ROUTE
+- [ ] 9.9.9.4 Add fallback SMS for customers without WhatsApp
+
+### 9.9.10 Job Status Integration
+```
+Location: /src/modules/jobs/
+Files to modify:
+├── job.service.ts (add tracking triggers)
+└── job-state-machine.ts (add tracking events)
+```
+
+**Status → Tracking Events:**
+
+| Job Status | Tracking Action |
+|------------|-----------------|
+| ASSIGNED → EN_ROUTE | Create session, generate token, send WhatsApp |
+| EN_ROUTE → ARRIVED | Update session status, notify customer |
+| ARRIVED → IN_PROGRESS | Mark session arrived |
+| IN_PROGRESS → COMPLETED | Complete session, archive history |
+| Any → CANCELLED | Cancel session, invalidate token |
+
+**Tasks:**
+- [ ] 9.9.10.1 Add tracking session creation on EN_ROUTE transition
+- [ ] 9.9.10.2 Trigger WhatsApp notification with tracking link
+- [ ] 9.9.10.3 Update session on ARRIVED status
+- [ ] 9.9.10.4 Complete session on job completion
+- [ ] 9.9.10.5 Handle cancellation cleanup
+
+### 9.9.11 Cost Monitoring & Tier Enforcement
+```
+Location: /src/modules/tracking/billing/
+Files to create:
+├── tracking-usage.service.ts
+├── tier-enforcer.ts
+└── cost-calculator.ts
+```
+
+**Cost Calculation (per 100 customers, ~200 jobs/month):**
+
+```
+BÁSICO (40 customers × 80 jobs × 1 static image):
+├── Static map loads: 3,200/month
+├── Cost: ~$6.40/month
+└── Per customer: ~$0.16/month
+
+PROFESIONAL (45 customers × 90 jobs × avg 5 page loads):
+├── Map loads: 20,250/month
+├── Direction requests: 4,050/month
+├── Mapbox cost: ~$125/month
+└── Per customer: ~$2.78/month
+
+EMPRESARIAL (15 customers × 300 jobs × avg 8 page loads):
+├── Map loads: 36,000/month
+├── Direction requests (traffic): 7,200/month
+├── Google Maps cost: ~$432/month
+└── Per customer: ~$28.80/month
+```
+
+**Tasks:**
+- [ ] 9.9.11.1 Implement tracking usage counter per organization
+- [ ] 9.9.11.2 Create tier limit enforcement
+- [ ] 9.9.11.3 Add cost tracking and alerts
+- [ ] 9.9.11.4 Build usage dashboard for admins
+
+### 9.9.12 Static Map Fallback (Básico Tier)
+```
+Location: /apps/web/components/tracking/StaticMapView.tsx
+```
+
+**For Básico tier, show static experience:**
+- Single map image (Google Static Maps)
+- ETA text only (no countdown)
+- Manual refresh button
+- No route line or animation
+
+**Tasks:**
+- [ ] 9.9.12.1 Create StaticMapView component
+- [ ] 9.9.12.2 Generate static map URL with technician marker
+- [ ] 9.9.12.3 Add manual refresh button
+- [ ] 9.9.12.4 Show simplified ETA text
+
+### 9.9.13 Security & Privacy
+```
+Location: /src/modules/tracking/security/
+Files to create:
+├── token-validator.ts
+├── rate-limiter.ts
+└── privacy-controls.ts
+```
+
+**Security Measures:**
+- Short-lived tokens (4-hour expiry)
+- Rate limiting on tracking endpoint (60 req/min per token)
+- No exact technician home location
+- Location history retention: 7 days
+- Option to disable tracking per job
+
+**Tasks:**
+- [ ] 9.9.13.1 Implement token validation middleware
+- [ ] 9.9.13.2 Add rate limiting to tracking endpoints
+- [ ] 9.9.13.3 Create location history retention policy (7 days)
+- [ ] 9.9.13.4 Add per-job tracking opt-out
+- [ ] 9.9.13.5 Implement privacy buffer (don't show exact start location)
+
+---
+
+## PHASE 9.10: MOBILE-FIRST ARCHITECTURE
+**Duration:** Weeks 25-26 (2 weeks)
+**Team:** 2 Mobile Engineers, 1 Backend Engineer, 1 Frontend Engineer
+**Priority:** High - Essential for Argentine market adoption
+
+### Overview: Core Principle
+
+**A plumber starting their business with only a smartphone must be able to run their entire operation from CampoTech mobile app. No laptop required.**
+
+```
+Reality of Argentine tradespeople:
+┌─────────────────────────────────────────────────────────────┐
+│  👷 Juan wants to start a plumbing business                │
+│                                                             │
+│  What he has:                                               │
+│  ✅ Smartphone (probably Android)                          │
+│  ✅ WhatsApp                                                │
+│  ✅ Tools and skills                                        │
+│  ❌ Laptop                                                  │
+│  ❌ Office                                                  │
+│  ❌ IT knowledge                                            │
+│                                                             │
+│  CampoTech must work 100% on his phone                      │
+│  or we lose this customer to competitors                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Market Reality:**
+- 85%+ of Argentine SMB owners manage business primarily from phone
+- Many tradespeople have never owned a laptop
+- Field service = always on the move
+- Phone is the office, cash register, and communication hub
+
+### 9.10.1 Feature Parity Audit
+```
+Location: Documentation
+Files to create:
+├── docs/mobile-parity-checklist.md
+└── docs/mobile-first-guidelines.md
+```
+
+**Feature Parity Matrix:**
+
+| Feature | Mobile App | Web Dashboard | Status |
+|---------|------------|---------------|--------|
+| Account Setup | ✅ Full signup from phone | ✅ Full | Required |
+| Team Management | ✅ Add/edit/remove members | ✅ Same + bulk | Required |
+| Job Creation | ✅ Full with voice input | ✅ Same | Required |
+| Scheduling | ✅ Calendar + drag/drop | ✅ Same + views | Required |
+| Job Assignment | ✅ One-tap assign | ✅ Same + bulk | Required |
+| Customer Database | ✅ Full CRUD | ✅ Same + export | Required |
+| Invoicing | ✅ Create + send | ✅ Same + batch | Required |
+| Payments | ✅ Record + MercadoPago | ✅ Same | Required |
+| Reports | ✅ Summary charts | ✅ Detailed + export | Enhanced web |
+| Settings | ✅ Full configuration | ✅ Same | Required |
+
+**Rule:** If it's in the web dashboard, it MUST be in the mobile app (even if simplified).
+
+**Tasks:**
+- [ ] 9.10.1.1 Audit current mobile app for missing features
+- [ ] 9.10.1.2 Create parity checklist document
+- [ ] 9.10.1.3 Identify web-only features that need mobile implementation
+- [ ] 9.10.1.4 Create mobile-first design guidelines document
+
+### 9.10.2 Mobile Account Setup Flow
+```
+Location (mobile): /apps/mobile/
+Files to create/modify:
+├── app/(auth)/
+│   ├── signup/
+│   │   ├── page.tsx
+│   │   ├── business-info.tsx
+│   │   ├── services.tsx
+│   │   └── verification.tsx
+│   └── onboarding/
+│       ├── layout.tsx
+│       ├── welcome.tsx
+│       ├── setup-business.tsx
+│       └── add-first-team.tsx
+├── components/signup/
+│   ├── BusinessTypeSelector.tsx
+│   ├── ServiceSelector.tsx
+│   ├── CoverageZonePicker.tsx
+│   └── PhoneVerification.tsx
+```
+
+**Tasks:**
+- [ ] 9.10.2.1 Implement full signup flow on mobile
+- [ ] 9.10.2.2 Create business setup wizard (services, coverage area)
+- [ ] 9.10.2.3 Build phone verification with OTP
+- [ ] 9.10.2.4 Add "Add first team member" step
+- [ ] 9.10.2.5 Implement progress indicator for setup
+- [ ] 9.10.2.6 Create skip options for optional steps
+
+### 9.10.3 Mobile Team Management
+```
+Location (mobile): /apps/mobile/
+Files to create:
+├── app/(tabs)/team/
+│   ├── index.tsx (Team List)
+│   ├── add.tsx (Add Member)
+│   ├── [id]/index.tsx (Member Detail)
+│   └── [id]/edit.tsx (Edit Member)
+├── components/team/
+│   ├── TeamMemberCard.tsx
+│   ├── AddMemberForm.tsx
+│   ├── RoleSelector.tsx
+│   ├── SkillLevelPicker.tsx
+│   └── SpecialtySelector.tsx
+```
+
+**Mobile Team Management UI:**
+```
+┌─────────────────────────────────────────┐
+│ ← Agregar Técnico                       │
+├─────────────────────────────────────────┤
+│                                         │
+│  📷 [Agregar foto]                      │
+│                                         │
+│  Nombre *                               │
+│  ┌─────────────────────────────────┐   │
+│  │ Juan Pérez                      │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  Teléfono *                             │
+│  ┌──────┐ ┌──────────────────────┐     │
+│  │🇦🇷+54│ │ 11 5678 1234         │     │
+│  └──────┘ └──────────────────────┘     │
+│                                         │
+│  Email *                                │
+│  ┌─────────────────────────────────┐   │
+│  │ juan@email.com                  │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  Rol                                    │
+│  ┌─────────────────────────────────┐   │
+│  │ Técnico                       ▼ │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  Especialidad                           │
+│  ┌─────────────────────────────────┐   │
+│  │ Instalación de splits         ▼ │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  ☑️ Enviar invitación por WhatsApp      │
+│                                         │
+│  ┌─────────────────────────────────┐   │
+│  │        AGREGAR TÉCNICO          │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+**Tasks:**
+- [ ] 9.10.3.1 Build team list screen with search
+- [ ] 9.10.3.2 Create add team member form
+- [ ] 9.10.3.3 Implement role selector
+- [ ] 9.10.3.4 Add skill level picker (UOCRA categories)
+- [ ] 9.10.3.5 Build specialty selector
+- [ ] 9.10.3.6 Implement WhatsApp invitation sending
+- [ ] 9.10.3.7 Create member detail/edit screens
+- [ ] 9.10.3.8 Add member removal with confirmation
+
+### 9.10.4 Mobile Scheduling View
+```
+Location (mobile): /apps/mobile/
+Files to create:
+├── app/(tabs)/calendar/
+│   ├── index.tsx (Day View)
+│   ├── week.tsx (Week View)
+│   └── month.tsx (Month View)
+├── components/calendar/
+│   ├── DaySchedule.tsx
+│   ├── WeekView.tsx
+│   ├── JobSlot.tsx
+│   ├── AssignmentSheet.tsx
+│   └── QuickAssign.tsx
+```
+
+**Mobile Scheduling UI:**
+```
+┌─────────────────────────────────────────┐
+│ 📅 Hoy - Lunes 9 Dic           [+ Nuevo]│
+├─────────────────────────────────────────┤
+│                                         │
+│  09:00 ┌────────────────────────────┐  │
+│        │ 🔧 Instalación split       │  │
+│        │ María López - Palermo      │  │
+│        │ [Carlos R.] ⭐             │  │
+│        └────────────────────────────┘  │
+│                                         │
+│  12:00 ┌────────────────────────────┐  │
+│        │ 🔧 Reparación              │  │
+│        │ Pedro García - Belgrano    │  │
+│        │ [Sin asignar] ⚠️           │  │
+│        │                            │  │
+│        │ [Asignarme] [Asignar otro] │  │
+│        └────────────────────────────┘  │
+│                                         │
+│  16:00 ┌────────────────────────────┐  │
+│        │ 🔧 Mantenimiento           │  │
+│        │ Ana Ruiz - Recoleta        │  │
+│        │ [Carlos R.] ⭐             │  │
+│        └────────────────────────────┘  │
+│                                         │
+├─────────────────────────────────────────┤
+│  [◀ Ayer]   [Hoy]   [Mañana ▶]         │
+├─────────────────────────────────────────┤
+│ 🏠   📅   ➕   👥   ⚙️               │
+│ Home Cal  New Team  Settings           │
+└─────────────────────────────────────────┘
+```
+
+**Tasks:**
+- [ ] 9.10.4.1 Build day view calendar
+- [ ] 9.10.4.2 Create job slot component
+- [ ] 9.10.4.3 Implement quick assign sheet
+- [ ] 9.10.4.4 Add "Assign to me" one-tap action
+- [ ] 9.10.4.5 Build week view (horizontal scroll)
+- [ ] 9.10.4.6 Create month overview
+- [ ] 9.10.4.7 Implement navigation between days
+
+### 9.10.5 Mobile Customer Management
+```
+Location (mobile): /apps/mobile/
+Files to create:
+├── app/(tabs)/customers/
+│   ├── index.tsx (List)
+│   ├── add.tsx (New Customer)
+│   ├── [id]/index.tsx (Detail)
+│   └── [id]/edit.tsx (Edit)
+├── components/customers/
+│   ├── CustomerCard.tsx
+│   ├── CustomerForm.tsx
+│   ├── CustomerHistory.tsx
+│   ├── CUITInput.tsx
+│   └── AddressInput.tsx
+```
+
+**Tasks:**
+- [ ] 9.10.5.1 Build customer list with search and filters
+- [ ] 9.10.5.2 Create customer detail view
+- [ ] 9.10.5.3 Implement customer creation form
+- [ ] 9.10.5.4 Add CUIT validation component
+- [ ] 9.10.5.5 Build address input with autocomplete
+- [ ] 9.10.5.6 Show customer job history
+- [ ] 9.10.5.7 Add quick actions (call, WhatsApp, new job)
+
+### 9.10.6 Mobile Invoicing
+```
+Location (mobile): /apps/mobile/
+Files to create:
+├── app/(tabs)/invoices/
+│   ├── index.tsx (List)
+│   ├── create.tsx (New Invoice)
+│   ├── [id]/index.tsx (Detail)
+│   └── [id]/send.tsx (Send)
+├── components/invoices/
+│   ├── InvoiceCard.tsx
+│   ├── InvoiceForm.tsx
+│   ├── LineItemEditor.tsx
+│   ├── TaxCalculator.tsx
+│   ├── InvoicePDFViewer.tsx
+│   └── SendInvoiceSheet.tsx
+```
+
+**Tasks:**
+- [ ] 9.10.6.1 Build invoice list with status filters
+- [ ] 9.10.6.2 Create invoice detail view with PDF preview
+- [ ] 9.10.6.3 Implement invoice creation from job
+- [ ] 9.10.6.4 Add line item editor
+- [ ] 9.10.6.5 Build tax calculation display
+- [ ] 9.10.6.6 Implement send via WhatsApp/email
+- [ ] 9.10.6.7 Add payment recording
+
+### 9.10.7 Mobile Settings
+```
+Location (mobile): /apps/mobile/
+Files to create:
+├── app/settings/
+│   ├── index.tsx (Main Settings)
+│   ├── business/page.tsx
+│   ├── notifications/page.tsx
+│   ├── integrations/page.tsx
+│   └── billing/page.tsx
+├── components/settings/
+│   ├── SettingsSection.tsx
+│   ├── SettingsRow.tsx
+│   ├── BusinessInfoForm.tsx
+│   └── NotificationPreferences.tsx
+```
+
+**Tasks:**
+- [ ] 9.10.7.1 Build main settings screen
+- [ ] 9.10.7.2 Create business information editor
+- [ ] 9.10.7.3 Implement notification preferences
+- [ ] 9.10.7.4 Add integration settings (WhatsApp, MercadoPago)
+- [ ] 9.10.7.5 Build subscription/billing view
+
+### 9.10.8 Offline Capability Enhancement
+```
+Location (mobile): /apps/mobile/lib/offline/
+Files to create:
+├── offline-manager.ts
+├── sync-queue.ts
+├── conflict-resolver.ts
+├── offline-storage.ts
+└── network-monitor.ts
+```
+
+**Essential Offline Features:**
+
+| Feature | Offline Support | Sync Behavior |
+|---------|-----------------|---------------|
+| View schedule | ✅ Cached | Auto on reconnect |
+| View customer details | ✅ Cached | Auto on reconnect |
+| Update job status | ✅ Queued | Auto sync |
+| Take photos | ✅ Stored locally | Background upload |
+| Record notes | ✅ Queued | Auto sync |
+| View maps | ❌ Network required | - |
+| Send messages | ✅ Queued | Auto send |
+| Create invoice | ❌ Network required | - |
+
+**Tasks:**
+- [ ] 9.10.8.1 Implement offline storage for jobs and customers
+- [ ] 9.10.8.2 Create sync queue for offline operations
+- [ ] 9.10.8.3 Build conflict resolution UI
+- [ ] 9.10.8.4 Implement photo queue with background upload
+- [ ] 9.10.8.5 Add offline indicator in app header
+- [ ] 9.10.8.6 Create sync progress display
+- [ ] 9.10.8.7 Handle network state changes
+
+### 9.10.9 Mobile Performance Optimization
+```
+Location (mobile): /apps/mobile/
+Files to modify/optimize:
+├── Performance profiling
+├── Memory management
+├── Bundle size
+└── Cold start time
+```
+
+**Target: Samsung Galaxy A10 (low-end device)**
+- Cold start: < 4 seconds
+- Memory footprint: < 150MB
+- Bundle size: < 30MB
+
+**Tasks:**
+- [ ] 9.10.9.1 Profile cold start on low-end devices
+- [ ] 9.10.9.2 Implement code splitting
+- [ ] 9.10.9.3 Optimize images and assets
+- [ ] 9.10.9.4 Use FlashList for all list components
+- [ ] 9.10.9.5 Implement lazy loading for non-critical screens
+- [ ] 9.10.9.6 Optimize WatermelonDB queries
+- [ ] 9.10.9.7 Reduce JavaScript bundle size
+
+### 9.10.10 Voice Input Integration
+```
+Location (mobile): /apps/mobile/
+Files to create:
+├── lib/voice/
+│   ├── voice-input.service.ts
+│   ├── speech-recognition.ts
+│   └── voice-commands.ts
+├── components/voice/
+│   ├── VoiceInputButton.tsx
+│   └── VoiceRecordingModal.tsx
+```
+
+**Voice Input Use Cases:**
+- Creating job notes
+- Adding customer notes
+- Search by voice
+- Job description dictation
+
+**Tasks:**
+- [ ] 9.10.10.1 Implement speech recognition integration
+- [ ] 9.10.10.2 Create voice input button component
+- [ ] 9.10.10.3 Add voice input to job notes
+- [ ] 9.10.10.4 Implement voice search
+- [ ] 9.10.10.5 Build voice recording modal with visualization
+
+### 9.10.11 Mobile-First Onboarding Message
+```
+Location: All marketing and onboarding materials
+```
+
+**Correct onboarding message:**
+```
+"Descargá la app CampoTech para manejar tu negocio desde el celular.
+Si tenés computadora, también podés acceder desde campotech.com.ar"
+```
+
+**NOT:**
+```
+"Registrate en campotech.com.ar y descargá la app para tus técnicos."
+```
+
+**Tasks:**
+- [ ] 9.10.11.1 Update all marketing copy to mobile-first language
+- [ ] 9.10.11.2 Modify onboarding emails to promote mobile first
+- [ ] 9.10.11.3 Update app store descriptions
+- [ ] 9.10.11.4 Create mobile-first demo videos
+
+---
+
+## PHASE 9.11: TECHNICAL ARCHITECTURE DOCUMENTATION
+**Duration:** Week 27 (1 week, parallel with development)
+**Team:** 1 Senior Engineer + Technical Writer
+**Priority:** Medium - Essential for team scaling and maintenance
+
+### 9.11.1 Architecture Documentation
+```
+Location: /docs/architecture/
+Files to create:
+├── overview.md
+├── high-level-architecture.md
+├── data-flow.md
+├── security-architecture.md
+├── integration-patterns.md
+└── decision-records/
+    ├── ADR-001-whatsapp-aggregator-model.md
+    ├── ADR-002-mobile-first-strategy.md
+    ├── ADR-003-map-provider-selection.md
+    └── ADR-004-offline-sync-strategy.md
+```
+
+### High-Level Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         CLIENTS                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│  📱 Mobile App        🖥️ Web Dashboard        💬 WhatsApp          │
+│  (React Native)       (Next.js)              (Business API)        │
+└──────────┬───────────────────┬───────────────────────┬─────────────┘
+           │                   │                       │
+           ▼                   ▼                       ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                         API LAYER                                   │
+├─────────────────────────────────────────────────────────────────────┤
+│  Next.js API Routes (/api/*)                                        │
+│  ├── /api/auth/*           Authentication                           │
+│  ├── /api/jobs/*           Job management                           │
+│  ├── /api/users/*          User/team management                     │
+│  ├── /api/customers/*      Customer database                        │
+│  ├── /api/invoices/*       AFIP invoicing                           │
+│  ├── /api/tracking/*       Live tracking                            │
+│  └── /api/webhooks/*       External service callbacks               │
+└──────────┬─────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                     BUSINESS LOGIC                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│  src/                                                               │
+│  ├── integrations/                                                  │
+│  │   ├── whatsapp/          WhatsApp Business API + Aggregation     │
+│  │   ├── voice-ai/          Whisper + GPT extraction                │
+│  │   ├── mercadopago/       Payments                                │
+│  │   └── afip/              Argentine tax invoicing                 │
+│  ├── modules/                                                       │
+│  │   ├── tracking/          Live location tracking                  │
+│  │   ├── notifications/     Multi-channel notifications             │
+│  │   └── ...                                                        │
+│  ├── workers/               Background job processing               │
+│  └── lib/                   Shared utilities                        │
+└──────────┬─────────────────────────────────────────────────────────┘
+           │
+           ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      DATA LAYER                                     │
+├─────────────────────────────────────────────────────────────────────┤
+│  PostgreSQL (Prisma)        Redis                 S3/R2             │
+│  ├── Users                  ├── Sessions          ├── Job photos    │
+│  ├── Organizations          ├── Rate limits       ├── Invoices PDF  │
+│  ├── Jobs                   ├── Job queues        └── Attachments   │
+│  ├── Customers              ├── Message buffers                     │
+│  ├── Invoices               ├── Tracking cache                      │
+│  ├── Tracking sessions      └── Cache                               │
+│  └── Notifications                                                  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Tasks:**
+- [ ] 9.11.1.1 Create architecture overview documentation
+- [ ] 9.11.1.2 Document data flow diagrams
+- [ ] 9.11.1.3 Write security architecture documentation
+- [ ] 9.11.1.4 Create integration patterns guide
+- [ ] 9.11.1.5 Write architecture decision records (ADRs)
+
+### 9.11.2 Key File Locations Reference
+
+| Component | Location |
+|-----------|----------|
+| WhatsApp webhook handler | `src/integrations/whatsapp/webhook/webhook.handler.ts` |
+| Message aggregator | `src/integrations/whatsapp/aggregation/message-aggregator.service.ts` |
+| GPT extraction | `src/integrations/voice-ai/extraction/gpt-extractor.ts` |
+| Extraction prompts | `src/integrations/voice-ai/extraction/prompts/extraction.prompt.ts` |
+| Confidence routing | `src/integrations/voice-ai/routing/confidence-router.ts` |
+| WhatsApp templates | `src/integrations/whatsapp/templates/template-registry.ts` |
+| Tracking service | `src/modules/tracking/tracking.service.ts` |
+| ETA calculator | `src/modules/tracking/eta/eta-calculator.service.ts` |
+| Team member management | `apps/web/app/dashboard/settings/team/page.tsx` |
+| User API (create members) | `apps/web/app/api/users/route.ts` |
+| AFIP integration | `src/integrations/afip/` |
+| MercadoPago integration | `src/integrations/mercadopago/` |
+
+**Tasks:**
+- [ ] 9.11.2.1 Create file location reference document
+- [ ] 9.11.2.2 Add inline code documentation for key files
+- [ ] 9.11.2.3 Create module dependency diagram
+
+---
+
 ## POST-MVP ROADMAP
 
 ---
 
 ## PHASE 10: ADVANCED ANALYTICS & REPORTING
-**Duration:** Weeks 21-23
+**Duration:** Weeks 28-30
 **Team:** 1 Backend Engineer, 1 Frontend Engineer, 1 Data Engineer
 
 ### 10.1 Analytics Data Infrastructure
@@ -1704,7 +3070,7 @@ Files to create:
 ---
 
 ## PHASE 11: MULTI-LOCATION SUPPORT
-**Duration:** Weeks 22-24
+**Duration:** Weeks 31-33
 **Team:** 2 Backend Engineers, 1 Frontend Engineer
 
 ### 11.1 Database Schema Extensions
@@ -1828,7 +3194,7 @@ Files to create:
 ---
 
 ## PHASE 12: INVENTORY MANAGEMENT
-**Duration:** Weeks 25-28
+**Duration:** Weeks 34-37
 **Team:** 2 Backend Engineers, 1 Frontend Engineer, 1 Mobile Engineer
 
 ### 12.1 Inventory Database Schema
@@ -2017,7 +3383,7 @@ Files to create (mobile):
 ---
 
 ## PHASE 13: CUSTOMER SELF-SERVICE PORTAL
-**Duration:** Weeks 29-32
+**Duration:** Weeks 38-41
 **Team:** 2 Frontend Engineers, 1 Backend Engineer
 
 ### 13.1 Customer Authentication System
@@ -2189,7 +3555,7 @@ Files to create:
 ---
 
 ## PHASE 14: API FOR THIRD-PARTY INTEGRATIONS
-**Duration:** Weeks 33-36
+**Duration:** Weeks 42-44
 **Team:** 2 Backend Engineers, 1 Technical Writer
 
 ### 14.1 Public API Design
@@ -2430,17 +3796,31 @@ Files to create:
 
 **Post-MVP Team Size:** 10-11 people
 
+### Estimated Effort by Phase (Enhanced MVP)
+
+| Phase | Estimated Hours | Key Deliverables |
+|-------|-----------------|------------------|
+| **Phase 9.5** | ~120 hours | Employee onboarding, SMS/WhatsApp verification |
+| **Phase 9.6** | ~200 hours | Notification preferences, multi-channel delivery |
+| **Phase 9.7** | ~150 hours | Argentine Spanish localization, WhatsApp-first |
+| **Phase 9.8** | ~200 hours | Message aggregation, 8-second buffer, trigger detection |
+| **Phase 9.9** | ~400 hours | Live tracking, tier-based maps, animated markers, ETA |
+| **Phase 9.10** | ~450 hours | Full mobile parity, offline capability, voice input |
+| **Phase 9.11** | ~80 hours | Architecture documentation, ADRs |
+
+**Total Enhanced MVP Effort:** ~1600 additional developer hours
+
 ### Estimated Effort by Phase (Post-MVP)
 
 | Phase | Estimated Hours | Key Deliverables |
 |-------|-----------------|------------------|
-| **Phase 10** | ~400 hours | Analytics infrastructure, KPIs, dashboards, reports |
-| **Phase 11** | ~350 hours | Multi-location, zones, cross-location dispatch |
-| **Phase 12** | ~500 hours | Full inventory system, purchasing, mobile features |
-| **Phase 13** | ~450 hours | Customer portal, booking, tracking, payments |
-| **Phase 14** | ~400 hours | Public API, developer portal, SDKs, integrations |
+| **Phase 10** | ~500 hours | Analytics infrastructure, KPIs, dashboards, reports |
+| **Phase 11** | ~450 hours | Multi-location, zones, cross-location dispatch |
+| **Phase 12** | ~600 hours | Full inventory system, purchasing, mobile features |
+| **Phase 13** | ~550 hours | Customer portal, booking, tracking, payments |
+| **Phase 14** | ~600 hours | Public API, developer portal, SDKs, integrations |
 
-**Total Post-MVP Effort:** ~2100 additional developer hours
+**Total Post-MVP Effort:** ~2700 additional developer hours
 
 ---
 
@@ -2455,6 +3835,19 @@ Files to create:
 | Mobile performance on low-end devices | Medium | High | Early device testing, performance budgets |
 | WhatsApp template rejection | Medium | Medium | Prepare multiple template variants |
 | Team velocity slower than planned | Medium | High | Buffer time in estimates, MVP scope flexibility |
+
+### Enhanced MVP Risks (Phases 9.5-9.11)
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| Message aggregation timing issues | Medium | Medium | Configurable window duration, fallback to immediate processing |
+| Map provider API costs exceed budget | Medium | High | Strict tier enforcement, usage alerts, caching aggressively |
+| GPS battery drain on technician phones | Medium | Medium | Adaptive polling frequency, battery-efficient tracking modes |
+| Mobile feature parity scope creep | High | Medium | Strict parity checklist, prioritize core features |
+| WhatsApp API rate limits hit | Low | High | Queue management, backpressure, per-org limits |
+| OpenStreetMap temptation for cost savings | Low | High | Document why rejected (no BA traffic data), enforce decision |
+| Offline sync conflicts | Medium | Medium | Clear conflict resolution rules, user-facing resolution UI |
+| Low-end Android performance | Medium | High | Early A10 testing, bundle size budgets, performance profiling |
 
 ### Post-MVP Risks (Phases 10-14)
 
