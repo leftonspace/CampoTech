@@ -615,7 +615,277 @@ When a WhatsApp message arrives, CampoTech uses GPT-4o to understand intent:
             → Create job               pricing/FAQ                queue
 ```
 
-### 5.2 Confidence-Based Routing
+### 5.2 Message Aggregation (Conversational Context)
+
+**Problem:** Customers often send multiple messages in quick succession:
+
+```
+Customer sends:
+├── 14:30:01  "Hola"
+├── 14:30:03  "Como estas?"
+├── 14:30:08  "Necesito ayuda"
+└── 14:30:15  "Se me rompió el aire, no enfría nada, pueden venir hoy?"
+```
+
+**Wrong approach:** Respond to each message individually
+- "Hola" → Auto-reply "¿En qué podemos ayudarte?" ❌
+- "Como estas?" → Ignore or awkward response ❌
+- "Necesito ayuda" → "¿Qué tipo de ayuda necesitás?" ❌
+- Full request → Finally process correctly
+
+**Correct approach:** Wait, aggregate, then respond once
+
+#### 5.2.1 Aggregation Window
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    MESSAGE AGGREGATION FLOW                         │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  Message arrives from +54 11 1234-5678                              │
+│       │                                                             │
+│       ▼                                                             │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │ Check: Is there an active aggregation window for this phone? │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│       │                                                             │
+│       ├── NO: Create new window                                     │
+│       │        • Store message in Redis                             │
+│       │        • Set 8-second timer                                 │
+│       │        • Key: buffer:{phone}                                │
+│       │                                                             │
+│       └── YES: Add to existing window                               │
+│                • Append message to buffer                           │
+│                • RESET timer to 8 seconds                           │
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │ Timer expires (8 sec of silence)                             │   │
+│  │        OR                                                    │   │
+│  │ Trigger condition met (see below)                            │   │
+│  └─────────────────────────────────────────────────────────────┘   │
+│       │                                                             │
+│       ▼                                                             │
+│  Combine all buffered messages → Send to GPT-4o as single context   │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### 5.2.2 Trigger Conditions (Process Immediately)
+
+Even within the aggregation window, process immediately if:
+
+| Condition | Example | Reason |
+|-----------|---------|--------|
+| **Contains clear request** | "necesito reparar el aire" | Complete intent detected |
+| **Contains question mark** | "cuánto sale?" | Expecting answer |
+| **Message is long** | >100 characters | Likely complete thought |
+| **Contains urgency words** | "urgente", "emergencia" | Time-sensitive |
+| **Is a voice message** | [audio] | Usually complete request |
+| **Contains address** | "en Av. Corrientes 1234" | Booking intent |
+
+#### 5.2.3 Implementation
+
+```typescript
+// src/services/whatsapp/message-aggregator.ts
+
+interface MessageBuffer {
+  phone: string;
+  messages: {
+    content: string;
+    timestamp: number;
+    type: 'text' | 'voice' | 'image';
+  }[];
+  createdAt: number;
+}
+
+const AGGREGATION_WINDOW_MS = 8000; // 8 seconds
+const MAX_BUFFER_MESSAGES = 10;     // Safety limit
+const TRIGGER_PATTERNS = [
+  /necesito|quiero|pueden|vengan|arreglen|instalen|reparen/i,  // Request verbs
+  /\?$/,                                                         // Question mark
+  /urgente|emergencia|ahora|hoy/i,                              // Urgency
+  /calle|avenida|av\.|piso|depto|departamento/i,                // Address
+];
+
+class MessageAggregator {
+  private redis: Redis;
+
+  async handleIncomingMessage(
+    phone: string,
+    content: string,
+    type: 'text' | 'voice' | 'image'
+  ): Promise<void> {
+    const bufferKey = `buffer:${phone}`;
+
+    // Get existing buffer or create new
+    let buffer = await this.getBuffer(bufferKey);
+
+    if (!buffer) {
+      buffer = {
+        phone,
+        messages: [],
+        createdAt: Date.now()
+      };
+    }
+
+    // Add message to buffer
+    buffer.messages.push({
+      content,
+      timestamp: Date.now(),
+      type
+    });
+
+    // Check if should process immediately
+    if (this.shouldProcessImmediately(buffer)) {
+      await this.processBuffer(buffer);
+      await this.redis.del(bufferKey);
+      return;
+    }
+
+    // Save buffer and reset timer
+    await this.redis.setex(
+      bufferKey,
+      AGGREGATION_WINDOW_MS / 1000 + 1,
+      JSON.stringify(buffer)
+    );
+
+    // Schedule processing after window expires
+    await this.scheduleProcessing(phone, AGGREGATION_WINDOW_MS);
+  }
+
+  private shouldProcessImmediately(buffer: MessageBuffer): boolean {
+    const lastMessage = buffer.messages[buffer.messages.length - 1];
+
+    // Voice messages are usually complete
+    if (lastMessage.type === 'voice') return true;
+
+    // Long messages are usually complete
+    if (lastMessage.content.length > 100) return true;
+
+    // Check for trigger patterns
+    const fullText = buffer.messages.map(m => m.content).join(' ');
+    for (const pattern of TRIGGER_PATTERNS) {
+      if (pattern.test(fullText)) return true;
+    }
+
+    // Too many messages buffered
+    if (buffer.messages.length >= MAX_BUFFER_MESSAGES) return true;
+
+    return false;
+  }
+
+  private async processBuffer(buffer: MessageBuffer): Promise<void> {
+    // Combine all messages into context
+    const combinedText = buffer.messages
+      .map(m => m.content)
+      .join('\n');
+
+    // Send to classifier with full context
+    await this.classifier.classify({
+      phone: buffer.phone,
+      text: combinedText,
+      messageCount: buffer.messages.length,
+      conversationDuration: Date.now() - buffer.createdAt
+    });
+  }
+}
+```
+
+#### 5.2.4 Example Scenarios
+
+**Scenario 1: Casual greeting → Business request**
+```
+14:30:01  "Hola"                    → Buffer, wait 8s
+14:30:03  "Como estas?"             → Add to buffer, reset timer
+14:30:08  "Necesito ayuda"          → Add to buffer, reset timer
+14:30:15  "El aire no enfría"       → TRIGGER: contains request verb
+                                    → Process immediately
+
+GPT-4o receives:
+"Hola
+Como estas?
+Necesito ayuda
+El aire no enfría"
+
+→ Classifies as: JOB_REQUEST (reparación)
+→ Response: "¡Hola! Entendemos que tu aire no está enfriando.
+             ¿Nos pasás tu dirección para coordinar una visita?"
+```
+
+**Scenario 2: Just a greeting (no follow-up)**
+```
+14:30:01  "Hola"                    → Buffer, wait 8s
+14:30:09  [8 seconds pass]          → Timer expires
+                                    → Process buffer
+
+GPT-4o receives:
+"Hola"
+
+→ Classifies as: GREETING (incomplete)
+→ Response: "¡Hola! ¿En qué podemos ayudarte?"
+```
+
+**Scenario 3: Immediate complete request**
+```
+14:30:01  "Hola, necesito instalar un split de 3000 frigorías
+           en Palermo, Av. Santa Fe 1234 piso 5.
+           Pueden venir mañana?"
+                                    → TRIGGER: >100 chars + address
+                                    → Process immediately
+
+→ Classifies as: JOB_REQUEST (high confidence)
+→ Extract: service=instalación, address=Av. Santa Fe 1234, date=mañana
+→ Auto-create job or confirm
+```
+
+**Scenario 4: Question about pricing**
+```
+14:30:01  "Che"                     → Buffer, wait 8s
+14:30:04  "cuanto sale instalar     → TRIGGER: question mark
+           un aire?"                → Process immediately
+
+GPT-4o receives:
+"Che
+cuanto sale instalar un aire?"
+
+→ Classifies as: PRICING_QUESTION
+→ Response: "El costo de instalación depende del equipo.
+             Para splits de hasta 3000 frigorías: $XX.XXX
+             Para splits de 4500+ frigorías: $XX.XXX
+             ¿Querés que te agendemos una visita?"
+```
+
+#### 5.2.5 Conversation History (Context Window)
+
+For returning customers or ongoing conversations, maintain context:
+
+```typescript
+// Store last 10 messages per phone for 24 hours
+interface ConversationContext {
+  phone: string;
+  messages: Message[];
+  lastJobId?: string;      // If they have an active job
+  customerName?: string;   // If we know them
+  previousRequests: string[]; // Service history
+}
+
+// When processing, include relevant history
+const prompt = `
+## Conversation History (last 24h)
+${context.messages.map(m => `[${m.time}] ${m.sender}: ${m.content}`).join('\n')}
+
+## Customer Info
+${context.customerName ? `Name: ${context.customerName}` : 'Unknown customer'}
+${context.lastJobId ? `Active job: ${context.lastJobId}` : 'No active jobs'}
+
+## Current Message(s)
+${currentBuffer.messages.map(m => m.content).join('\n')}
+
+Classify and respond appropriately.
+`;
+```
+
+### 5.3 Confidence-Based Routing
 
 | Confidence Score | Route | Action |
 |------------------|-------|--------|
@@ -1544,6 +1814,7 @@ BUT: Accurate ETAs → Happy customers → Retention → Worth it
 |---------|------|---------|
 | 1.0 | 2024-12-09 | Initial comprehensive documentation |
 | 1.1 | 2024-12-09 | Added Customer Live Tracking System (Section 8.4) with technical implementation, tier-based map providers (Básico: static, Profesional: Mapbox, Empresarial: Google Maps), walking/driving detection, and rejected OpenStreetMap alternative |
+| 1.2 | 2024-12-09 | Added Message Aggregation system (Section 5.2) for handling conversational message flows - 8-second buffering window, trigger conditions, example scenarios, and conversation history context |
 
 ---
 
