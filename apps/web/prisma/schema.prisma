@@ -68,6 +68,8 @@ model Customer {
   name           String
   phone          String
   email          String?
+  cuit           String?
+  ivaCondition   String   @default("CONSUMIDOR_FINAL") // CONSUMIDOR_FINAL, RESPONSABLE_INSCRIPTO, MONOTRIBUTISTA, EXENTO
   address        Json     // { street, number, floor, apartment, city, postalCode, coordinates }
   notes          String?
   organizationId String
@@ -79,6 +81,7 @@ model Customer {
   invoices     Invoice[]
 
   @@index([phone])
+  @@index([cuit])
   @@index([organizationId])
   @@map("customers")
 }

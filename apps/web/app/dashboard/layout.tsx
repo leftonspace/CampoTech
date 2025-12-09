@@ -18,7 +18,7 @@ import {
   Bell,
   MessageCircle,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
@@ -40,10 +40,23 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
   const isAdmin = user?.role === 'owner' || user?.role === 'admin';
+
+  // Close notifications dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
+        setNotificationsOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <ProtectedRoute>
@@ -174,11 +187,27 @@ export default function DashboardLayout({
 
             <div className="flex-1" />
 
-            <div className="flex items-center gap-2">
-              <button className="relative rounded-md p-2 text-gray-500 hover:bg-gray-100">
+            <div className="relative flex items-center gap-2" ref={notificationRef}>
+              <button
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                className="relative rounded-md p-2 text-gray-500 hover:bg-gray-100"
+              >
                 <Bell className="h-5 w-5" />
-                <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-danger-500" />
               </button>
+
+              {/* Notifications dropdown */}
+              {notificationsOpen && (
+                <div className="absolute right-0 top-full mt-2 w-80 rounded-lg border bg-white shadow-lg z-50">
+                  <div className="border-b px-4 py-3">
+                    <h3 className="font-medium text-gray-900">Notificaciones</h3>
+                  </div>
+                  <div className="p-8 text-center">
+                    <Bell className="mx-auto h-8 w-8 text-gray-300" />
+                    <p className="mt-2 text-sm text-gray-500">No hay notificaciones</p>
+                    <p className="text-xs text-gray-400">Las notificaciones aparecerán aquí</p>
+                  </div>
+                </div>
+              )}
             </div>
           </header>
 
