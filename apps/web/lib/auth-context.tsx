@@ -21,6 +21,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (phone: string, code: string) => Promise<{ success: boolean; error?: string }>;
+  register: (phone: string, code: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   requestOtp: (phone: string) => Promise<{ success: boolean; error?: string }>;
 }
@@ -116,6 +117,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const register = useCallback(async (phone: string, code: string) => {
+    const response = await api.auth.verifyRegistration(phone, code);
+
+    console.log('Register response:', JSON.stringify(response, null, 2));
+
+    if (response.success && response.data) {
+      const data = response.data as {
+        accessToken: string;
+        refreshToken: string;
+        user: User;
+      };
+
+      console.log('Setting tokens after registration');
+      setTokens(data.accessToken, data.refreshToken);
+      setUser(data.user);
+
+      return { success: true };
+    }
+
+    return {
+      success: false,
+      error: response.error?.message || 'Error al completar el registro',
+    };
+  }, []);
+
   const logout = useCallback(async () => {
     await api.auth.logout();
     clearTokens();
@@ -128,6 +154,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isLoading,
     isAuthenticated: !!user,
     login,
+    register,
     logout,
     requestOtp,
   };

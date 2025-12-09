@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { api, setTokens } from '@/lib/api-client';
-import { User } from '@/types';
+import { api } from '@/lib/api-client';
+import { useAuth } from '@/lib/auth-context';
 
 type Step = 'info' | 'phone' | 'otp';
 
@@ -47,6 +47,7 @@ export default function SignupPage() {
   };
 
   const router = useRouter();
+  const { register } = useAuth();
 
   const handleInfoSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,22 +118,15 @@ export default function SignupPage() {
 
     try {
       const fullPhone = getFullPhone();
-      const response = await api.auth.verifyRegistration(fullPhone, otp);
 
-      if (response.success && response.data) {
-        const data = response.data as {
-          accessToken: string;
-          refreshToken: string;
-          user: User;
-        };
+      // Use auth context's register function - this properly sets the user state
+      const result = await register(fullPhone, otp);
 
-        // Store tokens
-        setTokens(data.accessToken, data.refreshToken);
-
+      if (result.success) {
         // Redirect to dashboard
         router.push('/dashboard');
       } else {
-        setError(response.error as FormError || { message: 'Código incorrecto' });
+        setError({ message: result.error || 'Código incorrecto' });
       }
     } catch (err) {
       setError({ message: 'Error de conexión. Intentá de nuevo.' });
