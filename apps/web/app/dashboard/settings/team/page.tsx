@@ -383,13 +383,13 @@ interface TeamMemberModalProps {
   isLoading: boolean;
 }
 
-// Country codes for phone input
+// Country codes for phone input with validation rules
 const COUNTRY_CODES = [
-  { code: '+54', country: 'Argentina', flag: '🇦🇷' },
-  { code: '+1', country: 'USA/Canada', flag: '🇺🇸' },
-  { code: '+52', country: 'México', flag: '🇲🇽' },
-  { code: '+55', country: 'Brasil', flag: '🇧🇷' },
-  { code: '+56', country: 'Chile', flag: '🇨🇱' },
+  { code: '+54', country: 'Argentina', flag: '🇦🇷', minDigits: 10, maxDigits: 11, example: '11 1234 5678' },
+  { code: '+1', country: 'USA/Canada', flag: '🇺🇸', minDigits: 10, maxDigits: 10, example: '555 123 4567' },
+  { code: '+52', country: 'México', flag: '🇲🇽', minDigits: 10, maxDigits: 10, example: '55 1234 5678' },
+  { code: '+55', country: 'Brasil', flag: '🇧🇷', minDigits: 10, maxDigits: 11, example: '11 91234 5678' },
+  { code: '+56', country: 'Chile', flag: '🇨🇱', minDigits: 9, maxDigits: 9, example: '9 1234 5678' },
 ];
 
 function TeamMemberModal({
@@ -403,6 +403,7 @@ function TeamMemberModal({
   const isSelf = member?.id === currentUserId;
 
   const [countryCode, setCountryCode] = useState('+54');
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: member?.name || '',
     phone: member?.phone?.replace(/^\+\d+/, '') || '',
@@ -411,20 +412,46 @@ function TeamMemberModal({
     specialty: member?.specialty || '',
     skillLevel: member?.skillLevel || '',
     isActive: member?.isActive ?? true,
+    sendNotification: !member, // Default to true for new users only
   });
+
+  const selectedCountry = COUNTRY_CODES.find(c => c.code === countryCode) || COUNTRY_CODES[0];
+
+  const validatePhone = (phone: string): string | null => {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length < selectedCountry.minDigits) {
+      return `El teléfono debe tener al menos ${selectedCountry.minDigits} dígitos para ${selectedCountry.country}`;
+    }
+    if (digits.length > selectedCountry.maxDigits) {
+      return `El teléfono no puede tener más de ${selectedCountry.maxDigits} dígitos para ${selectedCountry.country}`;
+    }
+    return null;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate phone for new users
+    if (!member) {
+      const error = validatePhone(formData.phone);
+      if (error) {
+        setPhoneError(error);
+        return;
+      }
+    }
+    setPhoneError(null);
+
     const fullPhone = member ? formData.phone : `${countryCode}${formData.phone.replace(/\D/g, '')}`;
     onSave({
       name: formData.name,
       phone: fullPhone,
-      email: formData.email || undefined,
+      email: formData.email,
       role: formData.role as TeamMember['role'],
       specialty: formData.specialty || undefined,
       skillLevel: formData.skillLevel || undefined,
       isActive: formData.isActive,
-    });
+      sendNotification: !member && formData.sendNotification,
+    } as Partial<TeamMember> & { sendNotification?: boolean });
   };
 
   return (
@@ -477,7 +504,10 @@ function TeamMemberModal({
                 <div className="flex gap-2">
                   <select
                     value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
+                    onChange={(e) => {
+                      setCountryCode(e.target.value);
+                      setPhoneError(null);
+                    }}
                     className="input w-32 px-2"
                   >
                     {COUNTRY_CODES.map((c) => (
@@ -490,14 +520,23 @@ function TeamMemberModal({
                     id="phone"
                     type="tel"
                     value={formData.phone}
-                    onChange={(e) =>
-                      setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') })
-                    }
-                    placeholder="11 1234 5678"
-                    className="input flex-1"
+                    onChange={(e) => {
+                      setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') });
+                      setPhoneError(null);
+                    }}
+                    placeholder={selectedCountry.example}
+                    className={`input flex-1 ${phoneError ? 'border-red-500' : ''}`}
                     required
                   />
                 </div>
+              )}
+              {phoneError && (
+                <p className="mt-1 text-xs text-red-600">{phoneError}</p>
+              )}
+              {!phoneError && !member && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Ej: {selectedCountry.example} ({selectedCountry.minDigits}-{selectedCountry.maxDigits} dígitos)
+                </p>
               )}
               {member && (
                 <p className="mt-1 text-xs text-gray-500">
@@ -508,7 +547,7 @@ function TeamMemberModal({
 
             <div>
               <label htmlFor="email" className="label mb-1 block">
-                Email
+                Email *
               </label>
               <input
                 id="email"
@@ -517,7 +556,11 @@ function TeamMemberModal({
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="email@ejemplo.com"
                 className="input"
+                required
               />
+              <p className="mt-1 text-xs text-gray-500">
+                Se enviará una notificación al empleado
+              </p>
             </div>
 
             <div>
@@ -601,6 +644,27 @@ function TeamMemberModal({
                   />
                   <span className="text-sm text-gray-700">Usuario activo</span>
                 </label>
+              </div>
+            )}
+
+            {!member && (
+              <div className="rounded-lg bg-blue-50 p-3">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={formData.sendNotification}
+                    onChange={(e) =>
+                      setFormData({ ...formData, sendNotification: e.target.checked })
+                    }
+                    className="rounded text-primary-600"
+                  />
+                  <span className="text-sm font-medium text-blue-900">
+                    Enviar notificación de bienvenida
+                  </span>
+                </label>
+                <p className="mt-1 ml-6 text-xs text-blue-700">
+                  Se enviará un SMS al empleado con los datos de acceso
+                </p>
               </div>
             )}
           </div>
