@@ -1,8 +1,8 @@
 # CampoTech Full Implementation Plan
 
 **Based on:** `campotech-architecture-complete.md` and `CAMPOTECH-SYSTEM-GUIDE.md`
-**Target Timeline:** 18-Week MVP + 9-Week Enhanced MVP + 17-Week Post-MVP (44 weeks total)
-**Total Estimated Effort:** ~6800 developer hours (MVP: ~2500 | Enhanced: ~1600 | Post-MVP: ~2700)
+**Target Timeline:** 18-Week MVP + 9-Week Enhanced MVP + 17-Week Post-MVP + 8-Week Marketplace (52 weeks / 1 year)
+**Total Estimated Effort:** ~8,150 developer hours (MVP: ~2,500 | Enhanced: ~1,600 | Post-MVP: ~2,700 | Marketplace: ~1,350)
 
 ---
 
@@ -43,6 +43,20 @@
 | **Phase 12** | Inventory Management | Weeks 34-37 | Phase 11 | Medium |
 | **Phase 13** | Customer Self-Service Portal | Weeks 38-41 | Phases 10-12 | Medium |
 | **Phase 14** | API for Third-Party Integrations | Weeks 42-44 | Phase 13 | Medium |
+
+### Future Roadmap (Year 2)
+
+| Phase | Focus | Duration | Dependencies | Priority |
+|-------|-------|----------|--------------|----------|
+| **Phase 15** | Consumer Marketplace (Free Service Finder) | Weeks 45-52 | Phase 14 | Strategic |
+
+**Phase 15 Overview:**
+- Two-sided marketplace: Business Profile (paid) + Consumer Profile (FREE)
+- Consumers find services, request quotes, track technicians, leave reviews
+- Businesses receive qualified leads from consumer requests
+- Ranking system based on ratings, response time, job completion
+- Differentiator: FREE for consumers (competitors charge 10-15% fee)
+- Uses existing infrastructure (zero marginal cost per consumer)
 
 ### New Enhanced MVP Features Summary
 
@@ -3874,6 +3888,771 @@ Each phase is complete when:
 5. Deployed to staging
 6. QA sign-off
 7. Product owner acceptance
+
+---
+
+## FUTURE ROADMAP: CONSUMER MARKETPLACE
+
+---
+
+## PHASE 15: CONSUMER MARKETPLACE (FREE SERVICE FINDER)
+**Duration:** Weeks 45-52 (8 weeks)
+**Team:** 2 Backend Engineers, 2 Frontend Engineers, 2 Mobile Engineers, 1 Product Designer
+**Priority:** Strategic - Market expansion opportunity
+**Status:** Future planning (not in current roadmap)
+
+### Strategic Overview: Two-Sided Marketplace
+
+**Market Observation:**
+Argentina has apps connecting consumers with service providers (plumbers, electricians, etc.), but they all charge the customer a fee or commission. This creates friction and drives consumers to informal WhatsApp groups or word-of-mouth.
+
+**CampoTech Opportunity:**
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    CAMPOTECH ECOSYSTEM                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌─────────────────────┐         ┌─────────────────────┐           │
+│  │  BUSINESS PROFILE   │         │  CONSUMER PROFILE   │           │
+│  │  (Current Build)    │         │  (Phase 15)         │           │
+│  │                     │         │                     │           │
+│  │  • Manage business  │         │  • Find services    │           │
+│  │  • Team management  │   ◄──►  │  • View ratings     │           │
+│  │  • Invoicing/AFIP   │         │  • Request quotes   │           │
+│  │  • Job tracking     │         │  • Book directly    │           │
+│  │  • Analytics        │         │  • Track technician │           │
+│  │                     │         │                     │           │
+│  │  💰 Paid subscription│         │  🆓 FREE forever    │           │
+│  └─────────────────────┘         └─────────────────────┘           │
+│                                                                     │
+│  Revenue: Business subscriptions    Value: Lead generation          │
+│                                     + Brand awareness               │
+│                                     + Network effects               │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Competitive Advantage:**
+| Competitor Model | CampoTech Model |
+|------------------|-----------------|
+| Charges consumer 10-15% fee | FREE for consumers |
+| Charges business per lead | Business pays flat subscription |
+| Consumer = cost center | Consumer = lead magnet |
+| Limited technician info | Full profile, ratings, history |
+
+**Why This Works:**
+1. **Zero marginal cost:** Consumer profiles use existing database infrastructure
+2. **Lead generation:** Every consumer search is a potential customer for our business subscribers
+3. **Network effects:** More consumers → more value for businesses → more businesses → more services for consumers
+4. **Brand awareness:** Free app downloads → market presence → word of mouth
+
+### 15.1 Consumer Profile Type & Authentication
+```
+Location: /src/modules/consumer/
+Files to create:
+├── consumer.service.ts
+├── consumer.repository.ts
+├── consumer.controller.ts
+├── consumer.routes.ts
+├── consumer-auth.service.ts
+└── consumer.types.ts
+
+Location: /database/migrations/
+Files to create:
+├── 050_create_consumer_profiles.sql
+└── 051_create_service_requests.sql
+```
+
+**Database Schema:**
+```sql
+-- Consumer profiles (regular people looking for services)
+CREATE TABLE consumer_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Authentication (can be phone-only, no email required)
+    phone TEXT NOT NULL UNIQUE,
+    phone_verified BOOLEAN DEFAULT false,
+    email TEXT,
+
+    -- Profile
+    first_name TEXT NOT NULL,
+    last_name TEXT,
+    profile_photo_url TEXT,
+
+    -- Location (for service matching)
+    default_address TEXT,
+    default_lat DECIMAL(10, 8),
+    default_lng DECIMAL(11, 8),
+    neighborhood TEXT,                    -- "Palermo", "Belgrano"
+    city TEXT DEFAULT 'Buenos Aires',
+
+    -- Preferences
+    preferred_contact TEXT DEFAULT 'whatsapp', -- 'whatsapp', 'phone', 'app'
+    language TEXT DEFAULT 'es-AR',
+
+    -- Stats
+    total_requests INTEGER DEFAULT 0,
+    total_jobs_completed INTEGER DEFAULT 0,
+
+    -- Timestamps
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    last_active_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Service requests from consumers
+CREATE TABLE consumer_service_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    consumer_id UUID NOT NULL REFERENCES consumer_profiles(id),
+
+    -- What they need
+    service_category TEXT NOT NULL,       -- 'plumbing', 'electrical', 'hvac', etc.
+    service_type TEXT,                    -- 'installation', 'repair', 'maintenance'
+    description TEXT NOT NULL,
+
+    -- Photos of the issue
+    photo_urls TEXT[],
+    voice_note_url TEXT,                  -- Audio description
+
+    -- Location
+    address TEXT NOT NULL,
+    lat DECIMAL(10, 8),
+    lng DECIMAL(11, 8),
+
+    -- Timing
+    urgency TEXT DEFAULT 'flexible',      -- 'emergency', 'today', 'this_week', 'flexible'
+    preferred_date DATE,
+    preferred_time_slot TEXT,             -- 'morning', 'afternoon', 'evening'
+
+    -- Budget
+    budget_range TEXT,                    -- 'under_5000', '5000_15000', '15000_50000', 'over_50000'
+
+    -- Status
+    status TEXT DEFAULT 'open',           -- 'open', 'quotes_received', 'accepted', 'completed', 'cancelled'
+
+    -- Matching
+    matched_businesses UUID[],            -- Businesses that received this request
+    quotes_received INTEGER DEFAULT 0,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '7 days'
+);
+
+-- Consumer reviews of businesses (after job completion)
+CREATE TABLE consumer_reviews (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    consumer_id UUID NOT NULL REFERENCES consumer_profiles(id),
+    organization_id UUID NOT NULL REFERENCES organizations(id),
+    job_id UUID REFERENCES jobs(id),
+
+    -- Ratings (1-5 stars)
+    overall_rating INTEGER NOT NULL CHECK (overall_rating BETWEEN 1 AND 5),
+    punctuality_rating INTEGER CHECK (punctuality_rating BETWEEN 1 AND 5),
+    quality_rating INTEGER CHECK (quality_rating BETWEEN 1 AND 5),
+    price_rating INTEGER CHECK (price_rating BETWEEN 1 AND 5),
+    communication_rating INTEGER CHECK (communication_rating BETWEEN 1 AND 5),
+
+    -- Review content
+    review_text TEXT,
+    photos_urls TEXT[],
+
+    -- Verification
+    verified_job BOOLEAN DEFAULT false,   -- True if linked to actual completed job
+
+    -- Response from business
+    business_response TEXT,
+    business_responded_at TIMESTAMPTZ,
+
+    -- Moderation
+    status TEXT DEFAULT 'published',      -- 'pending', 'published', 'flagged', 'removed'
+    flagged_reason TEXT,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    UNIQUE(consumer_id, job_id)
+);
+
+-- Indexes
+CREATE INDEX idx_consumer_profiles_phone ON consumer_profiles(phone);
+CREATE INDEX idx_consumer_profiles_location ON consumer_profiles(city, neighborhood);
+CREATE INDEX idx_service_requests_status ON consumer_service_requests(status, created_at);
+CREATE INDEX idx_service_requests_category ON consumer_service_requests(service_category, status);
+CREATE INDEX idx_consumer_reviews_org ON consumer_reviews(organization_id, status);
+```
+
+**Tasks:**
+- [ ] 15.1.1 Create consumer_profiles table
+- [ ] 15.1.2 Create consumer_service_requests table
+- [ ] 15.1.3 Create consumer_reviews table
+- [ ] 15.1.4 Implement phone-only authentication (no email required)
+- [ ] 15.1.5 Build consumer profile CRUD API
+- [ ] 15.1.6 Create service request API
+
+### 15.2 Business Discovery & Ranking System
+```
+Location: /src/modules/discovery/
+Files to create:
+├── discovery.service.ts
+├── search.service.ts
+├── ranking.service.ts
+├── matching.service.ts
+├── geo-search.service.ts
+└── discovery.types.ts
+```
+
+**Ranking Algorithm:**
+```typescript
+interface BusinessRankingFactors {
+  // Rating factors (40% weight)
+  averageRating: number;              // 1-5 stars
+  totalReviews: number;               // More reviews = more trust
+  recentReviewTrend: number;          // Recent ratings vs. historical
+  verifiedReviewPercentage: number;   // Reviews from actual jobs
+
+  // Activity factors (25% weight)
+  responseTime: number;               // Average time to respond to requests
+  acceptanceRate: number;             // % of requests they respond to
+  completionRate: number;             // % of accepted jobs completed
+  lastActiveAt: Date;                 // Recent activity bonus
+
+  // Quality factors (20% weight)
+  profileCompleteness: number;        // Photos, description, services listed
+  licenseVerified: boolean;           // If applicable
+  insuranceVerified: boolean;         // If applicable
+  yearsInBusiness: number;
+
+  // Relevance factors (15% weight)
+  distanceToConsumer: number;         // Closer = better
+  serviceMatch: number;               // How well services match request
+  availabilityMatch: number;          // Can they do it when needed
+}
+
+function calculateBusinessScore(factors: BusinessRankingFactors): number {
+  const ratingScore = (
+    (factors.averageRating / 5) * 0.5 +
+    Math.min(factors.totalReviews / 50, 1) * 0.3 +
+    factors.verifiedReviewPercentage * 0.2
+  ) * 0.40;
+
+  const activityScore = (
+    Math.max(0, 1 - factors.responseTime / 24) * 0.4 +  // Penalize >24h response
+    factors.acceptanceRate * 0.3 +
+    factors.completionRate * 0.3
+  ) * 0.25;
+
+  const qualityScore = (
+    factors.profileCompleteness * 0.4 +
+    (factors.licenseVerified ? 0.3 : 0) +
+    (factors.insuranceVerified ? 0.3 : 0)
+  ) * 0.20;
+
+  const relevanceScore = (
+    Math.max(0, 1 - factors.distanceToConsumer / 20) * 0.5 +  // Within 20km
+    factors.serviceMatch * 0.3 +
+    factors.availabilityMatch * 0.2
+  ) * 0.15;
+
+  return ratingScore + activityScore + qualityScore + relevanceScore;
+}
+```
+
+**Tasks:**
+- [ ] 15.2.1 Implement business search by category and location
+- [ ] 15.2.2 Create ranking algorithm
+- [ ] 15.2.3 Build geo-search with PostGIS
+- [ ] 15.2.4 Implement service matching logic
+- [ ] 15.2.5 Create search filters (rating, distance, availability)
+- [ ] 15.2.6 Build search result caching
+
+### 15.3 Business Public Profile
+```
+Location: /src/modules/discovery/profiles/
+Files to create:
+├── public-profile.service.ts
+├── public-profile.controller.ts
+└── profile-views.tracker.ts
+```
+
+**Public Profile Data (visible to consumers):**
+```typescript
+interface PublicBusinessProfile {
+  // Basic info
+  id: string;
+  businessName: string;
+  slug: string;                       // URL-friendly name
+  logo: string;
+  coverPhoto: string;
+  description: string;
+
+  // Services
+  categories: string[];               // ['plumbing', 'gas']
+  services: {
+    name: string;
+    description: string;
+    priceRange?: string;              // "Desde $5.000"
+  }[];
+
+  // Location
+  neighborhoods: string[];            // Areas they serve
+  city: string;
+
+  // Ratings
+  rating: {
+    overall: number;
+    punctuality: number;
+    quality: number;
+    price: number;
+    communication: number;
+    totalReviews: number;
+  };
+
+  // Reviews (latest 10)
+  recentReviews: {
+    rating: number;
+    text: string;
+    consumerName: string;             // "María L."
+    date: Date;
+    photos?: string[];
+    businessResponse?: string;
+  }[];
+
+  // Trust signals
+  badges: string[];                   // ['verified', 'top_rated', 'fast_responder']
+  yearsOnPlatform: number;
+  totalJobsCompleted: number;
+  responseTime: string;               // "Responde en menos de 1 hora"
+
+  // Availability
+  workingHours: {
+    day: string;
+    hours: string;
+  }[];
+  acceptingNewClients: boolean;
+
+  // Contact (only shown after request)
+  hasWhatsApp: boolean;
+}
+```
+
+**Tasks:**
+- [ ] 15.3.1 Create public profile API endpoint
+- [ ] 15.3.2 Build profile view tracking (for business analytics)
+- [ ] 15.3.3 Implement badge system (verified, top_rated, fast_responder)
+- [ ] 15.3.4 Create profile photo gallery
+- [ ] 15.3.5 Build "before/after" work showcase
+
+### 15.4 Quote Request System
+```
+Location: /src/modules/quotes/
+Files to create:
+├── quote-request.service.ts
+├── quote-matching.service.ts
+├── quote.controller.ts
+├── quote-notification.service.ts
+└── quote.types.ts
+```
+
+**Quote Flow:**
+```
+Consumer creates request
+         │
+         ▼
+┌─────────────────────────────────┐
+│ System matches nearby businesses │
+│ (max 5-10 based on ranking)     │
+└─────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────┐
+│ Businesses receive notification │
+│ (WhatsApp + App push)           │
+└─────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────┐
+│ Business can:                   │
+│ • View request details          │
+│ • Send quote (price + timeline) │
+│ • Decline (limited declines)    │
+└─────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────┐
+│ Consumer receives quotes        │
+│ • Compare prices                │
+│ • See business profiles         │
+│ • Chat with business            │
+│ • Accept one quote              │
+└─────────────────────────────────┘
+         │
+         ▼
+┌─────────────────────────────────┐
+│ Job created in business's       │
+│ CampoTech dashboard             │
+└─────────────────────────────────┘
+```
+
+**Tasks:**
+- [ ] 15.4.1 Create quote request submission API
+- [ ] 15.4.2 Build business matching algorithm
+- [ ] 15.4.3 Implement quote submission from businesses
+- [ ] 15.4.4 Create quote comparison view for consumers
+- [ ] 15.4.5 Build in-app chat for quote clarification
+- [ ] 15.4.6 Implement quote acceptance and job creation
+- [ ] 15.4.7 Add WhatsApp notifications for new requests
+
+### 15.5 Consumer Mobile App
+```
+Location (mobile): /apps/mobile/
+Files to create:
+├── app/(consumer)/
+│   ├── layout.tsx
+│   ├── page.tsx (Home - Search)
+│   ├── search/
+│   │   ├── page.tsx (Search Results)
+│   │   ├── [category]/page.tsx
+│   │   └── filters.tsx
+│   ├── business/
+│   │   └── [id]/page.tsx (Business Profile)
+│   ├── request/
+│   │   ├── new.tsx (Create Request)
+│   │   ├── [id]/page.tsx (Request Detail)
+│   │   └── quotes/page.tsx (Compare Quotes)
+│   ├── jobs/
+│   │   ├── page.tsx (My Jobs)
+│   │   └── [id]/page.tsx (Job Detail + Tracking)
+│   ├── reviews/
+│   │   └── new/[jobId]/page.tsx
+│   └── profile/
+│       └── page.tsx
+├── components/consumer/
+│   ├── CategoryGrid.tsx
+│   ├── BusinessCard.tsx
+│   ├── BusinessProfile.tsx
+│   ├── RatingStars.tsx
+│   ├── ReviewCard.tsx
+│   ├── QuoteCard.tsx
+│   ├── RequestForm.tsx
+│   └── ServiceRequestCard.tsx
+```
+
+**Consumer Home Screen:**
+```
+┌─────────────────────────────────────────┐
+│ 📍 Palermo, Buenos Aires        [👤]    │
+├─────────────────────────────────────────┤
+│                                         │
+│  ┌─────────────────────────────────┐   │
+│  │ 🔍 ¿Qué necesitás?              │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  Categorías populares                   │
+│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐      │
+│  │ 🔧 │ │ ⚡ │ │ ❄️ │ │ 🔨 │      │
+│  │Plom.│ │Elec.│ │Aire │ │Const│      │
+│  └─────┘ └─────┘ └─────┘ └─────┘      │
+│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐      │
+│  │ 🔒 │ │ 🎨 │ │ 🚿 │ │ ➕ │      │
+│  │Cerr.│ │Pint.│ │Gasf.│ │ Más │      │
+│  └─────┘ └─────┘ └─────┘ └─────┘      │
+│                                         │
+│  ⭐ Mejor valorados cerca tuyo          │
+│  ┌─────────────────────────────────┐   │
+│  │ ServiFrío                       │   │
+│  │ ⭐ 4.9 (234) • Aire acond.      │   │
+│  │ 📍 2.3km • "Responde en 30min"  │   │
+│  └─────────────────────────────────┘   │
+│  ┌─────────────────────────────────┐   │
+│  │ Plomería Express                │   │
+│  │ ⭐ 4.7 (189) • Plomería         │   │
+│  │ 📍 1.8km • "Disponible hoy"     │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  📋 Mis solicitudes (2)                 │
+│  ┌─────────────────────────────────┐   │
+│  │ Reparación aire - 3 presupuestos│   │
+│  │ Hace 2 horas                    │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+├─────────────────────────────────────────┤
+│ 🏠   🔍   ➕   📋   👤                 │
+│ Home Search New  Jobs Profile           │
+└─────────────────────────────────────────┘
+```
+
+**Tasks:**
+- [ ] 15.5.1 Create consumer app navigation structure
+- [ ] 15.5.2 Build category grid home screen
+- [ ] 15.5.3 Implement search with filters
+- [ ] 15.5.4 Create business profile view
+- [ ] 15.5.5 Build request creation flow with photos
+- [ ] 15.5.6 Implement quote comparison screen
+- [ ] 15.5.7 Create job tracking (reuse Phase 9.9 tracking)
+- [ ] 15.5.8 Build review submission flow
+- [ ] 15.5.9 Implement consumer profile management
+
+### 15.6 App Mode Switching
+```
+Location (mobile): /apps/mobile/
+Files to modify:
+├── app/_layout.tsx (add mode detection)
+├── lib/auth/
+│   ├── mode-switcher.ts
+│   └── dual-profile.service.ts
+```
+
+**Dual Profile Support:**
+```typescript
+// User can have both profiles
+interface UserProfiles {
+  // Business profile (if they have a business)
+  businessProfile?: {
+    organizationId: string;
+    role: 'OWNER' | 'ADMIN' | 'TECHNICIAN';
+  };
+
+  // Consumer profile (everyone can have this)
+  consumerProfile?: {
+    consumerId: string;
+  };
+}
+
+// App mode switching
+type AppMode = 'business' | 'consumer';
+
+// A plumber can:
+// 1. Use business mode to manage their plumbing business
+// 2. Switch to consumer mode to find an electrician for their home
+```
+
+**Tasks:**
+- [ ] 15.6.1 Implement dual profile detection
+- [ ] 15.6.2 Create mode switcher UI in app header
+- [ ] 15.6.3 Build "Add business profile" upsell for consumers
+- [ ] 15.6.4 Create "Use as consumer" option for business users
+- [ ] 15.6.5 Implement seamless navigation between modes
+
+### 15.7 Business Dashboard Integration
+```
+Location: /apps/web/app/(dashboard)/leads/
+Files to create:
+├── page.tsx (Consumer Requests)
+├── [id]/page.tsx (Request Detail)
+├── settings/page.tsx (Lead Preferences)
+├── components/
+│   ├── LeadCard.tsx
+│   ├── QuoteForm.tsx
+│   └── LeadFilters.tsx
+```
+
+**Business View of Consumer Requests:**
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Solicitudes de Clientes                    [⚙️ Preferencias]│
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  🔴 Nuevas (3)                                              │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Instalación split 3000 frigorías                    │   │
+│  │ 📍 Palermo, 2.1km • ⏱️ Esta semana                  │   │
+│  │ 💰 $15.000 - $50.000                                │   │
+│  │                                                     │   │
+│  │ "Necesito instalar un split en mi departamento..." │   │
+│  │ 📷 3 fotos adjuntas                                 │   │
+│  │                                                     │   │
+│  │ [Ver detalle]  [Enviar presupuesto]  [No me interesa]│   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ⏳ Presupuesto enviado (2)                                 │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Reparación pérdida de agua                          │   │
+│  │ Tu presupuesto: $8.500 • Enviado hace 2h           │   │
+│  │ Estado: Esperando respuesta (2 competidores)        │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ✅ Ganados este mes: 12 trabajos                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Tasks:**
+- [ ] 15.7.1 Create lead inbox in business dashboard
+- [ ] 15.7.2 Build quote submission form
+- [ ] 15.7.3 Implement lead notification preferences
+- [ ] 15.7.4 Create lead-to-job conversion flow
+- [ ] 15.7.5 Build lead analytics (win rate, response time)
+
+### 15.8 Rating & Review System
+```
+Location: /src/modules/reviews/
+Files to create:
+├── review.service.ts
+├── review.repository.ts
+├── review.controller.ts
+├── review-moderation.service.ts
+├── rating-aggregator.ts
+└── review.types.ts
+```
+
+**Review Verification:**
+```typescript
+enum ReviewVerification {
+  VERIFIED = 'verified',       // Linked to completed job
+  UNVERIFIED = 'unverified',   // Consumer claims they used service
+  PENDING = 'pending',         // Awaiting verification
+}
+
+// Trust scoring for reviews
+function calculateReviewTrust(review: Review): number {
+  let trust = 0.5; // Base trust
+
+  if (review.linkedJobId) trust += 0.3;           // Verified job
+  if (review.hasPhotos) trust += 0.1;             // Photos add credibility
+  if (review.consumerHasHistory) trust += 0.1;    // Established consumer
+
+  return Math.min(trust, 1.0);
+}
+```
+
+**Tasks:**
+- [ ] 15.8.1 Create review submission API
+- [ ] 15.8.2 Implement review verification (job linking)
+- [ ] 15.8.3 Build rating aggregation service
+- [ ] 15.8.4 Create review moderation queue
+- [ ] 15.8.5 Implement business response feature
+- [ ] 15.8.6 Build fake review detection
+- [ ] 15.8.7 Create review analytics for businesses
+
+### 15.9 Trust & Safety
+```
+Location: /src/modules/trust/
+Files to create:
+├── trust.service.ts
+├── verification.service.ts
+├── fraud-detection.ts
+├── report.service.ts
+└── trust.types.ts
+```
+
+**Trust Signals:**
+
+| Signal | Implementation | Display |
+|--------|----------------|---------|
+| Verified Business | CUIT validation | ✅ Negocio verificado |
+| License Verified | Manual upload + review | 🎓 Matrícula verificada |
+| Insurance Verified | Manual upload + review | 🛡️ Seguro al día |
+| Background Check | Integration with AFIP/ANSES | ✓ Antecedentes verificados |
+| Response Time | Auto-calculated | ⚡ Responde en <1h |
+| Top Rated | Rating + volume threshold | ⭐ Mejor valorado |
+
+**Tasks:**
+- [ ] 15.9.1 Implement business verification flow
+- [ ] 15.9.2 Create license/insurance upload and review
+- [ ] 15.9.3 Build fraud detection for fake reviews
+- [ ] 15.9.4 Implement consumer reporting system
+- [ ] 15.9.5 Create business suspension for violations
+- [ ] 15.9.6 Build trust score display
+
+### 15.10 Marketing & Growth
+```
+Location: /src/modules/growth/
+Files to create:
+├── referral.service.ts
+├── promotion.service.ts
+├── seo-pages.generator.ts
+└── growth.types.ts
+```
+
+**Growth Strategies:**
+
+1. **SEO Landing Pages:**
+   - `/plomero-palermo` → Plumbers in Palermo
+   - `/electricista-belgrano` → Electricians in Belgrano
+   - Auto-generated from business data
+
+2. **Consumer Referrals:**
+   - "Invitá a un amigo" → Both get priority matching
+
+3. **Business Upsell:**
+   - Consumer sees "¿Tenés un negocio de servicios?" banner
+   - Easy conversion path from consumer to business
+
+**Tasks:**
+- [ ] 15.10.1 Create SEO landing page generator
+- [ ] 15.10.2 Implement referral system
+- [ ] 15.10.3 Build consumer → business upsell flow
+- [ ] 15.10.4 Create share functionality for businesses
+
+### 15.11 Analytics for Consumer Marketplace
+```
+Location: /src/analytics/marketplace/
+Files to create:
+├── marketplace-metrics.ts
+├── conversion-tracking.ts
+├── funnel-analyzer.ts
+└── marketplace-reports.ts
+```
+
+**Key Metrics:**
+
+| Metric | Definition | Target |
+|--------|------------|--------|
+| Consumer acquisition | New consumer signups/month | Growth |
+| Request volume | Service requests created/month | Growth |
+| Quote response rate | % of requests that get quotes | >80% |
+| Quote-to-job conversion | % of quotes that become jobs | >25% |
+| Consumer satisfaction | Post-job rating average | >4.5 |
+| Business lead quality | Business satisfaction with leads | >4.0 |
+| Time to first quote | Average time from request to first quote | <2 hours |
+
+**Tasks:**
+- [ ] 15.11.1 Implement marketplace analytics dashboard
+- [ ] 15.11.2 Create conversion funnel tracking
+- [ ] 15.11.3 Build A/B testing framework for marketplace
+- [ ] 15.11.4 Implement cohort analysis for consumers
+
+### Estimated Effort (Phase 15)
+
+| Component | Estimated Hours |
+|-----------|-----------------|
+| Database & Backend | ~400 hours |
+| Consumer Mobile App | ~350 hours |
+| Business Dashboard Integration | ~150 hours |
+| Ranking & Discovery | ~200 hours |
+| Trust & Safety | ~150 hours |
+| Marketing & Growth | ~100 hours |
+| **Total Phase 15** | **~1350 hours** |
+
+### Phase 15 Risks
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| Low consumer adoption | Medium | High | Strong marketing, free value proposition |
+| Businesses overwhelmed by leads | Medium | Medium | Lead volume controls, qualification |
+| Fake reviews manipulation | High | High | Verification system, moderation |
+| Business confusion (two modes) | Medium | Medium | Clear UX, onboarding |
+| Support burden increases | Medium | Medium | Self-service tools, FAQ |
+
+---
+
+## COMPLETE TIMELINE SUMMARY
+
+```
+YEAR 1 (Weeks 1-44): Core Platform
+├── Weeks 1-18:   MVP Launch (Phases 1-9)
+├── Weeks 19-27:  Enhanced MVP (Phases 9.5-9.11)
+└── Weeks 28-44:  Post-MVP (Phases 10-14)
+
+YEAR 2 (Weeks 45-52+): Market Expansion
+└── Weeks 45-52:  Consumer Marketplace (Phase 15)
+
+Total Estimated Effort:
+├── MVP (Phases 1-9):           ~2,500 hours
+├── Enhanced MVP (9.5-9.11):    ~1,600 hours
+├── Post-MVP (Phases 10-14):    ~2,700 hours
+├── Marketplace (Phase 15):     ~1,350 hours
+└── GRAND TOTAL:                ~8,150 hours
+```
 
 ---
 
