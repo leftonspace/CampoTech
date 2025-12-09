@@ -14,6 +14,7 @@
 6. [Subscription Tiers & Pricing](#6-subscription-tiers--pricing)
 7. [Privacy & Trust Communication](#7-privacy--trust-communication)
 8. [Technical Architecture](#8-technical-architecture)
+   - [8.4 Customer Live Tracking System](#84-customer-live-tracking-system)
 9. [Rejected Alternatives](#9-rejected-alternatives)
 10. [Glossary](#10-glossary)
 
@@ -276,39 +277,91 @@ JOB STATUS CHANGE
 
 ### 2.6 Real-Time Tracking
 
+**Important:** Customers don't use the CampoTech app - they receive a tracking link via WhatsApp that opens in their browser.
+
+#### WhatsApp Tracking Notification
+
+When a technician marks "En camino", the customer receives:
+
 ```
-CUSTOMER VIEW (Mobile/Web)
+WhatsApp Message:
 ┌─────────────────────────────────────────────────────────────┐
 │                                                             │
-│  🔧 Tu servicio está en camino                              │
+│  🔧 Tu técnico está en camino                               │
+│                                                             │
+│  Carlos R. salió hacia tu ubicación.                        │
+│  Llegada estimada: ~12 minutos                              │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐   │
-│  │                                                     │   │
-│  │              [MAP VIEW]                             │   │
-│  │                                                     │   │
-│  │         📍 Tu ubicación                             │   │
-│  │              │                                      │   │
-│  │              │  ~12 min                             │   │
-│  │              │                                      │   │
-│  │         🚗 Carlos R.                                │   │
-│  │         (Técnico)                                   │   │
-│  │                                                     │   │
+│  │ 📍 Seguí tu servicio en vivo                        │   │
+│  │    track.campotech.com.ar/j/ABC123                  │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ 👤 Carlos Rodríguez                                 │   │
-│  │    ⭐ 4.8 (127 trabajos)                            │   │
-│  │    📞 Llamar    💬 Mensaje                          │   │
-│  └─────────────────────────────────────────────────────┘   │
-│                                                             │
-│  Detalles del trabajo:                                      │
-│  • Instalación de split 3000 frigorías                     │
-│  • Llegada estimada: 14:30                                  │
-│  • Referencia: #JOB-2024-001234                             │
+│  [🗺️ Ver ubicación en vivo]  ← Button opens browser        │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
+```
 
-TECHNICIAN VIEW (Mobile App)
+**Note:** WhatsApp cannot display live/animated maps inside the chat. The tracking link opens a web page with the live map.
+
+#### Customer Tracking Page (Web Browser)
+
+When the customer taps the tracking link, this opens in their browser:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ 🔧 ServiFrío - Tu servicio en camino          [Logo]       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                                                     │   │
+│  │    [LIVE MAP - Google Maps / Mapbox]                │   │
+│  │                                                     │   │
+│  │         📍 Tu casa                                  │   │
+│  │              ╲                                      │   │
+│  │               ╲  ← Animated route line              │   │
+│  │                ╲                                    │   │
+│  │              🚐 ← Cute van icon (moves every 30s)  │   │
+│  │             Carlos                                  │   │
+│  │                                                     │   │
+│  │    Supports: driving, walking, public transit       │   │
+│  │    (technicians often walk in BA neighborhoods)     │   │
+│  │                                                     │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │                                                     │   │
+│  │  ⏱️ Llegada estimada: 12 min (~14:30)               │   │
+│  │  ████████████░░░░░░░░  ← Progress bar               │   │
+│  │                                                     │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌──────────────────┐  ┌──────────────────┐                │
+│  │ 👤 Carlos R.     │  │ 📞 Llamar        │                │
+│  │ ⭐ 4.8 (127)     │  │ 💬 WhatsApp      │                │
+│  └──────────────────┘  └──────────────────┘                │
+│                                                             │
+│  Servicio: Instalación split 3000 frigorías                │
+│  Referencia: #JOB-2024-001234                               │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│  Powered by CampoTech                                       │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Tracking Experience by Tier
+
+| Tier | Tracking Type | Map Provider | Features |
+|------|---------------|--------------|----------|
+| **BÁSICO** | Static snapshot | Google Static Maps | Single map image + estimated time, no live updates |
+| **PROFESIONAL** | Live tracking | Mapbox | Animated technician icon, route line, auto-refresh every 30s |
+| **EMPRESARIAL** | Premium live | Google Maps | Traffic-aware ETA, walking/driving detection, street view preview |
+
+#### Technician View (Mobile App)
+
+```
+TECHNICIAN VIEW (CampoTech Mobile App)
 ┌─────────────────────────────────────────────────────────────┐
 │                                                             │
 │  📍 Navegando a: Av. Corrientes 1234, 5°A                   │
@@ -316,7 +369,10 @@ TECHNICIAN VIEW (Mobile App)
 │  ┌─────────────────────────────────────────────────────┐   │
 │  │                                                     │   │
 │  │         [NAVIGATION MODE]                           │   │
-│  │         Google Maps / Waze                          │   │
+│  │         Opens Google Maps / Waze                    │   │
+│  │                                                     │   │
+│  │         Deep link to navigation app                 │   │
+│  │         with destination pre-filled                 │   │
 │  │                                                     │   │
 │  └─────────────────────────────────────────────────────┘   │
 │                                                             │
@@ -329,6 +385,8 @@ TECHNICIAN VIEW (Mobile App)
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐ │
 │  │ 📞 Llamar   │  │ 💬 WhatsApp │  │ ✅ Llegué           │ │
 │  └─────────────┘  └─────────────┘  └─────────────────────┘ │
+│                                                             │
+│  GPS tracking: Active (sending every 30 seconds)            │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -652,7 +710,8 @@ Voice Message Received
 | **WhatsApp Conversations** | — | 200/month included | Unlimited |
 | **Voice AI Processing** | — | ✅ | ✅ |
 | **Auto Job Creation** | — | ✅ | ✅ |
-| **Real-time Tracking** | — | ✅ | ✅ |
+| **Customer Tracking** | Static map + ETA | Live tracking (Mapbox) | Premium live (Google Maps) |
+| **Traffic-Aware ETA** | — | — | ✅ (Google Directions API) |
 | **AFIP Invoicing** | Basic | Full | Full + batch |
 | **MercadoPago Integration** | — | ✅ | ✅ |
 | **Reports & Analytics** | Basic | Advanced | Advanced + export |
@@ -928,6 +987,392 @@ R: Si un cliente te escribe algo personal al número de negocio (ej: "feliz cump
 | AFIP integration | `src/integrations/afip/` |
 | MercadoPago integration | `src/integrations/mercadopago/` |
 
+### 8.4 Customer Live Tracking System
+
+The tracking system allows customers (who don't have the CampoTech app) to track their technician via a web link sent through WhatsApp.
+
+#### 8.4.1 Why Web-Based (Not In-WhatsApp)
+
+**WhatsApp Limitations:**
+- ❌ Cannot send animated/live updating maps inside chat
+- ❌ Cannot programmatically share live location (user-initiated only)
+- ❌ Cannot embed interactive maps in messages
+- ✅ CAN send a tracking link that opens in browser
+- ✅ CAN send interactive buttons ("Ver ubicación" → opens link)
+
+**Solution:** Send WhatsApp message with tracking URL → Customer opens in browser → Live map experience
+
+#### 8.4.2 Technical Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     LIVE TRACKING FLOW                              │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  TECHNICIAN APP                         SERVER                      │
+│       │                                    │                        │
+│       │ GPS coords every 30 sec            │                        │
+│       │ ──────────────────────────────────►│                        │
+│       │ POST /api/tracking/update          │                        │
+│       │ {                                  │                        │
+│       │   jobId: "ABC123",                 │                        │
+│       │   lat: -34.6037,                   │                        │
+│       │   lng: -58.3816,                   │                        │
+│       │   speed: 15,        // km/h        │                        │
+│       │   heading: 45,      // degrees     │                        │
+│       │   mode: "walking",  // or driving  │                        │
+│       │   timestamp: ...                   │                        │
+│       │ }                                  │                        │
+│       │                                    │                        │
+│       │                                    │  Store in Redis        │
+│       │                                    │  Key: tracking:ABC123  │
+│       │                                    │  TTL: 2 hours          │
+│       │                                    │                        │
+│                                            │                        │
+│  CUSTOMER BROWSER                          │                        │
+│  (track.campotech.com.ar/j/ABC123)         │                        │
+│       │                                    │                        │
+│       │  Poll every 10 sec                 │                        │
+│       │  GET /api/tracking/ABC123          │                        │
+│       │ ──────────────────────────────────►│                        │
+│       │                                    │                        │
+│       │◄────────────────────────────────── │                        │
+│       │  {                                 │                        │
+│       │    lat, lng,                       │                        │
+│       │    eta: "12 min",                  │                        │
+│       │    route: [...polyline...],        │                        │
+│       │    techName: "Carlos R.",          │                        │
+│       │    techPhoto: "...",               │                        │
+│       │    techRating: 4.8                 │                        │
+│       │  }                                 │                        │
+│       │                                    │                        │
+│       ▼                                    │                        │
+│  Animate van icon to new position          │                        │
+│  Update ETA display                        │                        │
+│  Redraw route if changed                   │                        │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### 8.4.3 Map Provider Strategy by Tier
+
+| Tier | Provider | API Used | Cost per 1000 | Features |
+|------|----------|----------|---------------|----------|
+| **BÁSICO** | Google Static Maps | Static Maps API | ~$2 | Single image, no live updates |
+| **PROFESIONAL** | Mapbox | Maps JS + Directions | ~$5 | Live animation, basic routing |
+| **EMPRESARIAL** | Google Maps | Maps JS + Directions | ~$12 | Traffic-aware, walking detection |
+
+**Cost Calculation (100 customers, ~200 jobs/month):**
+
+```
+BÁSICO (40 customers × 80 jobs × 1 static image):
+├── Static map loads: 3,200/month
+├── Cost: ~$6.40/month
+└── Per customer: ~$0.16/month
+
+PROFESIONAL (45 customers × 90 jobs × avg 5 page loads):
+├── Map loads: 20,250/month
+├── Direction requests: 4,050/month
+├── Mapbox cost: ~$125/month
+└── Per customer: ~$2.78/month
+
+EMPRESARIAL (15 customers × 300 jobs × avg 8 page loads):
+├── Map loads: 36,000/month
+├── Direction requests (traffic): 7,200/month
+├── Google Maps cost: ~$432/month
+└── Per customer: ~$28.80/month
+```
+
+#### 8.4.4 Frontend Implementation
+
+**Animated Van Movement:**
+
+```javascript
+// Smooth animation between GPS updates
+class TechnicianMarker {
+  constructor(map, initialPosition) {
+    this.marker = new mapboxgl.Marker({
+      element: this.createVanElement()
+    }).setLngLat(initialPosition).addTo(map);
+  }
+
+  createVanElement() {
+    const el = document.createElement('div');
+    el.className = 'technician-van';
+    el.innerHTML = '🚐'; // Or custom SVG
+    el.style.fontSize = '32px';
+    el.style.transition = 'transform 0.5s ease-out';
+    return el;
+  }
+
+  animateTo(newPosition, duration = 2000) {
+    const start = this.marker.getLngLat();
+    const startTime = performance.now();
+
+    // Calculate rotation angle (van faces direction of travel)
+    const angle = this.calculateBearing(start, newPosition);
+    this.marker.getElement().style.transform = `rotate(${angle}deg)`;
+
+    // Smooth position animation
+    const animate = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+
+      // Ease-out function for natural movement
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+
+      const lng = start.lng + (newPosition.lng - start.lng) * easeOut;
+      const lat = start.lat + (newPosition.lat - start.lat) * easeOut;
+
+      this.marker.setLngLat([lng, lat]);
+
+      if (progress < 1) {
+        requestAnimationFrame(animate);
+      }
+    };
+
+    requestAnimationFrame(animate);
+  }
+
+  calculateBearing(start, end) {
+    const dLng = (end.lng - start.lng) * Math.PI / 180;
+    const lat1 = start.lat * Math.PI / 180;
+    const lat2 = end.lat * Math.PI / 180;
+
+    const y = Math.sin(dLng) * Math.cos(lat2);
+    const x = Math.cos(lat1) * Math.sin(lat2) -
+              Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+
+    return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+  }
+}
+```
+
+**Tracking Page Component (React):**
+
+```typescript
+// apps/web/app/track/[jobId]/page.tsx
+
+interface TrackingData {
+  lat: number;
+  lng: number;
+  eta: string;
+  etaMinutes: number;
+  route: [number, number][];
+  technician: {
+    name: string;
+    photo: string;
+    rating: number;
+    phone: string;
+  };
+  job: {
+    service: string;
+    reference: string;
+    customerAddress: string;
+  };
+  status: 'en_route' | 'arrived' | 'completed';
+}
+
+export default function TrackingPage({ params }: { params: { jobId: string } }) {
+  const [tracking, setTracking] = useState<TrackingData | null>(null);
+  const [map, setMap] = useState<mapboxgl.Map | null>(null);
+  const markerRef = useRef<TechnicianMarker | null>(null);
+
+  // Poll for updates every 10 seconds
+  useEffect(() => {
+    const fetchTracking = async () => {
+      const res = await fetch(`/api/tracking/${params.jobId}`);
+      const data = await res.json();
+
+      setTracking(data);
+
+      // Animate marker to new position
+      if (markerRef.current && data.lat && data.lng) {
+        markerRef.current.animateTo({ lat: data.lat, lng: data.lng });
+      }
+    };
+
+    fetchTracking();
+    const interval = setInterval(fetchTracking, 10000);
+
+    return () => clearInterval(interval);
+  }, [params.jobId]);
+
+  // ... render map and UI
+}
+```
+
+#### 8.4.5 ETA Calculation
+
+**For Buenos Aires**, traffic-aware routing is essential:
+
+```typescript
+// src/services/tracking/eta-calculator.ts
+
+interface ETARequest {
+  origin: { lat: number; lng: number };
+  destination: { lat: number; lng: number };
+  mode: 'driving' | 'walking' | 'transit';
+  tier: 'basico' | 'profesional' | 'empresarial';
+}
+
+async function calculateETA(request: ETARequest): Promise<{
+  duration: string;
+  durationMinutes: number;
+  trafficAware: boolean;
+}> {
+  const { tier, mode, origin, destination } = request;
+
+  // BÁSICO: Simple distance-based estimate (no API call)
+  if (tier === 'basico') {
+    const distance = haversineDistance(origin, destination);
+    const speed = mode === 'walking' ? 5 : 20; // km/h (conservative for BA traffic)
+    const minutes = Math.ceil((distance / speed) * 60);
+    return {
+      duration: `~${minutes} min`,
+      durationMinutes: minutes,
+      trafficAware: false
+    };
+  }
+
+  // PROFESIONAL: Mapbox Directions (no real-time traffic)
+  if (tier === 'profesional') {
+    const response = await fetch(
+      `https://api.mapbox.com/directions/v5/mapbox/${mode}/` +
+      `${origin.lng},${origin.lat};${destination.lng},${destination.lat}` +
+      `?access_token=${MAPBOX_TOKEN}`
+    );
+    const data = await response.json();
+    const minutes = Math.ceil(data.routes[0].duration / 60);
+    return {
+      duration: `~${minutes} min`,
+      durationMinutes: minutes,
+      trafficAware: false
+    };
+  }
+
+  // EMPRESARIAL: Google Maps with real-time traffic
+  const response = await fetch(
+    `https://maps.googleapis.com/maps/api/directions/json?` +
+    `origin=${origin.lat},${origin.lng}&` +
+    `destination=${destination.lat},${destination.lng}&` +
+    `mode=${mode}&` +
+    `departure_time=now&` +  // Enables traffic-aware routing
+    `key=${GOOGLE_MAPS_KEY}`
+  );
+  const data = await response.json();
+  const leg = data.routes[0].legs[0];
+
+  // Use duration_in_traffic when available
+  const durationSeconds = leg.duration_in_traffic?.value || leg.duration.value;
+  const minutes = Math.ceil(durationSeconds / 60);
+
+  return {
+    duration: `~${minutes} min`,
+    durationMinutes: minutes,
+    trafficAware: !!leg.duration_in_traffic
+  };
+}
+```
+
+#### 8.4.6 Walking vs Driving Detection
+
+Technicians in Buenos Aires often walk between nearby jobs. The system auto-detects movement mode:
+
+```typescript
+// src/services/tracking/mode-detector.ts
+
+interface LocationUpdate {
+  lat: number;
+  lng: number;
+  speed: number;      // km/h from device
+  timestamp: number;
+}
+
+function detectMovementMode(
+  history: LocationUpdate[],
+  currentSpeed: number
+): 'walking' | 'driving' | 'stationary' {
+  // Stationary if speed < 1 km/h for 30+ seconds
+  if (currentSpeed < 1) {
+    const recentUpdates = history.filter(
+      u => Date.now() - u.timestamp < 30000
+    );
+    if (recentUpdates.every(u => u.speed < 1)) {
+      return 'stationary';
+    }
+  }
+
+  // Walking: 1-7 km/h
+  if (currentSpeed >= 1 && currentSpeed <= 7) {
+    return 'walking';
+  }
+
+  // Driving: > 7 km/h
+  return 'driving';
+}
+```
+
+#### 8.4.7 Tracking Link Security
+
+```typescript
+// Tracking links use short-lived, unguessable tokens
+
+// Generate tracking token when job status → EN_ROUTE
+function generateTrackingToken(jobId: string): string {
+  const token = crypto.randomBytes(16).toString('base64url');
+
+  // Store in Redis with 4-hour expiry
+  redis.setex(`tracking:token:${token}`, 14400, jobId);
+
+  return token;
+}
+
+// Tracking URL format
+// track.campotech.com.ar/j/{token}
+// Example: track.campotech.com.ar/j/xK9mNp2qR5tY8wZ1
+
+// Validation on page load
+async function validateTrackingToken(token: string): Promise<string | null> {
+  const jobId = await redis.get(`tracking:token:${token}`);
+  return jobId;
+}
+```
+
+#### 8.4.8 WhatsApp Template for Tracking
+
+```typescript
+// Template: technician_en_route_tracking
+{
+  name: 'technician_en_route_tracking',
+  language: 'es_AR',
+  category: 'UTILITY',
+  components: [
+    {
+      type: 'HEADER',
+      format: 'TEXT',
+      text: '🔧 Tu técnico está en camino'
+    },
+    {
+      type: 'BODY',
+      text: '{{1}} salió hacia tu ubicación.\n\nLlegada estimada: ~{{2}} minutos\n\nPodés seguir su ubicación en tiempo real:',
+      example: { body_text: [['Carlos R.', '12']] }
+    },
+    {
+      type: 'BUTTONS',
+      buttons: [
+        {
+          type: 'URL',
+          text: '📍 Ver ubicación en vivo',
+          url: 'https://track.campotech.com.ar/j/{{1}}',
+          example: ['xK9mNp2qR5tY8wZ1']
+        }
+      ]
+    }
+  ]
+}
+```
+
 ---
 
 ## 9. Rejected Alternatives
@@ -1029,6 +1474,49 @@ R: Si un cliente te escribe algo personal al número de negocio (ej: "feliz cump
 
 **However:** Básico tier accommodates free app users via forward-to-process model
 
+### 9.4 Map Provider Alternatives
+
+#### Alternative: OpenStreetMap + Self-Hosted Routing (Free)
+**Why rejected:**
+- No real-time traffic data - critical failure for Buenos Aires
+- BA has notoriously unpredictable traffic (protests, construction, flooding)
+- Technicians frequently walk between nearby jobs - need accurate walking ETAs
+- Self-hosted routing (OSRM/Valhalla) requires significant DevOps
+- ETA accuracy directly impacts customer satisfaction
+
+**The Buenos Aires reality:**
+- A 2km trip can take 5 minutes or 45 minutes depending on traffic
+- Without traffic awareness, ETAs are essentially useless
+- Customers get frustrated when "12 min" becomes 40 min
+- Walking is often faster than driving for <1km distances
+
+**Cost savings don't justify poor UX:**
+```
+OpenStreetMap: $0/month
+BUT: Inaccurate ETAs → Customer complaints → Churn → Lost revenue
+
+Google Maps: $30-50/month per 100 customers
+BUT: Accurate ETAs → Happy customers → Retention → Worth it
+```
+
+**When to reconsider:** Never for Buenos Aires. Only if expanding to rural areas with no traffic.
+
+#### Alternative: HERE Maps
+**Why rejected:**
+- Less familiar to Argentine users (everyone knows Google Maps)
+- Traffic data quality inferior to Google in Buenos Aires
+- Similar pricing to Google without the brand recognition
+- Smaller developer ecosystem
+
+**When to reconsider:** If Google Maps pricing increases significantly
+
+#### Alternative: Apple MapKit
+**Why rejected:**
+- Only works well on Apple devices
+- Many Argentine technicians use Android (cost)
+- Limited traffic data for Buenos Aires
+- Web implementation less mature than Google/Mapbox
+
 ---
 
 ## 10. Glossary
@@ -1055,6 +1543,7 @@ R: Si un cliente te escribe algo personal al número de negocio (ej: "feliz cump
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2024-12-09 | Initial comprehensive documentation |
+| 1.1 | 2024-12-09 | Added Customer Live Tracking System (Section 8.4) with technical implementation, tier-based map providers (Básico: static, Profesional: Mapbox, Empresarial: Google Maps), walking/driving detection, and rejected OpenStreetMap alternative |
 
 ---
 
