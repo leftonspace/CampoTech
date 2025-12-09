@@ -1,8 +1,8 @@
 # CampoTech Full Implementation Plan
 
 **Based on:** `campotech-architecture-complete.md`
-**Target Timeline:** 18-Week MVP + 2-Week Enhanced MVP + 18-Week Post-MVP (38 weeks total)
-**Total Estimated Effort:** ~5000 developer hours (MVP: ~2500 | Enhanced: ~400 | Post-MVP: ~2100)
+**Target Timeline:** 18-Week MVP + 3-Week Enhanced MVP + 17-Week Post-MVP (38 weeks total)
+**Total Estimated Effort:** ~5200 developer hours (MVP: ~2500 | Enhanced: ~600 | Post-MVP: ~2100)
 
 ---
 
@@ -26,12 +26,13 @@
 |-------|-------|----------|--------------|----------|
 | **Phase 9.5** | Employee Onboarding & Verification | Week 19 | Phase 9 | High |
 | **Phase 9.6** | Notification Preferences System | Weeks 19-20 | Phase 9 | High |
+| **Phase 9.7** | Argentine Communication Localization | Week 21 | Phase 9.6 | High |
 
 ### Post-MVP Phases
 
 | Phase | Focus | Duration | Dependencies | Priority |
 |-------|-------|----------|--------------|----------|
-| **Phase 10** | Advanced Analytics & Reporting | Weeks 21-23 | Phase 9.6 | High |
+| **Phase 10** | Advanced Analytics & Reporting | Weeks 22-24 | Phase 9.7 | High |
 | **Phase 11** | Multi-Location Support | Weeks 24-26 | Phase 10 | High |
 | **Phase 12** | Inventory Management | Weeks 27-30 | Phase 11 | Medium |
 | **Phase 13** | Customer Self-Service Portal | Weeks 31-34 | Phases 10-12 | Medium |
@@ -1226,6 +1227,316 @@ Files to create:
 - [ ] 9.6.7.3 Build mandatory notification types (cannot be disabled)
 - [ ] 9.6.7.4 Create notification policy management UI for admins
 - [ ] 9.6.7.5 Implement notification override hierarchy (org → role → user)
+
+---
+
+## PHASE 9.7: ARGENTINE COMMUNICATION LOCALIZATION
+**Duration:** Week 21 (1 week, after Phase 9.6)
+**Team:** 1 Backend Engineer, 1 Frontend Engineer
+**Priority:** High - Critical for Argentine market success
+
+### Overview: Argentine Communication Patterns
+
+Argentina has unique communication preferences that differ significantly from US/European markets:
+
+| Channel | Usage in Argentina | Role in CampoTech |
+|---------|-------------------|-------------------|
+| **WhatsApp** | 95%+ penetration, primary for everything | PRIMARY for all notifications |
+| **SMS** | Rarely used, costs money | FALLBACK only (OTP, offline) |
+| **Email** | Formal/documentation only | DOCUMENTS (invoices, reports) |
+| **Push** | Standard mobile | REMINDERS and alerts |
+
+**Key Argentine Behaviors:**
+- **Audio messages ("audios")** are preferred over typing
+- Informal tone ("vos" instead of "tú", "che", colloquial expressions)
+- Quick response expectation on WhatsApp
+- Business WhatsApp is trusted and expected
+- SMS is seen as outdated/expensive
+
+### 9.7.1 WhatsApp-First Channel Priority
+
+**Tasks (Retroactive fixes to Phases 1-9):**
+- [ ] 9.7.1.1 Change employee welcome notification from SMS to WhatsApp (currently in `/apps/web/app/api/users/route.ts`)
+- [ ] 9.7.1.2 Add WhatsApp fallback to SMS (not SMS fallback to WhatsApp) for non-critical messages
+- [ ] 9.7.1.3 Update notification delivery orchestrator priority order:
+  ```
+  1. WhatsApp (primary) → 95% of messages
+  2. Push notification → Always for mobile users
+  3. Email → Documents and summaries only
+  4. SMS → OTP codes and critical fallback only
+  ```
+- [ ] 9.7.1.4 Create WhatsApp connection check before falling back to SMS
+- [ ] 9.7.1.5 Update Phase 9.6 notification defaults to WhatsApp-first
+
+### 9.7.2 New WhatsApp Templates for Argentina
+```
+Location: /src/integrations/whatsapp/templates/
+Files to modify/create:
+├── template-registry.ts (add new templates)
+├── employee-templates.ts (NEW)
+└── argentina-templates.ts (NEW - localized versions)
+```
+
+**New Employee-Focused Templates:**
+```typescript
+// Template: employee_welcome
+{
+  name: 'employee_welcome',
+  language: 'es_AR',
+  category: 'UTILITY',
+  text: '👋 ¡Hola {{1}}!\n\nFuiste agregado al equipo de {{2}} como {{3}}.\n\n📱 Descargá la app CampoTech para:\n• Ver tus trabajos asignados\n• Navegar a las direcciones\n• Registrar fotos y firmas\n\n🔐 Tu número de acceso: {{4}}\n\n¿Tenés alguna duda?',
+  buttons: ['Descargar app', 'Tengo dudas']
+}
+
+// Template: job_assigned_tech
+{
+  name: 'job_assigned_tech',
+  language: 'es_AR',
+  category: 'UTILITY',
+  text: '🔧 Nuevo trabajo asignado\n\n📍 {{1}}\n📅 {{2}} a las {{3}} hs\n👤 Cliente: {{4}}\n📞 {{5}}\n\nServicio: {{6}}\n\n¿Podés confirmar?',
+  buttons: ['Confirmar', 'No puedo']
+}
+
+// Template: job_reminder_tech
+{
+  name: 'job_reminder_tech',
+  language: 'es_AR',
+  category: 'UTILITY',
+  text: '⏰ Recordatorio: Trabajo en {{1}}\n\n📍 {{2}}\n👤 {{3}}\n\n¿Ya estás en camino?',
+  buttons: ['En camino', 'Ver detalles']
+}
+
+// Template: schedule_change
+{
+  name: 'schedule_change',
+  language: 'es_AR',
+  category: 'UTILITY',
+  text: '📅 Cambio de horario\n\n{{1}}, tu trabajo en {{2}} se reprogramó:\n\n❌ Antes: {{3}}\n✅ Ahora: {{4}}\n\n¿Te queda bien?',
+  buttons: ['OK', 'No me sirve']
+}
+```
+
+**Tasks:**
+- [ ] 9.7.2.1 Create `employee_welcome` WhatsApp template
+- [ ] 9.7.2.2 Create `job_assigned_tech` template for technician notifications
+- [ ] 9.7.2.3 Create `job_reminder_tech` template (30min, 1h, 24h versions)
+- [ ] 9.7.2.4 Create `schedule_change` template for rescheduling
+- [ ] 9.7.2.5 Create `job_completed_admin` template (notify admin when tech completes)
+- [ ] 9.7.2.6 Create `new_customer_inquiry` template (voice/text inquiry received)
+- [ ] 9.7.2.7 Submit all templates to Meta for approval
+- [ ] 9.7.2.8 Add template status monitoring in admin dashboard
+
+### 9.7.3 Audio Message Support (Argentine Preference)
+```
+Location: /src/integrations/whatsapp/messages/
+Files to create:
+├── audio.handler.ts (NEW)
+├── audio-transcription.ts (NEW)
+└── voice-job-request.ts (NEW)
+```
+
+**Context:** Argentines prefer sending "audios" (voice messages) over typing. This is especially true for:
+- Describing job problems ("Che, tengo una pérdida en el baño...")
+- Explaining locations
+- Quick updates while working
+
+**Tasks:**
+- [ ] 9.7.3.1 Implement WhatsApp audio message reception and storage
+- [ ] 9.7.3.2 Integrate audio transcription (Whisper API) for voice messages
+- [ ] 9.7.3.3 Auto-create job requests from transcribed audio
+- [ ] 9.7.3.4 Send confirmation: "Recibimos tu audio, te confirmamos en breve"
+- [ ] 9.7.3.5 Queue audio messages for human review if confidence < 80%
+- [ ] 9.7.3.6 Add audio player in web dashboard for review
+- [ ] 9.7.3.7 Support audio responses from technicians (optional)
+
+### 9.7.4 SMS Role Redefinition
+```
+Location: /apps/web/lib/sms.ts, /src/workers/whatsapp/
+Files to modify:
+├── sms.ts (add usage restrictions)
+├── whatsapp-outbound.worker.ts (update fallback logic)
+└── notification-router.ts (NEW - smart routing)
+```
+
+**SMS should ONLY be used for:**
+| Use Case | Reason |
+|----------|--------|
+| OTP/Verification codes | Works without internet |
+| Critical system alerts | Guaranteed delivery |
+| WhatsApp delivery failure (after 3 retries) | Fallback |
+| Users without WhatsApp (rare, <5%) | Accessibility |
+
+**Tasks:**
+- [ ] 9.7.4.1 Add `channel_restriction` to notification types:
+  ```typescript
+  type NotificationChannel = 'whatsapp' | 'sms' | 'email' | 'push';
+  type ChannelRestriction = 'sms_only' | 'whatsapp_preferred' | 'any';
+
+  const CHANNEL_RESTRICTIONS: Record<NotificationType, ChannelRestriction> = {
+    otp_verification: 'sms_only',
+    employee_welcome: 'whatsapp_preferred',
+    job_assigned: 'whatsapp_preferred',
+    job_reminder: 'whatsapp_preferred',
+    invoice_ready: 'whatsapp_preferred',
+    payment_confirmed: 'whatsapp_preferred',
+    system_critical: 'any', // Try all channels
+  };
+  ```
+- [ ] 9.7.4.2 Update employee welcome to use WhatsApp template first
+- [ ] 9.7.4.3 Create SMS-to-WhatsApp migration prompt for existing users
+- [ ] 9.7.4.4 Add WhatsApp number validation on user creation
+- [ ] 9.7.4.5 Show "WhatsApp preferred" indicator in team settings
+
+### 9.7.5 Email Role Definition (Documentation Only)
+```
+Location: /src/modules/notifications/email/
+Files to create:
+├── email.service.ts
+├── email-templates/
+│   ├── invoice.template.ts
+│   ├── monthly-report.template.ts
+│   ├── account-summary.template.ts
+│   └── base.template.ts
+└── email.types.ts
+```
+
+**Email should ONLY be used for:**
+| Use Case | Reason |
+|----------|--------|
+| Invoice PDF delivery | Legal documentation |
+| Monthly/weekly reports | Scheduled summaries |
+| Account statements | Financial records |
+| Terms & conditions | Legal requirements |
+| Password reset (if implemented) | Security |
+
+**Tasks:**
+- [ ] 9.7.5.1 Implement email service (Resend or SendGrid)
+- [ ] 9.7.5.2 Create invoice email template with PDF attachment
+- [ ] 9.7.5.3 Create monthly report email template
+- [ ] 9.7.5.4 Add email delivery logging
+- [ ] 9.7.5.5 Implement email bounce handling
+- [ ] 9.7.5.6 Do NOT use email for time-sensitive notifications
+
+### 9.7.6 Updated Notification Defaults (Argentine-Optimized)
+```
+Location: /database/migrations/
+File to create:
+└── 019_argentine_notification_defaults.sql
+```
+
+**New Default Preferences:**
+```sql
+-- Updated defaults for Argentine market
+ALTER TABLE notification_preferences
+ALTER COLUMN whatsapp_enabled SET DEFAULT true,  -- Changed from false
+ALTER COLUMN sms_enabled SET DEFAULT false,       -- Keep false (SMS is fallback only)
+ALTER COLUMN email_enabled SET DEFAULT false;     -- Changed from true (documents only)
+
+-- Updated event preferences (WhatsApp-first)
+UPDATE notification_preferences SET event_preferences = '{
+    "job_assigned": {"whatsapp": true, "push": true, "email": false, "sms": false},
+    "job_reminder": {"whatsapp": true, "push": true, "email": false, "sms": false},
+    "job_completed": {"whatsapp": true, "push": true, "email": false, "sms": false},
+    "schedule_change": {"whatsapp": true, "push": true, "email": false, "sms": false},
+    "invoice_created": {"whatsapp": true, "push": false, "email": true, "sms": false},
+    "payment_received": {"whatsapp": true, "push": true, "email": false, "sms": false},
+    "payment_reminder": {"whatsapp": true, "push": false, "email": false, "sms": false},
+    "team_member_added": {"whatsapp": true, "push": false, "email": false, "sms": false},
+    "system_alert": {"whatsapp": true, "push": true, "email": true, "sms": true}
+}';
+```
+
+**Tasks:**
+- [ ] 9.7.6.1 Create migration to update notification defaults
+- [ ] 9.7.6.2 Update Phase 9.6 schema to use WhatsApp-first defaults
+- [ ] 9.7.6.3 Add "Argentine mode" organization setting (auto-applies these defaults)
+- [ ] 9.7.6.4 Create notification preferences presets:
+  - "Argentina Standard" (WhatsApp-first)
+  - "International" (Email + SMS focus)
+  - "Minimal" (Push only)
+- [ ] 9.7.6.5 Show channel usage analytics in dashboard
+
+### 9.7.7 Message Tone & Language (Argentine Spanish)
+```
+Location: /src/shared/i18n/
+Files to create:
+├── locales/
+│   ├── es-AR.json (Argentine Spanish)
+│   └── es.json (Generic Spanish fallback)
+├── message-templates.ts
+└── tone-guidelines.md
+```
+
+**Argentine Spanish Guidelines:**
+| Feature | Standard Spanish | Argentine Spanish |
+|---------|-----------------|-------------------|
+| "You" (informal) | tú | vos |
+| "You have" | tienes | tenés |
+| "You can" | puedes | podés |
+| "Download" | descarga | descargá |
+| Greeting | Hola | Hola / Che |
+| Thanks | Gracias | Gracias / Dale |
+
+**Tasks:**
+- [ ] 9.7.7.1 Audit all user-facing messages for Argentine Spanish ("vos" conjugation)
+- [ ] 9.7.7.2 Update OTP message: "Tu código de CampoTech es: {{code}}. Expira en 5 min."
+- [ ] 9.7.7.3 Update welcome message to use "vos" form
+- [ ] 9.7.7.4 Create message tone guidelines document
+- [ ] 9.7.7.5 Add informal greetings where appropriate ("Che", "Dale")
+- [ ] 9.7.7.6 Review all WhatsApp templates for Argentine tone
+- [ ] 9.7.7.7 Add locale selector (future: support other LATAM countries)
+
+### 9.7.8 Business Hours & Response Expectations
+```
+Location: /src/modules/organizations/settings/
+Files to create:
+├── business-hours.service.ts
+├── response-time.service.ts
+└── auto-responder.ts
+```
+
+**Argentine Business Context:**
+- Business hours: Generally 9:00-18:00 or 9:00-20:00
+- Siesta consideration: Some regions have 13:00-16:00 break
+- WhatsApp response expected within 1-2 hours during business hours
+- After-hours auto-responder is expected
+
+**Tasks:**
+- [ ] 9.7.8.1 Add business hours configuration per organization
+- [ ] 9.7.8.2 Implement auto-responder for after-hours WhatsApp messages:
+  ```
+  "Hola! Recibimos tu mensaje. Nuestro horario de atención es de {{start}} a {{end}} hs.
+   Te respondemos a la brevedad. Si es urgente, llamanos al {{phone}}."
+  ```
+- [ ] 9.7.8.3 Add "response time" tracking per organization
+- [ ] 9.7.8.4 Show "typically responds within X minutes" on customer portal
+- [ ] 9.7.8.5 Alert admin if WhatsApp messages unanswered > 2 hours
+- [ ] 9.7.8.6 Support multiple time zones (for organizations with multiple locations)
+
+### 9.7.9 Retroactive Fixes Checklist (Phases 1-9)
+
+These changes need to be applied to already-implemented code:
+
+**Phase 2 - User Service:**
+- [ ] 9.7.9.1 Add `whatsappNumber` field to User model (may differ from phone)
+- [ ] 9.7.9.2 Add `preferredChannel` field: 'whatsapp' | 'sms' | 'email'
+- [ ] 9.7.9.3 Default `preferredChannel` to 'whatsapp'
+
+**Phase 5 - Web Portal:**
+- [ ] 9.7.9.4 Update team member form to show "WhatsApp" instead of "SMS" for notifications
+- [ ] 9.7.9.5 Add WhatsApp connection status indicator
+
+**Phase 6 - WhatsApp Integration:**
+- [ ] 9.7.9.6 Add employee-focused templates to template registry
+- [ ] 9.7.9.7 Update outbound worker to check WhatsApp before SMS fallback
+
+**Phase 7 - Mobile App:**
+- [ ] 9.7.9.8 Add WhatsApp deep-link for customer contact
+- [ ] 9.7.9.9 Show WhatsApp icon instead of SMS for messaging
+
+**API Routes:**
+- [ ] 9.7.9.10 Update `/api/users/route.ts` to use WhatsApp for welcome message
+- [ ] 9.7.9.11 Add WhatsApp number validation endpoint
 
 ---
 
