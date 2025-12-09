@@ -1,8 +1,8 @@
 # CampoTech Full Implementation Plan
 
 **Based on:** `campotech-architecture-complete.md`
-**Target Timeline:** 18-Week MVP
-**Total Estimated Effort:** ~2500 developer hours
+**Target Timeline:** 18-Week MVP + 18-Week Post-MVP (36 weeks total)
+**Total Estimated Effort:** ~4600 developer hours (MVP: ~2500 | Post-MVP: ~2100)
 
 ---
 
@@ -19,6 +19,16 @@
 | **Phase 7** | Mobile Technician App | Weeks 14-17 | Phases 2-5 | Feature-flagged |
 | **Phase 8** | Voice AI Processing | Week 16-17 | Phase 6 | Feature-flagged |
 | **Phase 9** | Observability & Hardening | Week 18 | All | YES |
+
+### Post-MVP Phases
+
+| Phase | Focus | Duration | Dependencies | Priority |
+|-------|-------|----------|--------------|----------|
+| **Phase 10** | Advanced Analytics & Reporting | Weeks 19-21 | Phase 9 | High |
+| **Phase 11** | Multi-Location Support | Weeks 22-24 | Phase 10 | High |
+| **Phase 12** | Inventory Management | Weeks 25-28 | Phase 11 | Medium |
+| **Phase 13** | Customer Self-Service Portal | Weeks 29-32 | Phases 10-12 | Medium |
+| **Phase 14** | API for Third-Party Integrations | Weeks 33-36 | Phase 13 | Medium |
 
 ---
 
@@ -882,16 +892,866 @@ Files to create:
 
 ## POST-MVP ROADMAP
 
-### Future Phases (Post-Launch)
-- **Phase 10:** Advanced Analytics & Reporting
-- **Phase 11:** Multi-location Support
-- **Phase 12:** Inventory Management
-- **Phase 13:** Customer Self-Service Portal
-- **Phase 14:** API for Third-Party Integrations
+---
+
+## PHASE 10: ADVANCED ANALYTICS & REPORTING
+**Duration:** Weeks 19-21
+**Team:** 1 Backend Engineer, 1 Frontend Engineer, 1 Data Engineer
+
+### 10.1 Analytics Data Infrastructure
+```
+Location: /src/analytics/
+Files to create:
+├── infrastructure/
+│   ├── data-warehouse.ts
+│   ├── etl-pipeline.ts
+│   ├── materialized-views.sql
+│   └── aggregation-jobs.ts
+├── collectors/
+│   ├── event-collector.ts
+│   ├── metrics-aggregator.ts
+│   └── time-series-storage.ts
+├── models/
+│   ├── kpi-definitions.ts
+│   ├── dimension-tables.ts
+│   └── fact-tables.ts
+└── analytics.types.ts
+```
+
+**Tasks:**
+- [ ] 10.1.1 Design star schema for analytics (fact tables: jobs, invoices, payments)
+- [ ] 10.1.2 Create dimension tables (time, customers, technicians, services, locations)
+- [ ] 10.1.3 Implement ETL pipeline for real-time aggregation
+- [ ] 10.1.4 Create materialized views for common queries
+- [ ] 10.1.5 Set up time-series storage for trend analysis
+- [ ] 10.1.6 Implement data retention policies (raw: 90 days, aggregated: 3 years)
+
+### 10.2 Business Intelligence KPIs
+```
+Location: /src/analytics/kpis/
+Files to create:
+├── revenue/
+│   ├── revenue-metrics.ts
+│   ├── mrr-calculator.ts
+│   ├── arpu-calculator.ts
+│   └── churn-analyzer.ts
+├── operations/
+│   ├── job-metrics.ts
+│   ├── technician-efficiency.ts
+│   ├── completion-rates.ts
+│   └── sla-compliance.ts
+├── financial/
+│   ├── cash-flow-analyzer.ts
+│   ├── accounts-receivable.ts
+│   ├── profitability-calculator.ts
+│   └── tax-summary.ts
+└── customers/
+    ├── customer-lifetime-value.ts
+    ├── retention-analyzer.ts
+    ├── satisfaction-scorer.ts
+    └── segment-analyzer.ts
+```
+
+**Tasks:**
+- [ ] 10.2.1 Implement revenue KPIs (MRR, ARR, ARPU, revenue by service type)
+- [ ] 10.2.2 Create operational KPIs (jobs/day, completion rate, avg. time on site)
+- [ ] 10.2.3 Build technician efficiency metrics (jobs/tech, avg. completion time, ratings)
+- [ ] 10.2.4 Implement financial KPIs (gross margin, collection rate, days sales outstanding)
+- [ ] 10.2.5 Create customer KPIs (CLV, retention rate, repeat customer rate)
+- [ ] 10.2.6 Build SLA compliance tracking (on-time arrivals, resolution time)
+
+### 10.3 Report Generation Engine
+```
+Location: /src/analytics/reports/
+Files to create:
+├── engine/
+│   ├── report-builder.ts
+│   ├── report-scheduler.ts
+│   ├── report-exporter.ts
+│   └── template-engine.ts
+├── templates/
+│   ├── daily-summary.template.ts
+│   ├── weekly-performance.template.ts
+│   ├── monthly-financial.template.ts
+│   ├── tax-report.template.ts
+│   └── custom-report.template.ts
+├── exporters/
+│   ├── pdf-exporter.ts
+│   ├── excel-exporter.ts
+│   ├── csv-exporter.ts
+│   └── email-sender.ts
+└── scheduling/
+    ├── cron-jobs.ts
+    └── delivery-queue.ts
+```
+
+**Tasks:**
+- [ ] 10.3.1 Create report template engine with dynamic filters
+- [ ] 10.3.2 Implement PDF report generation (with charts)
+- [ ] 10.3.3 Build Excel export with multiple sheets and formulas
+- [ ] 10.3.4 Create CSV export for data portability
+- [ ] 10.3.5 Implement scheduled report delivery (daily, weekly, monthly)
+- [ ] 10.3.6 Build email delivery system with branded templates
+- [ ] 10.3.7 Create AFIP-compliant tax reports (Libro IVA Digital)
+
+### 10.4 Analytics Dashboard UI
+```
+Files to create:
+├── app/(dashboard)/analytics/
+│   ├── page.tsx (Overview)
+│   ├── revenue/page.tsx
+│   ├── operations/page.tsx
+│   ├── technicians/page.tsx
+│   ├── customers/page.tsx
+│   └── reports/
+│       ├── page.tsx (Report Builder)
+│       ├── scheduled/page.tsx
+│       └── history/page.tsx
+├── components/analytics/
+│   ├── charts/
+│   │   ├── LineChart.tsx
+│   │   ├── BarChart.tsx
+│   │   ├── PieChart.tsx
+│   │   ├── HeatMap.tsx
+│   │   └── Sparkline.tsx
+│   ├── widgets/
+│   │   ├── KPICard.tsx
+│   │   ├── TrendIndicator.tsx
+│   │   ├── ComparisonWidget.tsx
+│   │   └── LeaderBoard.tsx
+│   └── filters/
+│       ├── DateRangePicker.tsx
+│       ├── TechnicianFilter.tsx
+│       └── ServiceTypeFilter.tsx
+```
+
+**Tasks:**
+- [ ] 10.4.1 Build analytics overview dashboard with key metrics
+- [ ] 10.4.2 Create revenue analytics page (trends, forecasts, comparisons)
+- [ ] 10.4.3 Build operations dashboard (job funnel, geographic heatmap)
+- [ ] 10.4.4 Create technician leaderboard and performance dashboard
+- [ ] 10.4.5 Build customer analytics (segments, cohorts, CLV distribution)
+- [ ] 10.4.6 Implement custom report builder with drag-and-drop
+- [ ] 10.4.7 Create scheduled reports management UI
+- [ ] 10.4.8 Implement data export functionality from all dashboards
+
+### 10.5 Predictive Analytics (Basic)
+```
+Location: /src/analytics/predictions/
+Files to create:
+├── demand-forecasting.ts
+├── churn-prediction.ts
+├── revenue-projection.ts
+└── anomaly-detection.ts
+```
+
+**Tasks:**
+- [ ] 10.5.1 Implement basic demand forecasting (seasonal patterns)
+- [ ] 10.5.2 Create revenue projection model (linear regression)
+- [ ] 10.5.3 Build simple churn risk scoring
+- [ ] 10.5.4 Implement anomaly detection for unusual patterns (fraud, errors)
+
+---
+
+## PHASE 11: MULTI-LOCATION SUPPORT
+**Duration:** Weeks 22-24
+**Team:** 2 Backend Engineers, 1 Frontend Engineer
+
+### 11.1 Database Schema Extensions
+```
+Location: /database/migrations/
+Files to create:
+├── 020_create_locations.sql
+├── 021_add_location_to_jobs.sql
+├── 022_create_location_settings.sql
+├── 023_create_inter_location_transfers.sql
+├── 024_add_location_afip_config.sql
+└── 025_update_rls_for_locations.sql
+```
+
+**Tasks:**
+- [ ] 11.1.1 Design location hierarchy (Organization → Locations → Zones)
+- [ ] 11.1.2 Create locations table with geographic boundaries
+- [ ] 11.1.3 Add location_id to jobs, users, customers, invoices
+- [ ] 11.1.4 Create location-specific settings table
+- [ ] 11.1.5 Implement per-location AFIP punto de venta
+- [ ] 11.1.6 Update RLS policies for location-based access
+
+### 11.2 Location Service
+```
+Location: /src/modules/locations/
+Files to create:
+├── location.service.ts
+├── location.repository.ts
+├── location.controller.ts
+├── location.routes.ts
+├── location.validation.ts
+├── zone-manager.ts
+├── coverage-calculator.ts
+└── location.types.ts
+```
+
+**Tasks:**
+- [ ] 11.2.1 Implement location CRUD operations
+- [ ] 11.2.2 Create zone management (service areas)
+- [ ] 11.2.3 Build coverage area calculator (polygon/radius)
+- [ ] 11.2.4 Implement location-based pricing variations
+- [ ] 11.2.5 Create automatic job assignment by location/zone
+- [ ] 11.2.6 Build API endpoints for location management
+
+### 11.3 Multi-Location Billing & Invoicing
+```
+Location: /src/modules/locations/billing/
+Files to create:
+├── location-invoice-router.ts
+├── punto-venta-manager.ts
+├── consolidated-billing.ts
+└── inter-location-charges.ts
+```
+
+**Tasks:**
+- [ ] 11.3.1 Implement per-location punto de venta for AFIP
+- [ ] 11.3.2 Create automatic invoice routing by service location
+- [ ] 11.3.3 Build consolidated invoice generation (multi-location)
+- [ ] 11.3.4 Implement inter-location charge transfers
+- [ ] 11.3.5 Create location-specific numbering sequences
+
+### 11.4 Team & Resource Management
+```
+Location: /src/modules/locations/resources/
+Files to create:
+├── location-assignment.service.ts
+├── resource-sharing.ts
+├── capacity-manager.ts
+└── inter-location-dispatch.ts
+```
+
+**Tasks:**
+- [ ] 11.4.1 Implement technician home location assignment
+- [ ] 11.4.2 Create resource sharing between locations
+- [ ] 11.4.3 Build capacity planning per location
+- [ ] 11.4.4 Implement cross-location job dispatch
+- [ ] 11.4.5 Create travel time estimation between locations
+
+### 11.5 Multi-Location UI
+```
+Files to create:
+├── app/(dashboard)/locations/
+│   ├── page.tsx (Location List)
+│   ├── [id]/
+│   │   ├── page.tsx (Location Detail)
+│   │   ├── settings/page.tsx
+│   │   ├── team/page.tsx
+│   │   └── zones/page.tsx
+│   └── new/page.tsx
+├── components/locations/
+│   ├── LocationSelector.tsx
+│   ├── ZoneMap.tsx
+│   ├── CoverageEditor.tsx
+│   └── LocationSwitcher.tsx
+```
+
+**Tasks:**
+- [ ] 11.5.1 Build location management page
+- [ ] 11.5.2 Create zone editor with map interface
+- [ ] 11.5.3 Implement location switcher in header
+- [ ] 11.5.4 Build per-location dashboard views
+- [ ] 11.5.5 Create cross-location reporting
+- [ ] 11.5.6 Build location-based team management
+
+### 11.6 Location Analytics
+```
+Location: /src/analytics/locations/
+Files to create:
+├── location-performance.ts
+├── geographic-analytics.ts
+├── location-comparison.ts
+└── expansion-analyzer.ts
+```
+
+**Tasks:**
+- [ ] 11.6.1 Implement per-location KPIs
+- [ ] 11.6.2 Build location comparison reports
+- [ ] 11.6.3 Create geographic performance heatmaps
+- [ ] 11.6.4 Implement expansion opportunity analysis
+
+---
+
+## PHASE 12: INVENTORY MANAGEMENT
+**Duration:** Weeks 25-28
+**Team:** 2 Backend Engineers, 1 Frontend Engineer, 1 Mobile Engineer
+
+### 12.1 Inventory Database Schema
+```
+Location: /database/migrations/
+Files to create:
+├── 030_create_products.sql
+├── 031_create_warehouses.sql
+├── 032_create_inventory_levels.sql
+├── 033_create_stock_movements.sql
+├── 034_create_purchase_orders.sql
+├── 035_create_suppliers.sql
+├── 036_create_inventory_counts.sql
+└── 037_create_vehicle_inventory.sql
+```
+
+**Tasks:**
+- [ ] 12.1.1 Design product catalog schema (SKU, barcode, category, unit)
+- [ ] 12.1.2 Create warehouse/storage location tables
+- [ ] 12.1.3 Implement inventory levels with lot tracking
+- [ ] 12.1.4 Create stock movement ledger (immutable)
+- [ ] 12.1.5 Design purchase order workflow tables
+- [ ] 12.1.6 Create supplier management tables
+- [ ] 12.1.7 Implement vehicle inventory (mobile stock per technician)
+
+### 12.2 Product Catalog Service
+```
+Location: /src/modules/inventory/products/
+Files to create:
+├── product.service.ts
+├── product.repository.ts
+├── product.controller.ts
+├── product.routes.ts
+├── category-manager.ts
+├── barcode-generator.ts
+└── product.types.ts
+```
+
+**Tasks:**
+- [ ] 12.2.1 Implement product CRUD operations
+- [ ] 12.2.2 Create category hierarchy management
+- [ ] 12.2.3 Build barcode/SKU generation
+- [ ] 12.2.4 Implement product variants (size, color)
+- [ ] 12.2.5 Create product pricing (cost, margin, sale price)
+- [ ] 12.2.6 Link products to price book items
+
+### 12.3 Stock Management Service
+```
+Location: /src/modules/inventory/stock/
+Files to create:
+├── stock.service.ts
+├── stock.repository.ts
+├── stock-movement.service.ts
+├── reservation.service.ts
+├── reorder-point.calculator.ts
+├── fifo-calculator.ts
+└── stock.types.ts
+```
+
+**Tasks:**
+- [ ] 12.3.1 Implement real-time stock level tracking
+- [ ] 12.3.2 Create stock movement recording (in, out, transfer, adjustment)
+- [ ] 12.3.3 Build stock reservation for jobs
+- [ ] 12.3.4 Implement FIFO/LIFO cost calculation
+- [ ] 12.3.5 Create reorder point automation
+- [ ] 12.3.6 Build low stock alerts
+- [ ] 12.3.7 Implement stock valuation reports
+
+### 12.4 Purchase Order Service
+```
+Location: /src/modules/inventory/purchasing/
+Files to create:
+├── purchase-order.service.ts
+├── purchase-order.repository.ts
+├── purchase-order.controller.ts
+├── supplier.service.ts
+├── receiving.service.ts
+├── po-state-machine.ts
+└── purchasing.types.ts
+```
+
+**Tasks:**
+- [ ] 12.4.1 Implement supplier management
+- [ ] 12.4.2 Create purchase order workflow (draft → sent → partial → received)
+- [ ] 12.4.3 Build receiving workflow with variance handling
+- [ ] 12.4.4 Implement automatic PO generation from reorder points
+- [ ] 12.4.5 Create supplier price lists
+- [ ] 12.4.6 Build purchase order reporting
+
+### 12.5 Vehicle/Technician Inventory
+```
+Location: /src/modules/inventory/vehicle/
+Files to create:
+├── vehicle-inventory.service.ts
+├── vehicle-stock.repository.ts
+├── replenishment.service.ts
+├── usage-tracker.ts
+└── vehicle-transfer.service.ts
+```
+
+**Tasks:**
+- [ ] 12.5.1 Implement per-technician mobile stock
+- [ ] 12.5.2 Create stock transfer to/from vehicles
+- [ ] 12.5.3 Build automatic usage deduction on job completion
+- [ ] 12.5.4 Implement replenishment requests
+- [ ] 12.5.5 Create vehicle inventory auditing
+
+### 12.6 Job-Inventory Integration
+```
+Location: /src/modules/jobs/inventory/
+Files to create:
+├── job-materials.service.ts
+├── material-reservation.ts
+├── usage-recording.ts
+└── costing.service.ts
+```
+
+**Tasks:**
+- [ ] 12.6.1 Add materials/parts to job workflow
+- [ ] 12.6.2 Implement material reservation on job creation
+- [ ] 12.6.3 Create usage recording during job completion
+- [ ] 12.6.4 Build job costing with materials
+- [ ] 12.6.5 Implement automatic invoice line items from materials
+
+### 12.7 Inventory UI (Web)
+```
+Files to create:
+├── app/(dashboard)/inventory/
+│   ├── page.tsx (Overview)
+│   ├── products/
+│   │   ├── page.tsx
+│   │   ├── [id]/page.tsx
+│   │   └── new/page.tsx
+│   ├── stock/
+│   │   ├── page.tsx
+│   │   ├── movements/page.tsx
+│   │   └── adjustments/page.tsx
+│   ├── warehouses/
+│   │   ├── page.tsx
+│   │   └── [id]/page.tsx
+│   ├── purchasing/
+│   │   ├── page.tsx
+│   │   ├── orders/[id]/page.tsx
+│   │   └── suppliers/page.tsx
+│   └── vehicles/page.tsx
+├── components/inventory/
+│   ├── ProductCard.tsx
+│   ├── StockLevelIndicator.tsx
+│   ├── MovementHistory.tsx
+│   ├── BarcodeScanner.tsx
+│   └── WarehouseSelector.tsx
+```
+
+**Tasks:**
+- [ ] 12.7.1 Build inventory dashboard with stock alerts
+- [ ] 12.7.2 Create product catalog management UI
+- [ ] 12.7.3 Build stock level viewer with history
+- [ ] 12.7.4 Create stock adjustment interface
+- [ ] 12.7.5 Build purchase order management UI
+- [ ] 12.7.6 Create supplier management page
+- [ ] 12.7.7 Build vehicle inventory tracking page
+- [ ] 12.7.8 Implement barcode scanning support
+
+### 12.8 Mobile Inventory Features
+```
+Files to create (mobile):
+├── app/(tabs)/inventory/
+│   ├── index.tsx
+│   ├── scan.tsx
+│   ├── request.tsx
+│   └── usage.tsx
+├── components/inventory/
+│   ├── InventoryList.tsx
+│   ├── BarcodeScanner.tsx
+│   ├── UsageForm.tsx
+│   └── ReplenishmentRequest.tsx
+```
+
+**Tasks:**
+- [ ] 12.8.1 Build technician vehicle inventory view
+- [ ] 12.8.2 Implement barcode scanning for usage
+- [ ] 12.8.3 Create replenishment request flow
+- [ ] 12.8.4 Add materials selection to job completion
+- [ ] 12.8.5 Implement offline inventory with sync
+
+---
+
+## PHASE 13: CUSTOMER SELF-SERVICE PORTAL
+**Duration:** Weeks 29-32
+**Team:** 2 Frontend Engineers, 1 Backend Engineer
+
+### 13.1 Customer Authentication System
+```
+Location: /src/modules/customer-portal/auth/
+Files to create:
+├── customer-auth.service.ts
+├── magic-link.service.ts
+├── customer-session.service.ts
+├── customer-otp.service.ts
+└── customer-auth.types.ts
+```
+
+**Tasks:**
+- [ ] 13.1.1 Implement customer authentication (separate from internal users)
+- [ ] 13.1.2 Create magic link login flow (email-based)
+- [ ] 13.1.3 Implement phone OTP as secondary option
+- [ ] 13.1.4 Create customer session management
+- [ ] 13.1.5 Build account linking (phone → email)
+- [ ] 13.1.6 Implement "Login as customer" for support
+
+### 13.2 Customer Portal Backend
+```
+Location: /src/modules/customer-portal/
+Files to create:
+├── portal.service.ts
+├── portal.controller.ts
+├── portal.routes.ts
+├── booking/
+│   ├── booking.service.ts
+│   ├── availability.service.ts
+│   └── booking-rules.ts
+├── history/
+│   ├── job-history.service.ts
+│   └── invoice-history.service.ts
+├── payments/
+│   ├── customer-payments.service.ts
+│   └── payment-methods.service.ts
+└── communication/
+    ├── ticket.service.ts
+    └── feedback.service.ts
+```
+
+**Tasks:**
+- [ ] 13.2.1 Create customer-facing API endpoints (limited scope)
+- [ ] 13.2.2 Implement job booking/request flow
+- [ ] 13.2.3 Build availability checking service
+- [ ] 13.2.4 Create booking rules engine (service types, locations, times)
+- [ ] 13.2.5 Implement job history viewing
+- [ ] 13.2.6 Create invoice viewing and PDF download
+- [ ] 13.2.7 Build online payment flow
+- [ ] 13.2.8 Create support ticket system
+- [ ] 13.2.9 Implement feedback/rating submission
+
+### 13.3 Customer Portal Web App
+```
+Location: /apps/customer-portal/
+Files to create:
+├── app/
+│   ├── layout.tsx
+│   ├── page.tsx (Landing/Login)
+│   ├── (auth)/
+│   │   ├── login/page.tsx
+│   │   └── verify/page.tsx
+│   ├── (portal)/
+│   │   ├── layout.tsx
+│   │   ├── page.tsx (Dashboard)
+│   │   ├── book/
+│   │   │   ├── page.tsx
+│   │   │   ├── service/page.tsx
+│   │   │   ├── datetime/page.tsx
+│   │   │   └── confirm/page.tsx
+│   │   ├── jobs/
+│   │   │   ├── page.tsx
+│   │   │   └── [id]/page.tsx
+│   │   ├── invoices/
+│   │   │   ├── page.tsx
+│   │   │   └── [id]/page.tsx
+│   │   ├── payments/
+│   │   │   ├── page.tsx
+│   │   │   └── pay/[invoiceId]/page.tsx
+│   │   ├── support/
+│   │   │   ├── page.tsx
+│   │   │   └── [ticketId]/page.tsx
+│   │   └── profile/page.tsx
+│   └── api/
+├── components/
+│   ├── ui/
+│   ├── booking/
+│   │   ├── ServiceSelector.tsx
+│   │   ├── DateTimePicker.tsx
+│   │   ├── AddressForm.tsx
+│   │   └── BookingSummary.tsx
+│   ├── jobs/
+│   │   ├── JobCard.tsx
+│   │   ├── JobTimeline.tsx
+│   │   └── TechnicianInfo.tsx
+│   └── payments/
+│       ├── PaymentForm.tsx
+│       └── PaymentHistory.tsx
+└── lib/
+    ├── customer-api.ts
+    └── customer-auth.tsx
+```
+
+**Tasks:**
+- [ ] 13.3.1 Set up separate Next.js app for customer portal
+- [ ] 13.3.2 Build login/authentication pages
+- [ ] 13.3.3 Create customer dashboard (upcoming jobs, recent invoices)
+- [ ] 13.3.4 Build multi-step booking flow
+- [ ] 13.3.5 Create service selection with pricing
+- [ ] 13.3.6 Implement date/time slot picker
+- [ ] 13.3.7 Build job history and detail pages
+- [ ] 13.3.8 Create invoice viewing with PDF download
+- [ ] 13.3.9 Implement online payment flow (MercadoPago)
+- [ ] 13.3.10 Build support ticket creation and tracking
+- [ ] 13.3.11 Create profile management page
+- [ ] 13.3.12 Implement job rating/feedback flow
+
+### 13.4 Real-Time Job Tracking
+```
+Location: /src/modules/customer-portal/tracking/
+Files to create:
+├── tracking.service.ts
+├── eta-calculator.ts
+├── websocket-handler.ts
+└── notification-preferences.ts
+```
+
+**Tasks:**
+- [ ] 13.4.1 Implement real-time job status updates (WebSocket)
+- [ ] 13.4.2 Create ETA calculation and updates
+- [ ] 13.4.3 Build technician location sharing (with privacy controls)
+- [ ] 13.4.4 Implement push notifications for customers
+- [ ] 13.4.5 Create notification preference management
+
+### 13.5 Customer Portal UI (Tracking Page)
+```
+Files to create:
+├── app/(portal)/track/[jobId]/page.tsx
+├── components/tracking/
+│   ├── LiveMap.tsx
+│   ├── ETADisplay.tsx
+│   ├── StatusTimeline.tsx
+│   └── TechnicianCard.tsx
+```
+
+**Tasks:**
+- [ ] 13.5.1 Build live tracking page with map
+- [ ] 13.5.2 Create ETA display with real-time updates
+- [ ] 13.5.3 Implement status timeline visualization
+- [ ] 13.5.4 Build technician profile card
+
+### 13.6 White-Label Configuration
+```
+Location: /src/modules/customer-portal/branding/
+Files to create:
+├── branding.service.ts
+├── theme-generator.ts
+└── domain-router.ts
+```
+
+**Tasks:**
+- [ ] 13.6.1 Implement per-organization branding (logo, colors)
+- [ ] 13.6.2 Create custom domain support
+- [ ] 13.6.3 Build theme configuration UI (admin portal)
+- [ ] 13.6.4 Implement email template customization
+
+---
+
+## PHASE 14: API FOR THIRD-PARTY INTEGRATIONS
+**Duration:** Weeks 33-36
+**Team:** 2 Backend Engineers, 1 Technical Writer
+
+### 14.1 Public API Design
+```
+Location: /src/api/public/
+Files to create:
+├── v1/
+│   ├── router.ts
+│   ├── customers/
+│   │   ├── customers.controller.ts
+│   │   └── customers.schema.ts
+│   ├── jobs/
+│   │   ├── jobs.controller.ts
+│   │   └── jobs.schema.ts
+│   ├── invoices/
+│   │   ├── invoices.controller.ts
+│   │   └── invoices.schema.ts
+│   ├── payments/
+│   │   ├── payments.controller.ts
+│   │   └── payments.schema.ts
+│   └── webhooks/
+│       ├── webhooks.controller.ts
+│       └── webhook-events.ts
+├── middleware/
+│   ├── api-key.middleware.ts
+│   ├── oauth.middleware.ts
+│   ├── rate-limit.middleware.ts
+│   ├── scope-check.middleware.ts
+│   └── api-versioning.middleware.ts
+└── public-api.types.ts
+```
+
+**Tasks:**
+- [ ] 14.1.1 Design RESTful API following OpenAPI 3.0 spec
+- [ ] 14.1.2 Define API versioning strategy (URL-based: /v1/)
+- [ ] 14.1.3 Create resource endpoints (customers, jobs, invoices, payments)
+- [ ] 14.1.4 Implement pagination (cursor-based)
+- [ ] 14.1.5 Design webhook event system
+- [ ] 14.1.6 Create rate limiting per API key
+
+### 14.2 API Authentication & Authorization
+```
+Location: /src/api/public/auth/
+Files to create:
+├── api-key.service.ts
+├── oauth-server.ts
+├── oauth-clients.service.ts
+├── scopes.ts
+├── token-introspection.ts
+└── api-auth.types.ts
+```
+
+**Tasks:**
+- [ ] 14.2.1 Implement API key authentication
+- [ ] 14.2.2 Create API key management (generate, revoke, rotate)
+- [ ] 14.2.3 Build OAuth 2.0 server (authorization code + client credentials)
+- [ ] 14.2.4 Define granular scopes (read:customers, write:jobs, etc.)
+- [ ] 14.2.5 Implement scope-based access control
+- [ ] 14.2.6 Create token introspection endpoint
+
+### 14.3 Webhook System
+```
+Location: /src/api/public/webhooks/
+Files to create:
+├── webhook.service.ts
+├── webhook.repository.ts
+├── webhook-delivery.worker.ts
+├── webhook-retry.strategy.ts
+├── signature.generator.ts
+├── event-types.ts
+└── webhook.types.ts
+```
+
+**Tasks:**
+- [ ] 14.3.1 Define webhook event types (job.created, invoice.issued, payment.received, etc.)
+- [ ] 14.3.2 Implement webhook registration API
+- [ ] 14.3.3 Create webhook delivery worker with retries
+- [ ] 14.3.4 Implement webhook signature (HMAC-SHA256)
+- [ ] 14.3.5 Build webhook delivery logs
+- [ ] 14.3.6 Create webhook testing tools (test endpoint, replay)
+- [ ] 14.3.7 Implement webhook filtering by event type
+
+### 14.4 Developer Portal
+```
+Location: /apps/developer-portal/
+Files to create:
+├── app/
+│   ├── layout.tsx
+│   ├── page.tsx (Landing)
+│   ├── docs/
+│   │   ├── page.tsx
+│   │   ├── [...slug]/page.tsx
+│   │   └── api-reference/page.tsx
+│   ├── console/
+│   │   ├── layout.tsx
+│   │   ├── page.tsx (Dashboard)
+│   │   ├── apps/
+│   │   │   ├── page.tsx
+│   │   │   ├── [id]/page.tsx
+│   │   │   └── new/page.tsx
+│   │   ├── keys/page.tsx
+│   │   ├── webhooks/page.tsx
+│   │   └── logs/page.tsx
+│   └── playground/page.tsx
+├── components/
+│   ├── docs/
+│   │   ├── CodeBlock.tsx
+│   │   ├── ApiEndpoint.tsx
+│   │   └── SchemaViewer.tsx
+│   └── console/
+│       ├── AppCard.tsx
+│       ├── ApiKeyManager.tsx
+│       └── WebhookTester.tsx
+└── content/
+    └── docs/
+        ├── getting-started.mdx
+        ├── authentication.mdx
+        ├── rate-limits.mdx
+        ├── webhooks.mdx
+        └── api-reference/
+```
+
+**Tasks:**
+- [ ] 14.4.1 Build developer portal landing page
+- [ ] 14.4.2 Create documentation site (MDX-based)
+- [ ] 14.4.3 Build interactive API reference (from OpenAPI spec)
+- [ ] 14.4.4 Create developer console for app management
+- [ ] 14.4.5 Build API key management UI
+- [ ] 14.4.6 Create webhook configuration UI
+- [ ] 14.4.7 Build API playground for testing
+- [ ] 14.4.8 Implement request logs viewer
+- [ ] 14.4.9 Create SDK code generation examples
+
+### 14.5 SDK Generation
+```
+Location: /packages/sdk/
+Files to create:
+├── typescript/
+│   ├── src/
+│   │   ├── index.ts
+│   │   ├── client.ts
+│   │   ├── resources/
+│   │   │   ├── customers.ts
+│   │   │   ├── jobs.ts
+│   │   │   ├── invoices.ts
+│   │   │   └── payments.ts
+│   │   └── types/
+│   ├── package.json
+│   └── README.md
+├── python/
+│   ├── campotech/
+│   │   ├── __init__.py
+│   │   ├── client.py
+│   │   └── resources/
+│   ├── setup.py
+│   └── README.md
+└── openapi/
+    └── campotech-api.yaml
+```
+
+**Tasks:**
+- [ ] 14.5.1 Generate OpenAPI specification from code
+- [ ] 14.5.2 Create TypeScript SDK
+- [ ] 14.5.3 Create Python SDK
+- [ ] 14.5.4 Publish SDKs to npm/PyPI
+- [ ] 14.5.5 Create SDK documentation with examples
+
+### 14.6 Pre-Built Integrations
+```
+Location: /src/integrations/third-party/
+Files to create:
+├── google-calendar/
+│   ├── calendar-sync.service.ts
+│   └── google-oauth.ts
+├── quickbooks/
+│   ├── quickbooks-sync.service.ts
+│   └── quickbooks-oauth.ts
+├── zapier/
+│   ├── zapier-triggers.ts
+│   └── zapier-actions.ts
+└── integration-manager.ts
+```
+
+**Tasks:**
+- [ ] 14.6.1 Create Google Calendar two-way sync
+- [ ] 14.6.2 Build QuickBooks/accounting software integration
+- [ ] 14.6.3 Create Zapier app (triggers and actions)
+- [ ] 14.6.4 Implement integration marketplace UI
+- [ ] 14.6.5 Build connected apps management
+
+### 14.7 API Analytics & Monitoring
+```
+Location: /src/api/public/analytics/
+Files to create:
+├── api-usage.service.ts
+├── rate-limit-tracker.ts
+├── error-tracker.ts
+└── usage-reports.ts
+```
+
+**Tasks:**
+- [ ] 14.7.1 Implement API usage tracking per key
+- [ ] 14.7.2 Create rate limit monitoring
+- [ ] 14.7.3 Build error rate tracking
+- [ ] 14.7.4 Create usage dashboard for developers
+- [ ] 14.7.5 Implement usage alerts and quotas
 
 ---
 
 ## TEAM RECOMMENDATIONS
+
+### MVP Team (Phases 1-9)
 
 | Role | Count | Phases |
 |------|-------|--------|
@@ -903,11 +1763,40 @@ Files to create:
 | QA Engineer | 1 | All phases |
 | Product Manager | 1 | All phases |
 
-**Total Team Size:** 9-10 people
+**MVP Team Size:** 9-10 people
+
+### Post-MVP Team (Phases 10-14)
+
+| Role | Count | Phases |
+|------|-------|--------|
+| Backend Engineer (Senior) | 1 | 10-14 |
+| Backend Engineer | 2 | 10-14 |
+| Frontend Engineer | 2 | 10, 11.5, 12.7, 13, 14.4 |
+| Mobile Engineer | 1 | 12.8 |
+| Data Engineer | 1 | 10.1-10.5 |
+| Technical Writer | 1 | 14.4-14.5 |
+| DevOps Engineer | 1 | Infrastructure support |
+| QA Engineer | 1 | All phases |
+
+**Post-MVP Team Size:** 10-11 people
+
+### Estimated Effort by Phase (Post-MVP)
+
+| Phase | Estimated Hours | Key Deliverables |
+|-------|-----------------|------------------|
+| **Phase 10** | ~400 hours | Analytics infrastructure, KPIs, dashboards, reports |
+| **Phase 11** | ~350 hours | Multi-location, zones, cross-location dispatch |
+| **Phase 12** | ~500 hours | Full inventory system, purchasing, mobile features |
+| **Phase 13** | ~450 hours | Customer portal, booking, tracking, payments |
+| **Phase 14** | ~400 hours | Public API, developer portal, SDKs, integrations |
+
+**Total Post-MVP Effort:** ~2100 additional developer hours
 
 ---
 
 ## RISK MITIGATION
+
+### MVP Risks (Phases 1-9)
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|------------|--------|------------|
@@ -916,6 +1805,19 @@ Files to create:
 | Mobile performance on low-end devices | Medium | High | Early device testing, performance budgets |
 | WhatsApp template rejection | Medium | Medium | Prepare multiple template variants |
 | Team velocity slower than planned | Medium | High | Buffer time in estimates, MVP scope flexibility |
+
+### Post-MVP Risks (Phases 10-14)
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| Analytics query performance | Medium | High | Pre-aggregated data, materialized views, caching |
+| Multi-location data isolation | Medium | High | Thorough RLS testing, audit logging |
+| Inventory sync conflicts | Medium | Medium | Conflict resolution UI, clear merge rules |
+| Customer portal security | Low | Critical | Security audit, rate limiting, fraud detection |
+| API backward compatibility | Medium | High | Semantic versioning, deprecation policy, SDKs |
+| Third-party integration changes | Medium | Medium | Webhook retry logic, integration health monitoring |
+| Data migration complexity | Medium | High | Staged rollouts, feature flags, rollback plans |
+| Customer adoption of portal | Medium | Medium | UX testing, gradual feature introduction, tutorials |
 
 ---
 
