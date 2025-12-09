@@ -15,6 +15,7 @@
 7. [Privacy & Trust Communication](#7-privacy--trust-communication)
 8. [Technical Architecture](#8-technical-architecture)
    - [8.4 Customer Live Tracking System](#84-customer-live-tracking-system)
+   - [8.5 Mobile-First Design Strategy](#85-mobile-first-design-strategy)
 9. [Rejected Alternatives](#9-rejected-alternatives)
 10. [Glossary](#10-glossary)
 
@@ -1643,6 +1644,192 @@ async function validateTrackingToken(token: string): Promise<string | null> {
 }
 ```
 
+### 8.5 Mobile-First Design Strategy
+
+**Core Principle:** A plumber starting their business with only a smartphone must be able to run their entire operation from CampoTech mobile app. No laptop required.
+
+#### 8.5.1 Why Mobile-First for Argentina
+
+```
+Reality of Argentine tradespeople:
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  👷 Juan wants to start a plumbing business                │
+│                                                             │
+│  What he has:                                               │
+│  ✅ Smartphone (probably Android)                          │
+│  ✅ WhatsApp                                                │
+│  ✅ Tools and skills                                        │
+│  ❌ Laptop                                                  │
+│  ❌ Office                                                  │
+│  ❌ IT knowledge                                            │
+│                                                             │
+│  CampoTech must work 100% on his phone                      │
+│  or we lose this customer to competitors                    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Market reality:**
+- 85%+ of Argentine SMB owners manage business primarily from phone
+- Many tradespeople have never owned a laptop
+- Field service = always on the move
+- Phone is the office, cash register, and communication hub
+
+#### 8.5.2 Feature Parity by Platform
+
+| Feature | Mobile App | Web Dashboard |
+|---------|------------|---------------|
+| **Account Setup** | ✅ Full (can sign up from phone) | ✅ Full |
+| **Team Management** | ✅ Add/edit/remove members | ✅ Same + bulk import |
+| **Job Creation** | ✅ Full with voice input | ✅ Same |
+| **Scheduling** | ✅ Calendar view + drag/drop | ✅ Same + week/month view |
+| **Job Assignment** | ✅ One-tap assign | ✅ Same + bulk assign |
+| **Customer Database** | ✅ Full CRUD | ✅ Same + export |
+| **Invoicing** | ✅ Create + send | ✅ Same + batch |
+| **Payments** | ✅ Record + MercadoPago | ✅ Same |
+| **Notifications** | ✅ Push + in-app | ✅ Browser + email |
+| **Reports** | ✅ Summary charts | ✅ Detailed + export |
+| **Settings** | ✅ Full configuration | ✅ Same |
+
+**Rule:** If it's in the web dashboard, it MUST be in the mobile app (even if simplified).
+
+#### 8.5.3 Mobile-First UI Patterns
+
+**Scheduling on Mobile:**
+```
+┌─────────────────────────────────────────┐
+│ 📅 Hoy - Lunes 9 Dic           [+ Nuevo]│
+├─────────────────────────────────────────┤
+│                                         │
+│  09:00 ┌────────────────────────────┐  │
+│        │ 🔧 Instalación split       │  │
+│        │ María López - Palermo      │  │
+│        │ [Carlos R.] ⭐             │  │
+│        └────────────────────────────┘  │
+│                                         │
+│  12:00 ┌────────────────────────────┐  │
+│        │ 🔧 Reparación              │  │
+│        │ Pedro García - Belgrano    │  │
+│        │ [Sin asignar] ⚠️           │  │
+│        │                            │  │
+│        │ [Asignarme] [Asignar otro] │  │
+│        └────────────────────────────┘  │
+│                                         │
+│  16:00 ┌────────────────────────────┐  │
+│        │ 🔧 Mantenimiento           │  │
+│        │ Ana Ruiz - Recoleta        │  │
+│        │ [Carlos R.] ⭐             │  │
+│        └────────────────────────────┘  │
+│                                         │
+├─────────────────────────────────────────┤
+│  [◀ Ayer]   [Hoy]   [Mañana ▶]         │
+├─────────────────────────────────────────┤
+│ 🏠   📅   ➕   👥   ⚙️               │
+│ Home Cal  New Team  Settings           │
+└─────────────────────────────────────────┘
+```
+
+**Adding Team Member on Mobile:**
+```
+┌─────────────────────────────────────────┐
+│ ← Agregar Técnico                       │
+├─────────────────────────────────────────┤
+│                                         │
+│  📷 [Agregar foto]                      │
+│                                         │
+│  Nombre *                               │
+│  ┌─────────────────────────────────┐   │
+│  │ Juan Pérez                      │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  Teléfono *                             │
+│  ┌──────┐ ┌──────────────────────┐     │
+│  │🇦🇷+54│ │ 11 5678 1234         │     │
+│  └──────┘ └──────────────────────┘     │
+│                                         │
+│  Email *                                │
+│  ┌─────────────────────────────────┐   │
+│  │ juan@email.com                  │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  Rol                                    │
+│  ┌─────────────────────────────────┐   │
+│  │ Técnico                       ▼ │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  Especialidad                           │
+│  ┌─────────────────────────────────┐   │
+│  │ Instalación de splits         ▼ │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  ☑️ Enviar invitación por WhatsApp      │
+│                                         │
+│  ┌─────────────────────────────────┐   │
+│  │        AGREGAR TÉCNICO          │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+└─────────────────────────────────────────┘
+```
+
+#### 8.5.4 Offline Capability
+
+For areas with poor connectivity (common in GBA outskirts):
+
+```typescript
+// Essential features that work offline:
+const OFFLINE_FEATURES = {
+  viewSchedule: true,       // Cached job list
+  viewCustomerDetails: true, // Cached customer data
+  updateJobStatus: true,    // Queued for sync
+  takePhotos: true,         // Stored locally
+  recordNotes: true,        // Queued for sync
+  viewMaps: false,          // Requires network
+  sendMessages: false,      // Queued for sync
+  createInvoice: false,     // Requires network
+};
+
+// Sync when back online
+class OfflineSync {
+  async syncPendingChanges() {
+    const pending = await localDb.getPendingChanges();
+
+    for (const change of pending) {
+      try {
+        await api.sync(change);
+        await localDb.markSynced(change.id);
+      } catch (error) {
+        // Will retry next time
+        console.log('Sync failed, will retry:', change);
+      }
+    }
+  }
+}
+```
+
+#### 8.5.5 Web Dashboard: Enhancement, Not Requirement
+
+The web dashboard provides enhanced experience for those who want it:
+
+| Use Case | Mobile | Web Enhancement |
+|----------|--------|-----------------|
+| **Daily operations** | ✅ Primary | Nice-to-have |
+| **Weekly planning** | ✅ Works fine | Better overview |
+| **Monthly reports** | ✅ Summary view | Detailed + export |
+| **Bulk operations** | One-by-one | Batch processing |
+| **Team training** | ✅ Each on phone | Screen share option |
+
+**Onboarding message:**
+```
+"Descargá la app CampoTech para manejar tu negocio desde el celular.
+Si tenés computadora, también podés acceder desde campotech.com.ar"
+```
+
+Not:
+```
+"Registrate en campotech.com.ar y descargá la app para tus técnicos."
+```
+
 ---
 
 ## 9. Rejected Alternatives
@@ -1728,12 +1915,24 @@ async function validateTrackingToken(token: string): Promise<string | null> {
 
 **When to reconsider:** 10,000+ active users, dedicated DevOps team
 
-#### Alternative: Mobile-Only (No Web)
+#### Alternative: Web-Only (No Mobile App)
 **Why rejected:**
-- Business owners need desktop for admin tasks
-- Scheduling easier on big screen
-- Reports and analytics need space
-- Some users are desktop-first
+- Many Argentine tradespeople starting a business only have a smartphone
+- Technicians need mobile app in the field (GPS, photos, status updates)
+- Job notifications must be instant (push notifications)
+- WhatsApp integration requires mobile presence
+- Excluding laptop-less entrepreneurs hurts market reach
+
+**CampoTech is Mobile-First:** A plumber can run their entire business from their phone. Web dashboard is an enhancement, not a requirement.
+
+#### Alternative: Web-First with Mobile as Afterthought
+**Why rejected:**
+- Would create second-class mobile experience
+- Most Argentine SMB owners manage business from phone
+- Field workers (technicians) are 100% mobile
+- Critical features must work perfectly on small screens
+
+**Our approach:** Design mobile first, enhance for desktop
 
 #### Alternative: WhatsApp Business App Integration (No API)
 **Why rejected:**
@@ -1815,6 +2014,7 @@ BUT: Accurate ETAs → Happy customers → Retention → Worth it
 | 1.0 | 2024-12-09 | Initial comprehensive documentation |
 | 1.1 | 2024-12-09 | Added Customer Live Tracking System (Section 8.4) with technical implementation, tier-based map providers (Básico: static, Profesional: Mapbox, Empresarial: Google Maps), walking/driving detection, and rejected OpenStreetMap alternative |
 | 1.2 | 2024-12-09 | Added Message Aggregation system (Section 5.2) for handling conversational message flows - 8-second buffering window, trigger conditions, example scenarios, and conversation history context |
+| 1.3 | 2024-12-09 | Added Mobile-First Design Strategy (Section 8.5) - full feature parity on mobile, offline capability, UI mockups for scheduling and team management. Updated rejected alternatives to emphasize mobile-first approach for laptop-less entrepreneurs |
 
 ---
 
