@@ -302,3 +302,21 @@ enum VoiceMessageStatus {
   APPROVED
   REJECTED
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTHENTICATION - OTP CODES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  phone     String
+  codeHash  String   // SHA-256 hash of the OTP code
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@index([expiresAt])
+  @@map("otp_codes")
+}

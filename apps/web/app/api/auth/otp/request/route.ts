@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requestOTP } from '@/lib/otp';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +14,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Clean phone number
+    // Clean phone number for user lookup
     const cleanPhone = phone.replace(/\D/g, '');
 
     // Check if user exists
@@ -33,15 +34,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // In production, you would send SMS here
-    // For demo, we just return success
-    // The OTP code is "123456" for testing
+    // Request OTP (will send SMS in production, log in dev)
+    const result = await requestOTP(phone);
 
-    console.log(`OTP requested for ${phone} - Use code: 123456`);
+    if (!result.success) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            message: result.error || 'Error al enviar el código',
+            rateLimited: result.rateLimited
+          }
+        },
+        { status: result.rateLimited ? 429 : 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
-      data: { sent: true },
+      data: {
+        sent: true,
+        devMode: result.devMode // Let frontend know if in dev mode
+      },
     });
   } catch (error) {
     console.error('Request OTP error:', error);
