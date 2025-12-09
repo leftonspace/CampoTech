@@ -106,3 +106,20 @@ export type {
   InstallmentOption,
   PromotionalInstallment,
 } from './cuotas';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CHARGEBACK (DISPUTES)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export {
+  ChargebackHandler,
+  getChargebackHandler,
+  processChargebackWebhook,
+} from './chargeback';
+export type {
+  Chargeback,
+  ChargebackStatus,
+  ChargebackReason,
+  ChargebackProcessResult,
+  ChargebackEvidence,
+} from './chargeback';

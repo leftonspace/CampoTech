@@ -377,13 +377,32 @@ async function processChargebackWebhook(
     action: notification.action,
   });
 
-  // TODO: Implement chargeback handling
-  // For now, just log and acknowledge
+  // Import chargeback handler dynamically to avoid circular dependencies
+  const { processChargebackWebhook: handleChargeback } = await import('../chargeback');
+
+  // Process the chargeback notification
+  // Note: We need orgId which we can get from the payment via external reference
+  // For now, we'll process without orgId and let the handler figure it out
+  const result = await handleChargeback(
+    context.accessToken,
+    chargebackId,
+    notification.action as 'chargeback.created' | 'chargeback.updated',
+    '' // orgId will be determined from payment lookup
+  );
+
+  if (!result.success) {
+    log.error('Failed to process chargeback', {
+      chargebackId,
+      error: result.error,
+    });
+  }
 
   return {
-    success: true,
+    success: result.success,
     action: notification.action,
-    paymentId: chargebackId,
+    paymentId: result.paymentId || chargebackId,
+    invoiceId: result.invoiceId,
+    error: result.error,
   };
 }
 
