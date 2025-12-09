@@ -276,7 +276,7 @@ function PriceItemModal({ item, onClose, onSave, isLoading }: PriceItemModalProp
                     value="service"
                     checked={formData.type === 'service'}
                     onChange={(e) =>
-                      setFormData({ ...formData, type: e.target.value })
+                      setFormData({ ...formData, type: e.target.value as 'service' | 'product' })
                     }
                     className="text-primary-600"
                   />
@@ -290,7 +290,7 @@ function PriceItemModal({ item, onClose, onSave, isLoading }: PriceItemModalProp
                     value="product"
                     checked={formData.type === 'product'}
                     onChange={(e) =>
-                      setFormData({ ...formData, type: e.target.value })
+                      setFormData({ ...formData, type: e.target.value as 'service' | 'product' })
                     }
                     className="text-primary-600"
                   />
