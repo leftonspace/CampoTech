@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { getOrCreateSMSProvider } from '@/lib/sms';
 
 export async function GET(request: NextRequest) {
   try {
@@ -156,6 +157,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get organization name for notification
+    const organization = await prisma.organization.findUnique({
+      where: { id: session.organizationId },
+      select: { name: true },
+    });
+
     const user = await prisma.user.create({
       data: {
         name: body.name,
@@ -180,9 +187,29 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Send welcome notification if requested
+    let notificationSent = false;
+    if (body.sendNotification) {
+      try {
+        const smsProvider = getOrCreateSMSProvider();
+        const welcomeMessage = `Hola ${body.name}! Fuiste agregado al equipo de ${organization?.name || 'CampoTech'}. Descargá la app CampoTech para gestionar tus trabajos. Tu número de acceso es: ${body.phone}`;
+
+        const result = await smsProvider.sendSMS(body.phone, welcomeMessage);
+        notificationSent = result.success;
+
+        if (!result.success) {
+          console.warn('Failed to send welcome SMS:', result.error);
+        }
+      } catch (smsError) {
+        console.error('Error sending welcome SMS:', smsError);
+        // Don't fail the user creation if SMS fails
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: user,
+      notificationSent,
     });
   } catch (error) {
     console.error('Create user error:', error);
