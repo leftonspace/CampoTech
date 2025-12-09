@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createToken } from '@/lib/auth';
+import { verifyOTP } from '@/lib/otp';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,15 +15,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // For demo purposes, accept "123456" as valid code
-    if (code !== '123456') {
+    // Verify OTP (handles dev bypass with code "123456" automatically)
+    const otpResult = await verifyOTP(phone, code);
+
+    if (!otpResult.success) {
       return NextResponse.json(
-        { success: false, error: { message: 'Código incorrecto' } },
+        {
+          success: false,
+          error: {
+            message: otpResult.error || 'Código incorrecto',
+            expired: otpResult.expired,
+            attemptsRemaining: otpResult.attemptsRemaining
+          }
+        },
         { status: 401 }
       );
     }
 
-    // Clean phone number
+    // Clean phone number for user lookup
     const cleanPhone = phone.replace(/\D/g, '');
 
     // Find user by phone
