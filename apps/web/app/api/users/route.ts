@@ -53,10 +53,8 @@ export async function GET(request: NextRequest) {
           skillLevel: true,
           avatar: true,
           isActive: true,
-          createdAt: true,
-          updatedAt: true,
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { name: 'asc' },
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -101,8 +99,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only OWNER and ADMIN can create users
-    if (!['OWNER', 'ADMIN'].includes(session.role)) {
+    // Only OWNER, ADMIN, and DISPATCHER can create users
+    if (!['OWNER', 'ADMIN', 'DISPATCHER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'Forbidden: insufficient permissions' },
         { status: 403 }

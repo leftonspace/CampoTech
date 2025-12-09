@@ -93,9 +93,9 @@ export async function PUT(
       );
     }
 
-    // Only OWNER and ADMIN can update other users
+    // Only OWNER, ADMIN, and DISPATCHER can update other users
     const isEditingSelf = session.userId === params.id;
-    if (!isEditingSelf && !['OWNER', 'ADMIN'].includes(session.role)) {
+    if (!isEditingSelf && !['OWNER', 'ADMIN', 'DISPATCHER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'Forbidden: insufficient permissions' },
         { status: 403 }
@@ -190,8 +190,8 @@ export async function DELETE(
       );
     }
 
-    // Only OWNER and ADMIN can delete users
-    if (!['OWNER', 'ADMIN'].includes(session.role)) {
+    // Only OWNER, ADMIN, and DISPATCHER can delete users
+    if (!['OWNER', 'ADMIN', 'DISPATCHER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'Forbidden: insufficient permissions' },
         { status: 403 }

@@ -23,11 +23,11 @@ interface TeamMember {
   name: string;
   phone: string;
   email?: string;
-  role: 'OWNER' | 'ADMIN' | 'TECHNICIAN' | 'VIEWER';
+  role: 'OWNER' | 'ADMIN' | 'DISPATCHER' | 'TECHNICIAN' | 'VIEWER';
   specialty?: string;
   skillLevel?: string;
+  avatar?: string;
   isActive: boolean;
-  createdAt: string;
 }
 
 // Argentine construction trade categories (UOCRA CCT 76/75)
@@ -66,6 +66,12 @@ const ROLE_CONFIG = {
     color: 'text-blue-600 bg-blue-50',
     description: 'Acceso completo excepto configuración de propietario',
   },
+  DISPATCHER: {
+    label: 'Despachador',
+    icon: Users,
+    color: 'text-orange-600 bg-orange-50',
+    description: 'Puede asignar y gestionar trabajos',
+  },
   TECHNICIAN: {
     label: 'Técnico',
     icon: Wrench,
@@ -93,22 +99,53 @@ export default function TeamSettingsPage() {
 
   const members = (data?.data as TeamMember[]) || [];
 
+  const [mutationError, setMutationError] = useState<string | null>(null);
+
   const createMutation = useMutation({
-    mutationFn: (data: Partial<TeamMember>) => api.users.create(data),
+    mutationFn: async (data: Partial<TeamMember>) => {
+      const result = await api.users.create(data);
+      if (!result.success) {
+        // Handle both string and object error formats
+        const errorMsg = typeof result.error === 'string'
+          ? result.error
+          : result.error?.message || 'Error al crear usuario';
+        throw new Error(errorMsg);
+      }
+      return result;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users-all'] });
       setShowModal(false);
       setEditingMember(null);
+      setMutationError(null);
+    },
+    onError: (error: Error) => {
+      setMutationError(error.message);
+      alert(`Error: ${error.message}`);
     },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<TeamMember> }) =>
-      api.users.update(id, data),
+    mutationFn: async ({ id, data }: { id: string; data: Partial<TeamMember> }) => {
+      const result = await api.users.update(id, data);
+      if (!result.success) {
+        // Handle both string and object error formats
+        const errorMsg = typeof result.error === 'string'
+          ? result.error
+          : result.error?.message || 'Error al actualizar usuario';
+        throw new Error(errorMsg);
+      }
+      return result;
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users-all'] });
       setShowModal(false);
       setEditingMember(null);
+      setMutationError(null);
+    },
+    onError: (error: Error) => {
+      setMutationError(error.message);
+      alert(`Error: ${error.message}`);
     },
   });
 
@@ -495,6 +532,7 @@ function TeamMemberModal({
                 disabled={isOwner}
               >
                 <option value="ADMIN">Administrador</option>
+                <option value="DISPATCHER">Despachador</option>
                 <option value="TECHNICIAN">Técnico</option>
                 <option value="VIEWER">Visualizador</option>
                 {isOwner && <option value="OWNER">Propietario</option>}
