@@ -444,10 +444,36 @@ All previously identified gaps have been addressed:
 | Component | Status | Location |
 |-----------|--------|----------|
 | Verification Service | ✅ | `/src/modules/users/onboarding/employee-verification.service.ts` |
+| Welcome Message Service | ✅ | `/src/modules/users/onboarding/welcome-message.service.ts` |
+| Onboarding Workflow | ✅ | `/src/modules/users/onboarding/onboarding-workflow.ts` |
 | Database Migration | ✅ | `/database/migrations/016_create_employee_verification.sql` |
 | Verification Tokens Table | ✅ | `employee_verification_tokens` |
 | Onboarding Progress Table | ✅ | `onboarding_progress` |
 | User Verification Fields | ✅ | `is_verified`, `verified_at`, `onboarding_step` |
+
+### 9.5.2 API Routes ✅
+| Route | Status | Location |
+|-------|--------|----------|
+| POST /api/users/verify | ✅ | `/apps/web/app/api/users/verify/route.ts` |
+| GET /api/users/verify | ✅ | Same file (status check) |
+| POST /api/users/verify/resend | ✅ | `/apps/web/app/api/users/verify/resend/route.ts` |
+| GET /api/users/pending-verifications | ✅ | `/apps/web/app/api/users/pending-verifications/route.ts` |
+| POST /api/users/pending-verifications | ✅ | Same file (manual verify, resend) |
+
+### 9.5.3 Integration Points ✅
+| Integration | Status | Description |
+|-------------|--------|-------------|
+| User Creation → Onboarding | ✅ | `initializeOnboarding()` called in `/apps/web/app/api/users/route.ts` |
+| WhatsApp-first Welcome | ✅ | Uses `employee_welcome` template with verification code |
+| SMS Fallback | ✅ | Falls back to SMS if WhatsApp fails |
+
+### 9.5.4 Admin UI ✅
+| Component | Status | Location |
+|-----------|--------|----------|
+| Pending Verifications List | ✅ | `/apps/web/app/dashboard/settings/team/page.tsx` |
+| Manual Verify Button | ✅ | Same file |
+| Resend Code Button | ✅ | Same file |
+| WhatsApp notification text | ✅ | Updated in team member modal |
 
 ### Features Implemented:
 - 6-digit verification code generation (15min expiry)
@@ -456,6 +482,8 @@ All previously identified gaps have been addressed:
 - Resend verification code endpoint
 - Manual verification (admin action)
 - Onboarding progress tracking
+- Automatic onboarding initialization on user creation
+- Admin UI for pending verifications management
 
 ---
 

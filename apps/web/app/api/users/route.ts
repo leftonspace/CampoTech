@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { getOrCreateSMSProvider } from '@/lib/sms';
+import { initializeOnboarding } from '@/../../src/modules/users/onboarding/onboarding-workflow';
 
 export async function GET(request: NextRequest) {
   try {
@@ -187,22 +187,27 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Send welcome notification if requested
+    // Initialize onboarding with WhatsApp-first welcome message and verification
+    let onboardingInitialized = false;
     let notificationSent = false;
-    if (body.sendNotification) {
+
+    if (body.sendNotification !== false) {
       try {
-        const smsProvider = getOrCreateSMSProvider();
-        const welcomeMessage = `Hola ${body.name}! Fuiste agregado al equipo de ${organization?.name || 'CampoTech'}. Descargá la app CampoTech para gestionar tus trabajos. Tu número de acceso es: ${body.phone}`;
+        const onboardingResult = await initializeOnboarding(
+          user.id,
+          session.organizationId,
+          true // Send notification
+        );
 
-        const result = await smsProvider.sendSMS(body.phone, welcomeMessage);
-        notificationSent = result.success;
+        onboardingInitialized = onboardingResult.success;
+        notificationSent = onboardingResult.success;
 
-        if (!result.success) {
-          console.warn('Failed to send welcome SMS:', result.error);
+        if (!onboardingResult.success) {
+          console.warn('Failed to initialize onboarding:', onboardingResult.error);
         }
-      } catch (smsError) {
-        console.error('Error sending welcome SMS:', smsError);
-        // Don't fail the user creation if SMS fails
+      } catch (onboardingError) {
+        console.error('Error initializing onboarding:', onboardingError);
+        // Don't fail user creation if onboarding fails
       }
     }
 
@@ -210,6 +215,7 @@ export async function POST(request: NextRequest) {
       success: true,
       data: user,
       notificationSent,
+      onboardingInitialized,
     });
   } catch (error) {
     console.error('Create user error:', error);
