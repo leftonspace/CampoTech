@@ -4,6 +4,52 @@
 
 ---
 
+## ⚠️ Implementation Status Warning
+
+> **Important:** This document describes planned/ideal flows. Some components have implementation gaps:
+
+### State Machine Implementation Status
+
+| State Machine | Status | Notes |
+|---------------|--------|-------|
+| **Job** | ✅ Fully Aligned | All 6 states implemented in `state-machine.ts:158-191` |
+| **Invoice** | ⚠️ Partial | 4 states missing (partial, overdue, cancelled, refunded). Extra states: cae_failed, voided |
+| **Payment** | ❌ Critical Mismatch | Type mismatch between state machine and domain types - see warning below |
+| **Voice Processing** | ✅ Good | Better than documented (9 states vs 7 documented) |
+| **Message** | ⚠️ Partial | 2 states missing (fallback_sms, undeliverable) |
+| **Sync Status** | ✅ Functional | Different model (flag-based vs discrete states) |
+
+### ❌ Critical: Payment State Machine Type Mismatch
+
+> **BUG RISK:** The Payment state machine uses different states than domain types:
+>
+> | Layer | States Used |
+> |-------|-------------|
+> | **State Machine (this doc)** | pending, processing, approved, rejected, cancelled, in_dispute, chargedback, refunded, partial_refund |
+> | **Domain Types (`/src/types/`)** | pending, completed, failed, refunded, partial_refund |
+>
+> **Action Required:** Align `PaymentStatus` type with state machine before implementing payment flows.
+
+### Flow Implementation Status
+
+| Flow | Status | Notes |
+|------|--------|-------|
+| **A: Customer Journey** | ⚠️ Distributed | Works but no single orchestrator |
+| **B: Failure Cascade** | ⚠️ Partial | Panic mode exists, combined matrix missing |
+| **C: Offline Sync** | ⚠️ Partial | Sync engine exists, conflict resolution incomplete |
+| **D: Abuse Detection** | ❌ Not Implemented | Flow documented but code absent |
+| **E: Voice AI Pipeline** | ✅ Implemented | Full processing chain working |
+| **F: Payment Lifecycle** | ⚠️ Partial | State mismatch issues (see above) |
+
+### Undocumented State Machines in Codebase
+
+| State Machine | File | States |
+|---------------|------|--------|
+| Panic Mode | `/src/workers/whatsapp/panic-mode.service.ts` | 4 states for integration failure handling |
+| Chargeback Status | `/src/integrations/mercadopago/chargeback/chargeback.handler.ts` | 8 chargeback states |
+
+---
+
 ## Table of Contents
 
 1. [Flow A: Complete Customer Journey](#flow-a-complete-customer-journey)
@@ -282,38 +328,43 @@ sequenceDiagram
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         INVOICE STATE MACHINE                               │
+│                    INVOICE STATE MACHINE (⚠️ PARTIAL)                       │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │        ┌─────────┐                                                          │
-│        │  DRAFT  │                                                          │
+│        │  DRAFT  │ ✅                                                       │
 │        └────┬────┘                                                          │
 │             │                                                               │
 │             ▼                                                               │
-│      ┌─────────────┐         ┌─────────┐                                   │
-│      │ PENDING_CAE │────────▶│ FAILED  │                                   │
-│      └──────┬──────┘         └────┬────┘                                   │
-│             │                     │                                         │
-│             ▼                     │ (retry)                                 │
-│        ┌─────────┐                │                                         │
-│        │ ISSUED  │◀───────────────┘                                        │
+│      ┌─────────────┐         ┌───────────┐                                 │
+│      │ PENDING_CAE │ ✅ ────▶│ CAE_FAILED│ ✅ (extra - not in original)    │
+│      └──────┬──────┘         └─────┬─────┘                                 │
+│             │                      │                                        │
+│             ▼                      │ (retry)                                │
+│        ┌─────────┐                 │                                        │
+│        │ ISSUED  │ ✅ ◀────────────┘                                       │
 │        └────┬────┘                                                          │
 │             │                                                               │
 │             ▼                                                               │
 │        ┌─────────┐                                                          │
-│        │  SENT   │                                                          │
+│        │  SENT   │ ✅                                                       │
 │        └────┬────┘                                                          │
 │             │                                                               │
-│     ┌───────┴───────┐                                                       │
-│     ▼               ▼                                                       │
-│ ┌─────────┐   ┌─────────┐                                                  │
-│ │  PAID   │   │ OVERDUE │                                                  │
-│ └─────────┘   └────┬────┘                                                  │
-│                    │                                                        │
+│     ┌───────┴───────┬───────────┐                                          │
+│     ▼               ▼           ▼                                          │
+│ ┌─────────┐   ┌─────────┐ ┌─────────┐                                      │
+│ │  PAID   │ ✅│ OVERDUE │ │ VOIDED  │ ✅ (extra - not in original)         │
+│ └─────────┘   └────┬────┘ └─────────┘                                      │
+│                    │  ⏳ NOT IMPLEMENTED                                    │
 │                    ▼                                                        │
 │               ┌─────────┐                                                   │
 │               │  PAID   │                                                   │
 │               └─────────┘                                                   │
+│                                                                             │
+│  ⏳ NOT IMPLEMENTED STATES:                                                 │
+│  • partial - Partial payment received                                       │
+│  • cancelled - Invoice cancelled before payment                             │
+│  • refunded - Full refund after payment                                     │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -962,9 +1013,13 @@ sequenceDiagram
 
 ---
 
-## Flow D: Abuse Detection
+## Flow D: Abuse Detection (❌ NOT IMPLEMENTED)
 
-### D.1 Abuse Detection Decision Flow
+> **⏳ NOT IMPLEMENTED:** This entire flow is documented but has NO implementation in the codebase.
+> The abuse detection service, scoring model, and escalation matrix do not exist.
+> Only basic rate limiting exists (via capabilities system).
+
+### D.1 Abuse Detection Decision Flow (⏳ PLANNED)
 
 ```mermaid
 flowchart TD
@@ -1510,11 +1565,20 @@ sequenceDiagram
     end
 ```
 
-### F.2 Payment State Machine
+### F.2 Payment State Machine (❌ CRITICAL TYPE MISMATCH)
+
+> **⚠️ CRITICAL WARNING:** This state machine does NOT match the domain types in code!
+>
+> | Layer | States |
+> |-------|--------|
+> | **This Document** | pending, processing, approved, rejected, cancelled, in_dispute, chargedback, refunded, partial_refund |
+> | **Domain Types** | pending, completed, failed, refunded, partial_refund |
+>
+> **"approved" ≠ "completed", "rejected" ≠ "failed"** - This WILL cause runtime errors if flows reference wrong states.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                         PAYMENT STATE MACHINE                               │
+│              PAYMENT STATE MACHINE (❌ TYPE MISMATCH - SEE WARNING)         │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │                         ┌───────────┐                                       │
@@ -2422,9 +2486,23 @@ This document now covers **11 major flows** across all phases:
 
 **Document Metadata**
 ```
-Version: 2.0
+Version: 2.1
 Last Updated: 2025-12-10
 Flows Documented: 11
 Phases Covered: Core, 7, 8, 9.3, 9.4, 9.6, 9.9, 13, 15
 Format: Mermaid sequence diagrams, ASCII flow charts
 ```
+
+## Changelog
+
+### v2.1 (2025-12-10)
+- Added implementation status warning section at document start
+- Added state machine implementation status table
+- Added critical Payment state machine type mismatch warning
+- Added flow implementation status table
+- Added undocumented state machines table (Panic Mode, Chargeback)
+- Updated Invoice state machine with missing/extra states markers
+- Added ❌ NOT IMPLEMENTED warning to Flow D (Abuse Detection)
+- Added ❌ CRITICAL TYPE MISMATCH warning to Payment state machine section
+
+Addresses audit findings from ARCHITECTURE-AUDIT-REPORT.md section 5
