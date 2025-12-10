@@ -4,6 +4,44 @@
 
 ---
 
+## ⚠️ Critical Implementation Status Warning
+
+> **ARCHITECTURE MISMATCH:** This document describes a comprehensive BullMQ-based architecture with 19 queues. The actual implementation differs significantly:
+
+### Actual Implementation Status
+
+| Category | Documented | Implemented | Status |
+|----------|------------|-------------|--------|
+| BullMQ Queues | 19 | 2-3 | ⚠️ 10-15% |
+| Database Polling Workers | 0 | 3 | 🔧 Alternative |
+| Scheduled Jobs | 6 | 2-3 | ⚠️ 30-50% |
+| Bull Board Dashboard | ✓ | ❌ | ⏳ Not Implemented |
+| Fair Scheduler | ✓ | ❌ | ⏳ Not Implemented |
+| Memory Management | ✓ | ❌ | ⏳ Not Implemented |
+
+### Actually Implemented Workers
+
+**BullMQ Queues (2-3):**
+| Queue | File | Status |
+|-------|------|--------|
+| `voice-processing` | `/src/workers/voice/voice-processing.worker.ts` | ✅ |
+| `reminder` | `/src/workers/notifications/reminder.worker.ts` | ✅ |
+
+**Database Polling Workers (NOT BullMQ):**
+| Worker | File | Pattern |
+|--------|------|---------|
+| AFIP Invoice | `/src/workers/afip/afip-invoice.worker.ts` | Database polling |
+| WhatsApp Outbound | `/src/workers/whatsapp/whatsapp-outbound.worker.ts` | Database polling |
+| MP Payment | `/src/workers/payments/mp-payment.worker.ts` | Database polling |
+
+**Scheduled Jobs (Actually Implemented):**
+- `PROCESS_SCHEDULED_REPORTS` - Every minute
+- `CLEANUP_REPORT_HISTORY` - Daily at 2 AM
+
+> **Note:** The architecture below represents the PLANNED state. Sections marked with ⏳ are not yet implemented.
+
+---
+
 ## 1. Technology Stack
 
 ### 1.1 Primary Queue Technology: BullMQ
@@ -115,38 +153,45 @@ export const DEFAULT_WORKER_OPTIONS: WorkerOptions = {
 // lib/queue/queues.ts
 
 export enum QueueName {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // IMPLEMENTATION STATUS LEGEND:
+  //   ✅ = Implemented as BullMQ
+  //   🔧 = Implemented as database polling (not BullMQ)
+  //   ⏳ = Planned / Not yet implemented
+  // ═══════════════════════════════════════════════════════════════════════════
+
   // High Priority - Critical Path
-  AFIP_INVOICE = 'afip:invoice',
-  PAYMENT_WEBHOOK = 'payment:webhook',
-  WHATSAPP_OUTBOUND = 'whatsapp:outbound',
+  AFIP_INVOICE = 'afip:invoice',           // 🔧 Database polling (not BullMQ)
+  PAYMENT_WEBHOOK = 'payment:webhook',     // ⏳ NOT IMPLEMENTED
+  WHATSAPP_OUTBOUND = 'whatsapp:outbound', // 🔧 Database polling (not BullMQ)
 
   // Normal Priority - Core Operations
-  WHATSAPP_INBOUND = 'whatsapp:inbound',
-  VOICE_TRANSCRIPTION = 'voice:transcription',
-  VOICE_EXTRACTION = 'voice:extraction',
-  JOB_NOTIFICATION = 'job:notification',
-  INVOICE_PDF = 'invoice:pdf',
+  WHATSAPP_INBOUND = 'whatsapp:inbound',   // ⏳ NOT IMPLEMENTED
+  VOICE_TRANSCRIPTION = 'voice:transcription', // ✅ Implemented as 'voice-processing'
+  VOICE_EXTRACTION = 'voice:extraction',   // ✅ Merged into 'voice-processing'
+  JOB_NOTIFICATION = 'job:notification',   // ⏳ NOT IMPLEMENTED
+  INVOICE_PDF = 'invoice:pdf',             // ⏳ NOT IMPLEMENTED
 
   // Notification System (Phase 9.6)
-  NOTIFICATION_DISPATCH = 'notification:dispatch',
-  REMINDERS = 'notification:reminders',
+  NOTIFICATION_DISPATCH = 'notification:dispatch', // ⏳ NOT IMPLEMENTED
+  REMINDERS = 'notification:reminders',    // ✅ Implemented as 'reminder'
 
   // GPS Tracking (Phase 9.9)
-  TRACKING_ETA = 'tracking:eta',
+  TRACKING_ETA = 'tracking:eta',           // ⏳ NOT IMPLEMENTED
 
   // Consumer Marketplace (Phase 15)
-  CONSUMER_NOTIFICATION = 'consumer:notification',
-  REVIEW_FRAUD_DETECTION = 'consumer:fraud-detection',
-  LEAD_MATCHING = 'consumer:lead-matching',
+  CONSUMER_NOTIFICATION = 'consumer:notification', // ⏳ NOT IMPLEMENTED
+  REVIEW_FRAUD_DETECTION = 'consumer:fraud-detection', // ⏳ NOT IMPLEMENTED
+  LEAD_MATCHING = 'consumer:lead-matching', // ⏳ NOT IMPLEMENTED
 
   // Low Priority - Background Tasks
-  SYNC_OFFLINE = 'sync:offline',
-  RECONCILIATION = 'reconciliation',
-  CLEANUP = 'cleanup',
-  ANALYTICS = 'analytics',
+  SYNC_OFFLINE = 'sync:offline',           // ⏳ NOT IMPLEMENTED
+  RECONCILIATION = 'reconciliation',       // ⏳ NOT IMPLEMENTED
+  CLEANUP = 'cleanup',                     // ⏳ NOT IMPLEMENTED
+  ANALYTICS = 'analytics',                 // ⏳ NOT IMPLEMENTED
 
   // Scheduled
-  SCHEDULER = 'scheduler',
+  SCHEDULER = 'scheduler',                 // ⏳ NOT IMPLEMENTED
 }
 
 export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
@@ -197,8 +242,8 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
   
   [QueueName.VOICE_TRANSCRIPTION]: {
     priority: 'normal',
-    rateLimit: { max: 20, duration: 60000 }, // OpenAI Whisper limits
-    concurrency: 5,
+    rateLimit: { max: 10, duration: 60000 }, // OpenAI Whisper limits (actual: 10/min)
+    concurrency: 3, // Actual concurrency is 3
     attempts: 3,
     backoff: 'exponential',
     timeout: 120000, // 2 min for long audio
@@ -1440,10 +1485,13 @@ async function evaluateAlerts(): Promise<Alert[]> {
 }
 ```
 
-### 10.3 Dashboard Configuration (Bull Board)
+### 10.3 Dashboard Configuration (Bull Board) ⏳ NOT IMPLEMENTED
+
+> **⏳ Note:** Bull Board dashboard is NOT currently implemented. The `/admin/queues` endpoint does not exist.
 
 ```typescript
 // lib/queue/dashboard.ts
+// ⏳ PLANNED - NOT IMPLEMENTED
 
 import { createBullBoard } from '@bull-board/api';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
@@ -2199,10 +2247,25 @@ DAILY OPS CHECKLIST (5 minutes)
 
 **Document Metadata**
 ```
-Version: 2.0
+Version: 2.1
 Last Updated: 2025-12-10
 Queues Documented: 19
+Queues Implemented: 2-3 BullMQ + 3 Database Polling
 Phases Covered: Core, 9.6, 9.9, 15
 ```
 
-This specification provides everything needed for unambiguous implementation.
+## Changelog
+
+### v2.1 (2025-12-10)
+- Added critical implementation status warning section
+- Marked queue implementation status (✅/🔧/⏳) throughout
+- Updated voice processing rate limit: 20/min → 10/min (actual)
+- Updated voice processing concurrency: 5 → 3 (actual)
+- Documented actual database polling workers (AFIP, WhatsApp, MP Payment)
+- Documented actual scheduled jobs (PROCESS_SCHEDULED_REPORTS, CLEANUP_REPORT_HISTORY)
+- Added Bull Board "NOT IMPLEMENTED" warning
+- Noted 10-15% implementation rate for BullMQ architecture
+
+---
+
+This specification describes the PLANNED architecture. See the implementation status warning at the top for actual state.
