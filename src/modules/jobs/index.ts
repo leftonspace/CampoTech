@@ -14,6 +14,7 @@ import { startOfDay, endOfDay } from '../../shared/utils/validation';
 import { createTrackingSession, completeSession, cancelSession } from '../tracking/tracking.service';
 import { log } from '../../lib/logging/logger';
 import { useMaterial, getJobMaterials } from '../inventory';
+import { emitWebhookSafe } from '../../shared/services/webhook-bridge';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -306,7 +307,21 @@ export class JobService {
       total,
     });
 
-    // TODO: Emit job.created event
+    // Emit job.created webhook event
+    emitWebhookSafe(orgId, 'job.created', {
+      job: {
+        id: job.id,
+        customer_id: job.customerId,
+        assigned_to: job.assignedTo,
+        status: job.status,
+        description: job.description,
+        address: job.address,
+        scheduled_at: job.scheduledAt,
+        total: job.total,
+        created_at: job.createdAt,
+      },
+    }, { actor_type: 'system' });
+
     return job;
   }
 
@@ -350,12 +365,50 @@ export class JobService {
     }
 
     // Auto-transition to scheduled if now has assignment and schedule
-    if (job.status === 'pending' && (data.assignedTo || job.assignedTo) && (data.scheduledAt || job.scheduledAt)) {
+    const wasScheduled = job.status === 'pending' && (data.assignedTo || job.assignedTo) && (data.scheduledAt || job.scheduledAt);
+    if (wasScheduled) {
       updateData.status = 'scheduled';
     }
 
     const updated = await this.repo.updateInOrg(orgId, id, updateData);
     if (!updated) throw new Error('Failed to update job');
+
+    // Emit job.updated webhook event
+    emitWebhookSafe(orgId, 'job.updated', {
+      job: {
+        id: updated.id,
+        customer_id: updated.customerId,
+        assigned_to: updated.assignedTo,
+        status: updated.status,
+        description: updated.description,
+        address: updated.address,
+        scheduled_at: updated.scheduledAt,
+        total: updated.total,
+        updated_at: updated.updatedAt,
+      },
+      changes: Object.keys(data),
+    }, { actor_type: 'system' });
+
+    // Emit job.scheduled if auto-transitioned
+    if (wasScheduled) {
+      emitWebhookSafe(orgId, 'job.scheduled', {
+        job: {
+          id: updated.id,
+          customer_id: updated.customerId,
+          assigned_to: updated.assignedTo,
+          scheduled_at: updated.scheduledAt,
+        },
+      }, { actor_type: 'system' });
+    }
+
+    // Emit job.assigned if technician was assigned
+    if (data.assignedTo && data.assignedTo !== job.assignedTo) {
+      emitWebhookSafe(orgId, 'job.assigned', {
+        job: { id: updated.id, customer_id: updated.customerId },
+        technician_id: data.assignedTo,
+        previous_technician_id: job.assignedTo || null,
+      }, { actor_type: 'system' });
+    }
 
     return updated;
   }
@@ -452,8 +505,35 @@ export class JobService {
       });
     }
 
-    // TODO: Emit job.status_changed event
-    // TODO: Trigger auto-invoice if completed and org settings allow
+    // Emit webhook event for status change
+    const statusEventMap: Record<string, string> = {
+      'scheduled': 'job.scheduled',
+      'en_camino': 'job.started',
+      'in_progress': 'job.started',
+      'completed': 'job.completed',
+      'cancelled': 'job.cancelled',
+    };
+    const eventType = statusEventMap[data.status] || 'job.updated';
+
+    const webhookData: Record<string, any> = {
+      job: {
+        id: updated.id,
+        customer_id: updated.customerId,
+        assigned_to: updated.assignedTo,
+        status: updated.status,
+        previous_status: job.status,
+        updated_at: updated.updatedAt,
+      },
+    };
+
+    if (data.status === 'cancelled') {
+      webhookData.reason = data.reason;
+    }
+
+    emitWebhookSafe(orgId, eventType, webhookData, {
+      actor_type: 'user',
+      actor_id: userId
+    });
 
     return updated;
   }
