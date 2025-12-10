@@ -342,10 +342,53 @@ class CustomerApiClient {
     return this.request<ServiceType[]>('/portal/services');
   }
 
-  async getAvailability(startDate: string, endDate: string, serviceTypeId?: string) {
+  /**
+   * Get available services with expected structure for booking page
+   */
+  async getAvailableServices() {
+    const result = await this.request<ServiceType[]>('/portal/services');
+    if (result.success && result.data) {
+      return {
+        ...result,
+        data: { services: result.data },
+      };
+    }
+    return {
+      ...result,
+      data: { services: [] },
+    };
+  }
+
+  /**
+   * Get availability for a service type within a date range
+   * @param serviceTypeId - The service type to check availability for
+   * @param startDate - Start date in YYYY-MM-DD format
+   * @param endDate - End date in YYYY-MM-DD format
+   */
+  async getAvailability(serviceTypeId: string, startDate: string, endDate: string) {
     const params = new URLSearchParams({ startDate, endDate });
     if (serviceTypeId) params.set('serviceTypeId', serviceTypeId);
-    return this.request<DayAvailability[]>(`/portal/availability?${params}`);
+    const result = await this.request<DayAvailability[]>(`/portal/availability?${params}`);
+    // Transform response to match expected structure
+    if (result.success && result.data) {
+      const slots = result.data.flatMap((day: DayAvailability) =>
+        day.slots.map((slot) => ({
+          date: day.date,
+          startTime: slot.start,
+          endTime: slot.end,
+          available: slot.available,
+          availableTechnicians: 1, // Default value
+        }))
+      );
+      return {
+        ...result,
+        data: { slots },
+      };
+    }
+    return {
+      ...result,
+      data: { slots: [] },
+    };
   }
 
   async createBooking(data: {
@@ -394,6 +437,39 @@ class CustomerApiClient {
 
   async getUpcomingJobs() {
     return this.request<Job[]>('/portal/jobs/upcoming');
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TRACKING
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Get job tracking data including technician location and ETA
+   */
+  async getJobTracking(jobId: string) {
+    return this.request<{
+      job: Job & {
+        serviceType?: string;
+        latitude?: number;
+        longitude?: number;
+        technicianPhone?: string;
+      };
+      technicianLocation?: {
+        lat: number;
+        lng: number;
+        updatedAt: string;
+      };
+      eta?: {
+        minutes: number;
+        distance: string;
+        updatedAt: string;
+      };
+      statusHistory: Array<{
+        status: string;
+        timestamp: string;
+        note?: string;
+      }>;
+    }>(`/tracking/jobs/${jobId}`);
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
