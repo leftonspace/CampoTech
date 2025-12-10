@@ -19,6 +19,7 @@ import {
   isPaymentFinal,
 } from '../../integrations/mercadopago';
 import { log } from '../../lib/logging/logger';
+import { getCapabilityService, CapabilityPath } from '../../../core/config/capabilities';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -131,6 +132,22 @@ export class MPPaymentWorker {
     if (!this.running) return;
 
     try {
+      // Check capability system first
+      const capabilityService = getCapabilityService();
+      const mpEnabled = await capabilityService.ensure('external.mercadopago' as CapabilityPath);
+      const paymentsEnabled = await capabilityService.ensure('domain.payments' as CapabilityPath);
+      const reconciliationEnabled = await capabilityService.ensure('services.payment_reconciliation' as CapabilityPath);
+
+      if (!mpEnabled || !paymentsEnabled) {
+        log.warn('MercadoPago capability disabled, skipping poll', {
+          mpEnabled,
+          paymentsEnabled,
+          reconciliationEnabled,
+        });
+        this.schedulePoll();
+        return;
+      }
+
       // Check if we have capacity
       if (this.activeJobs >= this.config.concurrency) {
         this.schedulePoll();

@@ -10,6 +10,7 @@ import { getRedisConnection } from '../../lib/redis';
 import { getVoiceAIService } from '../../integrations/voice-ai';
 import { prisma } from '../../lib/prisma';
 import { publishEvent } from '../../lib/events';
+import { getCapabilityService, CapabilityPath } from '../../../core/config/capabilities';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -138,6 +139,19 @@ export function startVoiceWorker(): Worker<VoiceProcessingJobData, VoiceProcessi
       console.log(`[Voice Worker] Processing ${job.id}...`);
 
       try {
+        // Check capability system first
+        const capabilityService = getCapabilityService();
+        const voiceAIEnabled = await capabilityService.ensure('external.whatsapp_voice_ai' as CapabilityPath, job.data.organizationId);
+
+        if (!voiceAIEnabled) {
+          console.log(`[Voice Worker] Voice AI capability disabled, skipping ${job.id}`);
+          return {
+            success: false,
+            voiceMessageId: '',
+            error: 'Voice AI capability is disabled',
+          };
+        }
+
         // Process the voice message
         const result = await voiceAI.processVoiceMessage(
           {

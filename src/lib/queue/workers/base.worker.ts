@@ -11,6 +11,7 @@
 
 import { Job } from 'bullmq';
 import { JobData, JobResult } from '../queue-manager';
+import { getCapabilityService, CapabilityPath } from '../../../../core/config/capabilities';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -164,11 +165,11 @@ export abstract class BaseWorker {
 
   /**
    * Check if capability is enabled
+   * Uses the CapabilityService to check database overrides, env vars, and static config
    */
   protected async checkCapability(capability: string, orgId: string): Promise<boolean> {
-    // TODO: Integrate with actual capabilities system
-    // For now, return true
-    return true;
+    const service = getCapabilityService();
+    return service.ensure(capability as CapabilityPath, orgId);
   }
 
   /**

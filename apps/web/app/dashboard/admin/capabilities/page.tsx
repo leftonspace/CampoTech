@@ -22,6 +22,14 @@ import {
   Settings,
   Clock,
   Activity,
+  MapPin,
+  Package,
+  Users,
+  BarChart3,
+  ShieldCheck,
+  Gauge,
+  Store,
+  Palette,
 } from 'lucide-react';
 
 interface Capability {
@@ -30,6 +38,7 @@ interface Capability {
   description: string;
   enabled: boolean;
   category: 'integration' | 'feature' | 'system';
+  source?: string;
   lastChanged?: string;
   changedBy?: string;
   isPanicMode?: boolean;
@@ -37,6 +46,41 @@ interface Capability {
 }
 
 const CAPABILITY_ICONS: Record<string, React.ElementType> = {
+  // External integrations
+  'external.afip': FileText,
+  'external.mercadopago': CreditCard,
+  'external.whatsapp': MessageSquare,
+  'external.whatsapp_voice_ai': Zap,
+  'external.push_notifications': Bell,
+  // Domain capabilities
+  'domain.invoicing': FileText,
+  'domain.payments': CreditCard,
+  'domain.scheduling': Clock,
+  'domain.job_assignment': Users,
+  'domain.offline_sync': RefreshCw,
+  'domain.technician_gps': MapPin,
+  'domain.consumer_marketplace': Store,
+  'domain.customer_portal': Users,
+  'domain.inventory_management': Package,
+  'domain.audit_logging': Activity,
+  // Services
+  'services.cae_queue': Activity,
+  'services.whatsapp_queue': MessageSquare,
+  'services.whatsapp_aggregation': MessageSquare,
+  'services.payment_reconciliation': CreditCard,
+  'services.abuse_detection': ShieldCheck,
+  'services.rate_limiting': Gauge,
+  'services.analytics_pipeline': BarChart3,
+  'services.review_fraud_detection': ShieldCheck,
+  'services.notification_queue': Bell,
+  // UI
+  'ui.simple_mode': Settings,
+  'ui.advanced_mode': Settings,
+  'ui.pricebook': FileText,
+  'ui.reporting_dashboard': BarChart3,
+  'ui.marketplace_dashboard': Store,
+  'ui.whitelabel_portal': Palette,
+  // Fallback mappings for old-style IDs
   afip: FileText,
   mercadopago: CreditCard,
   whatsapp: MessageSquare,
@@ -74,52 +118,8 @@ function CapabilitiesContent() {
     },
   });
 
-  // Mock data for demonstration
-  const capabilities: Capability[] = (data?.data as Capability[]) || [
-    {
-      id: 'afip',
-      name: 'AFIP Integration',
-      description: 'Facturación electrónica con AFIP',
-      enabled: true,
-      category: 'integration',
-    },
-    {
-      id: 'mercadopago',
-      name: 'MercadoPago',
-      description: 'Procesamiento de pagos online',
-      enabled: true,
-      category: 'integration',
-    },
-    {
-      id: 'whatsapp',
-      name: 'WhatsApp Business',
-      description: 'Mensajería con clientes',
-      enabled: true,
-      category: 'integration',
-      isPanicMode: false,
-    },
-    {
-      id: 'voice_ai',
-      name: 'Voice AI',
-      description: 'Procesamiento de mensajes de voz',
-      enabled: true,
-      category: 'feature',
-    },
-    {
-      id: 'invoicing',
-      name: 'Facturación automática',
-      description: 'Generar facturas automáticamente al completar trabajos',
-      enabled: false,
-      category: 'feature',
-    },
-    {
-      id: 'notifications',
-      name: 'Notificaciones push',
-      description: 'Enviar notificaciones a la app móvil',
-      enabled: true,
-      category: 'system',
-    },
-  ];
+  // Use real data from API, no more mock data
+  const capabilities: Capability[] = (data?.data as Capability[]) || [];
 
   const groupedCapabilities = {
     integration: capabilities.filter((c) => c.category === 'integration'),
