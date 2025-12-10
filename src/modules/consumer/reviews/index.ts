@@ -1,0 +1,30 @@
+/**
+ * Reviews Module
+ * ==============
+ *
+ * Exports for consumer reviews.
+ * Phase 15: Consumer Marketplace
+ */
+
+export {
+  ReviewRepository,
+  CreateReviewInput,
+  UpdateReviewInput,
+  ReviewWithConsumer,
+  ReviewSearchParams,
+  RatingSummary,
+} from './review.repository';
+
+export {
+  ReviewService,
+  ReviewError,
+  SubmitReviewInput,
+  FraudSignal,
+  ReviewAnalysis,
+} from './review.service';
+
+export {
+  createReviewRoutes,
+  createBusinessReviewRoutes,
+  createReviewModerationRoutes,
+} from './review.routes';

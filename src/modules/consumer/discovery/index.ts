@@ -1,0 +1,33 @@
+/**
+ * Discovery Module
+ * ================
+ *
+ * Exports for business discovery and search.
+ * Phase 15: Consumer Marketplace
+ */
+
+export {
+  SearchParams,
+  GeoSearchParams,
+  RankingWeights,
+  RankingFactors,
+  RankedBusiness,
+  CategoryMetadata,
+  CATEGORY_METADATA,
+  DEFAULT_RANKING_WEIGHTS,
+  getCategoryDisplayName,
+  getCategoryIcon,
+  getCategoryMetadata,
+} from './discovery.types';
+
+export { RankingService } from './ranking.service';
+export { GeoSearchService } from './geo-search.service';
+export { DiscoveryService, BusinessPublicProfileRepository } from './discovery.service';
+export { createDiscoveryRoutes } from './discovery.routes';
+export {
+  BadgeService,
+  BadgeCriteria,
+  BadgeInfo,
+  BusinessMetrics,
+  BADGE_CRITERIA,
+} from './badge.service';
