@@ -423,4 +423,10 @@ export const REPORT_CATEGORIES = [
     description: 'Resúmenes ejecutivos y dashboards',
     icon: 'bar-chart',
   },
+  {
+    id: 'tax',
+    name: 'Impositivos',
+    description: 'Informes fiscales y cumplimiento AFIP',
+    icon: 'file-text',
+  },
 ];
