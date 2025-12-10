@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fase 15: Marketplace para Consumidores - Buscador de Servicios Gratuito</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #fff;
+        }
+
+        h1 {
+            color: #1a365d;
+            font-size: 28px;
+            margin-bottom: 10px;
+            border-bottom: 3px solid #3182ce;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            color: #2c5282;
+            font-size: 22px;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3182ce;
+            padding-left: 12px;
+        }
+
+        h3 {
+            color: #2d3748;
+            font-size: 18px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+        }
+
+        h4 {
+            color: #4a5568;
+            font-size: 16px;
+            margin-top: 15px;
+            margin-bottom: 8px;
+        }
+
+        p {
+            margin-bottom: 12px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #ebf8ff 0%, #e6fffa 100%);
+            border: 1px solid #90cdf4;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .highlight-box strong {
+            color: #2b6cb0;
+        }
+
+        .warning-box {
+            background: #fffaf0;
+            border: 1px solid #ed8936;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .success-box {
+            background: #f0fff4;
+            border: 1px solid #48bb78;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 14px;
+        }
+
+        th {
+            background: #2c5282;
+            color: white;
+            padding: 12px 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        tr:nth-child(even) {
+            background: #f7fafc;
+        }
+
+        tr:hover {
+            background: #edf2f7;
+        }
+
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 25px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .flow-diagram {
+            background: #f7fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-line;
+            text-align: center;
+        }
+
+        .app-mockup {
+            background: #1a202c;
+            color: #fff;
+            border-radius: 20px;
+            padding: 15px;
+            margin: 20px auto;
+            max-width: 350px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            white-space: pre;
+            line-height: 1.4;
+        }
+
+        .app-mockup .header {
+            border-bottom: 1px solid #4a5568;
+            padding-bottom: 8px;
+            margin-bottom: 10px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 5px;
+        }
+
+        .badge-free {
+            background: #48bb78;
+            color: white;
+        }
+
+        .badge-paid {
+            background: #ed8936;
+            color: white;
+        }
+
+        hr {
+            border: none;
+            border-top: 2px solid #e2e8f0;
+            margin: 30px 0;
+        }
+
+        .two-columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .column {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .column h4 {
+            margin-top: 0;
+        }
+
+        .emoji {
+            font-size: 18px;
+        }
+
+        @media print {
+            body {
+                padding: 20px;
+            }
+
+            .page-break {
+                page-break-before: always;
+            }
+
+            h2 {
+                page-break-after: avoid;
+            }
+
+            table, .highlight-box, .flow-diagram {
+                page-break-inside: avoid;
+            }
+        }
+
+        .footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e2e8f0;
+            text-align: center;
+            color: #718096;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Fase 15: Marketplace para Consumidores</h1>
+    <p class="subtitle">Buscador de Servicios Gratuito - Explicación Completa</p>
+
+    <h2>La Gran Idea</h2>
+
+    <div class="highlight-box">
+        <strong>La Fase 15 transforma CampoTech de una herramienta B2B en un marketplace de dos lados</strong> -
+        pensalo como "Uber para servicios del hogar" pero <strong>100% GRATIS para consumidores</strong>.
+    </div>
+
+    <hr>
+
+    <h2>Como Consumidor, Esto Es Lo Que Obtenés</h2>
+
+    <h3>1. App Gratuita para Encontrar Proveedores de Servicios</h3>
+    <p>Descargás la app de CampoTech Consumer y podés:</p>
+    <ul>
+        <li><strong>Buscar por categoría:</strong> Plomero, Electricista, Aire Acondicionado, Cerrajero, Pintor, etc.</li>
+        <li><strong>Ver negocios cercanos:</strong> Quién trabaja en tu barrio (Palermo, Belgrano, etc.)</li>
+        <li><strong>Ver perfiles detallados:</strong> Fotos, calificaciones, reseñas, años en el negocio, tiempos de respuesta</li>
+    </ul>
+
+    <h3>2. Pedí Presupuestos Fácilmente</h3>
+
+    <div class="flow-diagram">
+Tu Problema → Describilo (texto, fotos, nota de voz)
+                    ↓
+   El sistema te conecta con 5-10 negocios cercanos
+                    ↓
+     Los negocios te envían presupuestos con precios
+                    ↓
+      Comparás y elegís el mejor
+    </div>
+
+    <p>Especificás:</p>
+    <ul>
+        <li><strong>Qué necesitás:</strong> "Mi aire acondicionado no enfría"</li>
+        <li><strong>Urgencia:</strong> Emergencia / Hoy / Esta semana / Flexible</li>
+        <li><strong>Rango de presupuesto:</strong> Menos de $5K / $5K-15K / $15K-50K / Más de $50K</li>
+        <li><strong>Horario preferido:</strong> Mañana / Tarde / Noche</li>
+        <li><strong>Fotos/Notas de voz:</strong> Mostrá el problema</li>
+    </ul>
+
+    <h3>3. Compará Negocios Como un Profesional</h3>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Lo Que Ves</th>
+                <th>Por Qué Importa</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>⭐ 4.8 (234 reseñas)</td>
+                <td>Calidad y reputación</td>
+            </tr>
+            <tr>
+                <td>"Responde en menos de 1 hora"</td>
+                <td>Están activos y son responsivos</td>
+            </tr>
+            <tr>
+                <td>✅ Negocio Verificado</td>
+                <td>CUIT validado, empresa legítima</td>
+            </tr>
+            <tr>
+                <td>🎓 Matriculado</td>
+                <td>Certificación profesional</td>
+            </tr>
+            <tr>
+                <td>🛡️ Asegurado</td>
+                <td>Protección si algo sale mal</td>
+            </tr>
+            <tr>
+                <td>📍 A 2.3km de distancia</td>
+                <td>Ubicación conveniente</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h3>4. Reseñas Verificadas en las que Podés Confiar</h3>
+    <ul>
+        <li>Las reseñas están vinculadas a <strong>trabajos completados reales</strong></li>
+        <li>Ves <strong>fotos del trabajo realizado</strong></li>
+        <li><strong>Reseñas verificadas</strong> marcadas diferente de las no verificadas</li>
+        <li>Los negocios pueden responder a las reseñas</li>
+    </ul>
+
+    <h3>5. Seguí Tu Servicio</h3>
+    <p>Una vez que aceptás un presupuesto:</p>
+    <ul>
+        <li>Ves cuando el técnico está en camino</li>
+        <li>Lo seguís en el mapa (como Uber)</li>
+        <li>Recibís notificaciones por WhatsApp con actualizaciones</li>
+        <li>Dejás una reseña después de que termine</li>
+    </ul>
+
+    <hr>
+
+    <h2>Por Qué Es GRATIS Para Vos</h2>
+
+    <div class="success-box">
+        <strong>El Secreto:</strong> CampoTech gana dinero de los negocios, no de vos.
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Apps de la Competencia</th>
+                <th>CampoTech</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Te cobran 10-15% de comisión</td>
+                <td><strong>$0 de comisión para siempre</strong></td>
+            </tr>
+            <tr>
+                <td>Los negocios pagan por cada lead</td>
+                <td>Los negocios pagan suscripción mensual</td>
+            </tr>
+            <tr>
+                <td>Información limitada de proveedores</td>
+                <td>Transparencia total</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h4>Por qué funciona esto para CampoTech:</h4>
+    <ul>
+        <li>Cada búsqueda de consumidor = lead potencial para negocios que pagan</li>
+        <li>Más consumidores → los negocios quieren pagar por CampoTech → más opciones de servicios para vos</li>
+        <li>La app genera reconocimiento de marca y participación de mercado</li>
+    </ul>
+
+    <hr>
+
+    <h2>Cómo Se Ve la App del Consumidor</h2>
+
+    <div class="app-mockup">
+┌─────────────────────────────────────────┐
+│ 📍 Palermo, Buenos Aires        [👤]    │
+├─────────────────────────────────────────┤
+│                                         │
+│  ┌─────────────────────────────────┐   │
+│  │ 🔍 ¿Qué necesitás?              │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  Categorías populares                   │
+│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐      │
+│  │ 🔧 │ │ ⚡ │ │ ❄️ │ │ 🔨 │      │
+│  │Plom.│ │Elec.│ │Aire │ │Const│      │
+│  └─────┘ └─────┘ └─────┘ └─────┘      │
+│  ┌─────┐ ┌─────┐ ┌─────┐ ┌─────┐      │
+│  │ 🔒 │ │ 🎨 │ │ 🚿 │ │ ➕ │      │
+│  │Cerr.│ │Pint.│ │Gasf.│ │ Más │      │
+│  └─────┘ └─────┘ └─────┘ └─────┘      │
+│                                         │
+│  ⭐ Mejor valorados cerca tuyo          │
+│  ┌─────────────────────────────────┐   │
+│  │ ServiFrío                       │   │
+│  │ ⭐ 4.9 (234) • Aire acond.      │   │
+│  │ 📍 2.3km • "Responde en 30min"  │   │
+│  └─────────────────────────────────┘   │
+│  ┌─────────────────────────────────┐   │
+│  │ Plomería Express                │   │
+│  │ ⭐ 4.7 (189) • Plomería         │   │
+│  │ 📍 1.8km • "Disponible hoy"     │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+│  📋 Mis solicitudes (2)                 │
+│  ┌─────────────────────────────────┐   │
+│  │ Reparación aire - 3 presupuestos│   │
+│  │ Hace 2 horas                    │   │
+│  └─────────────────────────────────┘   │
+│                                         │
+├─────────────────────────────────────────┤
+│ 🏠   🔍   ➕   📋   👤                 │
+│ Home Buscar Nuevo Jobs Perfil          │
+└─────────────────────────────────────────┘
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2>Modo Perfil Dual</h2>
+
+    <div class="highlight-box">
+        <strong>Dato interesante:</strong> Podés ser TANTO consumidor COMO dueño de negocio.
+    </div>
+
+    <p><strong>Ejemplo:</strong> Sos plomero y usás CampoTech para gestionar tu negocio de plomería. Pero también necesitás un electricista para tu casa → simplemente cambiás a "Modo Consumidor" y buscás como cualquier persona común.</p>
+
+    <hr>
+
+    <h2>Funciones de Confianza y Seguridad</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Función</th>
+                <th>Qué Hace</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Verificación de Negocio</strong></td>
+                <td>Validación de CUIT confirma que es una empresa real registrada</td>
+            </tr>
+            <tr>
+                <td><strong>Verificación de Matrícula</strong></td>
+                <td>Revisión manual de certificaciones profesionales</td>
+            </tr>
+            <tr>
+                <td><strong>Verificación de Seguro</strong></td>
+                <td>Prueba de que tienen cobertura de responsabilidad civil</td>
+            </tr>
+            <tr>
+                <td><strong>Moderación de Reseñas</strong></td>
+                <td>Sistema de detección de reseñas falsas</td>
+            </tr>
+            <tr>
+                <td><strong>Sistema de Reportes</strong></td>
+                <td>Podés reportar malos actores o problemas</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <hr>
+
+    <h2>Resumen para Consumidores</h2>
+
+    <div class="success-box">
+        <h4 style="margin-top: 0;">La Fase 15 te da:</h4>
+        <ol>
+            <li>Una <strong>app gratuita</strong> para encontrar proveedores de servicios confiables</li>
+            <li><strong>Solicitudes de presupuesto fáciles</strong> - describí tu problema, recibí múltiples presupuestos</li>
+            <li><strong>Calificaciones transparentes</strong> - ves reseñas verificadas y señales de confianza</li>
+            <li><strong>Sin comisiones ocultas</strong> - los negocios compiten por tu trabajo, vos no pagás nada a la plataforma</li>
+            <li><strong>Seguimiento en vivo</strong> - sabés cuándo llega tu técnico</li>
+            <li><strong>Tranquilidad</strong> - negocios verificados, reseñas moderadas, sistema de reportes</li>
+        </ol>
+    </div>
+
+    <p style="font-size: 18px; text-align: center; margin-top: 30px; color: #2c5282;">
+        <strong>Es esencialmente un marketplace gratuito donde los negocios compiten para atenderte,
+        y vos elegís el mejor basándote en precio, calificaciones y reseñas.</strong>
+    </p>
+
+    <div class="footer">
+        <p>Documento generado por CampoTech</p>
+        <p>Fase 15: Consumer Marketplace (Free Service Finder)</p>
+        <p>Para más información, consultá la documentación completa en architecture/FULL-IMPLEMENTATION-PLAN.md</p>
+    </div>
+</body>
+</html>
