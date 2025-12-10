@@ -41,6 +41,9 @@ model Organization {
   suppliers        Supplier[]
   purchaseOrders   PurchaseOrder[]
   inventoryCounts  InventoryCount[]
+  // System Tables
+  failedJobs       FailedJob[]      @relation("FailedJobOrg")
+  idempotencyKeys  IdempotencyKey[] @relation("IdempotencyOrg")
 
   @@map("organizations")
 }
@@ -73,6 +76,8 @@ model User {
   requestedTransfers   InterLocationTransfer[] @relation("TransferRequester")
   approvedTransfers    InterLocationTransfer[] @relation("TransferApprover")
   vehicleStocks        VehicleStock[]
+  uploadedPhotos       JobPhoto[]        @relation("PhotoUploader")
+  reviewedTranscripts  VoiceTranscript[] @relation("TranscriptReviewer")
 
   @@unique([email, organizationId])
   @@index([organizationId])
@@ -164,6 +169,7 @@ model Job {
   stockMovements StockMovement[]
   materials      JobMaterial[]
   reservations   StockReservation[]
+  jobPhotos      JobPhoto[]   @relation("JobPhotos")
 
   @@index([status])
   @@index([scheduledDate])
@@ -229,6 +235,7 @@ model Invoice {
   organization Organization @relation(fields: [organizationId], references: [id])
   location     Location?    @relation("InvoiceLocation", fields: [locationId], references: [id], onDelete: SetNull)
   payments     Payment[]
+  lineItems    InvoiceItem[] @relation("InvoiceLineItems")
 
   @@index([status])
   @@index([organizationId])
@@ -266,6 +273,7 @@ model Payment {
 
   invoice      Invoice      @relation(fields: [invoiceId], references: [id])
   organization Organization @relation(fields: [organizationId], references: [id])
+  disputes     PaymentDispute[] @relation("PaymentDisputes")
 
   @@index([invoiceId])
   @@map("payments")
@@ -300,6 +308,8 @@ model WhatsAppMessage {
   phone          String
   organizationId String
   createdAt      DateTime            @default(now())
+
+  transcript     VoiceTranscript?    @relation("MessageTranscript")
 
   @@index([phone])
   @@index([organizationId])
@@ -1541,4 +1551,337 @@ enum MaterialSource {
   VEHICLE    // From technician's vehicle
   CUSTOMER   // Provided by customer
   PURCHASE   // Direct purchase for job
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE: DATABASE NORMALIZATION - New Tables (Migrations 055-060)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ────────────────────────────────────────────────────────────────────────────────
+// JOB PHOTOS - Normalized from jobs.photos TEXT[]
+// ────────────────────────────────────────────────────────────────────────────────
+
+model JobPhoto {
+  id           String     @id @default(cuid())
+  jobId        String
+  uploadedById String?
+
+  // Photo Details
+  photoUrl     String
+  thumbnailUrl String?
+  photoType    PhotoType  @default(AFTER)
+
+  // Metadata
+  fileSize     Int?       // Bytes
+  width        Int?
+  height       Int?
+  mimeType     String?
+
+  // Mobile Sync
+  localId      String?    // Client-generated ID for offline
+  syncStatus   SyncStatus @default(SYNCED)
+
+  // Timestamps
+  takenAt      DateTime?  // When photo was taken
+  createdAt    DateTime   @default(now())
+
+  job          Job        @relation("JobPhotos", fields: [jobId], references: [id], onDelete: Cascade)
+  uploadedBy   User?      @relation("PhotoUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([jobId])
+  @@index([syncStatus])
+  @@map("job_photos")
+}
+
+enum PhotoType {
+  BEFORE
+  DURING
+  AFTER
+  SIGNATURE
+  DOCUMENT
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCING
+  SYNCED
+  CONFLICT
+  FAILED
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// INVOICE ITEMS - Normalized from invoices.items JSONB
+// ────────────────────────────────────────────────────────────────────────────────
+
+model InvoiceItem {
+  id           String   @id @default(cuid())
+  invoiceId    String
+  priceBookId  String?
+
+  // Item Info
+  description  String
+  quantity     Decimal  @default(1) @db.Decimal(10, 3)
+  unit         String   @default("unidad")
+
+  // Pricing
+  unitPrice    Decimal  @db.Decimal(12, 2)
+  taxRate      Decimal  @default(21.00) @db.Decimal(5, 2)
+  subtotal     Decimal  @db.Decimal(12, 2)
+  taxAmount    Decimal  @db.Decimal(12, 2)
+  total        Decimal  @db.Decimal(12, 2)
+
+  // AFIP Codes
+  afipProductCode String?
+  afipUnitCode    String?  @default("7")
+
+  // Sort Order
+  sortOrder    Int      @default(0)
+
+  // Timestamps
+  createdAt    DateTime @default(now())
+
+  invoice      Invoice  @relation("InvoiceLineItems", fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// PAYMENT DISPUTES - Normalized from payments inline columns
+// ────────────────────────────────────────────────────────────────────────────────
+
+model PaymentDispute {
+  id                  String        @id @default(cuid())
+  paymentId           String
+
+  // Mercado Pago Reference
+  mpDisputeId         String?
+
+  // Dispute Info
+  disputeType         DisputeType
+  reason              String?
+  description         String?
+
+  // Status
+  status              DisputeStatus @default(PENDING_RESPONSE)
+
+  // Deadline
+  responseDeadline    DateTime?
+  daysToRespond       Int?
+
+  // Evidence
+  evidenceSubmittedAt DateTime?
+  evidenceUrls        String[]      @default([])
+  evidenceNotes       String?
+  evidenceDocuments   Json?
+
+  // Resolution
+  resolvedAt          DateTime?
+  resolutionNotes     String?
+  resolutionType      String?
+
+  // Amounts
+  disputedAmount      Decimal       @db.Decimal(12, 2)
+  recoveredAmount     Decimal?      @db.Decimal(12, 2)
+
+  // Communication
+  lastCommunicationAt DateTime?
+  communicationLog    Json          @default("[]")
+
+  // Timestamps
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  payment             Payment       @relation("PaymentDisputes", fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@index([status])
+  @@map("payment_disputes")
+}
+
+enum DisputeType {
+  CHARGEBACK
+  FRAUD_CLAIM
+  SERVICE_NOT_RECEIVED
+  DUPLICATE_CHARGE
+  PRODUCT_NOT_AS_DESCRIBED
+  CANCELLED_TRANSACTION
+  OTHER
+}
+
+enum DisputeStatus {
+  PENDING_RESPONSE
+  EVIDENCE_SUBMITTED
+  UNDER_REVIEW
+  ESCALATED
+  WON
+  LOST
+  WITHDRAWN
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// VOICE TRANSCRIPTS - Normalized from whatsapp_messages inline columns
+// ────────────────────────────────────────────────────────────────────────────────
+
+model VoiceTranscript {
+  id                      String              @id @default(cuid())
+  messageId               String              @unique
+  reviewedById            String?
+  createdJobId            String?
+
+  // Audio Info
+  audioUrl                String
+  audioDuration           Int?                // Seconds
+  audioQuality            String?             // 'clean', 'noisy', 'poor'
+  audioLanguage           String?             @default("es")
+
+  // Transcription (AI)
+  transcription           String?
+  transcriptionModel      String?
+  transcriptionConfidence Decimal?            @db.Decimal(3, 2)
+  transcriptionSegments   Json?
+
+  // Extraction (AI)
+  extractionData          Json?
+  extractionModel         String?
+  overallConfidence       Decimal?            @db.Decimal(3, 2)
+
+  // Human Review
+  humanTranscription      String?
+  humanExtraction         Json?
+  reviewedAt              DateTime?
+  reviewNotes             String?
+
+  // Status
+  status                  VoiceTranscriptStatus @default(PENDING)
+  errorMessage            String?
+  errorCode               String?
+
+  // Processing
+  processingStartedAt     DateTime?
+  processingCompletedAt   DateTime?
+  processingDurationMs    Int?
+  retryCount              Int                 @default(0)
+
+  // Job Creation
+  autoCreated             Boolean             @default(false)
+
+  // Timestamps
+  createdAt               DateTime            @default(now())
+  updatedAt               DateTime            @updatedAt
+
+  message                 WhatsAppMessage     @relation("MessageTranscript", fields: [messageId], references: [id], onDelete: Cascade)
+  reviewedBy              User?               @relation("TranscriptReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@map("voice_transcripts")
+}
+
+enum VoiceTranscriptStatus {
+  PENDING
+  TRANSCRIBING
+  EXTRACTING
+  COMPLETED
+  NEEDS_REVIEW
+  REVIEWED
+  FAILED
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// FAILED JOBS - Dead Letter Queue for BullMQ
+// ────────────────────────────────────────────────────────────────────────────────
+
+model FailedJob {
+  id                 String    @id @default(cuid())
+
+  // Queue Info
+  queueName          String
+  jobId              String
+  jobName            String?
+
+  // Job Data
+  jobData            Json
+
+  // Error
+  errorMessage       String
+  errorStack         String?
+  errorCode          String?
+  errorType          String?
+
+  // Attempts
+  attempts           Int       @default(1)
+  maxAttempts        Int
+  lastAttemptAt      DateTime  @default(now())
+
+  // Context
+  organizationId     String?
+  userId             String?
+  relatedEntityType  String?
+  relatedEntityId    String?
+
+  // Status
+  status             String    @default("pending") // pending, retrying, retried, discarded, resolved
+  priority           Int       @default(0)
+  resolvedById       String?
+  resolvedAt         DateTime?
+  resolutionNotes    String?
+  resolutionType     String?
+
+  // Retry
+  retryJobId         String?
+  retriedAt          DateTime?
+  retryCount         Int       @default(0)
+
+  // Tags
+  tags               String[]  @default([])
+
+  // Timestamps
+  failedAt           DateTime  @default(now())
+  createdAt          DateTime  @default(now())
+
+  organization       Organization? @relation("FailedJobOrg", fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([queueName, status])
+  @@index([organizationId])
+  @@index([status])
+  @@map("failed_jobs")
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// IDEMPOTENCY KEYS - Request deduplication
+// ────────────────────────────────────────────────────────────────────────────────
+
+model IdempotencyKey {
+  id             String    @id @default(cuid())
+
+  // Key
+  key            String    @unique
+
+  // Result
+  result         Json?
+  status         String    @default("processing") // processing, completed, failed
+  statusCode     Int?
+
+  // Context
+  organizationId String?
+  userId         String?
+  operationType  String?
+
+  // Request Info
+  requestPath    String?
+  requestMethod  String?
+  requestHash    String?
+
+  // Expiration
+  expiresAt      DateTime
+
+  // Timestamps
+  createdAt      DateTime  @default(now())
+  completedAt    DateTime?
+
+  organization   Organization? @relation("IdempotencyOrg", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([organizationId])
+  @@map("idempotency_keys")
 }
