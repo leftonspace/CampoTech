@@ -20,6 +20,22 @@
 
 # 1. OVERVIEW & PURPOSE
 
+## ⚠️ Critical Implementation Warnings
+
+> **⚠️ WORKER INTEGRATION GAP:** Background workers do NOT check capabilities. The `checkCapability()` method in `base.worker.ts:168-172` returns hardcoded `true`:
+> ```typescript
+> protected async checkCapability(capability: string, orgId: string): Promise<boolean> {
+>   // TODO: Integrate with actual capabilities system
+>   return true; // HARDCODED - NOT IMPLEMENTED
+> }
+> ```
+> Workers affected: WhatsApp Worker, AFIP Worker, Payment Worker, Voice AI Worker.
+
+> **⚠️ ADMIN UI ISSUES:** The Admin UI capability management page:
+> - Uses mock/hardcoded data instead of live config
+> - Uses different category names (`integration/feature/system`) than backend (`external/domain/services/ui`)
+> - References API endpoints that don't exist (`/api/admin/capabilities`)
+
 ## What is the Capability Map?
 
 The CampoTech Capability Map is a **Feature Orchestration Layer** that acts as a universal ON/OFF switchboard for the entire platform. It provides:
@@ -659,18 +675,206 @@ export function isCapabilityEnabled(path: CapabilityPath): boolean {
 For runtime flexibility, capabilities can be overridden via environment variables:
 
 ```typescript
-function getCapabilityValue(category: string, capability: string): boolean {
+// Actual function name: getCapabilityWithEnvOverride()
+// Location: core/config/capabilities.ts
+function getCapabilityWithEnvOverride(
+  category: CapabilityCategory,
+  capability: string
+): boolean {
   // Check environment override first
   const envKey = `CAPABILITY_${category.toUpperCase()}_${capability.toUpperCase()}`;
   const envValue = process.env[envKey];
 
   if (envValue !== undefined) {
-    return envValue === 'true';
+    return envValue.toLowerCase() === 'true';
   }
 
   // Fall back to static configuration
   return Capabilities[category][capability] ?? true;
 }
+```
+
+## Advanced Features (Implemented but Previously Undocumented)
+
+### CapabilityService Class
+
+A database-backed capability management service with caching. Priority order (highest to lowest):
+1. Environment variables (emergency override)
+2. Per-organization database overrides
+3. Global database overrides (org_id = NULL)
+4. Static defaults from Capabilities object
+
+```typescript
+// Location: core/config/capabilities.ts
+
+const service = new CapabilityService(db);
+await service.initialize();
+
+// Check capability for specific org
+const canUseAfip = await service.isEnabled('external.afip', 'org-uuid');
+
+// Use guard pattern
+if (!await service.ensure('external.afip', 'org-uuid')) {
+  return fallbackBehavior();
+}
+```
+
+**Key Methods:**
+| Method | Description |
+|--------|-------------|
+| `initialize()` | Load overrides from database (call at startup) |
+| `isEnabled(path, orgId?)` | Check if capability is enabled (with caching) |
+| `ensure(path, orgId?)` | Guard function - logs when disabled |
+| `setOverride(input, userId?)` | Create/update an override |
+| `removeOverride(path, orgId?)` | Revert to default behavior |
+| `getFullSnapshot(orgId?)` | Get complete capability state for dashboard |
+| `reloadOverrides()` | Reload from database, clear cache |
+
+### CapabilityDatabaseAdapter Interface
+
+Interface for database operations. Implement to connect the capability system to your database:
+
+```typescript
+// Location: core/config/capabilities.ts
+
+interface CapabilityDatabaseAdapter {
+  getAllActiveOverrides(): Promise<CapabilityOverride[]>;
+  getOverridesForOrg(orgId: string): Promise<CapabilityOverride[]>;
+  upsertOverride(input: CapabilityOverrideInput, userId?: string): Promise<CapabilityOverride>;
+  deleteOverride(path: CapabilityPath, orgId?: string): Promise<boolean>;
+}
+```
+
+**Implementation:** See `core/repositories/capability-override.repository.ts`
+
+### Per-Organization Capability Overrides
+
+Override capabilities for specific organizations via database:
+
+```typescript
+// Disable AFIP for a specific org
+await service.setOverride({
+  org_id: 'org-uuid',
+  capability_path: 'external.afip',
+  enabled: false,
+  reason: 'AFIP certificate expired',
+  expires_at: new Date('2025-01-15'), // Optional TTL
+}, 'admin-user-id');
+```
+
+### Capability Expiration/TTL Support
+
+Overrides can have an expiration date. Expired overrides are automatically ignored:
+
+```typescript
+interface CapabilityOverride {
+  id: string;
+  org_id: string | null;        // null = global override
+  capability_path: CapabilityPath;
+  enabled: boolean;
+  reason: string | null;
+  disabled_by: string | null;
+  expires_at: Date | null;      // TTL support
+  created_at: Date;
+  updated_at: Date;
+}
+```
+
+### Capability Guards (capability-guards.ts)
+
+Pre-built guard functions for all external integrations:
+
+```typescript
+// Location: core/services/capability-guards.ts
+import { guards } from '@/core/services/capability-guards';
+
+// In your service method:
+async createInvoice(data: InvoiceData) {
+  if (!await guards.afip(data.orgId)) {
+    return this.createDraftInvoice(data); // Fallback
+  }
+  return this.requestCAE(data); // Normal flow
+}
+```
+
+**Available Guards:**
+| Guard | Capability Path |
+|-------|-----------------|
+| `guards.afip` | `external.afip` |
+| `guards.mercadopago` | `external.mercadopago` |
+| `guards.whatsapp` | `external.whatsapp` |
+| `guards.voiceAI` | `external.whatsapp_voice_ai` |
+| `guards.pushNotifications` | `external.push_notifications` |
+| `guards.invoicing` | `domain.invoicing` |
+| `guards.payments` | `domain.payments` |
+| `guards.scheduling` | `domain.scheduling` |
+| `guards.jobAssignment` | `domain.job_assignment` |
+| `guards.offlineSync` | `domain.offline_sync` |
+| `guards.technicianGPS` | `domain.technician_gps` |
+| `guards.caeQueue` | `services.cae_queue` |
+| `guards.whatsappQueue` | `services.whatsapp_queue` |
+| `guards.paymentReconciliation` | `services.payment_reconciliation` |
+| `guards.abuseDetection` | `services.abuse_detection` |
+| `guards.rateLimiting` | `services.rate_limiting` |
+| `guards.analyticsPipeline` | `services.analytics_pipeline` |
+| `guards.simpleMode` | `ui.simple_mode` |
+| `guards.advancedMode` | `ui.advanced_mode` |
+| `guards.pricebook` | `ui.pricebook` |
+| `guards.reportingDashboard` | `ui.reporting_dashboard` |
+
+### Helper Functions
+
+```typescript
+// Initialize with database adapter (call once at startup)
+await initializeCapabilities(db);
+
+// Check multiple capabilities (ALL must be enabled)
+const canProcess = await checkAllCapabilities(['external.afip', 'services.cae_queue'], orgId);
+
+// Check if ANY capability is enabled
+const hasMessaging = await checkAnyCapability(['external.whatsapp', 'external.push_notifications'], orgId);
+```
+
+### requireCapability Decorator
+
+Method decorator for capability enforcement:
+
+```typescript
+class MyService {
+  @requireCapability('external.afip')
+  async requestCAE(data: any) {
+    // Throws CapabilityDisabledError if disabled
+  }
+}
+```
+
+### Event System Integration
+
+Capability changes emit events via the event bus:
+
+```typescript
+// Location: src/lib/services/event-bus.ts
+// Event: CAPABILITY_CHANGED
+
+eventBus.on('CAPABILITY_CHANGED', ({ path, enabled, orgId }) => {
+  // React to capability changes
+});
+```
+
+### CLI Tools
+
+**Capability Status Tool:**
+```bash
+# Location: scripts/capability-status.ts
+npx ts-node scripts/capability-status.ts
+
+# Shows current state of all capabilities with override sources
+```
+
+**Panic Controller Integration:**
+```bash
+# Location: scripts/panic/panic-cli.ts
+# Capabilities integrate with panic mode for emergency disabling
 ```
 
 ---
@@ -1120,12 +1324,23 @@ After re-enabling any capability:
 | Field | Value |
 |-------|-------|
 | **Document ID** | capabilities-001 |
-| **Version** | 1.1 |
+| **Version** | 1.2 |
 | **Status** | Active |
 | **Author** | CampoTech Architecture Team |
 | **Last Updated** | 2025-12-10 |
 | **Related Documents** | campotech-architecture-complete.md, campotech-queue-worker-architecture.md |
 | **Runtime File** | core/config/capabilities.ts |
+| **Additional Files** | core/services/capability-guards.ts, core/repositories/capability-override.repository.ts, scripts/capability-status.ts |
+
+## Changelog
+
+### v1.2 (2025-12-10)
+- Added critical implementation warnings (worker integration gap, Admin UI issues)
+- Fixed function name: `getCapabilityValue()` → `getCapabilityWithEnvOverride()`
+- Documented advanced features: CapabilityService class, database overrides, guards, CLI tools
+- Added per-organization override documentation
+- Added capability expiration/TTL support documentation
+- Added event system integration documentation
 
 ---
 
