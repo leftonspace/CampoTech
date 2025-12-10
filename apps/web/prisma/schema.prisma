@@ -24,11 +24,15 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users     User[]
-  customers Customer[]
-  jobs      Job[]
-  invoices  Invoice[]
-  payments  Payment[]
+  users            User[]
+  customers        Customer[]
+  jobs             Job[]
+  invoices         Invoice[]
+  payments         Payment[]
+  scheduledReports ScheduledReport[]
+  reports          Report[]
+  reportHistory    ReportHistory[]
+  reviews          Review[]
 
   @@map("organizations")
 }
@@ -48,9 +52,13 @@ model User {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id])
-  assignedJobs Job[]        @relation("TechnicianJobs")
-  createdJobs  Job[]        @relation("CreatorJobs")
+  organization         Organization      @relation(fields: [organizationId], references: [id])
+  assignedJobs         Job[]             @relation("TechnicianJobs")
+  createdJobs          Job[]             @relation("CreatorJobs")
+  createdScheduledReports ScheduledReport[] @relation("ScheduledReportCreator")
+  createdReports       Report[]          @relation("ReportCreator")
+  generatedReports     ReportHistory[]   @relation("ReportHistoryGenerator")
+  technicianReviews    Review[]          @relation("TechnicianReviews")
 
   @@unique([email, organizationId])
   @@index([organizationId])
@@ -86,6 +94,7 @@ model Customer {
   organization Organization @relation(fields: [organizationId], references: [id])
   jobs         Job[]
   invoices     Invoice[]
+  reviews      Review[]
 
   @@index([phone])
   @@index([organizationId])
@@ -126,6 +135,7 @@ model Job {
   createdBy    User         @relation("CreatorJobs", fields: [createdById], references: [id])
   organization Organization @relation(fields: [organizationId], references: [id])
   invoice      Invoice?
+  review       Review?
 
   @@index([status])
   @@index([scheduledDate])
@@ -468,4 +478,133 @@ model MessageAggregationEvent {
   @@index([triggerReason])
   @@index([createdAt])
   @@map("message_aggregation_events")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 10: ANALYTICS & REPORTING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model ScheduledReport {
+  id             String    @id @default(cuid())
+  organizationId String
+  reportId       String?
+  name           String
+  frequency      String    // 'daily', 'weekly', 'monthly'
+  dayOfWeek      Int?      // 0-6 (Sunday-Saturday) for weekly reports
+  dayOfMonth     Int?      // 1-31 for monthly reports
+  time           String    // 'HH:mm' format
+  format         String    // 'pdf', 'excel', 'csv'
+  recipients     Json      // Array of email addresses
+  enabled        Boolean   @default(true)
+  status         String    @default("active") // 'active', 'paused', 'error'
+  lastRunAt      DateTime?
+  nextRunAt      DateTime?
+  createdById    String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("ScheduledReportCreator", fields: [createdById], references: [id])
+  report       Report?      @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  executions   ReportExecution[]
+
+  @@index([organizationId])
+  @@index([enabled])
+  @@index([nextRunAt])
+  @@map("scheduled_reports")
+}
+
+model Report {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  templateId     String   // Reference to report template ID
+  description    String?
+  parameters     Json?    // Default parameters for the report
+  createdById    String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy        User              @relation("ReportCreator", fields: [createdById], references: [id])
+  scheduledReports ScheduledReport[]
+  history          ReportHistory[]
+
+  @@index([organizationId])
+  @@index([templateId])
+  @@map("reports")
+}
+
+model ReportExecution {
+  id                String    @id @default(cuid())
+  scheduledReportId String
+  organizationId    String
+  status            String    @default("pending") // 'pending', 'processing', 'completed', 'failed'
+  format            String
+  fileUrl           String?
+  fileSize          Int?
+  generationTimeMs  Int?
+  error             String?
+  recipientResults  Json?     // Array of delivery results per recipient
+  startedAt         DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime  @default(now())
+
+  scheduledReport ScheduledReport @relation(fields: [scheduledReportId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledReportId])
+  @@index([organizationId])
+  @@index([status])
+  @@map("report_executions")
+}
+
+model ReportHistory {
+  id             String    @id @default(cuid())
+  organizationId String
+  reportId       String?
+  name           String
+  reportType     String    // Template ID or custom report type
+  format         String    // 'pdf', 'excel', 'csv'
+  status         String    @default("completed") // 'completed', 'failed'
+  parameters     Json?     // Parameters used for generation
+  fileUrl        String?
+  fileSize       Int?
+  generationTimeMs Int?
+  errorMessage   String?
+  downloadUrl    String?
+  generatedById  String
+  generatedAt    DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  generatedBy  User         @relation("ReportHistoryGenerator", fields: [generatedById], references: [id])
+  report       Report?      @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([reportType])
+  @@index([status])
+  @@index([generatedAt])
+  @@map("report_history")
+}
+
+model Review {
+  id             String   @id @default(cuid())
+  organizationId String
+  jobId          String?  @unique
+  customerId     String?
+  technicianId   String?
+  rating         Int?     // 1-5 star rating
+  comment        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  job          Job?         @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  customer     Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  technician   User?        @relation("TechnicianReviews", fields: [technicianId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([technicianId])
+  @@index([rating])
+  @@map("reviews")
 }
