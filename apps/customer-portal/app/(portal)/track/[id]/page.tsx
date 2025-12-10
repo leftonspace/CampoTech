@@ -11,6 +11,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import {
   ArrowLeft,
   MapPin,
@@ -28,6 +29,17 @@ import {
 } from 'lucide-react';
 import { customerApi } from '@/lib/customer-api';
 import { formatDate, cn } from '@/lib/utils';
+import { StatusTimeline, TechnicianCard } from '@/components/tracking';
+
+// Dynamic import for map to avoid SSR issues
+const LiveMap = dynamic(() => import('@/components/tracking/LiveMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-64 bg-gray-100 rounded-xl flex items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+    </div>
+  ),
+});
 
 interface TrackingData {
   job: any;
@@ -234,47 +246,14 @@ export default function LiveTrackingPage() {
       </div>
 
       {/* Map */}
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
-        <div className="h-64 bg-gradient-to-br from-gray-100 to-gray-200 relative">
-          {/* Map placeholder - In production, integrate with Google Maps or Mapbox */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            {technicianLocation ? (
-              <div className="text-center">
-                <div className="w-16 h-16 bg-primary-600 rounded-full flex items-center justify-center mx-auto mb-2 shadow-lg">
-                  <Truck className="w-8 h-8 text-white" />
-                </div>
-                <p className="text-sm font-medium text-gray-700">
-                  Ubicación del técnico
-                </p>
-                <p className="text-xs text-gray-500">
-                  Actualizado {formatRelativeTime(technicianLocation.updatedAt)}
-                </p>
-              </div>
-            ) : (
-              <div className="text-center text-gray-500">
-                <MapPin className="w-10 h-10 mx-auto mb-2" />
-                <p className="text-sm">Esperando ubicación...</p>
-              </div>
-            )}
-          </div>
-
-          {/* ETA overlay */}
-          {eta && (
-            <div className="absolute top-4 left-4 bg-white rounded-lg shadow-md px-4 py-2">
-              <p className="text-xs text-gray-500">Tiempo estimado</p>
-              <p className="text-2xl font-bold text-primary-600">{eta.minutes} min</p>
-              <p className="text-xs text-gray-500">{eta.distance}</p>
-            </div>
-          )}
-
-          {/* Refresh button */}
-          <button
-            onClick={loadInitialData}
-            className="absolute top-4 right-4 bg-white rounded-lg shadow-md p-2 hover:bg-gray-50"
-          >
-            <RefreshCw className="w-4 h-4 text-gray-600" />
-          </button>
-        </div>
+      <div className="mb-4">
+        <LiveMap
+          technicianLocation={technicianLocation}
+          customerLocation={job.latitude && job.longitude ? { lat: job.latitude, lng: job.longitude } : undefined}
+          eta={eta}
+          onRefresh={loadInitialData}
+          className="border border-gray-200"
+        />
       </div>
 
       {/* Current status */}
@@ -300,87 +279,17 @@ export default function LiveTrackingPage() {
 
       {/* Technician info */}
       {job.technicianName && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Tu técnico</h3>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-primary-100 rounded-full flex items-center justify-center">
-                <User className="w-6 h-6 text-primary-600" />
-              </div>
-              <div>
-                <p className="font-medium text-gray-900">{job.technicianName}</p>
-                <p className="text-sm text-gray-500">Técnico certificado</p>
-              </div>
-            </div>
-            {job.technicianPhone && (
-              <a
-                href={`tel:${job.technicianPhone}`}
-                className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center hover:bg-green-200 transition-colors"
-              >
-                <Phone className="w-5 h-5 text-green-600" />
-              </a>
-            )}
-          </div>
-        </div>
+        <TechnicianCard
+          name={job.technicianName}
+          phone={job.technicianPhone}
+          className="mb-4"
+        />
       )}
 
       {/* Status timeline */}
       <div className="bg-white rounded-xl border border-gray-200 p-4 mb-4">
         <h3 className="text-sm font-medium text-gray-700 mb-4">Historial</h3>
-        <div className="space-y-4">
-          {statusHistory.length > 0 ? (
-            statusHistory.map((entry, index) => {
-              const config = statusConfig[entry.status] || statusConfig.scheduled;
-              const EntryIcon = config.icon;
-
-              return (
-                <div key={index} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <div
-                      className={cn(
-                        'w-8 h-8 rounded-full flex items-center justify-center',
-                        index === 0 ? config.color.split(' ')[0] : 'bg-gray-100'
-                      )}
-                    >
-                      <EntryIcon
-                        className={cn(
-                          'w-4 h-4',
-                          index === 0 ? config.color.split(' ')[1] : 'text-gray-400'
-                        )}
-                      />
-                    </div>
-                    {index < statusHistory.length - 1 && (
-                      <div className="w-0.5 h-full bg-gray-200 my-1" />
-                    )}
-                  </div>
-                  <div className="flex-1 pb-4">
-                    <p
-                      className={cn(
-                        'font-medium',
-                        index === 0 ? 'text-gray-900' : 'text-gray-500'
-                      )}
-                    >
-                      {config.label}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {formatDate(entry.timestamp, {
-                        hour: 'numeric',
-                        minute: 'numeric',
-                      })}
-                    </p>
-                    {entry.note && (
-                      <p className="text-sm text-gray-600 mt-1">{entry.note}</p>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          ) : (
-            <p className="text-sm text-gray-500 text-center py-4">
-              El historial aparecerá aquí
-            </p>
-          )}
-        </div>
+        <StatusTimeline history={statusHistory} />
       </div>
 
       {/* Actions */}
