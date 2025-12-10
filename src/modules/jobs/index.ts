@@ -13,6 +13,7 @@ import { createJobStateMachine, JobTransitionContext } from '../../shared/utils/
 import { startOfDay, endOfDay } from '../../shared/utils/validation';
 import { createTrackingSession, completeSession, cancelSession } from '../tracking/tracking.service';
 import { log } from '../../lib/logging/logger';
+import { useMaterial, getJobMaterials } from '../inventory';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -394,6 +395,25 @@ export class JobService {
       extras.photos = data.photos;
       extras.signature = data.signature;
       extras.completionNotes = data.notes;
+
+      // Deduct materials from inventory
+      try {
+        const materials = await getJobMaterials(orgId, id);
+        for (const material of materials) {
+          if (material.estimatedQty > material.usedQty) {
+            // Auto-use remaining estimated quantity
+            await useMaterial(orgId, {
+              jobMaterialId: material.id,
+              usedQty: material.estimatedQty - material.usedQty,
+              fromVehicle: material.sourceType === 'VEHICLE',
+              technicianId: job.assignedTo || undefined,
+            });
+          }
+        }
+      } catch (err) {
+        log.error('Failed to deduct job materials', { jobId: id, error: err });
+        // Non-blocking: job still completes even if inventory deduction fails
+      }
     }
 
     if (data.status === 'cancelled') {
