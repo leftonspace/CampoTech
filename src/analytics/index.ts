@@ -421,3 +421,76 @@ export type {
   AnomalyDetectionResult,
   MetricBaseline,
 } from './predictions/anomaly/anomaly-detector';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LOCATION ANALYTICS - Phase 11.6
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Location Performance
+export {
+  calculateLocationKPIs,
+  getLocationPerformanceTrend,
+  getLocationDailyMetrics,
+  getLocationServiceTypeBreakdown,
+  generateLocationKPIValues,
+} from './locations/location-performance';
+export type {
+  LocationKPIs,
+  LocationPerformanceTrend,
+  LocationDailyMetrics,
+  LocationServiceTypeBreakdown,
+} from './locations/location-performance';
+
+// Location Comparison
+export {
+  generateLocationComparisonReport,
+  getLocationBenchmarks,
+  compareLocations,
+} from './locations/location-comparison';
+export type {
+  LocationComparisonReport,
+  LocationComparisonEntry,
+  LocationRankings,
+  RankingEntry,
+  ComparisonInsight,
+  LocationBenchmark,
+} from './locations/location-comparison';
+
+// Geographic Analytics
+export {
+  generateJobsHeatmap,
+  generateRevenueHeatmap,
+  generateResponseTimeHeatmap,
+  getGeographicPerformance,
+  generateServiceDensityMap,
+  analyzeCoverage,
+} from './locations/geographic-analytics';
+export type {
+  GeoCoordinate,
+  GeoBounds,
+  HeatmapPoint,
+  HeatmapData,
+  GeographicPerformance,
+  ZonePerformance,
+  ServiceDensityMap,
+  DensityCell,
+  CoverageAnalysis,
+  CoverageGap,
+  OverlappingArea,
+} from './locations/geographic-analytics';
+
+// Expansion Analysis
+export {
+  analyzeExpansionOpportunities,
+  calculateLocationSaturation,
+  identifyMarketPotential,
+} from './locations/expansion-analyzer';
+export type {
+  ExpansionOpportunity,
+  ExpansionAnalysis,
+  ExpansionAction,
+  RiskAssessment,
+  RiskFactor,
+  MarketPotential,
+  LocationSaturation,
+} from './locations/expansion-analyzer';
