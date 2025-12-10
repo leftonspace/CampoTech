@@ -271,13 +271,19 @@ export const createPaymentStateMachine = (initialState: PaymentStatus = 'pending
           to: 'refunded',
           guard: (ctx) => !!ctx.reason,
         },
+        {
+          from: 'approved',
+          to: 'partial_refund',
+          guard: (ctx) => !!ctx.reason && !!ctx.refundAmount && ctx.refundAmount < ctx.payment.amount,
+        },
         { from: 'approved', to: 'disputed' },
 
         // From disputed
         { from: 'disputed', to: 'approved' }, // Dispute resolved in favor
         { from: 'disputed', to: 'refunded' }, // Dispute resolved for customer
+        { from: 'disputed', to: 'partial_refund' }, // Partial refund after dispute
 
-        // Refunded, rejected, cancelled are terminal
+        // Refunded, partial_refund, rejected, cancelled are terminal
       ],
     },
     initialState

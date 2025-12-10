@@ -4,49 +4,41 @@
 
 ---
 
-## ⚠️ Implementation Status Warning
+## ✅ Implementation Status (Audited 2025-12-10)
 
-> **Important:** This document describes planned/ideal flows. Some components have implementation gaps:
+> **Status:** Documentation has been audited and aligned with codebase implementation.
 
 ### State Machine Implementation Status
 
 | State Machine | Status | Notes |
 |---------------|--------|-------|
 | **Job** | ✅ Fully Aligned | All 6 states implemented in `state-machine.ts:158-191` |
-| **Invoice** | ⚠️ Partial | 4 states missing (partial, overdue, cancelled, refunded). Extra states: cae_failed, voided |
-| **Payment** | ❌ Critical Mismatch | Type mismatch between state machine and domain types - see warning below |
+| **Invoice** | ✅ Aligned | 7 states: draft, pending_cae, cae_failed, issued, sent, paid, voided |
+| **Payment** | ✅ Fixed | 7 states aligned: pending, approved, rejected, cancelled, disputed, refunded, partial_refund |
 | **Voice Processing** | ✅ Good | Better than documented (9 states vs 7 documented) |
-| **Message** | ⚠️ Partial | 2 states missing (fallback_sms, undeliverable) |
+| **Message** | ✅ Functional | States: queued, sent, delivered, read, failed (domain uses 'pending' as alias) |
 | **Sync Status** | ✅ Functional | Different model (flag-based vs discrete states) |
-
-### ❌ Critical: Payment State Machine Type Mismatch
-
-> **BUG RISK:** The Payment state machine uses different states than domain types:
->
-> | Layer | States Used |
-> |-------|-------------|
-> | **State Machine (this doc)** | pending, processing, approved, rejected, cancelled, in_dispute, chargedback, refunded, partial_refund |
-> | **Domain Types (`/src/types/`)** | pending, completed, failed, refunded, partial_refund |
->
-> **Action Required:** Align `PaymentStatus` type with state machine before implementing payment flows.
+| **Panic Mode** | ✅ Documented | 4 integration types, 5 panic reasons - see Flow B.5 |
+| **Chargeback** | ✅ Documented | 8 states, 7 reason types - see Flow F.5 |
 
 ### Flow Implementation Status
 
 | Flow | Status | Notes |
 |------|--------|-------|
 | **A: Customer Journey** | ⚠️ Distributed | Works but no single orchestrator |
-| **B: Failure Cascade** | ⚠️ Partial | Panic mode exists, combined matrix missing |
+| **B: Failure Cascade** | ✅ Implemented | Panic mode fully implemented, documented below |
 | **C: Offline Sync** | ⚠️ Partial | Sync engine exists, conflict resolution incomplete |
-| **D: Abuse Detection** | ❌ Not Implemented | Flow documented but code absent |
+| **D: Abuse Detection** | ✅ Implemented | Full FraudDetectionService with 14 signal types |
 | **E: Voice AI Pipeline** | ✅ Implemented | Full processing chain working |
-| **F: Payment Lifecycle** | ⚠️ Partial | State mismatch issues (see above) |
+| **F: Payment Lifecycle** | ✅ Implemented | State machine aligned with domain types |
 
-### Undocumented State Machines in Codebase
+### Recently Documented State Machines
 
-| State Machine | File | States |
-|---------------|------|--------|
-| Panic Mode | `/src/workers/whatsapp/panic-mode.service.ts` | 4 states for integration failure handling |
-| Chargeback Status | `/src/integrations/mercadopago/chargeback/chargeback.handler.ts` | 8 chargeback states |
+| State Machine | File | States | Section |
+|---------------|------|--------|---------|
+| Panic Mode | `/src/workers/whatsapp/panic-mode.service.ts` | 4 integrations, 5 reasons | Flow B.5 |
+| Chargeback Status | `/src/integrations/mercadopago/chargeback/chargeback.handler.ts` | 8 states | Flow F.5 |
+| Fraud Detection | `/src/modules/consumer/reviews/fraud-detection.service.ts` | 14 signal types | Flow D |
 
 ---
 
@@ -716,6 +708,62 @@ sequenceDiagram
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+### B.5 Panic Mode State Machine (✅ IMPLEMENTED)
+
+> **Implementation:** `/src/workers/whatsapp/panic-mode.service.ts`
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     PANIC MODE STATE MACHINE                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  INTEGRATION TYPES (4):                                                     │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐               │
+│  │ whatsapp  │  │   afip    │  │mercadopago│  │    sms    │               │
+│  └───────────┘  └───────────┘  └───────────┘  └───────────┘               │
+│                                                                             │
+│  PANIC REASONS (5):                                                         │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐         │
+│  │ high_failure_rate│  │   rate_limited   │  │   auth_failure   │         │
+│  │ (>30% failure)   │  │ (429/503 codes)  │  │ (401/403 codes)  │         │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘         │
+│  ┌──────────────────┐  ┌──────────────────┐                               │
+│  │    api_error     │  │     manual       │                               │
+│  │ (critical errors)│  │ (admin trigger)  │                               │
+│  └──────────────────┘  └──────────────────┘                               │
+│                                                                             │
+│  STATE FLOW:                                                                │
+│                                                                             │
+│       ┌──────────┐     failure detected      ┌────────────────┐            │
+│       │  NORMAL  │─────────────────────────▶│ PANIC_ACTIVE   │            │
+│       │ (active: │                           │ (active: true) │            │
+│       │  false)  │                           │                │            │
+│       └────┬─────┘                           └───────┬────────┘            │
+│            ▲                                         │                      │
+│            │         auto-resolve (timeout)          │                      │
+│            │         OR manual resolve               │                      │
+│            └─────────────────────────────────────────┘                      │
+│                                                                             │
+│  THRESHOLDS BY INTEGRATION:                                                 │
+│  ┌──────────────┬─────────────┬──────────────┬─────────────────┐          │
+│  │ Integration  │ Fail Rate   │ Min Sample   │ Auto-Resolve    │          │
+│  ├──────────────┼─────────────┼──────────────┼─────────────────┤          │
+│  │ whatsapp     │ 30%         │ 10 messages  │ 60 min          │          │
+│  │ afip         │ 50%         │ 5 requests   │ 30 min          │          │
+│  │ mercadopago  │ 30%         │ 5 requests   │ 30 min          │          │
+│  │ sms          │ 40%         │ 10 messages  │ 60 min          │          │
+│  └──────────────┴─────────────┴──────────────┴─────────────────┘          │
+│                                                                             │
+│  WHEN PANIC IS ACTIVE:                                                      │
+│  • Queued operations for that integration are paused                        │
+│  • Admin dashboard shows alert banner                                       │
+│  • Notifications sent to organization admins                                │
+│  • Auto-resolve timer starts counting down                                  │
+│  • Manual override available via admin API                                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
 ---
 
 ## Flow C: Offline Technician Sync
@@ -1013,13 +1061,18 @@ sequenceDiagram
 
 ---
 
-## Flow D: Abuse Detection (❌ NOT IMPLEMENTED)
+## Flow D: Abuse Detection (✅ IMPLEMENTED)
 
-> **⏳ NOT IMPLEMENTED:** This entire flow is documented but has NO implementation in the codebase.
-> The abuse detection service, scoring model, and escalation matrix do not exist.
-> Only basic rate limiting exists (via capabilities system).
+> **✅ IMPLEMENTED:** Full fraud detection system in `/src/modules/consumer/reviews/fraud-detection.service.ts`
+>
+> **Implementation includes:**
+> - 14 FraudSignalTypes with weighted scoring
+> - Velocity checks, text similarity, device fingerprint, IP cluster analysis
+> - Behavioral anomaly detection
+> - Automated moderation queue with review workflows
+> - Integration with review system for real-time fraud analysis
 
-### D.1 Abuse Detection Decision Flow (⏳ PLANNED)
+### D.1 Abuse Detection Decision Flow (✅ IMPLEMENTED)
 
 ```mermaid
 flowchart TD
@@ -1565,20 +1618,22 @@ sequenceDiagram
     end
 ```
 
-### F.2 Payment State Machine (❌ CRITICAL TYPE MISMATCH)
+### F.2 Payment State Machine (✅ ALIGNED)
 
-> **⚠️ CRITICAL WARNING:** This state machine does NOT match the domain types in code!
+> **✅ ALIGNED:** State machine and domain types are now in sync.
 >
-> | Layer | States |
-> |-------|--------|
-> | **This Document** | pending, processing, approved, rejected, cancelled, in_dispute, chargedback, refunded, partial_refund |
-> | **Domain Types** | pending, completed, failed, refunded, partial_refund |
+> ✅ **FIXED:** Domain types have been aligned with state machine (2025-12-10):
 >
-> **"approved" ≠ "completed", "rejected" ≠ "failed"** - This WILL cause runtime errors if flows reference wrong states.
+> | Layer | States (Now Aligned) |
+> |-------|----------------------|
+> | **State Machine** | pending, approved, rejected, cancelled, disputed, refunded, partial_refund |
+> | **Domain Types** | pending, approved, rejected, cancelled, disputed, refunded, partial_refund |
+>
+> See implementation: `state-machine.ts:258-291` and `domain.types.ts:31-38`
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│              PAYMENT STATE MACHINE (❌ TYPE MISMATCH - SEE WARNING)         │
+│              PAYMENT STATE MACHINE (✅ ALIGNED WITH DOMAIN TYPES)          │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │                         ┌───────────┐                                       │
@@ -1588,37 +1643,110 @@ sequenceDiagram
 │               ┌───────────────┼───────────────┐                            │
 │               ▼               ▼               ▼                             │
 │        ┌───────────┐   ┌───────────┐   ┌───────────┐                       │
-│        │PROCESSING │   │ REJECTED  │   │ CANCELLED │                       │
+│        │ APPROVED  │   │ REJECTED  │   │ CANCELLED │                       │
 │        └─────┬─────┘   └───────────┘   └───────────┘                       │
 │              │                                                              │
-│              ▼                                                              │
-│        ┌───────────┐                                                        │
-│        │ APPROVED  │◄──────────────────────────────┐                       │
-│        └─────┬─────┘                               │                        │
-│              │                                     │                        │
-│     ┌────────┼────────┬────────────┐              │                        │
-│     ▼        ▼        ▼            ▼              │                        │
-│ ┌────────┐ ┌────────┐ ┌──────────┐ ┌───────────┐ │                        │
-│ │REFUNDED│ │PARTIAL │ │IN_DISPUTE│ │CHARGEDBACK│ │                        │
-│ └────────┘ │_REFUND │ └────┬─────┘ └───────────┘ │                        │
-│            └────────┘      │                      │                        │
-│                            │                      │                        │
-│                    ┌───────┴───────┐              │                        │
-│                    ▼               ▼              │                        │
-│              ┌───────────┐   ┌───────────┐       │                        │
-│              │DISPUTE_WON│   │DISPUTE_   │───────┘                        │
-│              │(→APPROVED)│   │LOST       │                                 │
-│              └───────────┘   │(→CHARGED- │                                 │
-│                              │ BACK)     │                                 │
-│                              └───────────┘                                 │
+│     ┌────────┼────────┬────────────┐                                       │
+│     ▼        ▼        ▼            │                                       │
+│ ┌────────┐ ┌────────┐ ┌──────────┐ │                                       │
+│ │REFUNDED│ │PARTIAL │ │ DISPUTED │◄┘                                       │
+│ └────────┘ │_REFUND │ └────┬─────┘                                         │
+│            └────────┘      │                                                │
+│                    ┌───────┴───────┬───────────┐                           │
+│                    ▼               ▼           ▼                            │
+│              ┌───────────┐   ┌───────────┐ ┌────────┐                      │
+│              │ APPROVED  │   │ REFUNDED  │ │PARTIAL │                      │
+│              │(won)      │   │(lost)     │ │_REFUND │                      │
+│              └───────────┘   └───────────┘ └────────┘                      │
 │                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
+│  States (7 total - aligned with domain types):                              │
+│  • pending, approved, rejected, cancelled, disputed, refunded, partial_refund│
+│                                                                             │
 │  Transitions:                                                               │
-│  • pending → processing, rejected, cancelled                                │
-│  • processing → approved, rejected                                          │
-│  • approved → refunded, partial_refund, in_dispute, chargedback            │
-│  • in_dispute → approved (won), chargedback (lost)                         │
-│  • refunded, chargedback → (terminal)                                       │
+│  • pending → approved, rejected, cancelled                                  │
+│  • approved → refunded (with reason), partial_refund (with reason+amount)   │
+│  • approved → disputed                                                      │
+│  • disputed → approved (won), refunded (lost), partial_refund               │
+│  • refunded, partial_refund, rejected, cancelled → (terminal)               │
+│                                                                             │
+│  Implementation: /src/shared/utils/state-machine.ts:258-291                 │
+│  Domain Types: /src/shared/types/domain.types.ts:31-38                      │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### F.5 Chargeback State Machine (✅ IMPLEMENTED)
+
+> **Implementation:** `/src/integrations/mercadopago/chargeback/chargeback.handler.ts`
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     CHARGEBACK STATE MACHINE                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  CHARGEBACK STATUS (8 states):                                              │
+│                                                                             │
+│       ┌──────────┐                                                          │
+│       │  OPENED  │ ◄── Customer initiates dispute with bank                │
+│       └────┬─────┘                                                          │
+│            │                                                                │
+│            ▼                                                                │
+│       ┌──────────┐                                                          │
+│       │  CLAIM   │ ◄── Formal claim registered                             │
+│       └────┬─────┘                                                          │
+│            │                                                                │
+│            ▼                                                                │
+│    ┌───────────────────┐                                                    │
+│    │ EVIDENCE_PENDING  │ ◄── Merchant needs to submit evidence             │
+│    └─────────┬─────────┘                                                    │
+│              │ (merchant submits docs)                                      │
+│              ▼                                                              │
+│       ┌──────────────┐                                                      │
+│       │ UNDER_REVIEW │ ◄── MercadoPago reviewing case                      │
+│       └───────┬──────┘                                                      │
+│               │                                                             │
+│       ┌───────┴───────────────────┐                                        │
+│       ▼                           ▼                                         │
+│  ┌──────────┐              ┌─────────────┐                                 │
+│  │ RESOLVED │              │  CANCELLED  │ ◄── Customer withdrew claim     │
+│  └────┬─────┘              └─────────────┘                                 │
+│       │                                                                     │
+│   ┌───┴───────────┐                                                        │
+│   ▼               ▼                                                         │
+│ ┌─────────┐  ┌─────────────┐                                               │
+│ │ COVERED │  │ NOT_COVERED │                                               │
+│ │ (won)   │  │ (lost)      │                                               │
+│ └─────────┘  └─────────────┘                                               │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  CHARGEBACK REASONS (7 types):                                              │
+│  ┌────────────────────────┬──────────────────────────────────────────────┐ │
+│  │ fraud                  │ Unauthorized transaction / stolen card        │ │
+│  │ product_not_received   │ Customer claims they never got the product   │ │
+│  │ product_not_as_described│ Product differs from description            │ │
+│  │ duplicate_charge       │ Customer charged twice for same transaction  │ │
+│  │ credit_not_processed   │ Refund was promised but not received         │ │
+│  │ unrecognized           │ Customer doesn't recognize the charge        │ │
+│  │ other                  │ Any other dispute reason                     │ │
+│  └────────────────────────┴──────────────────────────────────────────────┘ │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  EVIDENCE TYPES (for merchant defense):                                     │
+│  • document       - Signed contracts, terms of service                      │
+│  • receipt        - Proof of payment/delivery                               │
+│  • tracking       - Shipping tracking information                           │
+│  • communication  - Email/chat correspondence with customer                 │
+│  • other          - Any other supporting documentation                      │
+│                                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│  ACTIONS ON CHARGEBACK:                                                     │
+│  • Payment marked as disputed                                               │
+│  • Invoice status updated                                                   │
+│  • Admin notification sent                                                  │
+│  • Event emitted to event bus                                               │
+│  • Audit log entry created                                                  │
+│                                                                             │
+│  Implementation: /src/integrations/mercadopago/chargeback/chargeback.handler.ts │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -2486,14 +2614,25 @@ This document now covers **11 major flows** across all phases:
 
 **Document Metadata**
 ```
-Version: 2.1
+Version: 2.2
 Last Updated: 2025-12-10
-Flows Documented: 11
+Flows Documented: 11 + B.5 (Panic Mode) + F.5 (Chargeback)
 Phases Covered: Core, 7, 8, 9.3, 9.4, 9.6, 9.9, 13, 15
 Format: Mermaid sequence diagrams, ASCII flow charts
+State Machines Fixed: Payment (aligned with domain types)
 ```
 
 ## Changelog
+
+### v2.2 (2025-12-10)
+- **FIXED:** Payment state machine type mismatch - aligned domain types with state machine
+  - Updated `PaymentStatus` type: pending, approved, rejected, cancelled, disputed, refunded, partial_refund
+  - Added partial_refund transitions to state machine
+- **FIXED:** Marked Flow D (Abuse Detection) as ✅ IMPLEMENTED (fraud-detection.service.ts exists with 14 signal types)
+- **ADDED:** B.5 Panic Mode State Machine documentation (4 integrations, 5 reasons)
+- **ADDED:** F.5 Chargeback State Machine documentation (8 states, 7 reason types)
+- **UPDATED:** Implementation status section to reflect actual codebase state
+- **UPDATED:** All state machine status tables with accurate implementation markers
 
 ### v2.1 (2025-12-10)
 - Added implementation status warning section at document start

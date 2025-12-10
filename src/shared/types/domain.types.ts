@@ -30,8 +30,10 @@ export type InvoiceType = 'A' | 'B' | 'C' | 'E';
 
 export type PaymentStatus =
   | 'pending'
-  | 'completed'
-  | 'failed'
+  | 'approved'
+  | 'rejected'
+  | 'cancelled'
+  | 'disputed'
   | 'refunded'
   | 'partial_refund';
 
