@@ -17,6 +17,7 @@ import {
   Bell,
   MessageCircle,
   BarChart3,
+  Building2,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
@@ -27,6 +28,7 @@ const navigation = [
   { name: 'Facturas', href: '/dashboard/invoices', icon: FileText },
   { name: 'Pagos', href: '/dashboard/payments', icon: CreditCard },
   { name: 'Analytics', href: '/dashboard/analytics/overview', icon: BarChart3 },
+  { name: 'Sucursales', href: '/dashboard/locations', icon: Building2 },
   { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle },
   { name: 'Configuración', href: '/dashboard/settings', icon: Settings },
 ];
