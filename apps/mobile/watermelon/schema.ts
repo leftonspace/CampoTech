@@ -9,7 +9,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 1,
+  version: 2,
   tables: [
     // Jobs table - core data for technicians
     tableSchema({
@@ -143,6 +143,66 @@ export const schema = appSchema({
         { name: 'role', type: 'string' },
         { name: 'mode', type: 'string' }, // 'simple', 'advanced'
         { name: 'last_sync', type: 'number', isOptional: true },
+      ],
+    }),
+
+    // Products (inventory)
+    tableSchema({
+      name: 'products',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'organization_id', type: 'string', isIndexed: true },
+        { name: 'sku', type: 'string', isIndexed: true },
+        { name: 'barcode', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'name', type: 'string', isIndexed: true },
+        { name: 'description', type: 'string', isOptional: true },
+        { name: 'category_name', type: 'string', isOptional: true },
+        { name: 'unit_of_measure', type: 'string' },
+        { name: 'sale_price', type: 'number' },
+        { name: 'cost_price', type: 'number' },
+        { name: 'is_active', type: 'boolean' },
+        { name: 'track_inventory', type: 'boolean' },
+        { name: 'image_url', type: 'string', isOptional: true },
+        { name: 'synced_at', type: 'number', isOptional: true },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+
+    // Vehicle stock (technician inventory)
+    tableSchema({
+      name: 'vehicle_stock',
+      columns: [
+        { name: 'server_id', type: 'string', isIndexed: true },
+        { name: 'vehicle_id', type: 'string', isIndexed: true },
+        { name: 'product_id', type: 'string', isIndexed: true },
+        { name: 'product_name', type: 'string' },
+        { name: 'product_sku', type: 'string' },
+        { name: 'quantity', type: 'number' },
+        { name: 'min_quantity', type: 'number' },
+        { name: 'max_quantity', type: 'number' },
+        { name: 'unit_cost', type: 'number' },
+        { name: 'needs_replenishment', type: 'boolean', isIndexed: true },
+        { name: 'synced_at', type: 'number', isOptional: true },
+        { name: 'updated_at', type: 'number' },
+      ],
+    }),
+
+    // Replenishment requests
+    tableSchema({
+      name: 'replenishment_requests',
+      columns: [
+        { name: 'server_id', type: 'string', isOptional: true, isIndexed: true },
+        { name: 'vehicle_id', type: 'string', isIndexed: true },
+        { name: 'status', type: 'string', isIndexed: true },
+        { name: 'priority', type: 'string' },
+        { name: 'items', type: 'string' }, // JSON stringified
+        { name: 'notes', type: 'string', isOptional: true },
+        { name: 'processed_by_id', type: 'string', isOptional: true },
+        { name: 'processed_by_name', type: 'string', isOptional: true },
+        { name: 'is_synced', type: 'boolean' },
+        { name: 'created_at', type: 'number', isIndexed: true },
+        { name: 'updated_at', type: 'number' },
+        { name: 'processed_at', type: 'number', isOptional: true },
       ],
     }),
   ],
