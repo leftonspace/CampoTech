@@ -5,6 +5,33 @@
  * Background workers for MercadoPago payment processing
  */
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAYMENT WEBHOOK WORKER (BullMQ)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export {
+  // Queue
+  getPaymentWebhookQueue,
+  queuePaymentWebhook,
+  getQueueStatus as getPaymentWebhookQueueStatus,
+  // Worker
+  startPaymentWebhookWorker,
+  stopPaymentWebhookWorker,
+  // Management
+  retryFailedJob as retryPaymentWebhookJob,
+  getFailedJobs as getPaymentWebhookFailedJobs,
+  pauseQueue as pausePaymentWebhookQueue,
+  resumeQueue as resumePaymentWebhookQueue,
+} from './payment-webhook.worker';
+export type {
+  PaymentWebhookJobData,
+  PaymentWebhookJobResult,
+} from './payment-webhook.worker';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LEGACY PAYMENT WORKER (Database Polling)
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export {
   MPPaymentWorker,
   getMPPaymentWorker,
