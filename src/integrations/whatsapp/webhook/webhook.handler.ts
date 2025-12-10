@@ -299,6 +299,57 @@ export async function processWebhookEvents(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// INTERACTIVE RESPONSE EXTRACTION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface InteractiveResponseData {
+  type: 'button_reply' | 'list_reply' | 'none';
+  id: string | null;
+  title: string | null;
+  description?: string | null;
+}
+
+/**
+ * Extract interactive response data from a message
+ * Useful for automation and workflow triggers
+ */
+export function extractInteractiveResponse(message: InboundMessage): InteractiveResponseData {
+  if (message.type !== 'interactive' || !message.interactive) {
+    return { type: 'none', id: null, title: null };
+  }
+
+  if (message.interactive.type === 'button_reply' && message.interactive.buttonReply) {
+    return {
+      type: 'button_reply',
+      id: message.interactive.buttonReply.id,
+      title: message.interactive.buttonReply.title,
+    };
+  }
+
+  if (message.interactive.type === 'list_reply' && message.interactive.listReply) {
+    return {
+      type: 'list_reply',
+      id: message.interactive.listReply.id,
+      title: message.interactive.listReply.title,
+      description: message.interactive.listReply.description,
+    };
+  }
+
+  return { type: 'none', id: null, title: null };
+}
+
+/**
+ * Check if message is an interactive response
+ */
+export function isInteractiveResponse(message: InboundMessage): boolean {
+  return (
+    message.type === 'interactive' &&
+    !!message.interactive &&
+    ['button_reply', 'list_reply'].includes(message.interactive.type)
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // IDEMPOTENCY
 // ═══════════════════════════════════════════════════════════════════════════════
 

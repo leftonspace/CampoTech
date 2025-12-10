@@ -19,7 +19,7 @@ import {
   WAMessageDirection,
 } from './whatsapp.types';
 import { sendTemplateMessage, buildTemplateWithParams } from './messages/template.sender';
-import { sendTextMessage } from './messages/text.sender';
+import { sendTextMessage, sendButtonMessage, sendListMessage } from './messages/text.sender';
 import { downloadMedia } from './messages/media.handler';
 import {
   getOrganizationTemplates,
@@ -511,6 +511,228 @@ export async function sendTemplate(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Failed to queue message',
+    };
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// INTERACTIVE MESSAGES (Buttons & Lists)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface InteractiveButton {
+  id: string;
+  title: string;
+}
+
+export interface ListSection {
+  title?: string;
+  rows: Array<{ id: string; title: string; description?: string }>;
+}
+
+/**
+ * Send a message with quick reply buttons (max 3 buttons)
+ */
+export async function sendInteractiveButtonMessage(
+  organizationId: string,
+  conversationId: string,
+  bodyText: string,
+  buttons: InteractiveButton[],
+  options?: {
+    headerText?: string;
+    footerText?: string;
+  }
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const config = await getWhatsAppConfig(organizationId);
+  if (!config) {
+    return { success: false, error: 'WhatsApp not configured' };
+  }
+
+  const conversation = await db.waConversation.findFirst({
+    where: { id: conversationId, organizationId },
+  });
+
+  if (!conversation) {
+    return { success: false, error: 'Conversation not found' };
+  }
+
+  // Check if within 24h window
+  const windowCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  if (conversation.lastMessageAt < windowCutoff) {
+    return { success: false, error: 'Outside 24h window. Use template message.' };
+  }
+
+  if (buttons.length > 3) {
+    return { success: false, error: 'Maximum 3 buttons allowed' };
+  }
+
+  // Create message record
+  const message = await db.waMessage.create({
+    data: {
+      organizationId,
+      conversationId,
+      customerId: conversation.customerId,
+      direction: 'outbound',
+      type: 'interactive',
+      from: config.phoneNumberId,
+      to: conversation.customerPhone,
+      content: bodyText,
+      metadata: {
+        interactiveType: 'button',
+        buttons: buttons.map((b) => ({ id: b.id, title: b.title })),
+      },
+      status: 'pending',
+    },
+  });
+
+  // Send directly (interactive messages are time-sensitive)
+  try {
+    const result = await sendButtonMessage(
+      config,
+      conversation.customerPhone,
+      bodyText,
+      buttons,
+      options?.headerText,
+      options?.footerText
+    );
+
+    if (result.success) {
+      await db.waMessage.update({
+        where: { id: message.id },
+        data: {
+          waMessageId: result.messageId,
+          status: 'sent',
+        },
+      });
+
+      return { success: true, messageId: message.id };
+    } else {
+      await db.waMessage.update({
+        where: { id: message.id },
+        data: {
+          status: 'failed',
+          errorMessage: result.error,
+        },
+      });
+
+      return { success: false, error: result.error };
+    }
+  } catch (error) {
+    await db.waMessage.update({
+      where: { id: message.id },
+      data: { status: 'failed' },
+    });
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to send message',
+    };
+  }
+}
+
+/**
+ * Send a list message for selection menus (max 10 items per section)
+ */
+export async function sendInteractiveListMessage(
+  organizationId: string,
+  conversationId: string,
+  bodyText: string,
+  buttonText: string,
+  sections: ListSection[],
+  options?: {
+    headerText?: string;
+    footerText?: string;
+  }
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const config = await getWhatsAppConfig(organizationId);
+  if (!config) {
+    return { success: false, error: 'WhatsApp not configured' };
+  }
+
+  const conversation = await db.waConversation.findFirst({
+    where: { id: conversationId, organizationId },
+  });
+
+  if (!conversation) {
+    return { success: false, error: 'Conversation not found' };
+  }
+
+  // Check if within 24h window
+  const windowCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  if (conversation.lastMessageAt < windowCutoff) {
+    return { success: false, error: 'Outside 24h window. Use template message.' };
+  }
+
+  // Validate sections
+  const totalRows = sections.reduce((sum, s) => sum + s.rows.length, 0);
+  if (totalRows > 10) {
+    return { success: false, error: 'Maximum 10 total rows allowed across all sections' };
+  }
+
+  // Create message record
+  const message = await db.waMessage.create({
+    data: {
+      organizationId,
+      conversationId,
+      customerId: conversation.customerId,
+      direction: 'outbound',
+      type: 'interactive',
+      from: config.phoneNumberId,
+      to: conversation.customerPhone,
+      content: bodyText,
+      metadata: {
+        interactiveType: 'list',
+        buttonText,
+        sections: sections.map((s) => ({
+          title: s.title,
+          rows: s.rows.map((r) => ({ id: r.id, title: r.title, description: r.description })),
+        })),
+      },
+      status: 'pending',
+    },
+  });
+
+  // Send directly
+  try {
+    const result = await sendListMessage(
+      config,
+      conversation.customerPhone,
+      bodyText,
+      buttonText,
+      sections,
+      options?.headerText,
+      options?.footerText
+    );
+
+    if (result.success) {
+      await db.waMessage.update({
+        where: { id: message.id },
+        data: {
+          waMessageId: result.messageId,
+          status: 'sent',
+        },
+      });
+
+      return { success: true, messageId: message.id };
+    } else {
+      await db.waMessage.update({
+        where: { id: message.id },
+        data: {
+          status: 'failed',
+          errorMessage: result.error,
+        },
+      });
+
+      return { success: false, error: result.error };
+    }
+  } catch (error) {
+    await db.waMessage.update({
+      where: { id: message.id },
+      data: { status: 'failed' },
+    });
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to send message',
     };
   }
 }
