@@ -10,6 +10,9 @@ import JobPhoto from './JobPhoto';
 import SyncQueue from './SyncQueue';
 import SyncConflict from './SyncConflict';
 import UserSession from './UserSession';
+import Product from './Product';
+import VehicleStock from './VehicleStock';
+import ReplenishmentRequest from './ReplenishmentRequest';
 
 export const modelClasses = [
   Job,
@@ -19,6 +22,9 @@ export const modelClasses = [
   SyncQueue,
   SyncConflict,
   UserSession,
+  Product,
+  VehicleStock,
+  ReplenishmentRequest,
 ];
 
 export {
@@ -29,4 +35,7 @@ export {
   SyncQueue,
   SyncConflict,
   UserSession,
+  Product,
+  VehicleStock,
+  ReplenishmentRequest,
 };
