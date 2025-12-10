@@ -107,6 +107,30 @@ export const Capabilities = {
      * FALLBACK: No location updates, static ETA estimates
      */
     technician_gps: true,
+
+    /**
+     * Two-Sided Consumer Marketplace
+     * FALLBACK: Show maintenance message, disable consumer app
+     */
+    consumer_marketplace: true,
+
+    /**
+     * White-Label Customer Tracking Portal
+     * FALLBACK: Show "temporarily unavailable", SMS-only notifications
+     */
+    customer_portal: true,
+
+    /**
+     * Parts/Materials Inventory Tracking
+     * FALLBACK: Manual inventory management, use pricebook only
+     */
+    inventory_management: true,
+
+    /**
+     * Comprehensive Audit Trail Logging
+     * FALLBACK: Basic logs only, no change tracking
+     */
+    audit_logging: true,
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -125,6 +149,12 @@ export const Capabilities = {
      * FALLBACK: Direct WhatsApp calls (not recommended, risky)
      */
     whatsapp_queue: true,
+
+    /**
+     * Multi-Number WhatsApp Aggregation
+     * FALLBACK: Single number only, no load balancing
+     */
+    whatsapp_aggregation: true,
 
     /**
      * Mercado Pago Webhook Reconciliation
@@ -149,6 +179,18 @@ export const Capabilities = {
      * FALLBACK: No analytics collection
      */
     analytics_pipeline: true,
+
+    /**
+     * Consumer Review Fraud Detection
+     * FALLBACK: All reviews accepted without automated checks
+     */
+    review_fraud_detection: true,
+
+    /**
+     * Unified Notification Dispatch Queue
+     * FALLBACK: Direct notification calls (higher latency)
+     */
+    notification_queue: true,
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -179,6 +221,18 @@ export const Capabilities = {
      * FALLBACK: Hide dashboard, basic lists only
      */
     reporting_dashboard: true,
+
+    /**
+     * Consumer Marketplace Admin Dashboard
+     * FALLBACK: Moderation via CLI/database only
+     */
+    marketplace_dashboard: true,
+
+    /**
+     * White-Label Portal Configuration UI
+     * FALLBACK: Default CampoTech branding, no customization
+     */
+    whitelabel_portal: true,
   },
 } as const;
 
