@@ -28,13 +28,16 @@
 - **Migrations:** Prisma Migrate + custom SQL
 
 ## Schema Statistics
-| Metric | Count |
-|--------|-------|
-| Tables | 18 |
-| Enums | 12 |
-| Indexes | 45+ |
-| Foreign Keys | 25+ |
-| RLS Policies | 20+ |
+| Metric | Count | Notes |
+|--------|-------|-------|
+| Tables (Implemented) | 47 | As of migration 054 |
+| Tables (Planned) | 16 | Consumer marketplace, DLQ |
+| Enums | 18 | Including Phase 9+ additions |
+| Indexes | 80+ | Including partial indexes |
+| Foreign Keys | 60+ | Cross-table relationships |
+| RLS Policies | 25+ | Tenant isolation |
+
+> **Note:** This schema includes both implemented tables (verified in migrations) and planned tables (marked with ⏳). See individual table sections for implementation status.
 
 ## Naming Conventions
 - Tables: `snake_case`, plural (e.g., `customers`, `invoices`)
@@ -140,12 +143,12 @@ SELECT current_setting('app.current_org_id', true);
     └────────┬─────────┘                                                              │
              │                                                                        │
              │         ┌──────────────────┐         ┌──────────────────┐             │
-             │         │ job_status_history│         │    job_photos    │             │
+             │         │ job_status_history│         │  job_photos ⏳    │             │
              │         ├──────────────────┤         ├──────────────────┤             │
-             │         │ PK id            │         │ PK id            │             │
-             └────────►│ FK job_id        │         │ FK job_id ───────┼─────────────┤
-                       │ FK changed_by ───┼──► users│    photo_url     │             │
-                       │    status        │         │    photo_type    │             │
+             │         │ PK id            │         │ PK id            │ (Uses TEXT[]│
+             └────────►│ FK job_id        │         │ FK job_id ───────┼─in jobs.    │
+                       │ FK changed_by ───┼──► users│    photo_url     │  photos     │
+                       │    status        │         │    photo_type    │  instead)   │
                        └──────────────────┘         └──────────────────┘             │
                                                                                       │
     ┌──────────────────┐                                                              │
@@ -165,14 +168,14 @@ SELECT current_setting('app.current_org_id', true);
     └────────┬─────────┘
              │
              │         ┌──────────────────┐
-             │         │  invoice_items   │
+             │         │ invoice_items ⏳  │
              │         ├──────────────────┤
              │         │ PK id            │
              └────────►│ FK invoice_id    │
                        │ FK price_book_id─┼──► price_book.id
-                       │    description   │
-                       │    quantity      │
-                       │    unit_price    │
+                       │    description   │  (Uses JSONB in
+                       │    quantity      │   invoices.line_items
+                       │    unit_price    │   instead)
                        └──────────────────┘
 
     ┌──────────────────┐
@@ -188,13 +191,13 @@ SELECT current_setting('app.current_org_id', true);
     └────────┬─────────┘
              │
              │         ┌──────────────────┐
-             │         │ payment_disputes │
+             │         │payment_disputes⏳│
              │         ├──────────────────┤
              │         │ PK id            │
              └────────►│ FK payment_id    │
-                       │    dispute_type  │
-                       │    status        │
-                       │    deadline      │
+                       │    dispute_type  │  (Uses columns in
+                       │    status        │   payments table
+                       │    deadline      │   instead)
                        └──────────────────┘
 
     ┌──────────────────┐
@@ -211,17 +214,17 @@ SELECT current_setting('app.current_org_id', true);
     └────────┬─────────┘
              │
              │         ┌──────────────────┐
-             │         │voice_transcripts │
+             │         │voice_transcripts⏳│
              │         ├──────────────────┤
              │         │ PK id            │
              └────────►│ FK message_id    │
-                       │    transcription │
-                       │    extraction    │
-                       │    confidence    │
+                       │    transcription │  (Uses columns in
+                       │    extraction    │   whatsapp_messages
+                       │    confidence    │   instead)
                        └──────────────────┘
 
     ┌──────────────────┐         ┌──────────────────┐
-    │   audit_logs     │         │   sync_queue     │
+    │   audit_logs     │         │ sync_operations  │  ✅
     ├──────────────────┤         ├──────────────────┤
     │ PK id            │         │ PK id            │
     │ FK org_id (NULL) │         │ FK org_id        │
@@ -233,7 +236,17 @@ SELECT current_setting('app.current_org_id', true);
     └──────────────────┘         └──────────────────┘
 
     ┌──────────────────┐         ┌──────────────────┐
-    │  failed_jobs     │         │ idempotency_keys │
+    │    sessions      │  ✅      │    otp_codes     │  ✅
+    ├──────────────────┤         ├──────────────────┤
+    │ PK id            │         │ PK id            │
+    │ FK user_id       │         │    phone         │
+    │ FK org_id        │         │    code_hash     │
+    │ refresh_token_h. │         │    verified      │
+    │    is_active     │         │    expires_at    │
+    └──────────────────┘         └──────────────────┘
+
+    ┌──────────────────┐         ┌──────────────────┐
+    │  failed_jobs ⏳   │         │idempotency_keys⏳│
     ├──────────────────┤         ├──────────────────┤
     │ PK id            │         │ PK id            │
     │    queue_name    │         │    key (UNIQUE)  │
@@ -241,6 +254,7 @@ SELECT current_setting('app.current_org_id', true);
     │    error         │         │    expires_at    │
     │    attempts      │         └──────────────────┘
     └──────────────────┘
+    (⏳ = Planned, not yet implemented)
 
 Legend:
   PK = Primary Key
@@ -973,9 +987,12 @@ CREATE INDEX idx_job_status_history_job_time ON job_status_history(job_id, creat
 
 ## Job Photos Table
 
+> **⏳ NOT IMPLEMENTED** - Photos stored as TEXT[] array in `jobs.photos` column instead of normalized table.
+> **Alternative:** Use `jobs.photos` TEXT[] array column for photo URLs.
+
 ```sql
 -- ============================================================================
--- JOB PHOTOS
+-- JOB PHOTOS (PLANNED - Currently using TEXT[] array in jobs table)
 -- ============================================================================
 
 CREATE TABLE job_photos (
@@ -1210,9 +1227,12 @@ CREATE TRIGGER invoices_updated_at
 
 ## Invoice Items Table
 
+> **⏳ NOT IMPLEMENTED** - Line items stored as JSONB array in `invoices.line_items` column instead of normalized table.
+> **Alternative:** Use `invoices.line_items` JSONB column for invoice line items.
+
 ```sql
 -- ============================================================================
--- INVOICE ITEMS
+-- INVOICE ITEMS (PLANNED - Currently using JSONB in invoices table)
 -- ============================================================================
 
 CREATE TABLE invoice_items (
@@ -1335,9 +1355,12 @@ CREATE TRIGGER payments_updated_at
 
 ## Payment Disputes Table
 
+> **⏳ NOT IMPLEMENTED** - Dispute fields are stored directly in `payments` table instead of separate table.
+> **Alternative:** Dispute handling uses `dispute_id`, `dispute_status`, `dispute_deadline` columns in `payments` table.
+
 ```sql
 -- ============================================================================
--- PAYMENT DISPUTES
+-- PAYMENT DISPUTES (PLANNED - Currently using columns in payments table)
 -- ============================================================================
 
 CREATE TABLE payment_disputes (
@@ -1473,9 +1496,12 @@ CREATE TRIGGER whatsapp_messages_updated_at
 
 ## Voice Transcripts Table
 
+> **⏳ NOT IMPLEMENTED** - Voice transcript fields merged into `whatsapp_messages` table.
+> **Alternative:** Use `whatsapp_messages.voice_transcription`, `whatsapp_messages.voice_extraction_data`, `whatsapp_messages.voice_confidence`, `whatsapp_messages.voice_processing_status` columns.
+
 ```sql
 -- ============================================================================
--- VOICE TRANSCRIPTS
+-- VOICE TRANSCRIPTS (PLANNED - Currently using columns in whatsapp_messages)
 -- ============================================================================
 
 CREATE TABLE voice_transcripts (
@@ -1583,50 +1609,153 @@ CREATE INDEX idx_audit_logs_time ON audit_logs(created_at DESC);
 CREATE INDEX idx_audit_logs_org_time ON audit_logs(org_id, created_at DESC);
 ```
 
-## Sync Queue Table (Mobile Offline)
+## Sessions Table (User Auth)
+
+> **✅ Implemented** - Migration: `013_create_sessions.sql`
+> **Note:** This table tracks user auth sessions (distinct from `customer_sessions` and `tracking_sessions`).
 
 ```sql
 -- ============================================================================
--- SYNC QUEUE (Mobile Offline Support)
+-- SESSIONS (User Authentication)
 -- ============================================================================
 
-CREATE TABLE sync_queue (
-    -- Primary Key
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    
-    -- Organization (tenant)
-    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    
-    -- User who created the change
+CREATE TABLE sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    
-    -- Entity
-    entity_type TEXT NOT NULL,      -- 'job', 'photo', 'signature'
-    entity_id UUID NOT NULL,
-    local_id TEXT,                  -- Client-generated ID
-    
-    -- Action
-    action_type TEXT NOT NULL,      -- 'create', 'update', 'delete'
-    payload JSONB NOT NULL,
-    
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+
+    -- Session metadata
+    device_info JSONB,
+    ip_address INET,
+    user_agent TEXT,
+
+    -- Tokens
+    refresh_token_hash TEXT UNIQUE NOT NULL,  -- SHA-256 hash of refresh token
+
     -- Status
-    status sync_status_enum NOT NULL DEFAULT 'pending',
-    error_message TEXT,
-    retry_count INTEGER NOT NULL DEFAULT 0,
-    
+    is_active BOOLEAN DEFAULT true,
+    revoked_at TIMESTAMPTZ,
+    revoke_reason TEXT,
+
     -- Timestamps
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    processed_at TIMESTAMPTZ,
-    
-    -- Constraints
-    CONSTRAINT sync_queue_retry_limit CHECK (retry_count <= 5)
+    last_used_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Indexes
-CREATE INDEX idx_sync_queue_org_status ON sync_queue(org_id, status);
-CREATE INDEX idx_sync_queue_user_status ON sync_queue(user_id, status);
-CREATE INDEX idx_sync_queue_pending ON sync_queue(created_at)
-    WHERE status = 'pending';
+CREATE INDEX idx_sessions_user ON sessions(user_id);
+CREATE INDEX idx_sessions_refresh ON sessions(refresh_token_hash);
+CREATE INDEX idx_sessions_expires ON sessions(expires_at) WHERE is_active = true;
+
+-- Cleanup function for expired sessions
+CREATE OR REPLACE FUNCTION cleanup_expired_sessions()
+RETURNS void AS $$
+BEGIN
+    UPDATE sessions
+    SET is_active = false, revoke_reason = 'expired'
+    WHERE is_active = true AND expires_at < NOW();
+END;
+$$ LANGUAGE plpgsql;
+```
+
+## OTP Codes Table (User Phone Verification)
+
+> **✅ Implemented** - Migration: `013_create_sessions.sql`
+> **Note:** For user/employee phone verification (distinct from `customer_otp_codes`).
+
+```sql
+-- ============================================================================
+-- OTP CODES (User Phone Verification)
+-- ============================================================================
+
+CREATE TABLE otp_codes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    phone TEXT NOT NULL,
+
+    -- OTP data
+    code_hash TEXT NOT NULL,
+    attempts INTEGER DEFAULT 0,
+
+    -- Status
+    verified BOOLEAN DEFAULT false,
+    verified_at TIMESTAMPTZ,
+
+    -- Timestamps
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_otp_phone ON otp_codes(phone, created_at DESC);
+CREATE INDEX idx_otp_expires ON otp_codes(expires_at);
+```
+
+## Sync Operations Table (Mobile Offline)
+
+> **✅ Implemented** - Migration: `014_create_sync_operations.sql`
+> **Note:** Previously documented as `sync_queue`, renamed to `sync_operations` in implementation.
+
+```sql
+-- ============================================================================
+-- SYNC OPERATIONS (Mobile Offline Support)
+-- ============================================================================
+
+CREATE TABLE sync_operations (
+    -- Primary Key
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Organization (tenant)
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+
+    -- User who created the change
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+    -- Operation details
+    action_type TEXT NOT NULL,      -- 'job_update', 'job_complete', 'photo_upload', 'signature_upload'
+    entity_type TEXT NOT NULL,
+    entity_id UUID,
+    local_id TEXT,                  -- Client-generated ID for offline entities
+
+    -- Payload
+    payload JSONB NOT NULL,
+
+    -- Status
+    status sync_status DEFAULT 'pending',
+    error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+
+    -- Conflict resolution
+    conflict_data JSONB,
+    resolved_at TIMESTAMPTZ,
+    resolved_by UUID REFERENCES users(id),
+
+    -- Timestamps
+    client_created_at TIMESTAMPTZ NOT NULL,  -- Timestamp from mobile device
+    server_received_at TIMESTAMPTZ DEFAULT NOW(),
+    processed_at TIMESTAMPTZ
+);
+
+-- Indexes
+CREATE INDEX idx_sync_org ON sync_operations(org_id);
+CREATE INDEX idx_sync_user ON sync_operations(user_id);
+CREATE INDEX idx_sync_status ON sync_operations(org_id, status);
+CREATE INDEX idx_sync_entity ON sync_operations(entity_type, entity_id);
+CREATE INDEX idx_sync_pending ON sync_operations(org_id, user_id, status)
+    WHERE status IN ('pending', 'syncing', 'conflict');
+
+-- Row Level Security
+ALTER TABLE sync_operations ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY sync_user_isolation ON sync_operations
+    FOR ALL
+    USING (
+        org_id = current_setting('app.current_org_id', true)::uuid
+        AND (
+            user_id = current_setting('app.current_user_id', true)::uuid
+            OR current_setting('app.current_user_role', true) IN ('owner', 'admin')
+        )
+    );
 ```
 
 ## Capability Overrides Table
@@ -1694,9 +1823,12 @@ COMMENT ON COLUMN capability_overrides.expires_at IS
 
 ## Failed Jobs Table (DLQ)
 
+> **⏳ NOT IMPLEMENTED** - Dead Letter Queue table not created in migrations.
+> **Note:** DLQ functionality handled by BullMQ's built-in failed job handling.
+
 ```sql
 -- ============================================================================
--- FAILED JOBS (Dead Letter Queue)
+-- FAILED JOBS (PLANNED - Dead Letter Queue)
 -- ============================================================================
 
 CREATE TABLE failed_jobs (
@@ -1741,9 +1873,12 @@ CREATE INDEX idx_failed_jobs_pending ON failed_jobs(failed_at) WHERE status = 'p
 
 ## Idempotency Keys Table
 
+> **⏳ NOT IMPLEMENTED** - No dedicated idempotency table in migrations.
+> **Alternative:** Idempotency handled via Redis-based IdempotencyService and individual table idempotency columns.
+
 ```sql
 -- ============================================================================
--- IDEMPOTENCY KEYS
+-- IDEMPOTENCY KEYS (PLANNED - Currently using Redis-based service)
 -- ============================================================================
 
 CREATE TABLE idempotency_keys (
@@ -2311,6 +2446,99 @@ CREATE TABLE tracking_usage (
 );
 ```
 
+## Technician Locations Table (Phase 13.4)
+
+> **✅ Implemented** - Migration: `021_create_tracking_tables.sql`
+> **Note:** Current/last known technician locations for real-time tracking.
+
+```sql
+CREATE TABLE technician_locations (
+    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    latitude DECIMAL(10, 8) NOT NULL,
+    longitude DECIMAL(11, 8) NOT NULL,
+    accuracy DECIMAL(6, 2),           -- GPS accuracy in meters
+    heading DECIMAL(5, 2),            -- Direction in degrees (0-360)
+    speed DECIMAL(6, 2),              -- Speed in km/h
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Index for finding recent locations
+CREATE INDEX idx_technician_locations_updated ON technician_locations(updated_at DESC);
+```
+
+## Technician Location History Table (Phase 13.4)
+
+> **✅ Implemented** - Migration: `021_create_tracking_tables.sql`
+> **Note:** Historical location data for route analysis and auditing.
+
+```sql
+CREATE TABLE technician_location_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+    latitude DECIMAL(10, 8) NOT NULL,
+    longitude DECIMAL(11, 8) NOT NULL,
+    accuracy DECIMAL(6, 2),
+    heading DECIMAL(5, 2),
+    speed DECIMAL(6, 2),
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_tech_location_history_job ON technician_location_history(job_id, recorded_at);
+```
+
+## ETA Cache Table (Phase 13.4)
+
+> **✅ Implemented** - Migration: `021_create_tracking_tables.sql`
+> **Note:** Caches ETA calculations to reduce external API calls.
+
+```sql
+CREATE TABLE eta_cache (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    origin_lat DECIMAL(10, 8) NOT NULL,
+    origin_lng DECIMAL(11, 8) NOT NULL,
+    dest_lat DECIMAL(10, 8) NOT NULL,
+    dest_lng DECIMAL(11, 8) NOT NULL,
+    duration_minutes INTEGER NOT NULL,
+    distance_meters INTEGER NOT NULL,
+    source VARCHAR(20) NOT NULL,      -- 'google', 'osrm', 'manual'
+    calculated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+-- Composite index for cache lookups (rounded coordinates)
+CREATE INDEX idx_eta_cache_coords ON eta_cache(
+    ROUND(origin_lat::numeric, 4),
+    ROUND(origin_lng::numeric, 4),
+    ROUND(dest_lat::numeric, 4),
+    ROUND(dest_lng::numeric, 4)
+) WHERE expires_at > NOW();
+```
+
+## Tracking Notifications Table (Phase 13.4)
+
+> **✅ Implemented** - Migration: `021_create_tracking_tables.sql`
+> **Note:** Tracks notifications sent to customers about technician arrival.
+
+```sql
+CREATE TABLE tracking_notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    notification_type VARCHAR(50) NOT NULL,  -- 'en_route', 'arriving_soon', 'arrived'
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    sent_via TEXT[] DEFAULT '{}',            -- ['whatsapp', 'sms', 'push']
+    sent_at TIMESTAMPTZ,
+    read_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_tracking_notifications_customer ON tracking_notifications(customer_id, created_at DESC)
+    WHERE read_at IS NULL;
+CREATE INDEX idx_tracking_notifications_job ON tracking_notifications(job_id, created_at DESC);
+```
+
 ---
 
 # 8.2. PHASE 13: CUSTOMER PORTAL
@@ -2765,7 +2993,11 @@ CREATE INDEX idx_consumer_profiles_referral ON consumer_profiles(referral_code) 
 
 ## Business Public Profiles Table
 
+> **⏳ NOT IMPLEMENTED** - Migration not found. Referenced by `consumer_reviews` which will fail.
+> **Critical:** This table must be created before `consumer_reviews` migration can run.
+
 ```sql
+-- NOT IMPLEMENTED - PLANNED FOR CONSUMER MARKETPLACE
 CREATE TABLE business_public_profiles (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     org_id UUID NOT NULL UNIQUE REFERENCES organizations(id) ON DELETE CASCADE,
@@ -2937,7 +3169,10 @@ CREATE INDEX idx_service_requests_search ON consumer_service_requests USING GIN(
 
 ## Business Quotes Table
 
+> **⏳ NOT IMPLEMENTED** - Migration not found. Depends on `business_public_profiles` which is also not implemented.
+
 ```sql
+-- NOT IMPLEMENTED - PLANNED FOR CONSUMER MARKETPLACE
 CREATE TABLE business_quotes (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     service_request_id UUID NOT NULL REFERENCES consumer_service_requests(id) ON DELETE CASCADE,
@@ -3006,7 +3241,11 @@ CREATE INDEX idx_business_quotes_pending ON business_quotes(status, expires_at)
 
 ## Consumer Reviews Table
 
+> **⚠️ MIGRATION HAS ISSUES** - Migration `052_create_consumer_reviews.sql` references `business_public_profiles(id)` which doesn't exist.
+> **Critical:** Migration will fail until `business_public_profiles` table is created.
+
 ```sql
+-- WARNING: Has FK to non-existent business_public_profiles table
 CREATE TABLE consumer_reviews (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     consumer_id UUID NOT NULL REFERENCES consumer_profiles(id) ON DELETE CASCADE,
