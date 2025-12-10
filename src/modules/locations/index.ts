@@ -16,3 +16,6 @@ export * from './location.validation';
 export { LocationService, LocationError, getLocationService } from './location.service';
 export { ZoneManager, getZoneManager } from './zone-manager';
 export { CoverageCalculator, getCoverageCalculator } from './coverage-calculator';
+
+// Billing
+export * from './billing';
