@@ -1580,3 +1580,851 @@ All diagrams use:
 - **Decision trees** with clear branching logic
 
 These diagrams provide unambiguous visual specifications for AI implementation.
+
+---
+
+## Flow G: Consumer Marketplace Journey (Phase 15)
+
+### G.1 High-Level Overview
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      CONSUMER MARKETPLACE JOURNEY                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐             │
+│  │ DISCOVER │───▶│ REQUEST  │───▶│ QUOTES   │───▶│ SELECT   │             │
+│  │          │    │          │    │          │    │          │             │
+│  │ Search   │    │ Submit   │    │ Receive  │    │ Accept   │             │
+│  │ Browse   │    │ Service  │    │ Compare  │    │ Quote    │             │
+│  │ Profile  │    │ Request  │    │ Message  │    │          │             │
+│  └──────────┘    └──────────┘    └──────────┘    └──────────┘             │
+│       │                                               │                    │
+│       │              ┌──────────┐    ┌──────────┐    │                    │
+│       │              │ COMPLETE │◀───│ EXECUTE  │◀───┘                    │
+│       │              │          │    │          │                         │
+│       │              │ Review   │    │ Job      │                         │
+│       │              │ Rating   │    │ Created  │                         │
+│       │              │ Feedback │    │ Standard │                         │
+│       │              └──────────┘    └──────────┘                         │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### G.2 Service Request Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant Consumer as Consumer App
+    participant API as CampoTech API
+    participant DB as Database
+    participant Match as Matching Engine
+    participant Business as Business App
+    participant Queue as Notification Queue
+
+    %% === DISCOVERY PHASE ===
+    rect rgb(240, 248, 255)
+        Note over Consumer,DB: PHASE 1: DISCOVERY
+
+        Consumer->>API: Search businesses (category, location)
+        API->>DB: Query business_public_profiles
+        API->>DB: Apply filters (rating, distance, badges)
+        DB-->>API: Matching businesses
+        API-->>Consumer: Search results with ratings
+
+        Consumer->>API: GET /businesses/{slug}
+        API->>DB: Get business profile + reviews
+        API->>DB: Log profile_view
+        DB-->>API: Full business profile
+        API-->>Consumer: Business details + reviews
+    end
+
+    %% === SERVICE REQUEST PHASE ===
+    rect rgb(255, 250, 240)
+        Note over Consumer,Match: PHASE 2: SERVICE REQUEST
+
+        Consumer->>API: POST /service-requests
+        Note right of Consumer: category, description, photos, location, budget, urgency
+
+        API->>DB: Create consumer_service_request
+        API->>DB: Generate request_number (SR-YYYYMMDD-XXXX)
+
+        API->>Match: Find matching businesses
+        Match->>DB: Query businesses by:
+        Note right of Match: - Category match<br/>- Service area (distance)<br/>- Availability<br/>- Accepting quotes
+        Match->>DB: Rank by score
+        Note right of Match: Rating weight: 40%<br/>Distance weight: 30%<br/>Response time: 20%<br/>Quote rate: 10%
+        Match-->>API: Top N businesses
+
+        API->>DB: Update matched_business_ids
+        API->>DB: Log matching_log for analytics
+
+        loop For each matched business
+            API->>Queue: Queue notification (new_lead)
+            Queue->>Business: Push notification
+        end
+
+        API-->>Consumer: Request created, businesses notified
+    end
+
+    %% === QUOTE PHASE ===
+    rect rgb(240, 255, 240)
+        Note over Business,Consumer: PHASE 3: QUOTING
+
+        Business->>API: GET /leads (new service requests)
+        API->>DB: Query requests matching business
+        DB-->>API: Available leads
+        API-->>Business: Lead list with details
+
+        alt Business sends quote
+            Business->>API: POST /quotes
+            Note right of Business: price, description, availability, terms
+            API->>DB: Create business_quote
+            API->>DB: Generate quote_number (QT-YYYYMMDD-XXXX)
+            API->>DB: Increment quotes_received on request
+
+            API->>Queue: Queue notification (quote_received)
+            Queue->>Consumer: Push + WhatsApp notification
+
+        else Business declines
+            Business->>API: POST /leads/{id}/decline
+            Note right of Business: reason: too_far, not_available, out_of_scope
+            API->>DB: Create business_quote_decline
+        end
+    end
+
+    %% === SELECTION PHASE ===
+    rect rgb(255, 255, 240)
+        Note over Consumer,DB: PHASE 4: SELECTION
+
+        Consumer->>API: GET /service-requests/{id}/quotes
+        API->>DB: Query quotes with business info
+        DB-->>API: All quotes
+        API-->>Consumer: Quotes comparison view
+
+        Consumer->>API: View quote details
+        API->>DB: Update quote viewed_at, view_count
+
+        opt Consumer messages business
+            Consumer->>API: POST /quotes/{id}/messages
+            API->>DB: Create quote_message
+            API->>Queue: Queue notification (message)
+            Queue->>Business: New message notification
+        end
+
+        Consumer->>API: POST /quotes/{id}/accept
+        API->>DB: Update quote status: accepted
+        API->>DB: Update request accepted_quote_id
+        API->>DB: Update request status: accepted
+
+        API->>Queue: Queue notification (quote_accepted)
+        Queue->>Business: Quote accepted notification
+
+        %% Reject other quotes
+        API->>DB: Update other quotes status: rejected
+    end
+
+    %% === JOB CREATION PHASE ===
+    rect rgb(248, 248, 255)
+        Note over API,DB: PHASE 5: JOB CREATION
+
+        API->>DB: Create job from quote
+        Note right of API: Copy: customer info, location, description
+        API->>DB: Link job_id to quote and request
+        API->>DB: Update request status: in_progress
+
+        Note over Business,Consumer: Standard job flow continues (Flow A)
+    end
+
+    %% === REVIEW PHASE ===
+    rect rgb(255, 245, 238)
+        Note over Consumer,DB: PHASE 6: REVIEW
+
+        Consumer->>API: POST /reviews
+        Note right of Consumer: ratings, review_text, photos, would_recommend
+
+        API->>DB: Create consumer_review
+        API->>DB: Auto-verify if job_id linked
+
+        API->>DB: Add to review_moderation_queue
+        API->>DB: Calculate trust_score
+
+        alt High trust score (≥0.7)
+            API->>DB: Update review status: published
+            API->>DB: Recalculate business ratings
+        else Low trust score (<0.7)
+            Note over API: Awaits moderation
+        end
+
+        API->>Queue: Queue notification (review_received)
+        Queue->>Business: New review notification
+    end
+```
+
+### G.3 Review Fraud Detection Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        REVIEW FRAUD DETECTION                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Review Submitted                                                           │
+│       │                                                                     │
+│       ▼                                                                     │
+│  ┌─────────────┐                                                           │
+│  │ Calculate   │                                                           │
+│  │ Trust Score │                                                           │
+│  └─────────────┘                                                           │
+│       │                                                                     │
+│       ▼                                                                     │
+│  ┌─────────────────────────────────────────────────────────────────┐       │
+│  │                    FRAUD DETECTION SIGNALS                       │       │
+│  ├─────────────────────────────────────────────────────────────────┤       │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │       │
+│  │  │  Velocity   │  │    Text     │  │   Rating    │             │       │
+│  │  │   Check     │  │  Similarity │  │   Pattern   │             │       │
+│  │  │             │  │             │  │             │             │       │
+│  │  │ >3 reviews  │  │ >70% match  │  │ All 5s or   │             │       │
+│  │  │ in 24h      │  │ w/ existing │  │ all 1s      │             │       │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘             │       │
+│  │                                                                  │       │
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │       │
+│  │  │  IP/Device  │  │  Timing     │  │  Account    │             │       │
+│  │  │  Cluster    │  │  Anomaly    │  │   Age       │             │       │
+│  │  │             │  │             │  │             │             │       │
+│  │  │ Same IP for │  │ Weekend/    │  │ New account │             │       │
+│  │  │ diff users  │  │ late night  │  │ high volume │             │       │
+│  │  └─────────────┘  └─────────────┘  └─────────────┘             │       │
+│  └─────────────────────────────────────────────────────────────────┘       │
+│       │                                                                     │
+│       ▼                                                                     │
+│  ┌─────────────┐                                                           │
+│  │ Aggregate   │                                                           │
+│  │ Fraud Score │                                                           │
+│  │ (0.0 - 1.0) │                                                           │
+│  └─────────────┘                                                           │
+│       │                                                                     │
+│       ├────────────────────┬───────────────────┐                           │
+│       ▼                    ▼                   ▼                           │
+│  ┌─────────┐         ┌─────────┐         ┌─────────┐                      │
+│  │ < 0.3   │         │0.3-0.7  │         │  > 0.7  │                      │
+│  │ Auto    │         │ Queue   │         │ Flag    │                      │
+│  │ Approve │         │ Review  │         │ & Hold  │                      │
+│  └─────────┘         └─────────┘         └─────────┘                      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Flow H: Customer Portal Journey (Phase 13)
+
+### H.1 Portal Authentication Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant Cust as Customer Browser
+    participant Portal as Customer Portal
+    participant API as CampoTech API
+    participant DB as Database
+    participant SMS as SMS/WhatsApp
+
+    %% === MAGIC LINK AUTH ===
+    rect rgb(240, 248, 255)
+        Note over Cust,SMS: Option A: Magic Link Authentication
+
+        Cust->>Portal: Enter email address
+        Portal->>API: POST /portal/auth/magic-link
+        API->>DB: Find customer by email + org
+
+        alt Customer found
+            API->>DB: Create customer_magic_link
+            Note right of API: token_hash (SHA-256), expires in 15min
+            API->>SMS: Send magic link email
+            SMS-->>Cust: Email with magic link
+
+            Cust->>Portal: Click magic link
+            Portal->>API: POST /portal/auth/verify-magic-link
+            API->>DB: Verify token_hash, check expiry
+
+            alt Valid token
+                API->>DB: Mark link as used
+                API->>DB: Create customer_session
+                API-->>Portal: JWT tokens (access + refresh)
+                Portal-->>Cust: Redirect to dashboard
+            else Invalid/expired
+                API-->>Portal: Error: invalid link
+            end
+        else Customer not found
+            API-->>Portal: Error: customer not found
+        end
+    end
+
+    %% === OTP AUTH ===
+    rect rgb(255, 250, 240)
+        Note over Cust,SMS: Option B: Phone OTP Authentication
+
+        Cust->>Portal: Enter phone number
+        Portal->>API: POST /portal/auth/otp/send
+        API->>DB: Find customer by phone + org
+
+        alt Customer found
+            API->>DB: Create customer_otp_code
+            Note right of API: 6-digit code, scrypt hash, expires in 5min
+            API->>SMS: Send OTP via WhatsApp/SMS
+            SMS-->>Cust: OTP code
+
+            Cust->>Portal: Enter OTP code
+            Portal->>API: POST /portal/auth/otp/verify
+            API->>DB: Verify code_hash, check attempts
+
+            alt Valid code & attempts < 3
+                API->>DB: Mark code as verified
+                API->>DB: Create customer_session
+                API-->>Portal: JWT tokens
+                Portal-->>Cust: Redirect to dashboard
+            else Invalid code
+                API->>DB: Increment attempts
+                alt attempts >= 3
+                    API-->>Portal: Error: too many attempts
+                else
+                    API-->>Portal: Error: invalid code
+                end
+            end
+        end
+    end
+```
+
+### H.2 Job Tracking Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant Cust as Customer Portal
+    participant API as CampoTech API
+    participant DB as Database
+    participant Track as Tracking Service
+    participant Tech as Technician App
+
+    %% === REAL-TIME TRACKING ===
+    rect rgb(240, 255, 240)
+        Note over Cust,Tech: REAL-TIME JOB TRACKING
+
+        Cust->>API: GET /portal/jobs/{id}
+        API->>DB: Get job with technician info
+        DB-->>API: Job details
+        API-->>Cust: Job status, technician, ETA
+
+        alt Job status: en_camino
+            Cust->>API: GET /portal/jobs/{id}/tracking
+            API->>DB: Get tracking_session for job
+
+            alt Active tracking session
+                DB-->>API: Current location, ETA
+                API-->>Cust: Live tracking data
+
+                Note over Cust: WebSocket connection
+                Cust->>Track: Subscribe to tracking updates
+
+                loop Every 30 seconds
+                    Tech->>API: POST /tracking/position
+                    API->>DB: Update tracking_session
+                    Track->>Cust: Push position update
+                end
+            else No tracking session
+                API->>DB: Create tracking_token
+                API-->>Cust: Static ETA estimate
+            end
+        end
+    end
+```
+
+### H.3 Support Ticket Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        SUPPORT TICKET LIFECYCLE                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Customer                  System                    Staff                  │
+│     │                        │                         │                    │
+│     │ Create Ticket          │                         │                    │
+│     ├───────────────────────▶│                         │                    │
+│     │                        │ Auto-assign or queue    │                    │
+│     │                        ├────────────────────────▶│                    │
+│     │                        │                         │                    │
+│     │◀───────────────────────┤ Notification: ticket    │                    │
+│     │  Confirmation          │ created                 │                    │
+│     │                        │                         │                    │
+│     │                        │                         │ Review ticket      │
+│     │                        │◀────────────────────────┤ (in_progress)      │
+│     │                        │                         │                    │
+│     │                        │                         │ Reply to customer  │
+│     │◀────────────────────────────────────────────────┤                    │
+│     │  Staff response        │                         │                    │
+│     │                        │                         │                    │
+│     │ Customer reply         │                         │                    │
+│     ├────────────────────────────────────────────────▶│                    │
+│     │                        │                         │                    │
+│     │                        │                         │ Mark resolved      │
+│     │◀────────────────────────────────────────────────┤                    │
+│     │  Resolution notice     │                         │                    │
+│     │                        │                         │                    │
+│     │  (3 days later)        │                         │                    │
+│     │                        │ Auto-close if no reply  │                    │
+│     │◀───────────────────────┤                         │                    │
+│     │  Ticket closed         │                         │                    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+Ticket States:
+  open ──▶ in_progress ──▶ waiting_customer ──▶ resolved ──▶ closed
+    │                            │                  │
+    └────────────────────────────┴──────────────────┘
+                     (can reopen)
+```
+
+---
+
+## Flow I: GPS Live Tracking (Phase 9.9)
+
+### I.1 Tracking Session Lifecycle
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant Tech as Technician App
+    participant API as CampoTech API
+    participant DB as Database
+    participant Maps as Google Maps API
+    participant WS as WebSocket Server
+    participant Cust as Customer
+
+    %% === SESSION START ===
+    rect rgb(240, 248, 255)
+        Note over Tech,DB: START TRACKING SESSION
+
+        Tech->>API: PATCH /jobs/{id}/status (en_camino)
+        API->>DB: Update job status
+
+        API->>DB: Create tracking_session
+        Note right of API: job_id, technician_id<br/>destination from job.address
+
+        API->>DB: Create tracking_token
+        Note right of API: 16-char token, expires in 4h
+
+        API->>Maps: Get route & initial ETA
+        Maps-->>API: Route polyline, ETA minutes
+
+        API->>DB: Update session with route data
+
+        API-->>Tech: Session created, start transmitting
+    end
+
+    %% === POSITION UPDATES ===
+    rect rgb(255, 250, 240)
+        Note over Tech,WS: CONTINUOUS POSITION UPDATES
+
+        loop Every 30 seconds (foreground) / 2 min (background)
+            Tech->>API: POST /tracking/position
+            Note right of Tech: lat, lng, speed, heading, accuracy
+
+            API->>DB: Update tracking_session.current_*
+            API->>DB: Insert tracking_location_history
+            API->>DB: Increment position_update_count
+
+            alt Every 5th update or significant location change
+                API->>Maps: Recalculate ETA
+                Maps-->>API: Updated ETA
+                API->>DB: Update eta_minutes
+            end
+
+            API->>WS: Broadcast to subscribers
+            WS->>Cust: Position update (via token)
+        end
+    end
+
+    %% === CUSTOMER VIEW ===
+    rect rgb(240, 255, 240)
+        Note over Cust,DB: CUSTOMER TRACKING VIEW
+
+        Cust->>API: GET /tracking/{token}
+        API->>DB: Validate tracking_token
+
+        alt Valid & not expired
+            API->>DB: Get tracking_session
+            API->>DB: Increment token.access_count
+            DB-->>API: Session data
+            API-->>Cust: Current location, ETA, route
+
+            Cust->>WS: Subscribe to updates
+
+            loop While session active
+                WS->>Cust: Real-time position updates
+            end
+        else Invalid or expired
+            API-->>Cust: Error: invalid tracking link
+        end
+    end
+
+    %% === SESSION END ===
+    rect rgb(255, 245, 238)
+        Note over Tech,DB: END TRACKING SESSION
+
+        Tech->>API: PATCH /jobs/{id}/status (working)
+        API->>DB: Update session: arrived_at = NOW()
+        API->>DB: Update session status: arrived
+
+        API->>WS: Broadcast: technician arrived
+        WS->>Cust: "Technician has arrived!"
+
+        Note over Tech: After job complete
+
+        Tech->>API: POST /jobs/{id}/complete
+        API->>DB: Update session: completed_at = NOW()
+        API->>DB: Update session status: completed
+        API->>WS: Close WebSocket connections
+    end
+```
+
+### I.2 Tracking Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          GPS TRACKING DATA FLOW                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  TECHNICIAN MOBILE                     SERVER                    CUSTOMER   │
+│  ┌──────────────┐                  ┌──────────────┐         ┌──────────────┐│
+│  │              │                  │              │         │              ││
+│  │ GPS Provider │                  │  API Server  │         │   Browser    ││
+│  │ (Expo)       │                  │              │         │   or App     ││
+│  │              │                  │              │         │              ││
+│  └──────┬───────┘                  └──────┬───────┘         └──────┬───────┘│
+│         │                                 │                        │        │
+│         │ Every 30s                       │                        │        │
+│         │ (foreground)                    │                        │        │
+│         │                                 │                        │        │
+│         ▼                                 │                        │        │
+│  ┌──────────────┐                        │                        │        │
+│  │ Location     │                        │                        │        │
+│  │ Buffer       │──POST /tracking/pos───▶│                        │        │
+│  │ (batch 3)    │                        │                        │        │
+│  └──────────────┘                        │                        │        │
+│                                          ▼                        │        │
+│                                  ┌──────────────┐                 │        │
+│                                  │   Database   │                 │        │
+│                                  │              │                 │        │
+│                                  │ - Session    │                 │        │
+│                                  │ - History    │                 │        │
+│                                  │ - Token      │                 │        │
+│                                  └──────────────┘                 │        │
+│                                          │                        │        │
+│                                          │ Every 5th              │        │
+│                                          │ update                 │        │
+│                                          ▼                        │        │
+│                                  ┌──────────────┐                 │        │
+│                                  │ Google Maps  │                 │        │
+│                                  │ Directions   │                 │        │
+│                                  │ API          │                 │        │
+│                                  └──────────────┘                 │        │
+│                                          │                        │        │
+│                                          │ Updated ETA            │        │
+│                                          ▼                        │        │
+│                                  ┌──────────────┐                 │        │
+│                                  │  WebSocket   │────broadcast───▶│        │
+│                                  │   Server     │                 │        │
+│                                  └──────────────┘                 │        │
+│                                                                             │
+│  BATTERY OPTIMIZATION:                                                     │
+│  - Foreground: 30s intervals, high accuracy                                │
+│  - Background: 2m intervals, balanced accuracy                             │
+│  - Batch uploads: 3 positions per request                                  │
+│  - Significant location change trigger                                     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Flow J: Notification Queue System (Phase 9.6)
+
+### J.1 Unified Notification Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant Event as System Event
+    participant API as CampoTech API
+    participant DB as Database
+    participant Queue as BullMQ Queue
+    participant Worker as Notification Worker
+    participant WA as WhatsApp API
+    participant Push as Expo Push
+    participant Email as Email Service
+
+    %% === EVENT TRIGGERED ===
+    rect rgb(240, 248, 255)
+        Note over Event,Queue: NOTIFICATION TRIGGERED
+
+        Event->>API: Trigger (job_completed, payment_received, etc.)
+
+        API->>DB: Get user notification_preferences
+        DB-->>API: Preferences (channels, quiet hours, events)
+
+        API->>API: Check if event type enabled
+        API->>API: Check quiet hours
+
+        alt Event enabled & not quiet hours
+            API->>DB: Create notification_log (status: pending)
+
+            loop For each enabled channel
+                API->>Queue: Add to notification queue
+                Note right of API: job: {channel, user_id, template, data}
+            end
+        else Quiet hours active
+            API->>Queue: Schedule for quiet hours end
+        else Event disabled
+            Note over API: Skip notification
+        end
+    end
+
+    %% === PROCESSING ===
+    rect rgb(255, 250, 240)
+        Note over Queue,Email: NOTIFICATION PROCESSING
+
+        Worker->>Queue: Fetch job
+
+        alt Channel: WhatsApp
+            Worker->>WA: Send template message
+            alt Success
+                WA-->>Worker: Message ID
+                Worker->>DB: Update log (status: sent)
+            else Failure
+                WA-->>Worker: Error
+                Worker->>Queue: Retry with backoff
+            end
+
+        else Channel: Push
+            Worker->>Push: Send push notification
+            alt Success
+                Push-->>Worker: Receipt
+                Worker->>DB: Update log (status: sent)
+            else Failure (invalid token)
+                Worker->>DB: Remove invalid FCM token
+                Worker->>DB: Update log (status: failed)
+            end
+
+        else Channel: Email
+            Worker->>Email: Send email
+            Email-->>Worker: Result
+            Worker->>DB: Update log
+        end
+    end
+```
+
+### J.2 Reminder Scheduling Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        REMINDER SCHEDULING SYSTEM                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  JOB SCHEDULED                                                              │
+│       │                                                                     │
+│       ▼                                                                     │
+│  ┌─────────────────────────────────────────────────────────────────┐       │
+│  │              SCHEDULED REMINDERS CREATED                         │       │
+│  ├─────────────────────────────────────────────────────────────────┤       │
+│  │                                                                  │       │
+│  │   Job Date: 2025-01-15 10:00                                    │       │
+│  │                                                                  │       │
+│  │   ┌───────────┐    ┌───────────┐    ┌───────────┐              │       │
+│  │   │ 24h       │    │ 1h        │    │ 30min     │              │       │
+│  │   │ Reminder  │    │ Reminder  │    │ Reminder  │              │       │
+│  │   │           │    │           │    │           │              │       │
+│  │   │ 14th 10:00│    │ 15th 09:00│    │ 15th 09:30│              │       │
+│  │   └───────────┘    └───────────┘    └───────────┘              │       │
+│  │                                                                  │       │
+│  └─────────────────────────────────────────────────────────────────┘       │
+│                                                                             │
+│  SCHEDULER CRON (Every minute)                                              │
+│       │                                                                     │
+│       ▼                                                                     │
+│  ┌─────────────┐                                                           │
+│  │ Query due   │                                                           │
+│  │ reminders   │                                                           │
+│  │ (pending)   │                                                           │
+│  └─────────────┘                                                           │
+│       │                                                                     │
+│       ├─────────────────────────────────────────┐                          │
+│       ▼                                         ▼                          │
+│  ┌─────────────┐                         ┌─────────────┐                   │
+│  │ Job still   │                         │ Job         │                   │
+│  │ scheduled?  │───Yes──────────────────▶│ cancelled/  │                   │
+│  │             │                         │ completed?  │───Yes──▶ Cancel   │
+│  └─────────────┘                         └─────────────┘                   │
+│       │ No (job cancelled)                                                 │
+│       ▼                                                                     │
+│  ┌─────────────┐                                                           │
+│  │ Mark        │                                                           │
+│  │ cancelled   │                                                           │
+│  └─────────────┘                                                           │
+│                                                                             │
+│  SENDING REMINDER                                                          │
+│       │                                                                     │
+│       ▼                                                                     │
+│  ┌─────────────┐                                                           │
+│  │ Get user    │                                                           │
+│  │ preferences │                                                           │
+│  └─────────────┘                                                           │
+│       │                                                                     │
+│       ▼                                                                     │
+│  ┌─────────────────────────────────────────────────────────────────┐       │
+│  │                    SEND VIA CHANNELS                             │       │
+│  │                                                                  │       │
+│  │   WhatsApp ✓    Push ✓    SMS ✗    Email ✗                      │       │
+│  │   (enabled)     (enabled)  (disabled) (disabled)                │       │
+│  │                                                                  │       │
+│  └─────────────────────────────────────────────────────────────────┘       │
+│       │                                                                     │
+│       ▼                                                                     │
+│  ┌─────────────┐                                                           │
+│  │ Mark        │                                                           │
+│  │ sent        │                                                           │
+│  └─────────────┘                                                           │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Flow K: Business Mode Switch (Phase 15)
+
+### K.1 B2B to Consumer Mode Transition
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                       BUSINESS MODE SWITCH FLOW                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  EXISTING B2B ORGANIZATION                                                  │
+│       │                                                                     │
+│       ▼                                                                     │
+│  ┌─────────────┐                                                           │
+│  │ Admin opts  │                                                           │
+│  │ into        │                                                           │
+│  │ marketplace │                                                           │
+│  └─────────────┘                                                           │
+│       │                                                                     │
+│       ▼                                                                     │
+│  ┌─────────────────────────────────────────────────────────────────┐       │
+│  │                  PROFILE CREATION WIZARD                         │       │
+│  ├─────────────────────────────────────────────────────────────────┤       │
+│  │                                                                  │       │
+│  │  Step 1: Basic Info                                             │       │
+│  │  ├── Display name (from org.name)                               │       │
+│  │  ├── Logo upload                                                │       │
+│  │  └── Description                                                │       │
+│  │                                                                  │       │
+│  │  Step 2: Services                                               │       │
+│  │  ├── Select categories (multi-select)                           │       │
+│  │  ├── Service areas (map picker)                                 │       │
+│  │  └── Working hours                                              │       │
+│  │                                                                  │       │
+│  │  Step 3: Verification                                           │       │
+│  │  ├── CUIT verification (AFIP check)                             │       │
+│  │  ├── License upload (optional)                                  │       │
+│  │  └── Insurance upload (optional)                                │       │
+│  │                                                                  │       │
+│  │  Step 4: Quote Settings                                         │       │
+│  │  ├── Max active quotes                                          │       │
+│  │  ├── Response time commitment                                   │       │
+│  │  └── Auto-respond template (optional)                           │       │
+│  │                                                                  │       │
+│  └─────────────────────────────────────────────────────────────────┘       │
+│       │                                                                     │
+│       ▼                                                                     │
+│  ┌─────────────┐                                                           │
+│  │ Create      │                                                           │
+│  │ business_   │                                                           │
+│  │ public_     │                                                           │
+│  │ profile     │                                                           │
+│  └─────────────┘                                                           │
+│       │                                                                     │
+│       ▼                                                                     │
+│  ┌─────────────┐                                                           │
+│  │ Profile     │◀─────────────────────────┐                               │
+│  │ is_visible  │                          │                               │
+│  │ = false     │                          │                               │
+│  └─────────────┘                          │                               │
+│       │                                   │                               │
+│       ▼                                   │                               │
+│  ┌─────────────────────────────────┐      │                               │
+│  │ ADMIN REVIEW                    │      │                               │
+│  │                                 │      │                               │
+│  │ ┌─────────┐   ┌─────────┐      │      │                               │
+│  │ │ Approve │   │ Reject  │      │      │                               │
+│  │ │         │   │         │      │      │                               │
+│  │ └────┬────┘   └────┬────┘      │      │                               │
+│  │      │             │           │      │                               │
+│  │      ▼             ▼           │      │                               │
+│  │ is_visible    Request         ├──────┘                               │
+│  │ = true       changes                                                  │
+│  │                                                                       │
+│  └─────────────────────────────────┘                                     │
+│       │                                                                   │
+│       ▼                                                                   │
+│  ┌─────────────┐                                                         │
+│  │ Business    │                                                         │
+│  │ visible in  │                                                         │
+│  │ marketplace │                                                         │
+│  │ search      │                                                         │
+│  └─────────────┘                                                         │
+│                                                                          │
+│  DUAL-MODE OPERATION:                                                    │
+│  - Organization continues B2B operations                                 │
+│  - Now also receives consumer leads                                      │
+│  - Leads dashboard shows both sources                                    │
+│  - Single calendar, unified scheduling                                   │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Document Summary
+
+This document now covers **11 major flows** across all phases:
+
+| Flow | Description | Phase |
+|------|-------------|-------|
+| A | Complete Customer Journey | Core |
+| B | External Failure Cascade | Core |
+| C | Offline Technician Sync | Phase 9.3 |
+| D | Abuse Detection | Phase 9.4 |
+| E | Voice AI Pipeline | Phase 8 |
+| F | Payment Lifecycle | Phase 7 |
+| **G** | **Consumer Marketplace Journey** | **Phase 15** |
+| **H** | **Customer Portal Journey** | **Phase 13** |
+| **I** | **GPS Live Tracking** | **Phase 9.9** |
+| **J** | **Notification Queue System** | **Phase 9.6** |
+| **K** | **Business Mode Switch** | **Phase 15** |
+
+---
+
+**Document Metadata**
+```
+Version: 2.0
+Last Updated: 2025-12-10
+Flows Documented: 11
+Phases Covered: Core, 7, 8, 9.3, 9.4, 9.6, 9.9, 13, 15
+Format: Mermaid sequence diagrams, ASCII flow charts
+```

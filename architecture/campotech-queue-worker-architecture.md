@@ -119,20 +119,32 @@ export enum QueueName {
   AFIP_INVOICE = 'afip:invoice',
   PAYMENT_WEBHOOK = 'payment:webhook',
   WHATSAPP_OUTBOUND = 'whatsapp:outbound',
-  
-  // Normal Priority - Core Operations  
+
+  // Normal Priority - Core Operations
   WHATSAPP_INBOUND = 'whatsapp:inbound',
   VOICE_TRANSCRIPTION = 'voice:transcription',
   VOICE_EXTRACTION = 'voice:extraction',
   JOB_NOTIFICATION = 'job:notification',
   INVOICE_PDF = 'invoice:pdf',
-  
+
+  // Notification System (Phase 9.6)
+  NOTIFICATION_DISPATCH = 'notification:dispatch',
+  REMINDERS = 'notification:reminders',
+
+  // GPS Tracking (Phase 9.9)
+  TRACKING_ETA = 'tracking:eta',
+
+  // Consumer Marketplace (Phase 15)
+  CONSUMER_NOTIFICATION = 'consumer:notification',
+  REVIEW_FRAUD_DETECTION = 'consumer:fraud-detection',
+  LEAD_MATCHING = 'consumer:lead-matching',
+
   // Low Priority - Background Tasks
   SYNC_OFFLINE = 'sync:offline',
   RECONCILIATION = 'reconciliation',
   CLEANUP = 'cleanup',
   ANALYTICS = 'analytics',
-  
+
   // Scheduled
   SCHEDULER = 'scheduler',
 }
@@ -270,7 +282,79 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
     isolation: 'shared',
     ordered: false,
   },
-  
+
+  // ========== Phase 9.6: Notification System ==========
+
+  [QueueName.NOTIFICATION_DISPATCH]: {
+    priority: 'normal',
+    rateLimit: { max: 200, duration: 60000 },
+    concurrency: 20,
+    attempts: 3,
+    backoff: 'exponential',
+    timeout: 30000,
+    isolation: 'shared',
+    ordered: false,
+  },
+
+  [QueueName.REMINDERS]: {
+    priority: 'normal',
+    rateLimit: { max: 100, duration: 60000 },
+    concurrency: 10,
+    attempts: 3,
+    backoff: 'exponential',
+    timeout: 30000,
+    isolation: 'shared',
+    ordered: false,
+  },
+
+  // ========== Phase 9.9: GPS Tracking ==========
+
+  [QueueName.TRACKING_ETA]: {
+    priority: 'normal',
+    rateLimit: { max: 50, duration: 60000 }, // Google Maps API limits
+    concurrency: 10,
+    attempts: 2,
+    backoff: 'fixed',
+    timeout: 15000,
+    isolation: 'shared',
+    ordered: false,
+  },
+
+  // ========== Phase 15: Consumer Marketplace ==========
+
+  [QueueName.CONSUMER_NOTIFICATION]: {
+    priority: 'normal',
+    rateLimit: { max: 200, duration: 60000 },
+    concurrency: 20,
+    attempts: 3,
+    backoff: 'exponential',
+    timeout: 30000,
+    isolation: 'shared',
+    ordered: false,
+  },
+
+  [QueueName.REVIEW_FRAUD_DETECTION]: {
+    priority: 'low',
+    rateLimit: { max: 100, duration: 60000 },
+    concurrency: 10,
+    attempts: 2,
+    backoff: 'fixed',
+    timeout: 60000,
+    isolation: 'shared',
+    ordered: false,
+  },
+
+  [QueueName.LEAD_MATCHING]: {
+    priority: 'normal',
+    rateLimit: { max: 100, duration: 60000 },
+    concurrency: 10,
+    attempts: 3,
+    backoff: 'exponential',
+    timeout: 30000,
+    isolation: 'shared',
+    ordered: false,
+  },
+
   [QueueName.SCHEDULER]: {
     priority: 'normal',
     rateLimit: { max: 100, duration: 60000 },
@@ -557,13 +641,18 @@ export const WORKER_POOLS = {
       QueueName.VOICE_EXTRACTION,
       QueueName.JOB_NOTIFICATION,
       QueueName.INVOICE_PDF,
+      QueueName.NOTIFICATION_DISPATCH,  // Phase 9.6
+      QueueName.REMINDERS,               // Phase 9.6
+      QueueName.TRACKING_ETA,            // Phase 9.9
+      QueueName.CONSUMER_NOTIFICATION,   // Phase 15
+      QueueName.LEAD_MATCHING,           // Phase 15
     ],
-    instances: 3,
+    instances: 4,
     concurrencyPerInstance: 10,
     memoryLimit: '1Gi',
     cpuLimit: '1000m',
   },
-  
+
   // Low-priority pool: background tasks
   low: {
     queues: [
@@ -571,13 +660,14 @@ export const WORKER_POOLS = {
       QueueName.RECONCILIATION,
       QueueName.CLEANUP,
       QueueName.ANALYTICS,
+      QueueName.REVIEW_FRAUD_DETECTION,  // Phase 15
     ],
-    instances: 1,
+    instances: 2,
     concurrencyPerInstance: 5,
     memoryLimit: '256Mi',
     cpuLimit: '250m',
   },
-  
+
   // Scheduler pool: cron-like jobs
   scheduler: {
     queues: [QueueName.SCHEDULER],
@@ -588,12 +678,12 @@ export const WORKER_POOLS = {
   },
 };
 
-// Total resources:
+// Total resources (updated for Phase 9.6, 9.9, 15):
 // - High: 2 instances × (512Mi RAM, 0.5 CPU) = 1Gi RAM, 1 CPU
-// - Normal: 3 instances × (1Gi RAM, 1 CPU) = 3Gi RAM, 3 CPU
-// - Low: 1 instance × (256Mi RAM, 0.25 CPU) = 256Mi RAM, 0.25 CPU
+// - Normal: 4 instances × (1Gi RAM, 1 CPU) = 4Gi RAM, 4 CPU
+// - Low: 2 instances × (256Mi RAM, 0.25 CPU) = 512Mi RAM, 0.5 CPU
 // - Scheduler: 1 instance × (256Mi RAM, 0.25 CPU) = 256Mi RAM, 0.25 CPU
-// TOTAL: ~4.5Gi RAM, ~4.5 CPU
+// TOTAL: ~5.75Gi RAM, ~5.75 CPU
 ```
 
 ### 6.2 Worker Implementation
@@ -2062,7 +2152,7 @@ DAILY OPS CHECKLIST (5 minutes)
 - **Deployment**: Upstash Redis (serverless, multi-region)
 - **Dashboard**: Bull Board at `/admin/queues`
 
-### 13 Queues Defined
+### 19 Queues Defined
 | Queue | Priority | Concurrency | Rate Limit | Isolation |
 |-------|----------|-------------|------------|-----------|
 | afip:invoice | High | 3 | 10/min | Shared |
@@ -2073,16 +2163,22 @@ DAILY OPS CHECKLIST (5 minutes)
 | voice:extraction | Normal | 10 | 50/min | Shared |
 | job:notification | Normal | 10 | 100/min | Per-org |
 | invoice:pdf | Normal | 5 | 50/min | Shared |
+| notification:dispatch | Normal | 20 | 200/min | Shared |
+| notification:reminders | Normal | 10 | 100/min | Shared |
+| tracking:eta | Normal | 10 | 50/min | Shared |
+| consumer:notification | Normal | 20 | 200/min | Shared |
+| consumer:fraud-detection | Low | 10 | 100/min | Shared |
+| consumer:lead-matching | Normal | 10 | 100/min | Shared |
 | sync:offline | Low | 10 | 100/min | Per-org |
 | reconciliation | Low | 2 | 5/min | Shared |
 | cleanup | Low | 2 | 10/min | Shared |
 | analytics | Low | 5 | 50/min | Shared |
 | scheduler | Normal | 5 | 100/min | Shared |
 
-### Worker Pools
+### Worker Pools (Updated for Phase 9.6, 9.9, 15)
 - **High**: 2 instances, 512MB each, 5 concurrency
-- **Normal**: 3 instances, 1GB each, 10 concurrency
-- **Low**: 1 instance, 256MB, 5 concurrency
+- **Normal**: 4 instances, 1GB each, 10 concurrency
+- **Low**: 2 instances, 256MB each, 5 concurrency
 - **Scheduler**: 1 instance, 256MB, 5 concurrency
 
 ### Key Features
@@ -2093,5 +2189,20 @@ DAILY OPS CHECKLIST (5 minutes)
 - Dead letter queue with manual/auto retry
 - Comprehensive metrics and alerting
 - Backpressure handling with soft/hard limits
+
+### Phase Updates
+- **Phase 9.6**: Notification dispatch and reminder scheduling queues
+- **Phase 9.9**: GPS tracking ETA calculation queue
+- **Phase 15**: Consumer marketplace queues (notifications, fraud detection, lead matching)
+
+---
+
+**Document Metadata**
+```
+Version: 2.0
+Last Updated: 2025-12-10
+Queues Documented: 19
+Phases Covered: Core, 9.6, 9.9, 15
+```
 
 This specification provides everything needed for unambiguous implementation.
