@@ -16,6 +16,7 @@ import {
   MessageBuffer,
   AggregationResult,
 } from '../../integrations/whatsapp/aggregation/message-aggregator.service';
+import { getCapabilityService, CapabilityPath } from '../../../core/config/capabilities';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -88,6 +89,17 @@ export async function stopAggregationProcessor(): Promise<void> {
 async function runProcessingLoop(): Promise<void> {
   while (isRunning) {
     try {
+      // Check capability system first
+      const capabilityService = getCapabilityService();
+      const aggregationEnabled = await capabilityService.ensure('services.whatsapp_aggregation' as CapabilityPath);
+      const whatsappEnabled = await capabilityService.ensure('external.whatsapp' as CapabilityPath);
+
+      if (!aggregationEnabled || !whatsappEnabled) {
+        log.debug('WhatsApp aggregation capability disabled, skipping cycle');
+        await sleep(POLL_INTERVAL_MS);
+        continue;
+      }
+
       const processedCount = await processExpiredBuffers();
 
       if (processedCount > 0) {

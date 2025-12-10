@@ -14,6 +14,7 @@ import { log } from '../../lib/logging/logger';
 import { sendTemplateMessage, sendTextMessage } from '../../integrations/whatsapp/messages';
 import { WhatsAppConfig } from '../../integrations/whatsapp/whatsapp.types';
 import { getOrganizationWAConfig } from '../../integrations/whatsapp/customer';
+import { getCapabilityService, CapabilityPath } from '../../../core/config/capabilities';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -371,6 +372,20 @@ async function processBatch(): Promise<void> {
   if (!isRunning) return;
 
   try {
+    // Check capability system
+    const capabilityService = getCapabilityService();
+    const whatsappEnabled = await capabilityService.ensure('external.whatsapp' as CapabilityPath);
+    const queueEnabled = await capabilityService.ensure('services.whatsapp_queue' as CapabilityPath);
+
+    if (!whatsappEnabled || !queueEnabled) {
+      log.warn('WhatsApp capability disabled, skipping batch', {
+        whatsappEnabled,
+        queueEnabled,
+      });
+      scheduleNextPoll();
+      return;
+    }
+
     const messages = await fetchPendingMessages();
 
     if (messages.length === 0) {

@@ -20,6 +20,7 @@ import { getAFIPService } from '../../integrations/afip/afip.service';
 import { shouldRetryError, calculateDelay, analyzeError, AFIPCircuitBreaker } from './afip-retry.strategy';
 import { AFIPFallbackHandler } from './afip-fallback.handler';
 import { log } from '../../lib/logging/logger';
+import { getCapabilityService, CapabilityPath } from '../../../core/config/capabilities';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -147,6 +148,21 @@ export class AFIPInvoiceWorker {
     if (!this.running) return;
 
     try {
+      // Check capability system first
+      const capabilityService = getCapabilityService();
+      const afipEnabled = await capabilityService.ensure('external.afip' as CapabilityPath);
+      const caeQueueEnabled = await capabilityService.ensure('services.cae_queue' as CapabilityPath);
+
+      if (!afipEnabled || !caeQueueEnabled) {
+        log.warn('AFIP capability disabled, skipping poll', {
+          afipEnabled,
+          caeQueueEnabled,
+        });
+        // Schedule next poll but don't process
+        this.pollTimer = setTimeout(() => this.poll(), this.config.pollInterval);
+        return;
+      }
+
       // Check panic conditions
       await this.fallbackHandler.checkPanicConditions();
 

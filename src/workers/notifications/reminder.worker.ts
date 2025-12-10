@@ -12,6 +12,7 @@ import { log } from '../../lib/logging/logger';
 import { getRedisConnection } from '../../lib/redis/client';
 import { sendNotification } from '../../modules/notifications/notification.service';
 import { markReminderSent } from '../../modules/notifications/reminders/reminder-scheduler';
+import { getCapabilityService, CapabilityPath } from '../../../core/config/capabilities';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -44,6 +45,20 @@ export async function startReminderWorker(): Promise<Worker> {
       log.info('Processing reminder', { reminderId, jobId, reminderType });
 
       try {
+        // Check capability system first
+        const capabilityService = getCapabilityService();
+        const notificationQueueEnabled = await capabilityService.ensure('services.notification_queue' as CapabilityPath, organizationId);
+        const schedulingEnabled = await capabilityService.ensure('domain.scheduling' as CapabilityPath, organizationId);
+
+        if (!notificationQueueEnabled || !schedulingEnabled) {
+          log.warn('Notification/Scheduling capability disabled, skipping reminder', {
+            reminderId,
+            notificationQueueEnabled,
+            schedulingEnabled,
+          });
+          return { success: false, error: 'Capability disabled' };
+        }
+
         // Verify reminder still pending
         const reminder = await db.scheduledReminder.findUnique({
           where: { id: reminderId },
