@@ -378,21 +378,46 @@ export {
 // PREDICTIONS - Phase 10.5
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// Demand Forecasting
 export {
   forecastDemand,
   getPeakDemandPeriods,
 } from './predictions/demand/demand-forecaster';
+export type {
+  DemandForecast,
+  DemandPattern,
+  SeasonalPattern,
+  ForecastResult,
+} from './predictions/demand/demand-forecaster';
 
+// Revenue Projections
 export {
   projectRevenue,
   getRevenueMilestones,
 } from './predictions/revenue/revenue-projector';
+export type {
+  RevenueProjection,
+  GrowthScenario,
+  ProjectionResult,
+  ProjectionFactor,
+} from './predictions/revenue/revenue-projector';
 
+// Churn Prediction
 export {
   predictChurn,
   getHighRiskCustomers,
 } from './predictions/churn/churn-predictor';
+export type {
+  ChurnPrediction,
+  ChurnFactor,
+  ChurnAnalysis,
+} from './predictions/churn/churn-predictor';
 
+// Anomaly Detection
 export {
   detectAnomalies,
+} from './predictions/anomaly/anomaly-detector';
+export type {
+  AnomalyDetectionResult,
+  MetricBaseline,
 } from './predictions/anomaly/anomaly-detector';

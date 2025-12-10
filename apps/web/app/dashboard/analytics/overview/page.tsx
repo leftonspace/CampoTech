@@ -19,12 +19,15 @@ import {
   RefreshCw,
   Download,
   Settings,
+  Activity,
 } from 'lucide-react';
 
 import KPICard, { KPIGrid } from '../../../../components/analytics/widgets/KPICard';
 import AreaChart from '../../../../components/analytics/charts/AreaChart';
 import BarChart from '../../../../components/analytics/charts/BarChart';
 import PieChart from '../../../../components/analytics/charts/PieChart';
+import PredictionsWidget from '../../../../components/analytics/widgets/PredictionsWidget';
+import AlertsPanel from '../../../../components/analytics/widgets/AlertsPanel';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -185,6 +188,16 @@ export default function AnalyticsOverviewPage() {
             />
           </KPIGrid>
 
+          {/* Predictions and Alerts Row */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <PredictionsWidget />
+            </div>
+            <div>
+              <AlertsPanel maxAlerts={5} />
+            </div>
+          </div>
+
           {/* Charts Row 1 */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Revenue Trend */}
@@ -258,7 +271,7 @@ export default function AnalyticsOverviewPage() {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
               Acciones Rápidas
             </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <QuickActionCard
                 icon={<DollarSign size={20} />}
                 title="Reporte de Ingresos"
@@ -273,6 +286,11 @@ export default function AnalyticsOverviewPage() {
                 icon={<Users size={20} />}
                 title="Análisis de Clientes"
                 href="/dashboard/analytics/customers"
+              />
+              <QuickActionCard
+                icon={<Activity size={20} />}
+                title="Predicciones"
+                href="/dashboard/analytics/predictions"
               />
               <QuickActionCard
                 icon={<Calendar size={20} />}
