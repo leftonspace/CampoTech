@@ -69,6 +69,14 @@ tags:
     description: Voice AI processing
   - name: Admin
     description: Administrative operations
+  - name: Consumer
+    description: Consumer marketplace endpoints (Phase 15)
+  - name: CustomerPortal
+    description: Customer portal authentication and services (Phase 13)
+  - name: Tracking
+    description: GPS live tracking endpoints (Phase 9.9)
+  - name: Notifications
+    description: Notification preferences and reminders (Phase 9.6)
 
 # ============================================================================
 # SECURITY SCHEMES
@@ -10439,8 +10447,1457 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-# Note: PriceBookItem, CreatePriceBookItemRequest, UpdatePriceBookItemRequest 
+# Note: PriceBookItem, CreatePriceBookItemRequest, UpdatePriceBookItemRequest
 # schemas are defined in components/schemas section above
+
+# ============================================================================
+# CONSUMER MARKETPLACE ENDPOINTS (Phase 15)
+# ============================================================================
+
+  # --------------------------------------------------------------------------
+  # Consumer Authentication (No org context, standalone app)
+  # --------------------------------------------------------------------------
+
+  /consumer/auth/otp/send:
+    post:
+      tags:
+        - Consumer
+      summary: Send OTP to consumer phone
+      description: Sends a 6-digit OTP code via WhatsApp for consumer authentication
+      operationId: consumerSendOtp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone
+              properties:
+                phone:
+                  type: string
+                  description: Phone number in E.164 format
+                  example: "+5491155554444"
+      responses:
+        '200':
+          description: OTP sent successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  expires_at:
+                    type: string
+                    format: date-time
+        '429':
+          description: Rate limited - too many OTP requests
+
+  /consumer/auth/otp/verify:
+    post:
+      tags:
+        - Consumer
+      summary: Verify consumer OTP and get tokens
+      description: Verifies OTP code and returns JWT tokens for consumer authentication
+      operationId: consumerVerifyOtp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone
+                - code
+              properties:
+                phone:
+                  type: string
+                  example: "+5491155554444"
+                code:
+                  type: string
+                  minLength: 6
+                  maxLength: 6
+                  example: "123456"
+                first_name:
+                  type: string
+                  description: Required for new consumers
+                referral_code:
+                  type: string
+                  description: Optional referral code
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  consumer:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      first_name:
+                        type: string
+                      phone:
+                        type: string
+                      is_new:
+                        type: boolean
+
+  # --------------------------------------------------------------------------
+  # Consumer Profile
+  # --------------------------------------------------------------------------
+
+  /consumer/profile:
+    get:
+      tags:
+        - Consumer
+      summary: Get current consumer profile
+      operationId: getConsumerProfile
+      responses:
+        '200':
+          description: Consumer profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsumerProfile'
+
+    patch:
+      tags:
+        - Consumer
+      summary: Update consumer profile
+      operationId: updateConsumerProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                default_address:
+                  type: string
+                neighborhood:
+                  type: string
+                city:
+                  type: string
+                preferred_contact:
+                  type: string
+                  enum: [whatsapp, phone, app, email]
+      responses:
+        '200':
+          description: Profile updated
+
+  # --------------------------------------------------------------------------
+  # Business Discovery
+  # --------------------------------------------------------------------------
+
+  /consumer/businesses:
+    get:
+      tags:
+        - Consumer
+      summary: Search businesses in marketplace
+      description: Search for businesses by category, location, and filters
+      operationId: searchBusinesses
+      security: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [plumbing, electrical, hvac, gas, locksmith, painting, construction, cleaning, gardening, pest_control, appliance_repair, carpentry, roofing, flooring, windows_doors, security, moving, general]
+        - name: lat
+          in: query
+          schema:
+            type: number
+        - name: lng
+          in: query
+          schema:
+            type: number
+        - name: radius_km
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: min_rating
+          in: query
+          schema:
+            type: number
+            minimum: 1
+            maximum: 5
+        - name: badges
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [rating, distance, response_time]
+            default: rating
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: List of matching businesses
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BusinessPublicProfile'
+                  pagination:
+                    $ref: '#/components/schemas/Pagination'
+
+  /consumer/businesses/{slug}:
+    get:
+      tags:
+        - Consumer
+      summary: Get business public profile by slug
+      operationId: getBusinessProfile
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Business profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessPublicProfileDetail'
+        '404':
+          description: Business not found
+
+  /consumer/businesses/{slug}/reviews:
+    get:
+      tags:
+        - Consumer
+      summary: Get business reviews
+      operationId: getBusinessReviews
+      security: []
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [recent, helpful, rating_high, rating_low]
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Business reviews
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ConsumerReview'
+                  rating_summary:
+                    $ref: '#/components/schemas/RatingSummary'
+
+  # --------------------------------------------------------------------------
+  # Service Requests
+  # --------------------------------------------------------------------------
+
+  /consumer/service-requests:
+    get:
+      tags:
+        - Consumer
+      summary: List consumer's service requests
+      operationId: listServiceRequests
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [open, quotes_received, accepted, in_progress, completed, cancelled, expired]
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: List of service requests
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ServiceRequest'
+
+    post:
+      tags:
+        - Consumer
+      summary: Create a new service request
+      operationId: createServiceRequest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - category
+                - title
+                - description
+                - address
+              properties:
+                category:
+                  type: string
+                  enum: [plumbing, electrical, hvac, gas, locksmith, painting, construction, cleaning, gardening, pest_control, appliance_repair, carpentry, roofing, flooring, windows_doors, security, moving, general]
+                title:
+                  type: string
+                  maxLength: 200
+                description:
+                  type: string
+                  maxLength: 2000
+                photo_urls:
+                  type: array
+                  items:
+                    type: string
+                    format: uri
+                  maxItems: 10
+                address:
+                  type: string
+                lat:
+                  type: number
+                lng:
+                  type: number
+                urgency:
+                  type: string
+                  enum: [emergency, today, this_week, flexible]
+                  default: flexible
+                budget_range:
+                  type: string
+                  enum: [under_5000, '5000_15000', '15000_50000', '50000_100000', over_100000, not_specified]
+                preferred_date:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: Service request created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceRequest'
+
+  /consumer/service-requests/{requestId}:
+    get:
+      tags:
+        - Consumer
+      summary: Get service request details
+      operationId: getServiceRequest
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Service request details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ServiceRequestDetail'
+
+    delete:
+      tags:
+        - Consumer
+      summary: Cancel service request
+      operationId: cancelServiceRequest
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Service request cancelled
+
+  /consumer/service-requests/{requestId}/quotes:
+    get:
+      tags:
+        - Consumer
+      summary: Get quotes for a service request
+      operationId: getServiceRequestQuotes
+      parameters:
+        - name: requestId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of quotes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/BusinessQuote'
+
+  # --------------------------------------------------------------------------
+  # Quotes Management
+  # --------------------------------------------------------------------------
+
+  /consumer/quotes/{quoteId}:
+    get:
+      tags:
+        - Consumer
+      summary: Get quote details
+      operationId: getQuoteDetails
+      parameters:
+        - name: quoteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Quote details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessQuoteDetail'
+
+  /consumer/quotes/{quoteId}/accept:
+    post:
+      tags:
+        - Consumer
+      summary: Accept a quote
+      operationId: acceptQuote
+      parameters:
+        - name: quoteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Quote accepted, job will be created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  job_id:
+                    type: string
+                    format: uuid
+
+  /consumer/quotes/{quoteId}/reject:
+    post:
+      tags:
+        - Consumer
+      summary: Reject a quote
+      operationId: rejectQuote
+      parameters:
+        - name: quoteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Quote rejected
+
+  /consumer/quotes/{quoteId}/messages:
+    get:
+      tags:
+        - Consumer
+      summary: Get messages for a quote
+      operationId: getQuoteMessages
+      parameters:
+        - name: quoteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Quote messages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/QuoteMessage'
+
+    post:
+      tags:
+        - Consumer
+      summary: Send message to business
+      operationId: sendQuoteMessage
+      parameters:
+        - name: quoteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  maxLength: 2000
+      responses:
+        '201':
+          description: Message sent
+
+  # --------------------------------------------------------------------------
+  # Reviews
+  # --------------------------------------------------------------------------
+
+  /consumer/reviews:
+    post:
+      tags:
+        - Consumer
+      summary: Create a review for a business
+      operationId: createReview
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - business_profile_id
+                - overall_rating
+              properties:
+                business_profile_id:
+                  type: string
+                  format: uuid
+                job_id:
+                  type: string
+                  format: uuid
+                service_request_id:
+                  type: string
+                  format: uuid
+                overall_rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                punctuality_rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                quality_rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                price_rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                communication_rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                title:
+                  type: string
+                  maxLength: 100
+                review_text:
+                  type: string
+                  maxLength: 2000
+                photo_urls:
+                  type: array
+                  items:
+                    type: string
+                would_recommend:
+                  type: boolean
+      responses:
+        '201':
+          description: Review created (pending moderation)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsumerReview'
+
+  # --------------------------------------------------------------------------
+  # Business Leads Dashboard (for B2B users)
+  # --------------------------------------------------------------------------
+
+  /leads:
+    get:
+      tags:
+        - Consumer
+      summary: Get leads for business (marketplace leads)
+      description: Returns service requests matched to this business
+      operationId: getBusinessLeads
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [new, quoted, accepted, declined]
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: List of leads
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Lead'
+
+  /leads/{leadId}/quote:
+    post:
+      tags:
+        - Consumer
+      summary: Send quote for a lead
+      operationId: sendLeadQuote
+      parameters:
+        - name: leadId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - price_type
+              properties:
+                price_type:
+                  type: string
+                  enum: [fixed, range, hourly, on_site]
+                price_amount:
+                  type: number
+                price_min:
+                  type: number
+                price_max:
+                  type: number
+                description:
+                  type: string
+                includes:
+                  type: array
+                  items:
+                    type: string
+                available_date:
+                  type: string
+                  format: date
+                estimated_duration_hours:
+                  type: number
+      responses:
+        '201':
+          description: Quote sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BusinessQuote'
+
+  /leads/{leadId}/decline:
+    post:
+      tags:
+        - Consumer
+      summary: Decline a lead
+      operationId: declineLead
+      parameters:
+        - name: leadId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - reason
+              properties:
+                reason:
+                  type: string
+                  enum: [too_far, not_available, out_of_scope, too_busy, other]
+                notes:
+                  type: string
+      responses:
+        '200':
+          description: Lead declined
+
+# ============================================================================
+# CUSTOMER PORTAL ENDPOINTS (Phase 13)
+# ============================================================================
+
+  # --------------------------------------------------------------------------
+  # Portal Authentication
+  # --------------------------------------------------------------------------
+
+  /portal/auth/magic-link:
+    post:
+      tags:
+        - CustomerPortal
+      summary: Request magic link for customer portal
+      operationId: requestPortalMagicLink
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - org_slug
+              properties:
+                email:
+                  type: string
+                  format: email
+                org_slug:
+                  type: string
+                  description: Organization slug from portal URL
+      responses:
+        '200':
+          description: Magic link sent if email exists
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  /portal/auth/magic-link/verify:
+    post:
+      tags:
+        - CustomerPortal
+      summary: Verify magic link token
+      operationId: verifyPortalMagicLink
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  customer:
+                    type: object
+
+  /portal/auth/otp/send:
+    post:
+      tags:
+        - CustomerPortal
+      summary: Send OTP for portal login
+      operationId: sendPortalOtp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone
+                - org_slug
+              properties:
+                phone:
+                  type: string
+                org_slug:
+                  type: string
+      responses:
+        '200':
+          description: OTP sent
+
+  /portal/auth/otp/verify:
+    post:
+      tags:
+        - CustomerPortal
+      summary: Verify portal OTP
+      operationId: verifyPortalOtp
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phone
+                - code
+                - org_slug
+              properties:
+                phone:
+                  type: string
+                code:
+                  type: string
+                org_slug:
+                  type: string
+      responses:
+        '200':
+          description: Authentication successful
+
+  # --------------------------------------------------------------------------
+  # Portal Dashboard
+  # --------------------------------------------------------------------------
+
+  /portal/jobs:
+    get:
+      tags:
+        - CustomerPortal
+      summary: Get customer's jobs
+      operationId: getPortalJobs
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: List of jobs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PortalJob'
+
+  /portal/jobs/{jobId}:
+    get:
+      tags:
+        - CustomerPortal
+      summary: Get job details for customer
+      operationId: getPortalJobDetails
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PortalJobDetail'
+
+  /portal/jobs/{jobId}/tracking:
+    get:
+      tags:
+        - CustomerPortal
+      summary: Get live tracking for job
+      operationId: getPortalJobTracking
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      responses:
+        '200':
+          description: Tracking information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  current_lat:
+                    type: number
+                  current_lng:
+                    type: number
+                  eta_minutes:
+                    type: integer
+                  technician_name:
+                    type: string
+                  route_polyline:
+                    type: string
+
+  # --------------------------------------------------------------------------
+  # Portal Invoices & Payments
+  # --------------------------------------------------------------------------
+
+  /portal/invoices:
+    get:
+      tags:
+        - CustomerPortal
+      summary: Get customer's invoices
+      operationId: getPortalInvoices
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, paid, overdue]
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: List of invoices
+
+  /portal/invoices/{invoiceId}/pay:
+    post:
+      tags:
+        - CustomerPortal
+      summary: Create payment preference for invoice
+      operationId: payPortalInvoice
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '200':
+          description: Mercado Pago checkout URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  checkout_url:
+                    type: string
+                    format: uri
+
+  # --------------------------------------------------------------------------
+  # Portal Support
+  # --------------------------------------------------------------------------
+
+  /portal/support/tickets:
+    get:
+      tags:
+        - CustomerPortal
+      summary: Get support tickets
+      operationId: getPortalTickets
+      responses:
+        '200':
+          description: List of support tickets
+
+    post:
+      tags:
+        - CustomerPortal
+      summary: Create support ticket
+      operationId: createPortalTicket
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - subject
+                - category
+                - content
+              properties:
+                subject:
+                  type: string
+                category:
+                  type: string
+                  enum: [general, billing, service, complaint, feedback, other]
+                content:
+                  type: string
+                related_job_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Ticket created
+
+  /portal/support/tickets/{ticketId}/messages:
+    post:
+      tags:
+        - CustomerPortal
+      summary: Reply to support ticket
+      operationId: replyToPortalTicket
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - content
+              properties:
+                content:
+                  type: string
+      responses:
+        '201':
+          description: Message sent
+
+  # --------------------------------------------------------------------------
+  # Portal Feedback
+  # --------------------------------------------------------------------------
+
+  /portal/jobs/{jobId}/feedback:
+    post:
+      tags:
+        - CustomerPortal
+      summary: Submit job feedback
+      operationId: submitPortalFeedback
+      parameters:
+        - $ref: '#/components/parameters/JobId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rating
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+                service_quality:
+                  type: integer
+                punctuality:
+                  type: integer
+                professionalism:
+                  type: integer
+                would_recommend:
+                  type: boolean
+      responses:
+        '201':
+          description: Feedback submitted
+
+# ============================================================================
+# GPS TRACKING ENDPOINTS (Phase 9.9)
+# ============================================================================
+
+  # --------------------------------------------------------------------------
+  # Tracking Session Management (Technician)
+  # --------------------------------------------------------------------------
+
+  /tracking/sessions:
+    post:
+      tags:
+        - Tracking
+      summary: Start tracking session for a job
+      operationId: startTrackingSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - job_id
+              properties:
+                job_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Tracking session started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  session_id:
+                    type: string
+                    format: uuid
+                  tracking_token:
+                    type: string
+                    description: Token to share with customer
+
+  /tracking/position:
+    post:
+      tags:
+        - Tracking
+      summary: Update technician position
+      operationId: updateTrackingPosition
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - session_id
+                - lat
+                - lng
+              properties:
+                session_id:
+                  type: string
+                  format: uuid
+                lat:
+                  type: number
+                lng:
+                  type: number
+                speed:
+                  type: number
+                heading:
+                  type: number
+                accuracy:
+                  type: number
+      responses:
+        '200':
+          description: Position updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  eta_minutes:
+                    type: integer
+
+  /tracking/sessions/{sessionId}/arrive:
+    post:
+      tags:
+        - Tracking
+      summary: Mark technician as arrived
+      operationId: markArrived
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Arrival recorded
+
+  /tracking/sessions/{sessionId}/complete:
+    post:
+      tags:
+        - Tracking
+      summary: Complete tracking session
+      operationId: completeTrackingSession
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Session completed
+
+  # --------------------------------------------------------------------------
+  # Public Tracking (Customer view, no auth)
+  # --------------------------------------------------------------------------
+
+  /tracking/{token}:
+    get:
+      tags:
+        - Tracking
+      summary: Get tracking info by token (public)
+      description: Public endpoint for customers to track technician location
+      operationId: getTrackingByToken
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Tracking information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  job_id:
+                    type: string
+                    format: uuid
+                  technician_name:
+                    type: string
+                  current_lat:
+                    type: number
+                  current_lng:
+                    type: number
+                  destination_lat:
+                    type: number
+                  destination_lng:
+                    type: number
+                  eta_minutes:
+                    type: integer
+                  status:
+                    type: string
+                    enum: [active, arrived, completed]
+                  route_polyline:
+                    type: string
+        '404':
+          description: Invalid or expired token
+
+# ============================================================================
+# NOTIFICATION ENDPOINTS (Phase 9.6)
+# ============================================================================
+
+  # --------------------------------------------------------------------------
+  # Notification Preferences
+  # --------------------------------------------------------------------------
+
+  /notifications/preferences:
+    get:
+      tags:
+        - Notifications
+      summary: Get notification preferences
+      operationId: getNotificationPreferences
+      responses:
+        '200':
+          description: Notification preferences
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPreferences'
+
+    patch:
+      tags:
+        - Notifications
+      summary: Update notification preferences
+      operationId: updateNotificationPreferences
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                web_enabled:
+                  type: boolean
+                push_enabled:
+                  type: boolean
+                sms_enabled:
+                  type: boolean
+                email_enabled:
+                  type: boolean
+                whatsapp_enabled:
+                  type: boolean
+                event_preferences:
+                  type: object
+                reminder_intervals:
+                  type: array
+                  items:
+                    type: integer
+                quiet_hours_enabled:
+                  type: boolean
+                quiet_hours_start:
+                  type: string
+                  format: time
+                quiet_hours_end:
+                  type: string
+                  format: time
+      responses:
+        '200':
+          description: Preferences updated
+
+  # --------------------------------------------------------------------------
+  # Notification History
+  # --------------------------------------------------------------------------
+
+  /notifications:
+    get:
+      tags:
+        - Notifications
+      summary: Get notification history
+      operationId: getNotifications
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, sent, delivered, read, failed]
+        - name: channel
+          in: query
+          schema:
+            type: string
+            enum: [web, push, sms, email, whatsapp]
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Notification history
+
+  /notifications/{notificationId}/read:
+    post:
+      tags:
+        - Notifications
+      summary: Mark notification as read
+      operationId: markNotificationRead
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Marked as read
+
+  # --------------------------------------------------------------------------
+  # Push Token Management
+  # --------------------------------------------------------------------------
+
+  /notifications/push-token:
+    post:
+      tags:
+        - Notifications
+      summary: Register push notification token
+      operationId: registerPushToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+                - platform
+              properties:
+                token:
+                  type: string
+                platform:
+                  type: string
+                  enum: [ios, android, web]
+                device_id:
+                  type: string
+      responses:
+        '200':
+          description: Token registered
+
+    delete:
+      tags:
+        - Notifications
+      summary: Remove push notification token
+      operationId: removePushToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - token
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: Token removed
+
+  # --------------------------------------------------------------------------
+  # Test Notifications
+  # --------------------------------------------------------------------------
+
+  /notifications/test:
+    post:
+      tags:
+        - Notifications
+      summary: Send test notification
+      operationId: sendTestNotification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - channel
+              properties:
+                channel:
+                  type: string
+                  enum: [push, whatsapp, sms, email]
+      responses:
+        '200':
+          description: Test notification sent
 
 # ============================================================================
 # ERROR CODES REFERENCE

@@ -2030,6 +2030,1256 @@ organizations.settings
 
 ---
 
+# 8.1. PHASE 9.5-9.9: NOTIFICATIONS, VERIFICATION, TRACKING
+
+## Notification Preferences Table
+
+```sql
+-- ============================================================================
+-- NOTIFICATION PREFERENCES (Phase 9.6)
+-- ============================================================================
+
+-- Notification event types
+CREATE TYPE notification_event_type AS ENUM (
+    'job_assigned', 'job_updated', 'job_reminder', 'job_completed',
+    'job_cancelled', 'invoice_created', 'invoice_sent', 'payment_received',
+    'payment_failed', 'team_member_added', 'team_member_removed',
+    'sync_conflict', 'system_alert', 'employee_welcome', 'schedule_change', 'custom'
+);
+
+CREATE TYPE notification_channel AS ENUM ('web', 'push', 'sms', 'email', 'whatsapp');
+
+CREATE TABLE notification_preferences (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    organization_id UUID NOT NULL REFERENCES organizations(id),
+
+    -- Channel preferences (WhatsApp-first for Argentina)
+    web_enabled BOOLEAN DEFAULT true,
+    push_enabled BOOLEAN DEFAULT true,
+    sms_enabled BOOLEAN DEFAULT false,
+    email_enabled BOOLEAN DEFAULT false,
+    whatsapp_enabled BOOLEAN DEFAULT true,
+
+    -- Event preferences (JSONB)
+    event_preferences JSONB DEFAULT '{...}'::jsonb,
+
+    -- Reminder timing (minutes before)
+    reminder_intervals JSONB DEFAULT '[1440, 60, 30]',
+
+    -- Quiet hours
+    quiet_hours_enabled BOOLEAN DEFAULT false,
+    quiet_hours_start TIME DEFAULT '22:00',
+    quiet_hours_end TIME DEFAULT '08:00',
+    quiet_hours_timezone TEXT DEFAULT 'America/Argentina/Buenos_Aires',
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    UNIQUE(user_id)
+);
+
+CREATE INDEX idx_notification_preferences_user ON notification_preferences(user_id);
+CREATE INDEX idx_notification_preferences_org ON notification_preferences(organization_id);
+```
+
+## Notification Logs Table
+
+```sql
+CREATE TABLE notification_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id),
+    user_id UUID REFERENCES users(id),
+
+    event_type notification_event_type NOT NULL,
+    channel notification_channel NOT NULL,
+
+    title TEXT,
+    body TEXT,
+    data JSONB DEFAULT '{}',
+
+    status TEXT DEFAULT 'pending',    -- pending, sent, delivered, failed, read
+    sent_at TIMESTAMPTZ,
+    delivered_at TIMESTAMPTZ,
+    read_at TIMESTAMPTZ,
+    error_message TEXT,
+
+    entity_type TEXT,
+    entity_id UUID,
+
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_notification_logs_user ON notification_logs(user_id, created_at);
+CREATE INDEX idx_notification_logs_status ON notification_logs(status, created_at);
+```
+
+## Scheduled Reminders Table
+
+```sql
+CREATE TABLE scheduled_reminders (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id),
+    job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id),
+
+    reminder_type TEXT NOT NULL,      -- '24h', '1h', '30min'
+    scheduled_for TIMESTAMPTZ NOT NULL,
+
+    status TEXT DEFAULT 'pending',    -- pending, sent, cancelled
+    sent_at TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_scheduled_reminders_due ON scheduled_reminders(scheduled_for) WHERE status = 'pending';
+CREATE INDEX idx_scheduled_reminders_job ON scheduled_reminders(job_id);
+```
+
+## Employee Verification Tables (Phase 9.5)
+
+```sql
+CREATE TABLE employee_verification_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    organization_id UUID NOT NULL REFERENCES organizations(id),
+
+    code TEXT NOT NULL,
+    is_used BOOLEAN DEFAULT false,
+    attempts INTEGER DEFAULT 0,
+    max_attempts INTEGER DEFAULT 3,
+    expires_at TIMESTAMPTZ NOT NULL,
+    last_attempt_at TIMESTAMPTZ,
+    cooldown_until TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE onboarding_progress (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    organization_id UUID NOT NULL REFERENCES organizations(id),
+
+    phone_verified BOOLEAN DEFAULT false,
+    phone_verified_at TIMESTAMPTZ,
+    terms_accepted BOOLEAN DEFAULT false,
+    terms_accepted_at TIMESTAMPTZ,
+    profile_completed BOOLEAN DEFAULT false,
+    profile_completed_at TIMESTAMPTZ,
+    tutorial_completed BOOLEAN DEFAULT false,
+    tutorial_completed_at TIMESTAMPTZ,
+    tutorial_skipped BOOLEAN DEFAULT false,
+    first_login_at TIMESTAMPTZ,
+    completed BOOLEAN DEFAULT false,
+    completed_at TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    UNIQUE(user_id)
+);
+
+-- Additional columns added to users table:
+-- is_verified, verified_at, whatsapp_number, preferred_channel,
+-- onboarding_completed, onboarding_step, terms_accepted_at
+```
+
+## Message Aggregation Tables (Phase 9.8)
+
+```sql
+CREATE TABLE conversation_contexts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id),
+    customer_phone TEXT NOT NULL,
+
+    message_history JSONB DEFAULT '[]',
+    customer_id UUID REFERENCES customers(id),
+    customer_name TEXT,
+    active_job_id UUID REFERENCES jobs(id),
+    previous_requests TEXT[],
+
+    last_message_at TIMESTAMPTZ DEFAULT NOW(),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '24 hours',
+
+    UNIQUE(organization_id, customer_phone)
+);
+
+CREATE TABLE message_buffer_stats (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id),
+
+    total_buffers_created INTEGER DEFAULT 0,
+    total_messages_aggregated INTEGER DEFAULT 0,
+    total_immediate_triggers INTEGER DEFAULT 0,
+    total_timeout_triggers INTEGER DEFAULT 0,
+    avg_buffer_size DECIMAL(5, 2) DEFAULT 0,
+    avg_aggregation_time_ms INTEGER DEFAULT 0,
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    UNIQUE(organization_id, date)
+);
+```
+
+## Tracking Tables (Phase 9.9)
+
+```sql
+CREATE TABLE tracking_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    job_id UUID NOT NULL REFERENCES jobs(id) UNIQUE,
+    technician_id UUID NOT NULL REFERENCES users(id),
+    organization_id UUID NOT NULL REFERENCES organizations(id),
+
+    -- Current position (updated every 30 seconds)
+    current_lat DECIMAL(10, 8),
+    current_lng DECIMAL(11, 8),
+    current_speed DECIMAL(5, 2),
+    current_heading DECIMAL(5, 2),
+    movement_mode TEXT DEFAULT 'driving',
+
+    -- ETA information
+    eta_minutes INTEGER,
+    eta_updated_at TIMESTAMPTZ,
+    route_polyline TEXT,
+    traffic_aware BOOLEAN DEFAULT false,
+
+    -- Destination
+    destination_lat DECIMAL(10, 8),
+    destination_lng DECIMAL(11, 8),
+    destination_address TEXT,
+
+    -- Session state
+    status TEXT DEFAULT 'active',
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    arrived_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+
+    position_update_count INTEGER DEFAULT 0,
+    last_position_at TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE tracking_location_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID NOT NULL REFERENCES tracking_sessions(id) ON DELETE CASCADE,
+
+    lat DECIMAL(10, 8) NOT NULL,
+    lng DECIMAL(11, 8) NOT NULL,
+    speed DECIMAL(5, 2),
+    heading DECIMAL(5, 2),
+    accuracy DECIMAL(5, 2),
+    movement_mode TEXT,
+
+    recorded_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE tracking_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    token TEXT UNIQUE NOT NULL,
+    job_id UUID NOT NULL REFERENCES jobs(id),
+    session_id UUID REFERENCES tracking_sessions(id),
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    access_count INTEGER DEFAULT 0,
+    last_accessed_at TIMESTAMPTZ,
+    allowed_ip TEXT
+);
+
+CREATE TABLE tracking_usage (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    organization_id UUID NOT NULL REFERENCES organizations(id),
+
+    sessions_count INTEGER DEFAULT 0,
+    map_loads_count INTEGER DEFAULT 0,
+    directions_requests_count INTEGER DEFAULT 0,
+    estimated_cost_usd DECIMAL(10, 2) DEFAULT 0,
+
+    period_start DATE NOT NULL,
+    period_end DATE NOT NULL,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    UNIQUE(organization_id, period_start)
+);
+```
+
+---
+
+# 8.2. PHASE 13: CUSTOMER PORTAL
+
+## Customer Portal Authentication Tables
+
+```sql
+-- ============================================================================
+-- CUSTOMER PORTAL AUTH (Phase 13.1)
+-- ============================================================================
+
+CREATE TABLE customer_magic_links (
+    id UUID PRIMARY KEY,
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+    email VARCHAR(255) NOT NULL,
+    token_hash VARCHAR(64) NOT NULL UNIQUE,
+    used BOOLEAN DEFAULT FALSE,
+    used_at TIMESTAMPTZ,
+    expires_at TIMESTAMPTZ NOT NULL,
+    metadata JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE customer_otp_codes (
+    id UUID PRIMARY KEY,
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
+    phone VARCHAR(20) NOT NULL,
+    code_hash TEXT NOT NULL,           -- Scrypt hash
+    attempts INTEGER DEFAULT 0,
+    verified BOOLEAN DEFAULT FALSE,
+    verified_at TIMESTAMPTZ,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE customer_sessions (
+    id UUID PRIMARY KEY,
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    device_info JSONB,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    refresh_token_hash VARCHAR(64) NOT NULL UNIQUE,
+    is_active BOOLEAN DEFAULT TRUE,
+    last_used_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    revoked_at TIMESTAMPTZ,
+    revocation_reason VARCHAR(50),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE customer_impersonation_sessions (
+    id UUID PRIMARY KEY,
+    support_user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    reason TEXT NOT NULL,
+    started_at TIMESTAMPTZ NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
+    ended_at TIMESTAMPTZ,
+    actions_performed JSONB DEFAULT '[]',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+## Customer Portal Backend Tables
+
+```sql
+-- ============================================================================
+-- CUSTOMER PORTAL (Phase 13.2)
+-- ============================================================================
+
+CREATE TYPE booking_status AS ENUM (
+    'pending', 'confirmed', 'deposit_required', 'cancelled', 'completed', 'expired'
+);
+
+CREATE TYPE ticket_status AS ENUM (
+    'open', 'in_progress', 'waiting_customer', 'resolved', 'closed'
+);
+
+CREATE TYPE ticket_priority AS ENUM ('low', 'medium', 'high', 'urgent');
+
+CREATE TYPE ticket_category AS ENUM (
+    'general', 'billing', 'service', 'complaint', 'feedback', 'other'
+);
+
+CREATE TABLE customer_bookings (
+    id UUID PRIMARY KEY,
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+
+    service_type_id UUID,
+    service_type_name VARCHAR(255) NOT NULL,
+    requested_date_time TIMESTAMPTZ NOT NULL,
+    confirmed_date_time TIMESTAMPTZ,
+
+    address TEXT NOT NULL,
+    city VARCHAR(100),
+    province VARCHAR(100),
+    postal_code VARCHAR(20),
+    latitude DECIMAL(10, 8),
+    longitude DECIMAL(11, 8),
+
+    description TEXT,
+    notes TEXT,
+    status booking_status DEFAULT 'pending',
+
+    estimated_price DECIMAL(12, 2),
+    deposit_amount DECIMAL(12, 2) DEFAULT 0,
+    deposit_paid BOOLEAN DEFAULT FALSE,
+
+    cancellation_reason TEXT,
+    cancelled_at TIMESTAMPTZ,
+    confirmed_at TIMESTAMPTZ,
+    reminder_sent BOOLEAN DEFAULT FALSE,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE support_tickets (
+    id UUID PRIMARY KEY,
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+
+    ticket_number VARCHAR(20) NOT NULL UNIQUE,
+    subject VARCHAR(255) NOT NULL,
+    category ticket_category NOT NULL,
+    priority ticket_priority DEFAULT 'medium',
+    status ticket_status DEFAULT 'open',
+
+    related_job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+    related_invoice_id UUID REFERENCES invoices(id) ON DELETE SET NULL,
+    assigned_to_id UUID REFERENCES users(id) ON DELETE SET NULL,
+
+    resolved_at TIMESTAMPTZ,
+    closed_at TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE ticket_messages (
+    id UUID PRIMARY KEY,
+    ticket_id UUID NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+    author_type VARCHAR(20) NOT NULL CHECK (author_type IN ('customer', 'staff')),
+    author_id UUID NOT NULL,
+    author_name VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    attachments JSONB DEFAULT '[]',
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE job_feedback (
+    id UUID PRIMARY KEY,
+    job_id UUID NOT NULL UNIQUE REFERENCES jobs(id) ON DELETE CASCADE,
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    technician_id UUID REFERENCES users(id) ON DELETE SET NULL,
+
+    rating INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT,
+    service_quality INTEGER CHECK (service_quality >= 1 AND service_quality <= 5),
+    punctuality INTEGER CHECK (punctuality >= 1 AND punctuality <= 5),
+    professionalism INTEGER CHECK (professionalism >= 1 AND professionalism <= 5),
+    value_for_money INTEGER CHECK (value_for_money >= 1 AND value_for_money <= 5),
+
+    would_recommend BOOLEAN DEFAULT TRUE,
+    is_public BOOLEAN DEFAULT TRUE,
+
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE customer_payment_methods (
+    id UUID PRIMARY KEY,
+    customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+
+    type VARCHAR(20) NOT NULL CHECK (type IN ('card', 'bank_account')),
+    provider VARCHAR(50) NOT NULL,
+    external_token TEXT,
+    last_four_digits VARCHAR(4),
+    brand VARCHAR(50),
+    expiration_month INTEGER,
+    expiration_year INTEGER,
+    holder_name VARCHAR(255),
+    is_default BOOLEAN DEFAULT FALSE,
+
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE booking_rules (
+    id UUID PRIMARY KEY,
+    org_id UUID NOT NULL UNIQUE REFERENCES organizations(id) ON DELETE CASCADE,
+
+    allowed_service_types TEXT[] DEFAULT '{}',
+    min_lead_time_hours INTEGER DEFAULT 24,
+    max_advance_booking_days INTEGER DEFAULT 30,
+    business_hours JSONB DEFAULT '{}',
+    blocked_dates TEXT[] DEFAULT '{}',
+    allowed_zones TEXT[] DEFAULT '{}',
+    max_bookings_per_slot INTEGER DEFAULT 3,
+    slot_duration_minutes INTEGER DEFAULT 120,
+    buffer_minutes INTEGER DEFAULT 30,
+
+    require_phone_verification BOOLEAN DEFAULT FALSE,
+    require_email_verification BOOLEAN DEFAULT FALSE,
+    max_pending_bookings INTEGER DEFAULT 3,
+    require_deposit BOOLEAN DEFAULT FALSE,
+    deposit_percentage INTEGER DEFAULT 0,
+    allowed_payment_methods TEXT[] DEFAULT ARRAY['mercadopago', 'cash', 'transfer'],
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+## White-Label Tables (Phase 13.6)
+
+```sql
+CREATE TABLE whitelabel_branding (
+    org_id UUID PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE,
+
+    logo_url TEXT,
+    logo_small_url TEXT,
+    favicon_url TEXT,
+
+    primary_color VARCHAR(20) DEFAULT '#0066CC',
+    primary_color_light VARCHAR(20),
+    primary_color_dark VARCHAR(20),
+    secondary_color VARCHAR(20),
+    accent_color VARCHAR(20),
+    text_color VARCHAR(20),
+    text_color_light VARCHAR(20),
+    background_color VARCHAR(20),
+
+    font_family VARCHAR(255),
+    heading_font_family VARCHAR(255),
+
+    tagline VARCHAR(255),
+    welcome_message TEXT,
+    footer_text TEXT,
+
+    support_email VARCHAR(255),
+    support_phone VARCHAR(50),
+    support_whatsapp VARCHAR(50),
+
+    social_links JSONB DEFAULT '{}',
+    privacy_policy_url TEXT,
+    terms_of_service_url TEXT,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE whitelabel_domains (
+    org_id UUID PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE,
+    custom_domain VARCHAR(255) NOT NULL UNIQUE,
+    subdomain VARCHAR(100),
+    ssl_enabled BOOLEAN DEFAULT TRUE,
+    ssl_certificate_id VARCHAR(255),
+    verification_status VARCHAR(20) DEFAULT 'pending',
+    verification_token VARCHAR(64),
+    verified_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE whitelabel_portal_config (
+    org_id UUID PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE,
+
+    feature_booking BOOLEAN DEFAULT TRUE,
+    feature_job_tracking BOOLEAN DEFAULT TRUE,
+    feature_invoices BOOLEAN DEFAULT TRUE,
+    feature_payments BOOLEAN DEFAULT TRUE,
+    feature_support BOOLEAN DEFAULT TRUE,
+    feature_feedback BOOLEAN DEFAULT TRUE,
+    feature_profile BOOLEAN DEFAULT TRUE,
+
+    auth_magic_link BOOLEAN DEFAULT TRUE,
+    auth_phone_otp BOOLEAN DEFAULT TRUE,
+    auth_whatsapp BOOLEAN DEFAULT FALSE,
+
+    show_pricing BOOLEAN DEFAULT TRUE,
+    show_technician_info BOOLEAN DEFAULT TRUE,
+    show_estimated_time BOOLEAN DEFAULT TRUE,
+
+    default_language VARCHAR(10) DEFAULT 'es',
+    available_languages TEXT[] DEFAULT ARRAY['es'],
+    currency VARCHAR(3) DEFAULT 'ARS',
+    timezone VARCHAR(50) DEFAULT 'America/Argentina/Buenos_Aires',
+    date_format VARCHAR(20) DEFAULT 'dd/MM/yyyy',
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE whitelabel_themes (
+    org_id UUID PRIMARY KEY REFERENCES organizations(id) ON DELETE CASCADE,
+
+    css_variables JSONB DEFAULT '{}',
+    button_style VARCHAR(20) DEFAULT 'rounded',
+    card_style VARCHAR(20) DEFAULT 'bordered',
+    input_style VARCHAR(20) DEFAULT 'outlined',
+    border_radius VARCHAR(20) DEFAULT 'medium',
+    spacing VARCHAR(20) DEFAULT 'normal',
+    dark_mode_enabled BOOLEAN DEFAULT FALSE,
+    dark_mode_default BOOLEAN DEFAULT FALSE,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE whitelabel_email_templates (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    template_type VARCHAR(50) NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    html_template TEXT NOT NULL,
+    text_template TEXT,
+    enabled BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(org_id, template_type)
+);
+
+CREATE TABLE whitelabel_custom_pages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    slug VARCHAR(100) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    is_published BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(org_id, slug)
+);
+```
+
+---
+
+# 8.3. PHASE 15: CONSUMER MARKETPLACE
+
+## Consumer Marketplace Enums
+
+```sql
+-- ============================================================================
+-- CONSUMER MARKETPLACE ENUMS (Phase 15)
+-- ============================================================================
+
+CREATE TYPE consumer_contact_preference AS ENUM ('whatsapp', 'phone', 'app', 'email');
+CREATE TYPE service_urgency AS ENUM ('emergency', 'today', 'this_week', 'flexible');
+CREATE TYPE service_request_status AS ENUM (
+    'open', 'quotes_received', 'accepted', 'in_progress', 'completed', 'cancelled', 'expired'
+);
+CREATE TYPE quote_status AS ENUM (
+    'pending', 'sent', 'viewed', 'accepted', 'rejected', 'expired', 'withdrawn'
+);
+CREATE TYPE review_status AS ENUM ('pending', 'published', 'flagged', 'removed');
+CREATE TYPE review_verification AS ENUM ('verified', 'unverified', 'pending');
+CREATE TYPE business_badge AS ENUM (
+    'verified', 'top_rated', 'fast_responder', 'new', 'licensed',
+    'insured', 'background_checked', 'premium'
+);
+CREATE TYPE service_category AS ENUM (
+    'plumbing', 'electrical', 'hvac', 'gas', 'locksmith', 'painting',
+    'construction', 'cleaning', 'gardening', 'pest_control', 'appliance_repair',
+    'carpentry', 'roofing', 'flooring', 'windows_doors', 'security', 'moving', 'general'
+);
+CREATE TYPE budget_range AS ENUM (
+    'under_5000', '5000_15000', '15000_50000', '50000_100000', 'over_100000', 'not_specified'
+);
+```
+
+## Consumer Profiles Table
+
+```sql
+CREATE TABLE consumer_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+    -- Authentication (phone-only, no email required)
+    phone TEXT NOT NULL UNIQUE,
+    phone_verified BOOLEAN DEFAULT false,
+    email TEXT,
+    email_verified BOOLEAN DEFAULT false,
+
+    -- Profile information
+    first_name TEXT NOT NULL,
+    last_name TEXT,
+    profile_photo_url TEXT,
+    bio TEXT,
+
+    -- Default location
+    default_address TEXT,
+    default_address_extra TEXT,
+    default_lat DECIMAL(10, 8),
+    default_lng DECIMAL(11, 8),
+    neighborhood TEXT,
+    city TEXT DEFAULT 'Buenos Aires',
+    province TEXT DEFAULT 'CABA',
+    postal_code TEXT,
+    saved_addresses JSONB DEFAULT '[]',
+
+    -- Preferences
+    preferred_contact consumer_contact_preference DEFAULT 'whatsapp',
+    language TEXT DEFAULT 'es-AR',
+    push_notifications_enabled BOOLEAN DEFAULT true,
+    email_notifications_enabled BOOLEAN DEFAULT false,
+    sms_notifications_enabled BOOLEAN DEFAULT true,
+
+    -- Privacy
+    profile_visibility TEXT DEFAULT 'service_providers',
+    show_last_name BOOLEAN DEFAULT false,
+
+    -- Stats (denormalized)
+    total_requests INTEGER DEFAULT 0,
+    total_jobs_completed INTEGER DEFAULT 0,
+    total_reviews_given INTEGER DEFAULT 0,
+    average_rating_given DECIMAL(2,1),
+
+    -- Referral
+    referral_code TEXT UNIQUE,
+    referred_by UUID REFERENCES consumer_profiles(id),
+    referral_count INTEGER DEFAULT 0,
+
+    -- Status
+    is_active BOOLEAN DEFAULT true,
+    is_suspended BOOLEAN DEFAULT false,
+    suspension_reason TEXT,
+
+    -- Push tokens
+    fcm_tokens JSONB DEFAULT '[]',
+
+    -- Last known location
+    last_known_lat DECIMAL(10, 8),
+    last_known_lng DECIMAL(11, 8),
+    last_location_update TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    last_active_at TIMESTAMPTZ DEFAULT NOW(),
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_consumer_profiles_phone ON consumer_profiles(phone);
+CREATE INDEX idx_consumer_profiles_location ON consumer_profiles(city, neighborhood);
+CREATE INDEX idx_consumer_profiles_active ON consumer_profiles(is_active, last_active_at) WHERE is_active = true;
+CREATE INDEX idx_consumer_profiles_referral ON consumer_profiles(referral_code) WHERE referral_code IS NOT NULL;
+```
+
+## Business Public Profiles Table
+
+```sql
+CREATE TABLE business_public_profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    org_id UUID NOT NULL UNIQUE REFERENCES organizations(id) ON DELETE CASCADE,
+
+    -- Public profile info
+    display_name TEXT NOT NULL,
+    slug TEXT UNIQUE,
+    logo_url TEXT,
+    cover_photo_url TEXT,
+    description TEXT,
+    short_description TEXT,
+
+    -- Gallery
+    gallery_photos JSONB DEFAULT '[]',
+    work_showcase JSONB DEFAULT '[]',
+
+    -- Services offered
+    categories service_category[] DEFAULT '{}',
+    services JSONB DEFAULT '[]',
+    service_areas JSONB DEFAULT '[]',
+    max_travel_distance_km INTEGER DEFAULT 20,
+
+    -- Quote settings
+    accepts_quotes BOOLEAN DEFAULT true,
+    auto_respond_quotes BOOLEAN DEFAULT false,
+    response_template TEXT,
+
+    -- Working hours
+    working_hours JSONB DEFAULT '{}',
+    accepts_emergency BOOLEAN DEFAULT false,
+    emergency_surcharge_percentage INTEGER,
+
+    -- Availability
+    accepting_new_clients BOOLEAN DEFAULT true,
+    max_active_quotes INTEGER DEFAULT 10,
+    quote_response_time_hours INTEGER DEFAULT 24,
+
+    -- Verification
+    cuit_verified BOOLEAN DEFAULT false,
+    license_verified BOOLEAN DEFAULT false,
+    license_number TEXT,
+    license_expiry DATE,
+    insurance_verified BOOLEAN DEFAULT false,
+    insurance_provider TEXT,
+    insurance_expiry DATE,
+    background_check_verified BOOLEAN DEFAULT false,
+    background_check_date DATE,
+
+    -- Badges
+    badges business_badge[] DEFAULT '{}',
+
+    -- Rating summary (denormalized)
+    overall_rating DECIMAL(2,1) DEFAULT 0,
+    rating_count INTEGER DEFAULT 0,
+    punctuality_rating DECIMAL(2,1),
+    quality_rating DECIMAL(2,1),
+    price_rating DECIMAL(2,1),
+    communication_rating DECIMAL(2,1),
+
+    -- Stats (denormalized)
+    total_jobs_completed INTEGER DEFAULT 0,
+    total_quotes_sent INTEGER DEFAULT 0,
+    quote_acceptance_rate DECIMAL(3,2),
+    avg_response_time_hours DECIMAL(4,1),
+    years_on_platform DECIMAL(3,1) DEFAULT 0,
+    profile_completeness INTEGER DEFAULT 0,
+
+    -- Visibility
+    is_visible BOOLEAN DEFAULT true,
+    is_featured BOOLEAN DEFAULT false,
+    is_suspended BOOLEAN DEFAULT false,
+    suspension_reason TEXT,
+
+    -- SEO
+    meta_title TEXT,
+    meta_description TEXT,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    last_active_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_business_public_profiles_slug ON business_public_profiles(slug) WHERE slug IS NOT NULL;
+CREATE INDEX idx_business_public_profiles_visible ON business_public_profiles(is_visible, overall_rating DESC)
+    WHERE is_visible = true AND is_suspended = false;
+CREATE INDEX idx_business_public_profiles_categories ON business_public_profiles USING GIN(categories);
+```
+
+## Service Requests Table
+
+```sql
+CREATE TABLE consumer_service_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    consumer_id UUID NOT NULL REFERENCES consumer_profiles(id) ON DELETE CASCADE,
+
+    request_number TEXT NOT NULL UNIQUE,
+
+    -- What they need
+    category service_category NOT NULL,
+    service_type TEXT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+
+    -- Media
+    photo_urls TEXT[] DEFAULT '{}',
+    voice_note_url TEXT,
+    video_url TEXT,
+
+    -- Location
+    address TEXT NOT NULL,
+    address_extra TEXT,
+    lat DECIMAL(10, 8),
+    lng DECIMAL(11, 8),
+    neighborhood TEXT,
+    city TEXT DEFAULT 'Buenos Aires',
+    province TEXT DEFAULT 'CABA',
+    postal_code TEXT,
+
+    -- Timing
+    urgency service_urgency DEFAULT 'flexible',
+    preferred_date DATE,
+    preferred_time_slot TEXT,
+    flexible_dates BOOLEAN DEFAULT true,
+    available_dates JSONB DEFAULT '[]',
+
+    -- Budget
+    budget_range budget_range DEFAULT 'not_specified',
+    budget_min DECIMAL(12, 2),
+    budget_max DECIMAL(12, 2),
+    budget_notes TEXT,
+
+    -- Status
+    status service_request_status DEFAULT 'open',
+    status_changed_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Matching
+    matched_business_ids UUID[] DEFAULT '{}',
+    max_quotes INTEGER DEFAULT 5,
+    quotes_received INTEGER DEFAULT 0,
+    quotes_viewed INTEGER DEFAULT 0,
+
+    -- Accepted quote
+    accepted_quote_id UUID,
+    accepted_at TIMESTAMPTZ,
+
+    -- Cancellation
+    cancelled_at TIMESTAMPTZ,
+    cancellation_reason TEXT,
+    cancelled_by TEXT,
+
+    -- Job linkage
+    job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+
+    -- Search
+    search_vector TSVECTOR,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '7 days',
+    deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_service_requests_consumer ON consumer_service_requests(consumer_id, status);
+CREATE INDEX idx_service_requests_status ON consumer_service_requests(status, created_at)
+    WHERE status IN ('open', 'quotes_received');
+CREATE INDEX idx_service_requests_category ON consumer_service_requests(category, status, created_at);
+CREATE INDEX idx_service_requests_search ON consumer_service_requests USING GIN(search_vector);
+```
+
+## Business Quotes Table
+
+```sql
+CREATE TABLE business_quotes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    service_request_id UUID NOT NULL REFERENCES consumer_service_requests(id) ON DELETE CASCADE,
+    business_profile_id UUID NOT NULL REFERENCES business_public_profiles(id) ON DELETE CASCADE,
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+
+    quote_number TEXT NOT NULL UNIQUE,
+
+    -- Pricing
+    price_type TEXT DEFAULT 'fixed',
+    price_amount DECIMAL(12, 2),
+    price_min DECIMAL(12, 2),
+    price_max DECIMAL(12, 2),
+    hourly_rate DECIMAL(12, 2),
+    estimated_hours DECIMAL(4, 1),
+    currency TEXT DEFAULT 'ARS',
+
+    -- Price breakdown
+    labor_cost DECIMAL(12, 2),
+    materials_cost DECIMAL(12, 2),
+    travel_cost DECIMAL(12, 2),
+    other_costs JSONB DEFAULT '[]',
+
+    -- Details
+    description TEXT,
+    includes TEXT[],
+    excludes TEXT[],
+    terms TEXT,
+    warranty_info TEXT,
+
+    -- Timeline
+    estimated_duration_hours DECIMAL(4, 1),
+    available_date DATE,
+    available_time_slot TEXT,
+    can_start_immediately BOOLEAN DEFAULT false,
+
+    -- Status
+    status quote_status DEFAULT 'pending',
+    status_changed_at TIMESTAMPTZ DEFAULT NOW(),
+
+    -- Tracking
+    sent_at TIMESTAMPTZ DEFAULT NOW(),
+    viewed_at TIMESTAMPTZ,
+    view_count INTEGER DEFAULT 0,
+    accepted_at TIMESTAMPTZ,
+    rejected_at TIMESTAMPTZ,
+    rejection_reason TEXT,
+    expires_at TIMESTAMPTZ DEFAULT NOW() + INTERVAL '48 hours',
+    extended_at TIMESTAMPTZ,
+    withdrawn_at TIMESTAMPTZ,
+    withdrawal_reason TEXT,
+
+    -- Job linkage
+    job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+    job_created_at TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_business_quotes_request ON business_quotes(service_request_id, status);
+CREATE INDEX idx_business_quotes_business ON business_quotes(business_profile_id, status);
+CREATE INDEX idx_business_quotes_pending ON business_quotes(status, expires_at)
+    WHERE status IN ('pending', 'sent', 'viewed');
+```
+
+## Consumer Reviews Table
+
+```sql
+CREATE TABLE consumer_reviews (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    consumer_id UUID NOT NULL REFERENCES consumer_profiles(id) ON DELETE CASCADE,
+    business_profile_id UUID NOT NULL REFERENCES business_public_profiles(id) ON DELETE CASCADE,
+    org_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+
+    job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+    quote_id UUID REFERENCES business_quotes(id) ON DELETE SET NULL,
+    service_request_id UUID REFERENCES consumer_service_requests(id) ON DELETE SET NULL,
+
+    -- Ratings (1-5)
+    overall_rating INTEGER NOT NULL CHECK (overall_rating BETWEEN 1 AND 5),
+    punctuality_rating INTEGER CHECK (punctuality_rating BETWEEN 1 AND 5),
+    quality_rating INTEGER CHECK (quality_rating BETWEEN 1 AND 5),
+    price_rating INTEGER CHECK (price_rating BETWEEN 1 AND 5),
+    communication_rating INTEGER CHECK (communication_rating BETWEEN 1 AND 5),
+
+    -- Content
+    title TEXT,
+    review_text TEXT,
+    pros TEXT,
+    cons TEXT,
+    photo_urls TEXT[] DEFAULT '{}',
+
+    -- Service details
+    service_category service_category,
+    service_description TEXT,
+    approximate_price DECIMAL(12, 2),
+
+    -- Verification
+    verification_status review_verification DEFAULT 'unverified',
+    verified_at TIMESTAMPTZ,
+    verification_method TEXT,
+
+    -- Recommendations
+    would_recommend BOOLEAN DEFAULT true,
+    would_use_again BOOLEAN DEFAULT true,
+
+    -- Business response
+    business_response TEXT,
+    business_response_at TIMESTAMPTZ,
+    business_responder_id UUID,
+
+    -- Moderation
+    status review_status DEFAULT 'pending',
+    flagged_reason TEXT,
+    flagged_at TIMESTAMPTZ,
+    flagged_by_type TEXT,
+    flagged_by_id UUID,
+    moderation_notes TEXT,
+    moderated_by_id UUID,
+    moderated_at TIMESTAMPTZ,
+
+    -- Trust scoring
+    trust_score DECIMAL(3, 2) DEFAULT 0.5,
+    is_featured BOOLEAN DEFAULT false,
+
+    -- Helpfulness
+    helpful_count INTEGER DEFAULT 0,
+    not_helpful_count INTEGER DEFAULT 0,
+
+    -- Editing
+    is_edited BOOLEAN DEFAULT false,
+    edit_history JSONB DEFAULT '[]',
+    last_edited_at TIMESTAMPTZ,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+
+    UNIQUE(consumer_id, job_id),
+    UNIQUE(consumer_id, service_request_id)
+);
+
+CREATE INDEX idx_consumer_reviews_business ON consumer_reviews(business_profile_id, status, created_at);
+CREATE INDEX idx_consumer_reviews_published ON consumer_reviews(business_profile_id, overall_rating, created_at)
+    WHERE status = 'published';
+CREATE INDEX idx_consumer_reviews_verified ON consumer_reviews(business_profile_id, verification_status, overall_rating)
+    WHERE status = 'published' AND verification_status = 'verified';
+```
+
+## Review Fraud Detection Tables
+
+```sql
+CREATE TABLE review_moderation_queue (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    review_id UUID NOT NULL UNIQUE REFERENCES consumer_reviews(id) ON DELETE CASCADE,
+
+    priority INTEGER DEFAULT 0,
+    queue_reason TEXT NOT NULL,
+    fraud_score DECIMAL(3, 2),
+    fraud_signals JSONB DEFAULT '[]',
+
+    assigned_to_id UUID,
+    assigned_at TIMESTAMPTZ,
+
+    is_processed BOOLEAN DEFAULT false,
+    processed_at TIMESTAMPTZ,
+    decision TEXT,
+    decision_reason TEXT,
+
+    queued_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE review_fraud_signals (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    review_id UUID NOT NULL REFERENCES consumer_reviews(id) ON DELETE CASCADE,
+
+    signal_type TEXT NOT NULL,
+    signal_score DECIMAL(3, 2) NOT NULL,
+    signal_details JSONB,
+
+    detected_by TEXT,
+    detected_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE business_rating_summaries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_profile_id UUID NOT NULL UNIQUE REFERENCES business_public_profiles(id) ON DELETE CASCADE,
+
+    total_reviews INTEGER DEFAULT 0,
+    verified_reviews INTEGER DEFAULT 0,
+
+    overall_rating DECIMAL(2, 1) DEFAULT 0,
+    punctuality_rating DECIMAL(2, 1),
+    quality_rating DECIMAL(2, 1),
+    price_rating DECIMAL(2, 1),
+    communication_rating DECIMAL(2, 1),
+
+    rating_1_count INTEGER DEFAULT 0,
+    rating_2_count INTEGER DEFAULT 0,
+    rating_3_count INTEGER DEFAULT 0,
+    rating_4_count INTEGER DEFAULT 0,
+    rating_5_count INTEGER DEFAULT 0,
+
+    recent_rating_avg DECIMAL(2, 1),
+    recent_rating_count INTEGER DEFAULT 0,
+    rating_trend TEXT,
+
+    recommend_percentage DECIMAL(5, 2),
+    would_use_again_percentage DECIMAL(5, 2),
+    ratings_by_category JSONB DEFAULT '{}',
+
+    response_rate DECIMAL(5, 2),
+    avg_response_time_hours DECIMAL(6, 2),
+
+    last_calculated_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+## Consumer Supporting Tables
+
+```sql
+-- Consumer sessions
+CREATE TABLE consumer_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    consumer_id UUID NOT NULL REFERENCES consumer_profiles(id) ON DELETE CASCADE,
+    refresh_token_hash TEXT NOT NULL,
+    device_type TEXT,
+    device_id TEXT,
+    device_name TEXT,
+    app_version TEXT,
+    ip_address TEXT,
+    is_active BOOLEAN DEFAULT true,
+    last_used_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Consumer OTP codes
+CREATE TABLE consumer_otp_codes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    phone TEXT NOT NULL,
+    code TEXT NOT NULL,
+    attempts INTEGER DEFAULT 0,
+    max_attempts INTEGER DEFAULT 3,
+    is_used BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    expires_at TIMESTAMPTZ NOT NULL
+);
+
+-- Quote messages
+CREATE TABLE quote_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    quote_id UUID NOT NULL REFERENCES business_quotes(id) ON DELETE CASCADE,
+    sender_type TEXT NOT NULL CHECK (sender_type IN ('consumer', 'business')),
+    sender_id UUID NOT NULL,
+    sender_name TEXT NOT NULL,
+    message TEXT NOT NULL,
+    attachments JSONB DEFAULT '[]',
+    is_read BOOLEAN DEFAULT false,
+    read_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Consumer favorites
+CREATE TABLE consumer_favorite_businesses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    consumer_id UUID NOT NULL REFERENCES consumer_profiles(id) ON DELETE CASCADE,
+    business_profile_id UUID NOT NULL REFERENCES business_public_profiles(id) ON DELETE CASCADE,
+    personal_notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(consumer_id, business_profile_id)
+);
+
+-- Saved searches
+CREATE TABLE consumer_saved_searches (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    consumer_id UUID NOT NULL REFERENCES consumer_profiles(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    category service_category,
+    location_lat DECIMAL(10, 8),
+    location_lng DECIMAL(11, 8),
+    location_name TEXT,
+    radius_km INTEGER DEFAULT 10,
+    filters JSONB DEFAULT '{}',
+    alert_enabled BOOLEAN DEFAULT false,
+    alert_frequency TEXT DEFAULT 'daily',
+    last_alert_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Profile views
+CREATE TABLE business_profile_views (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    business_profile_id UUID NOT NULL REFERENCES business_public_profiles(id) ON DELETE CASCADE,
+    consumer_id UUID REFERENCES consumer_profiles(id) ON DELETE SET NULL,
+    source TEXT,
+    search_query TEXT,
+    category service_category,
+    device_type TEXT,
+    view_lat DECIMAL(10, 8),
+    view_lng DECIMAL(11, 8),
+    session_id TEXT,
+    viewed_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Referral system (consumer schema)
+CREATE TABLE referral_codes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(10) UNIQUE NOT NULL,
+    consumer_id UUID NOT NULL REFERENCES consumer_profiles(id) ON DELETE CASCADE,
+    usage_count INTEGER DEFAULT 0,
+    total_rewards DECIMAL(10, 2) DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE referral_uses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    referrer_id UUID NOT NULL REFERENCES consumer_profiles(id) ON DELETE CASCADE,
+    referee_id UUID NOT NULL REFERENCES consumer_profiles(id) ON DELETE CASCADE,
+    referral_code VARCHAR(10) NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    used_at TIMESTAMPTZ DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    UNIQUE(referee_id)
+);
+
+CREATE TABLE referral_rewards (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    consumer_id UUID NOT NULL REFERENCES consumer_profiles(id) ON DELETE CASCADE,
+    type VARCHAR(20) NOT NULL,
+    amount DECIMAL(10, 2) NOT NULL,
+    status VARCHAR(20) DEFAULT 'pending',
+    reason VARCHAR(255),
+    earned_at TIMESTAMPTZ,
+    paid_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+---
+
 # 9. MIGRATION ORDER
 
 ## Migration Sequence
@@ -2077,6 +3327,25 @@ Phase 8: System Tables
 
 Phase 9: Indexes
   100_indexes.sql              -- All indexes
+
+Phase 9.5-9.9: Extended Features
+  015_notification_preferences.sql    -- Notification system
+  016_employee_verification.sql       -- Employee onboarding
+  017_message_aggregation.sql         -- WhatsApp message buffers
+  018_tracking.sql                    -- GPS tracking sessions
+
+Phase 13: Customer Portal
+  019_customer_portal_auth.sql        -- Magic links, OTP, sessions
+  020_customer_portal_tables.sql      -- Bookings, support tickets, feedback
+  021_tracking_tables.sql             -- Extended tracking
+  022_whitelabel_tables.sql           -- White-label configuration
+
+Phase 15: Consumer Marketplace
+  050_consumer_profiles.sql           -- Consumer profiles & business public profiles
+  051_service_requests.sql            -- Service requests & quotes
+  052_consumer_reviews.sql            -- Reviews & fraud detection
+  053_mode_switch_leads.sql           -- B2B/B2C mode switching
+  054_referral_system.sql             -- Referral codes & rewards
 
 Phase 10: RLS Policies
   110_rls_policies.sql         -- All RLS policies
@@ -2201,13 +3470,14 @@ Procedure:
 # DOCUMENT METADATA
 
 ```
-Version: 1.0
+Version: 2.0
 Created: December 2025
-Tables: 18
-Enums: 12
-Indexes: 45+
-RLS Policies: 20+
-Migration Count: ~25
+Last Updated: 2025-12-10
+Tables: 65+ (including Phase 9.5-9.9, 13, and 15)
+Enums: 25+
+Indexes: 120+
+RLS Policies: 50+
+Migration Count: ~54
 
 Database: PostgreSQL 15+
 Platform: Supabase
@@ -2217,6 +3487,7 @@ Compliant With:
 - AFIP 10-year retention requirement
 - Argentine data protection laws
 - Multi-tenant isolation standards
+- Consumer marketplace privacy requirements
 ```
 
 ---
