@@ -4300,7 +4300,14 @@ Consumer creates request
 - [ ] 15.4.4 Create quote comparison view for consumers
 - [ ] 15.4.5 Build in-app chat for quote clarification
 - [ ] 15.4.6 Implement quote acceptance and job creation
-- [ ] 15.4.7 Add WhatsApp notifications for new requests
+- [ ] 15.4.7 Add WhatsApp notifications for new requests (to businesses)
+- [ ] 15.4.8 Create WhatsApp templates for consumer journey:
+  - `quote_received`: "¡Buenas noticias! Recibiste {count} presupuestos para '{service}'"
+  - `quote_accepted`: "Tu presupuesto fue aceptado. {business_name} se contactará pronto"
+  - `appointment_reminder`: "Recordatorio: {business_name} llega mañana a las {time}"
+  - `job_completed`: "¿Cómo te fue con {business_name}? Dejá tu reseña: {link}"
+- [ ] 15.4.9 Submit consumer WhatsApp templates to Meta for approval
+- [ ] 15.4.10 Implement automated notification triggers throughout quote lifecycle
 
 ### 15.5 Consumer Mobile App
 ```
@@ -4391,6 +4398,9 @@ Files to create:
 - [ ] 15.5.7 Create job tracking (reuse Phase 9.9 tracking)
 - [ ] 15.5.8 Build review submission flow
 - [ ] 15.5.9 Implement consumer profile management
+- [ ] 15.5.10 Implement push notifications for quote updates
+- [ ] 15.5.11 Add real-time in-app chat with businesses
+- [ ] 15.5.12 Create before/after photo comparison in reviews
 
 ### 15.6 App Mode Switching
 ```
