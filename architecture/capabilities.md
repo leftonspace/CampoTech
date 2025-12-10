@@ -112,10 +112,10 @@ Every capability check is logged. Operations can see exactly which features are 
 
 | Category | Description | Example Capabilities |
 |----------|-------------|---------------------|
-| **External** | Third-party API integrations | AFIP, Mercado Pago, WhatsApp |
-| **Domain** | Core business logic modules | Invoicing, Payments, Scheduling |
-| **Services** | Internal background services | Queues, Reconciliation, Analytics |
-| **UI** | Frontend feature toggles | Simple Mode, Pricebook, Reporting |
+| **External** | Third-party API integrations | AFIP, Mercado Pago, WhatsApp, Voice AI |
+| **Domain** | Core business logic modules | Invoicing, Payments, Scheduling, Consumer Marketplace, Customer Portal, Inventory |
+| **Services** | Internal background services | Queues, Reconciliation, Analytics, Fraud Detection, Notifications |
+| **UI** | Frontend feature toggles | Simple Mode, Pricebook, Reporting, Marketplace Dashboard, Whitelabel Portal |
 
 ## Dependency Graph
 
@@ -126,10 +126,13 @@ EXTERNAL INTEGRATIONS
 ├── mercadopago ──────────────┬─► payments (domain)
 │                             └─► payment_reconciliation (services)
 ├── whatsapp ─────────────────┬─► whatsapp_queue (services)
-│                             └─► whatsapp_voice_ai (external)
+│                             ├─► whatsapp_voice_ai (external)
+│                             ├─► whatsapp_aggregation (services)
+│                             └─► consumer_marketplace (domain)
 ├── whatsapp_voice_ai ────────┬─► job_assignment (domain)
 │                             └─► scheduling (domain)
-└── push_notifications ───────┴─► (standalone)
+└── push_notifications ───────┬─► consumer_marketplace (domain)
+                              └─► customer_portal (domain)
 
 DOMAIN CAPABILITIES
 ├── invoicing ────────────────┬─► pricebook (ui)
@@ -139,12 +142,24 @@ DOMAIN CAPABILITIES
 │                             └─► technician_gps (domain)
 ├── job_assignment ───────────┴─► technician_gps (domain)
 ├── offline_sync ─────────────┴─► (mobile-specific)
-└── technician_gps ───────────┴─► (mobile-specific)
+├── technician_gps ───────────┴─► customer_portal (domain)
+├── consumer_marketplace ─────┬─► review_fraud_detection (services)
+│                             ├─► notification_queue (services)
+│                             └─► marketplace_dashboard (ui)
+├── customer_portal ──────────┬─► technician_gps (domain)
+│                             ├─► whitelabel_portal (ui)
+│                             └─► notification_queue (services)
+├── inventory_management ─────┴─► (standalone)
+└── audit_logging ────────────┴─► (standalone)
 
 INTERNAL SERVICES
 ├── cae_queue ────────────────┴─► afip (external)
 ├── whatsapp_queue ───────────┴─► whatsapp (external)
+├── whatsapp_aggregation ─────┴─► whatsapp (external)
 ├── payment_reconciliation ───┴─► mercadopago (external)
+├── review_fraud_detection ───┴─► consumer_marketplace (domain)
+├── notification_queue ───────┬─► push_notifications (external)
+│                             └─► whatsapp (external)
 ├── abuse_detection ──────────┴─► rate_limiting (services)
 ├── rate_limiting ────────────┴─► (standalone)
 └── analytics_pipeline ───────┴─► (standalone)
@@ -153,7 +168,9 @@ UI CAPABILITIES
 ├── simple_mode ──────────────┴─► (default for all users)
 ├── advanced_mode ────────────┴─► (unlocked on request)
 ├── pricebook ────────────────┴─► invoicing (domain)
-└── reporting_dashboard ──────┴─► (standalone)
+├── reporting_dashboard ──────┴─► (standalone)
+├── marketplace_dashboard ────┴─► consumer_marketplace (domain)
+└── whitelabel_portal ────────┴─► customer_portal (domain)
 ```
 
 ---
@@ -181,12 +198,16 @@ export const Capabilities = {
   // Core business logic modules
   // ═══════════════════════════════════════════════════════════════
   domain: {
-    invoicing: true,         // Invoice creation and management
-    payments: true,          // Payment processing and recording
-    scheduling: true,        // Job scheduling and calendar
-    job_assignment: true,    // Technician assignment logic
-    offline_sync: true,      // Mobile offline synchronization
-    technician_gps: true,    // Real-time GPS tracking
+    invoicing: true,              // Invoice creation and management
+    payments: true,               // Payment processing and recording
+    scheduling: true,             // Job scheduling and calendar
+    job_assignment: true,         // Technician assignment logic
+    offline_sync: true,           // Mobile offline synchronization
+    technician_gps: true,         // Real-time GPS tracking
+    consumer_marketplace: true,   // Two-sided marketplace for consumers
+    customer_portal: true,        // White-label customer tracking portal
+    inventory_management: true,   // Parts/materials inventory tracking
+    audit_logging: true,          // Comprehensive audit trail logging
   },
 
   // ═══════════════════════════════════════════════════════════════
@@ -196,10 +217,13 @@ export const Capabilities = {
   services: {
     cae_queue: true,              // AFIP CAE request queue
     whatsapp_queue: true,         // WhatsApp message queue
+    whatsapp_aggregation: true,   // Multi-number WhatsApp aggregation
     payment_reconciliation: true, // MP webhook reconciliation
     abuse_detection: true,        // Suspicious activity detection
     rate_limiting: true,          // API rate limiting
     analytics_pipeline: true,     // Metrics collection
+    review_fraud_detection: true, // Consumer review fraud analysis
+    notification_queue: true,     // Unified notification dispatch queue
   },
 
   // ═══════════════════════════════════════════════════════════════
@@ -207,10 +231,12 @@ export const Capabilities = {
   // Frontend feature visibility
   // ═══════════════════════════════════════════════════════════════
   ui: {
-    simple_mode: true,         // Simplified UI (default)
-    advanced_mode: true,       // Advanced features visible
-    pricebook: true,           // Price book management
-    reporting_dashboard: true, // Analytics dashboard
+    simple_mode: true,           // Simplified UI (default)
+    advanced_mode: true,         // Advanced features visible
+    pricebook: true,             // Price book management
+    reporting_dashboard: true,   // Analytics dashboard
+    marketplace_dashboard: true, // Consumer marketplace admin UI
+    whitelabel_portal: true,     // Customer portal white-label config
   },
 } as const;
 ```
@@ -230,16 +256,25 @@ export const Capabilities = {
 | `job_assignment` | domain | `true` | scheduling, technician_gps | Manual assignment |
 | `offline_sync` | domain | `true` | - | Online-only mode |
 | `technician_gps` | domain | `true` | - | No location tracking |
+| `consumer_marketplace` | domain | `true` | whatsapp, push_notifications | Consumer search/booking disabled |
+| `customer_portal` | domain | `true` | technician_gps | Customer tracking disabled |
+| `inventory_management` | domain | `true` | - | Manual inventory only |
+| `audit_logging` | domain | `true` | - | No audit trail |
 | `cae_queue` | services | `true` | afip | Direct AFIP calls (risky) |
 | `whatsapp_queue` | services | `true` | whatsapp | Direct WA calls (risky) |
+| `whatsapp_aggregation` | services | `true` | whatsapp | Single number only |
 | `payment_reconciliation` | services | `true` | mercadopago | Manual reconciliation |
 | `abuse_detection` | services | `true` | rate_limiting | No abuse protection |
 | `rate_limiting` | services | `true` | - | Unlimited API calls |
 | `analytics_pipeline` | services | `true` | - | No metrics collection |
+| `review_fraud_detection` | services | `true` | consumer_marketplace | No fraud checks on reviews |
+| `notification_queue` | services | `true` | push_notifications, whatsapp | Direct notification calls |
 | `simple_mode` | ui | `true` | - | Complex UI by default |
 | `advanced_mode` | ui | `true` | - | No advanced features |
 | `pricebook` | ui | `true` | invoicing | Manual pricing only |
 | `reporting_dashboard` | ui | `true` | - | No analytics view |
+| `marketplace_dashboard` | ui | `true` | consumer_marketplace | No marketplace admin UI |
+| `whitelabel_portal` | ui | `true` | customer_portal | No portal customization |
 
 ---
 
@@ -390,6 +425,130 @@ USER EXPERIENCE:
 - No scheduling conflict warnings
 ```
 
+### Consumer Marketplace (`domain.consumer_marketplace = false`)
+
+```
+FALLBACK BEHAVIOR:
+├── Consumer app → Shows maintenance message
+├── Business directory → Not accessible to public
+├── Service requests → Disabled
+├── Reviews → Not collected from consumers
+├── Lead generation → Disabled
+└── Recovery → Immediate when re-enabled
+
+USER EXPERIENCE:
+- Consumers cannot search for businesses
+- No quote requests from consumers
+- Businesses don't receive marketplace leads
+- Existing B2B functionality unaffected
+```
+
+### Customer Portal (`domain.customer_portal = false`)
+
+```
+FALLBACK BEHAVIOR:
+├── Portal URLs → Show "temporarily unavailable"
+├── Job tracking → Not accessible to customers
+├── ETA sharing → Disabled
+├── Invoice access → Via direct links only
+├── Notifications → SMS/WhatsApp only (no portal links)
+└── Recovery → Immediate when re-enabled
+
+USER EXPERIENCE:
+- Customers cannot track technician location
+- No self-service job status checking
+- Businesses must communicate via phone/messaging
+- Core job execution unaffected
+```
+
+### Inventory Management (`domain.inventory_management = false`)
+
+```
+FALLBACK BEHAVIOR:
+├── Stock tracking → Disabled
+├── Part lookups → Use price book only
+├── Low stock alerts → Disabled
+├── Purchase orders → Manual process
+└── Recovery → Immediate when re-enabled
+
+USER EXPERIENCE:
+- Technicians manually track parts used
+- No warehouse integration
+- No automatic reorder triggers
+- Materials entered manually on invoices
+```
+
+### Audit Logging (`domain.audit_logging = false`)
+
+```
+FALLBACK BEHAVIOR:
+├── Audit events → Not recorded
+├── Change tracking → Disabled
+├── Compliance reports → Unavailable
+├── User activity → Basic logs only
+└── Recovery → Events from disabled period lost
+
+USER EXPERIENCE:
+- No detailed change history
+- Cannot trace who modified what
+- Compliance audits not supported
+- Basic application logs still available
+```
+
+## Service Capability Fallbacks
+
+### WhatsApp Aggregation (`services.whatsapp_aggregation = false`)
+
+```
+FALLBACK BEHAVIOR:
+├── Multi-number routing → Single number only
+├── Load balancing → Disabled
+├── Number failover → Not available
+├── Message distribution → All via primary number
+└── Recovery → Immediate when re-enabled
+
+USER EXPERIENCE:
+- All messages through single WhatsApp number
+- Potential rate limiting during high volume
+- No regional number routing
+- Higher per-number costs
+```
+
+### Review Fraud Detection (`services.review_fraud_detection = false`)
+
+```
+FALLBACK BEHAVIOR:
+├── Fraud analysis → Skipped
+├── Review scoring → All marked as valid
+├── Velocity checks → Disabled
+├── Text similarity → Not checked
+├── Moderation queue → Only manual reports
+└── Recovery → Backlog can be re-analyzed
+
+USER EXPERIENCE:
+- All reviews published without automated checks
+- Reliance on manual moderation
+- Potential for fake reviews to slip through
+- User reports still processed
+```
+
+### Notification Queue (`services.notification_queue = false`)
+
+```
+FALLBACK BEHAVIOR:
+├── Queue processing → Direct calls instead
+├── Retry logic → Simplified
+├── Batching → Disabled
+├── Priority routing → First-come-first-served
+└── Recovery → Immediate when re-enabled
+
+USER EXPERIENCE:
+- Notifications still delivered (directly)
+- Potential for delays during high volume
+- No intelligent retry on failures
+- Higher latency for bulk notifications
+```
+
 ## UI Capability Fallbacks
 
 ### Pricebook (`ui.pricebook = false`)
@@ -424,6 +583,40 @@ USER EXPERIENCE:
 - No job completion metrics
 - No technician performance data
 - Basic job/invoice lists still available
+```
+
+### Marketplace Dashboard (`ui.marketplace_dashboard = false`)
+
+```
+FALLBACK BEHAVIOR:
+├── Admin marketplace UI → Hidden
+├── Moderation queue → Not accessible
+├── Lead analytics → Unavailable
+├── Business verification → CLI only
+└── Recovery → Immediate when re-enabled
+
+USER EXPERIENCE:
+- Cannot moderate reviews from web UI
+- Cannot view marketplace metrics
+- Business verification via database only
+- Marketplace still functions for end users
+```
+
+### Whitelabel Portal (`ui.whitelabel_portal = false`)
+
+```
+FALLBACK BEHAVIOR:
+├── Portal customization → Disabled
+├── Branding options → Default only
+├── Custom domains → Not configurable
+├── Theme settings → Locked
+└── Recovery → Immediate when re-enabled
+
+USER EXPERIENCE:
+- Customer portal uses default CampoTech branding
+- No custom logos or colors
+- Cannot configure custom domains
+- Portal functionality still works
 ```
 
 ---
@@ -927,10 +1120,10 @@ After re-enabling any capability:
 | Field | Value |
 |-------|-------|
 | **Document ID** | capabilities-001 |
-| **Version** | 1.0 |
+| **Version** | 1.1 |
 | **Status** | Active |
 | **Author** | CampoTech Architecture Team |
-| **Last Updated** | 2024-01-15 |
+| **Last Updated** | 2025-12-10 |
 | **Related Documents** | campotech-architecture-complete.md, campotech-queue-worker-architecture.md |
 | **Runtime File** | core/config/capabilities.ts |
 

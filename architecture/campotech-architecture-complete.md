@@ -76,6 +76,10 @@
 | **WhatsApp Comms** | OPTIONAL | Feature-flagged | Can launch with manual notifications; enable when WA Business approved |
 | **Voice AI Processing** | OPTIONAL | Feature-flagged | Can launch without; enable after accuracy validation |
 | **Offline Mobile Sync** | OPTIONAL | Feature-flagged | Can launch online-only; enable after sync tested |
+| **Consumer Marketplace** | OPTIONAL | Feature-flagged | Two-sided marketplace; enable after business onboarding |
+| **Customer Portal** | OPTIONAL | Feature-flagged | White-label customer tracking; enable per-org |
+| **Inventory Management** | OPTIONAL | Feature-flagged | Parts tracking; enable for businesses with stock |
+| **Audit Logging** | OPTIONAL | Feature-flagged | Compliance trail; enable for enterprise tier |
 
 ### Launch Requirements (Minimum Viable)
 
@@ -94,7 +98,11 @@ NICE TO HAVE (Feature-Flagged):
 ├── Voice AI: Transcription, extraction, auto-job-creation
 ├── Offline: WatermelonDB sync, conflict resolution
 ├── Advanced Reports: Revenue analytics, technician metrics
-└── Automation: Auto-invoice on complete, reminder scheduling
+├── Automation: Auto-invoice on complete, reminder scheduling
+├── Consumer Marketplace: Business directory, service requests, reviews
+├── Customer Portal: Job tracking, ETA sharing, white-label branding
+├── Inventory: Parts tracking, low stock alerts, purchase orders
+└── Audit Trail: Change tracking, compliance reports, activity logs
 ```
 
 ### Degraded But Usable Product
@@ -108,6 +116,10 @@ The system MUST remain functional when optional modules are disabled:
 | **Offline Mode** | Mobile app requires connectivity; shows "No connection" when offline | Technicians need signal; can still use web portal |
 | **MP Payments** | Cash/transfer only; manual payment recording | No card payments; invoicing still works |
 | **AFIP** (emergency) | Invoices saved as drafts; queued for CAE when service recovers | Delayed fiscal compliance; jobs/payments unaffected |
+| **Consumer Marketplace** | Consumer app shows maintenance message; B2B unaffected | No consumer leads; existing business workflows intact |
+| **Customer Portal** | Portal URLs unavailable; SMS/WhatsApp notifications only | Customers call for updates; technician app unaffected |
+| **Inventory** | Manual parts tracking; materials entered on invoices | No stock alerts; pricebook still available |
+| **Audit Logging** | Basic app logs only; no change tracking | Compliance audits not supported; core features work |
 
 ### Feature Flag Configuration
 
@@ -131,9 +143,13 @@ return AfipService.requestCAE(data); // normal flow
 
 // Capability categories:
 // - external: afip, mercadopago, whatsapp, whatsapp_voice_ai, push_notifications
-// - domain: invoicing, payments, scheduling, job_assignment, offline_sync, technician_gps
-// - services: cae_queue, whatsapp_queue, payment_reconciliation, abuse_detection, rate_limiting, analytics_pipeline
-// - ui: simple_mode, advanced_mode, pricebook, reporting_dashboard
+// - domain: invoicing, payments, scheduling, job_assignment, offline_sync, technician_gps,
+//           consumer_marketplace, customer_portal, inventory_management, audit_logging
+// - services: cae_queue, whatsapp_queue, whatsapp_aggregation, payment_reconciliation,
+//             abuse_detection, rate_limiting, analytics_pipeline, review_fraud_detection,
+//             notification_queue
+// - ui: simple_mode, advanced_mode, pricebook, reporting_dashboard, marketplace_dashboard,
+//       whitelabel_portal
 ```
 
 **Environment Variable Overrides:**
@@ -3386,9 +3402,13 @@ CampoTech uses a **Capability Map** (`/core/config/capabilities.ts`) as the sing
 ```
 Capability Categories:
   - external: afip, mercadopago, whatsapp, whatsapp_voice_ai, push_notifications
-  - domain: invoicing, payments, scheduling, job_assignment, offline_sync, technician_gps
-  - services: cae_queue, whatsapp_queue, payment_reconciliation, abuse_detection, rate_limiting, analytics_pipeline
-  - ui: simple_mode, advanced_mode, pricebook, reporting_dashboard
+  - domain: invoicing, payments, scheduling, job_assignment, offline_sync, technician_gps,
+            consumer_marketplace, customer_portal, inventory_management, audit_logging
+  - services: cae_queue, whatsapp_queue, whatsapp_aggregation, payment_reconciliation,
+              abuse_detection, rate_limiting, analytics_pipeline, review_fraud_detection,
+              notification_queue
+  - ui: simple_mode, advanced_mode, pricebook, reporting_dashboard, marketplace_dashboard,
+        whitelabel_portal
 
 Runtime Control:
   - Environment variables: CAPABILITY_EXTERNAL_AFIP=false
