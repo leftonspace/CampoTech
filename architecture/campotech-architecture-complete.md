@@ -1062,6 +1062,12 @@ Queue Types:
 
 # 7. API ARCHITECTURE
 
+> **Implementation Note (2025-12-10):** The codebase has **two parallel API implementations**:
+> - **Next.js App Router** (`/apps/web/app/api/*`) - Internal dashboard and web UI
+> - **Express Public API** (`/src/api/public/v1/*`) - External integrations and mobile app
+>
+> Some endpoints are implemented in one or both systems. This creates code duplication that should be consolidated. See "Dual API Architecture" section below.
+
 ## Base URL Structure
 
 ```
@@ -1076,101 +1082,228 @@ Full endpoint example:
 
 **Note:** This document uses `/api/` prefix for readability. The actual deployed URLs use `/v1/` as shown above. The OpenAPI spec (`campotech-openapi-spec.yaml`) reflects the production URL structure.
 
+## ⚠️ Dual API Architecture Warning
+
+> **IMPORTANT:** CampoTech has TWO parallel API implementations that handle the same endpoints differently:
+
+### 1. Next.js App Router API (Primary)
+**Location:** `/apps/web/app/api/*`
+- Route handlers using Next.js 14 App Router conventions
+- Session-based authentication via `getServerSession()`
+- Primary API for web application
+- Contains most CRUD endpoints
+
+### 2. Express Public API (Secondary)
+**Location:** `/src/api/public/v1/*`
+- Traditional Express.js REST API
+- Bearer token authentication
+- Intended for external/mobile integrations
+- Contains consumer, portal, and webhook endpoints
+
+### Implications
+- **Code Duplication:** Similar endpoints exist in both locations with different implementations
+- **Auth Inconsistency:** Different authentication mechanisms may cause confusion
+- **Maintenance Burden:** Changes may need to be applied in two places
+- **Consolidation Recommended:** Future work should unify these into a single API layer
+
+## Implementation Status Legend
+
+| Symbol | Meaning |
+|--------|---------|
+| ✅ | Fully implemented |
+| ⚠️ | Partially implemented |
+| ⏳ | Planned / Not yet implemented |
+| 🔧 | Implementation differs from spec |
+
 ## Endpoint Structure
 
 ### Auth Endpoints
 ```
-POST   /api/auth/otp/send         → Send OTP to phone
-POST   /api/auth/otp/verify       → Verify OTP, return session
-POST   /api/auth/logout           → End session
-GET    /api/auth/me               → Current user info
+POST   /api/auth/otp/send         → Send OTP to phone                    ✅
+POST   /api/auth/otp/verify       → Verify OTP, return session           ✅
+POST   /api/auth/logout           → End session                          ✅
+GET    /api/auth/me               → Current user info                    ✅
+POST   /api/auth/refresh          → Refresh access token                 ⏳ NOT IMPLEMENTED
 ```
+> **⚠️ Note:** Refresh token endpoint not properly implemented. Current code uses `refreshToken = accessToken` hack.
 
 ### Organization Endpoints
 ```
-GET    /api/org                   → Get current org
-PATCH  /api/org                   → Update org settings
-POST   /api/org/afip/cert         → Upload AFIP certificate
-GET    /api/org/afip/status       → AFIP connection status
-POST   /api/org/mp/connect        → Start MP OAuth
-GET    /api/org/mp/callback       → MP OAuth callback
-POST   /api/org/whatsapp/verify   → Start WhatsApp verification
+GET    /api/org                   → Get current org                        ⏳ NOT IMPLEMENTED
+PATCH  /api/org                   → Update org settings                    ⏳ NOT IMPLEMENTED
+POST   /api/org/afip/cert         → Upload AFIP certificate               ⏳ NOT IMPLEMENTED
+GET    /api/org/afip/status       → AFIP connection status                ⏳ NOT IMPLEMENTED
+POST   /api/org/mp/connect        → Start MP OAuth                        ⏳ NOT IMPLEMENTED
+GET    /api/org/mp/callback       → MP OAuth callback                     ⏳ NOT IMPLEMENTED
+POST   /api/org/whatsapp/verify   → Start WhatsApp verification           ⏳ NOT IMPLEMENTED
 ```
+> **⏳ Note:** All organization management endpoints are planned but not yet implemented.
 
 ### Customer Endpoints
 ```
-GET    /api/customers             → List customers (paginated)
-GET    /api/customers/:id         → Get customer
-POST   /api/customers             → Create customer
-PATCH  /api/customers/:id         → Update customer
-DELETE /api/customers/:id         → Soft delete customer
-GET    /api/customers/search      → Search by name/phone/CUIT
-POST   /api/customers/validate-cuit → Validate CUIT + fetch AFIP data
+GET    /api/customers             → List customers (paginated)            ✅
+GET    /api/customers/:id         → Get customer                          ✅
+POST   /api/customers             → Create customer                       ✅
+PATCH  /api/customers/:id         → Update customer                       ✅
+DELETE /api/customers/:id         → Soft delete customer                  ✅
+GET    /api/customers/search      → Search by name/phone/CUIT             ✅
+POST   /api/customers/validate-cuit → Validate CUIT + fetch AFIP data     ⏳ NOT IMPLEMENTED
 ```
 
 ### Job Endpoints
 ```
-GET    /api/jobs                  → List jobs (filters: status, date, technician)
-GET    /api/jobs/:id              → Get job detail
-POST   /api/jobs                  → Create job
-PATCH  /api/jobs/:id              → Update job
-DELETE /api/jobs/:id              → Cancel job
-POST   /api/jobs/:id/status       → Update status
-POST   /api/jobs/:id/assign       → Assign technician
-POST   /api/jobs/:id/complete     → Complete job (photos, signature)
-GET    /api/jobs/calendar         → Jobs for date range
-GET    /api/jobs/today            → Today's jobs for current user
+GET    /api/jobs                  → List jobs (filters: status, date, technician)  ✅
+GET    /api/jobs/:id              → Get job detail                         ✅
+POST   /api/jobs                  → Create job                             ✅
+PATCH  /api/jobs/:id              → Update job                             ✅
+DELETE /api/jobs/:id              → Cancel job                             ✅
+POST   /api/jobs/:id/status       → Update status                          ⏳ NOT IMPLEMENTED
+POST   /api/jobs/:id/assign       → Assign technician                      ✅
+POST   /api/jobs/:id/complete     → Complete job (photos, signature)       ✅
+GET    /api/jobs/calendar         → Jobs for date range                    ✅
+GET    /api/jobs/today            → Today's jobs for current user          ✅
 ```
 
 ### Invoice Endpoints
 ```
-GET    /api/invoices              → List invoices
-GET    /api/invoices/:id          → Get invoice detail
-POST   /api/invoices              → Create invoice (draft or request CAE)
-POST   /api/invoices/:id/cae      → Request CAE for draft
-POST   /api/invoices/:id/send     → Send to customer
-GET    /api/invoices/:id/pdf      → Download PDF
-POST   /api/invoices/:id/cancel   → Cancel invoice
-GET    /api/invoices/queue        → AFIP queue status
+GET    /api/invoices              → List invoices                          ✅
+GET    /api/invoices/:id          → Get invoice detail                     ✅
+POST   /api/invoices              → Create invoice (draft or request CAE)  ✅
+POST   /api/invoices/:id/cae      → Request CAE for draft                  ⏳ NOT IMPLEMENTED
+POST   /api/invoices/:id/send     → Send to customer                       ✅
+GET    /api/invoices/:id/pdf      → Download PDF                           ⏳ NOT IMPLEMENTED
+POST   /api/invoices/:id/cancel   → Cancel invoice                         ✅
+GET    /api/invoices/queue        → AFIP queue status                      ⏳ NOT IMPLEMENTED
 ```
 
 ### Payment Endpoints
 ```
-GET    /api/payments              → List payments
-GET    /api/payments/:id          → Get payment detail
-POST   /api/payments/preference   → Create MP payment preference
-GET    /api/payments/:id/link     → Get payment link
-POST   /api/payments/:id/refund   → Request refund
-POST   /api/payments/webhook      → MP webhook handler (idempotent)
-GET    /api/payments/reconcile    → Pending reconciliation items
+GET    /api/payments              → List payments                          ✅
+GET    /api/payments/:id          → Get payment detail                     ✅
+POST   /api/payments/preference   → Create MP payment preference           ⏳ NOT IMPLEMENTED
+GET    /api/payments/:id/link     → Get payment link                       ⏳ NOT IMPLEMENTED
+POST   /api/payments/:id/refund   → Request refund                         ✅
+POST   /api/payments/webhook      → MP webhook handler (idempotent)        ⏳ NOT IMPLEMENTED
+GET    /api/payments/reconcile    → Pending reconciliation items           ⏳ NOT IMPLEMENTED
 ```
+> **⚠️ Note:** Critical MP payment flow endpoints are not implemented. Payment link generation and webhook handling are missing.
 
 ### WhatsApp Endpoints
 ```
-GET    /api/whatsapp/conversations → List conversations
-GET    /api/whatsapp/messages/:customerId → Messages for customer
-POST   /api/whatsapp/send         → Send message
-POST   /api/whatsapp/webhook      → WA webhook handler
-GET    /api/whatsapp/templates    → Available templates
+GET    /api/whatsapp/conversations → List conversations                    ✅
+GET    /api/whatsapp/messages/:customerId → Messages for customer          ✅
+POST   /api/whatsapp/send         → Send message                           ✅
+POST   /api/whatsapp/webhook      → WA webhook handler                     ✅
+GET    /api/whatsapp/templates    → Available templates                    ✅
 ```
 
 ### Voice AI Endpoints
 ```
-POST   /api/voice/process         → Process voice message
-GET    /api/voice/queue           → Human review queue
-POST   /api/voice/review/:id      → Submit human review
-GET    /api/voice/stats           → Accuracy statistics
+POST   /api/voice/process         → Process voice message                  ⏳ NOT IMPLEMENTED
+GET    /api/voice/queue           → Human review queue                     ⏳ NOT IMPLEMENTED
+POST   /api/voice/review/:id      → Submit human review                    ⏳ NOT IMPLEMENTED
+GET    /api/voice/stats           → Accuracy statistics                    ⏳ NOT IMPLEMENTED
 ```
+> **⏳ Note:** Voice AI processing is documented but the API endpoints are not implemented. Voice processing is handled internally via WhatsApp webhook, not as a standalone API.
 
 ### Admin Endpoints
 ```
-GET    /api/admin/health          → System health
-GET    /api/admin/queues          → All queue statuses
-GET    /api/admin/dlq             → Dead letter queue items
-POST   /api/admin/dlq/:id/retry   → Retry DLQ item
-GET    /api/admin/panic           → Panic mode status per service
-POST   /api/admin/panic/:service  → Manual panic mode control
-GET    /api/admin/metrics         → Operational metrics
+GET    /api/admin/health          → System health                          🔧 Exists as /api/health
+GET    /api/admin/queues          → All queue statuses                     ⏳ NOT IMPLEMENTED
+GET    /api/admin/dlq             → Dead letter queue items                ⏳ NOT IMPLEMENTED
+POST   /api/admin/dlq/:id/retry   → Retry DLQ item                         ⏳ NOT IMPLEMENTED
+GET    /api/admin/panic           → Panic mode status per service          ⏳ NOT IMPLEMENTED
+POST   /api/admin/panic/:service  → Manual panic mode control              ⏳ NOT IMPLEMENTED
+GET    /api/admin/metrics         → Operational metrics                    ⏳ NOT IMPLEMENTED
+```
+> **🔧 Note:** Health endpoint exists at `/api/health` rather than `/api/admin/health`. Other admin monitoring endpoints are not implemented.
+
+### Inventory Endpoints (Implemented - Previously Undocumented)
+```
+GET    /api/inventory/products           → List products                       ✅
+POST   /api/inventory/products           → Create product                      ✅
+GET    /api/inventory/suppliers          → List suppliers                      ✅
+POST   /api/inventory/suppliers          → Create supplier                     ✅
+GET    /api/inventory/stock              → Current stock levels                ✅
+GET    /api/inventory/warehouses         → List warehouses                     ✅
+GET    /api/inventory/job-materials      → Materials used in jobs              ✅
+GET    /api/inventory/vehicle-stock      → Vehicle inventory                   ✅
+GET    /api/inventory/purchase-orders    → List purchase orders                ✅
+```
+
+### Locations Endpoints (Implemented - Previously Undocumented)
+```
+GET    /api/locations                    → List service locations              ✅
+GET    /api/locations/:id                → Get location details                ✅
+POST   /api/locations                    → Create location                     ✅
+PATCH  /api/locations/:id                → Update location                     ✅
+DELETE /api/locations/:id                → Delete location                     ✅
+GET    /api/locations/geocode            → Geocode address                     ✅
+GET    /api/locations/nearby             → Find nearby locations               ✅
+GET    /api/locations/service-areas      → Service area boundaries             ✅
+```
+
+### Analytics Endpoints (Implemented - Previously Undocumented)
+```
+GET    /api/analytics/technicians        → Technician performance              ✅
+GET    /api/analytics/locations          → Location analytics                  ✅
+GET    /api/analytics/revenue            → Revenue reports                     ✅
+GET    /api/analytics/operations         → Operational metrics                 ✅
+GET    /api/analytics/infrastructure     → System infrastructure stats         ✅
+GET    /api/analytics/predictions        → Predictive analytics                ✅
+GET    /api/analytics/kpis               → Key performance indicators          ✅
+GET    /api/analytics/dashboard          → Dashboard data aggregate            ✅
+GET    /api/analytics/trends             → Trend analysis                      ✅
+GET    /api/analytics/comparisons        → Period comparisons                  ✅
+GET    /api/analytics/export             → Export analytics data               ✅
+```
+
+### Users Endpoints (Implemented - Previously Undocumented)
+```
+GET    /api/users                        → List users                          ✅
+GET    /api/users/:id                    → Get user details                    ✅
+POST   /api/users                        → Create user                         ✅
+PATCH  /api/users/:id                    → Update user                         ✅
+DELETE /api/users/:id                    → Deactivate user                     ✅
+GET    /api/users/pending-verifications  → Pending phone verifications         ✅
+POST   /api/users/:id/verify             → Verify user phone                   ✅
+POST   /api/users/:id/resend             → Resend verification                 ✅
+```
+
+### Notifications Endpoints (Implemented - Previously Undocumented)
+```
+GET    /api/notifications/defaults       → Default notification settings       ✅
+GET    /api/notifications/history        → Notification history                ✅
+GET    /api/notifications/preferences    → User notification preferences       ✅
+PATCH  /api/notifications/preferences    → Update preferences                  ✅
+```
+
+### GPS Tracking Endpoints (Implemented - Previously Undocumented)
+```
+POST   /api/tracking/token               → Get tracking token                  ✅
+POST   /api/tracking/start               → Start tracking session              ✅
+POST   /api/tracking/update              → Update location                     ✅
+GET    /api/tracking/technician/:id      → Get technician location             ✅
+```
+
+### Mobile API Endpoints (Implemented - Previously Undocumented)
+```
+POST   /api/mobile/push-token            → Register push notification token    ✅
+GET    /api/mobile/jobs/today            → Today's jobs for mobile             ✅
+POST   /api/mobile/sync                  → Sync offline operations             ✅
+GET    /api/mobile/sync/status           → Check sync status                   ✅
+```
+
+### Billing Endpoints (Implemented - Previously Undocumented)
+```
+GET    /api/billing/routing              → Billing routing config              ✅
+GET    /api/billing/charges              → List charges                        ✅
+GET    /api/billing/reports              → Billing reports                     ✅
+```
+
+### Health Endpoint
+```
+GET    /api/health                       → System health check                 ✅
 ```
 
 ## Input/Output Specs
