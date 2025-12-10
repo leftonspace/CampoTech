@@ -360,6 +360,14 @@ CLOSED → (failures >= threshold) → OPEN → (timeout) → HALF_OPEN → (pro
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
+> **❌ CRITICAL GAP:** "Distributed Locks" is shown in the Infrastructure Layer above but is **NOT IMPLEMENTED**.
+> This creates race condition risks in multi-instance deployments for:
+> - AFIP invoice number reservation
+> - Payment webhook idempotency
+> - Job assignment conflicts
+>
+> **Action Required:** Implement Redis-based distributed lock service (e.g., Redlock algorithm).
+
 ## Technology Stack
 
 | Layer | Technology |
@@ -1369,6 +1377,29 @@ SYSTEM_001: Internal error
 
 # 8. EXTERNAL INTEGRATIONS
 
+## Implementation Status Summary
+
+| Integration | Status | Completion | Notes |
+|-------------|--------|------------|-------|
+| **AFIP** | ✅ Complete | 100% | All WSAA, WSFEv1, WS_SR_PADRON, Certificate Management, QR Code |
+| **Mercado Pago** | ⚠️ Partial | 92% | Refund Processing incomplete (see section below) |
+| **WhatsApp** | ⚠️ Partial | 83% | Interactive Messages missing (see section below) |
+| **Voice AI** | ✅ Complete | 100% | Whisper, GPT extraction, confidence scoring, human review |
+
+### Core Services Status
+
+| Service | Status | Notes |
+|---------|--------|-------|
+| Circuit Breaker | ✅ | Per-service implementation |
+| Panic Mode | ✅ | Auto-recovery support |
+| Idempotency | ✅ | Redis-backed |
+| Encryption | ✅ | AES-256-GCM with AAD |
+| Rate Limiting | ✅ | Sliding window |
+| Event Bus | ✅ | Redis pub/sub |
+| **Distributed Locks** | ❌ | **NOT IMPLEMENTED - CRITICAL GAP** (race condition risk) |
+
+---
+
 ## AFIP Integration
 
 ### Services Used
@@ -1596,7 +1627,12 @@ Production:
   - WSFE: https://servicios1.afip.gov.ar/wsfev1/service.asmx
 ```
 
-## Mercado Pago Integration
+## Mercado Pago Integration (⚠️ 92% Complete)
+
+> **⚠️ Implementation Gap:** Refund Processing is incomplete:
+> - Status tracking: ✅ Implemented
+> - Refund API endpoint: ❌ NOT IMPLEMENTED
+> - Action Required: Implement `POST /api/payments/:id/refund` endpoint calling MP refund API
 
 ### OAuth Flow
 ```
@@ -1651,7 +1687,13 @@ GET /v1/payment_methods/installments?amount={amount}&payment_method_id={pm_id}
 Calculate TEA: ((total/principal)^(12/months) - 1) * 100
 ```
 
-## WhatsApp Cloud API Integration
+## WhatsApp Cloud API Integration (⚠️ 83% Complete)
+
+> **⚠️ Implementation Gap:** Interactive Messages are NOT IMPLEMENTED:
+> - Button messages (quick replies): ❌ NOT IMPLEMENTED
+> - List messages (selection menus): ❌ NOT IMPLEMENTED
+> - Currently using template messages only
+> - Action Required: Add interactive message support for better UX
 
 ### Setup
 ```
@@ -3814,8 +3856,9 @@ async function requestCAE(invoice: Invoice): Promise<CAEResult> {
 # DOCUMENT METADATA
 
 ```
-Version: 1.0
+Version: 1.1
 Created: December 2025
+Last Updated: 2025-12-10
 Source: Merged from v1-v7 roadmaps
 Timeline: 18 weeks
 Target Launch: Q1 2026
@@ -3827,6 +3870,18 @@ Supersedes:
   - campotech-argentina-mvp-roadmap-v1.md through v7.md
   - All previous architecture documents
 ```
+
+## Changelog
+
+### v1.1 (2025-12-10)
+- Added External Integrations implementation status summary (Section 8)
+- Added Core Services status table including distributed locks gap
+- Added Mercado Pago 92% completion note (refund API missing)
+- Added WhatsApp 83% completion note (interactive messages missing)
+- Added critical distributed locks warning in System Architecture (Section 3)
+- Added implementation status notes to relevant sections
+
+Addresses audit findings from ARCHITECTURE-AUDIT-REPORT.md section 6
 
 ---
 
