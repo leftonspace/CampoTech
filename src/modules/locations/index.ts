@@ -19,3 +19,6 @@ export { CoverageCalculator, getCoverageCalculator } from './coverage-calculator
 
 // Billing
 export * from './billing';
+
+// Resources (Team & Resource Management)
+export * from './resources';
