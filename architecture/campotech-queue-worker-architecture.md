@@ -12,31 +12,77 @@
 
 | Category | Documented | Implemented | Status |
 |----------|------------|-------------|--------|
-| BullMQ Queues | 19 | 2-3 | ⚠️ 10-15% |
-| Database Polling Workers | 0 | 3 | 🔧 Alternative |
-| Scheduled Jobs | 6 | 2-3 | ⚠️ 30-50% |
+| BullMQ Queues | 19 | 2 | ⚠️ ~10% |
+| Database Polling Workers | 0 | 6 | 🔧 Alternative Pattern |
+| Scheduled Jobs | 6 | 4 | ⚠️ ~67% |
 | Bull Board Dashboard | ✓ | ❌ | ⏳ Not Implemented |
 | Fair Scheduler | ✓ | ❌ | ⏳ Not Implemented |
 | Memory Management | ✓ | ❌ | ⏳ Not Implemented |
+| DLQ Management UI | ✓ | ❌ | ⏳ Not Implemented |
 
 ### Actually Implemented Workers
 
-**BullMQ Queues (2-3):**
-| Queue | File | Status |
-|-------|------|--------|
-| `voice-processing` | `/src/workers/voice/voice-processing.worker.ts` | ✅ |
-| `reminder` | `/src/workers/notifications/reminder.worker.ts` | ✅ |
+**BullMQ Workers (2):**
+| Queue Name | File | Concurrency | Capability Check |
+|------------|------|-------------|------------------|
+| `voice-processing` | `/src/workers/voice/voice-processing.worker.ts` | 3 | `external.whatsapp_voice_ai` |
+| `reminder` | `/src/workers/notifications/reminder.worker.ts` | 5 | `services.notification_queue`, `domain.scheduling` |
 
-**Database Polling Workers (NOT BullMQ):**
-| Worker | File | Pattern |
-|--------|------|---------|
-| AFIP Invoice | `/src/workers/afip/afip-invoice.worker.ts` | Database polling |
-| WhatsApp Outbound | `/src/workers/whatsapp/whatsapp-outbound.worker.ts` | Database polling |
-| MP Payment | `/src/workers/payments/mp-payment.worker.ts` | Database polling |
+> **Important:** The queue manager (`src/lib/queue/queue-manager.ts`) defines 6 queue names (`cae-queue`, `whatsapp-queue`, `payment-queue`, `notification-queue`, `scheduled-queue`, `dead-letter-queue`) but **NO workers are registered** to process them. The actual BullMQ workers use different queue names not in the manager.
 
-**Scheduled Jobs (Actually Implemented):**
-- `PROCESS_SCHEDULED_REPORTS` - Every minute
-- `CLEANUP_REPORT_HISTORY` - Daily at 2 AM
+**Database Polling Workers (NOT BullMQ - 6 workers):**
+| Worker | File | Pattern | Source | Capability Check |
+|--------|------|---------|--------|------------------|
+| AFIP Invoice | `/src/workers/afip/afip-invoice.worker.ts` | Timer + DB poll | `invoices` table (status='pending_cae') | `external.afip`, `services.cae_queue` |
+| WhatsApp Outbound | `/src/workers/whatsapp/whatsapp-outbound.worker.ts` | Timer + DB poll | `waOutboundQueue` table | `external.whatsapp`, `services.whatsapp_queue` |
+| MP Payment | `/src/workers/payments/mp-payment.worker.ts` | Timer + callback | Callback-based | `external.mercadopago`, `domain.payments` |
+| Webhook Delivery | `/src/api/public/webhooks/webhook.worker.ts` | Timer + DB poll | `webhook_deliveries` table | None |
+| Aggregation Processor | `/src/workers/whatsapp/aggregation-processor.worker.ts` | Timer + Redis poll | Redis keys (`msgbuf:*`) | `services.whatsapp_aggregation` |
+| Buffer Cleanup | `/src/workers/whatsapp/buffer-cleanup.worker.ts` | Timer interval | Redis + Database | None |
+
+**Scheduler / Cron Jobs (4 jobs):**
+| Job | File | Schedule | Description |
+|-----|------|----------|-------------|
+| Reminder Scheduler | `/src/workers/notifications/reminder-scheduler.ts` | Every 60s (setInterval) | Polls DB for due reminders |
+| Process Scheduled Reports | `/src/analytics/reports/scheduling/cron-jobs.ts` | `* * * * *` (every minute) | Report generation |
+| Cleanup Report History | `/src/analytics/reports/scheduling/cron-jobs.ts` | `0 2 * * *` (daily 2 AM) | Report cleanup |
+| MP Reconciliation | `/src/workers/payments/mp-reconciliation.service.ts` | Hourly check (setInterval) | Payment reconciliation |
+
+### Queue Manager vs Reality
+
+The `src/lib/queue/queue-manager.ts` file defines a comprehensive BullMQ setup, but it's **largely unused**:
+
+```typescript
+// Defined in queue-manager.ts (NO WORKERS REGISTERED)
+export const QueueNames = {
+  CAE: 'cae-queue',           // ❌ No worker - AFIP uses database polling instead
+  WHATSAPP: 'whatsapp-queue', // ❌ No worker - WhatsApp uses database polling instead
+  PAYMENT: 'payment-queue',   // ❌ No worker - Payments uses database polling instead
+  NOTIFICATION: 'notification-queue', // ❌ No worker
+  SCHEDULED: 'scheduled-queue',       // ❌ No worker
+  DLQ: 'dead-letter-queue',   // ❌ No worker
+};
+
+// Actual BullMQ queues (WITH workers):
+// - 'voice-processing' (src/workers/voice/voice-processing.worker.ts)
+// - 'reminder' (src/workers/notifications/reminder.worker.ts)
+// Note: These queue names are NOT defined in QueueNames!
+```
+
+### Implementation Decision Notes
+
+The database polling pattern was chosen over BullMQ for critical workers (AFIP, WhatsApp, Payments) likely because:
+
+1. **Simpler debugging** - Database state is easier to inspect than Redis queues
+2. **Existing database** - No additional Redis infrastructure needed for basic polling
+3. **Transactional safety** - Database transactions ensure atomicity
+4. **Panic mode integration** - Database polling workers integrate with capability/panic systems
+
+However, this approach has tradeoffs:
+- Less efficient (constant polling vs push-based)
+- No built-in retry backoff
+- No rate limiting at queue level
+- No centralized monitoring (Bull Board)
 
 > **Note:** The architecture below represents the PLANNED state. Sections marked with ⏳ are not yet implemented.
 
@@ -2195,66 +2241,89 @@ DAILY OPS CHECKLIST (5 minutes)
 
 ## 15. Summary
 
-### Queue Technology Stack
-- **Primary**: BullMQ on Redis 7+
-- **Deployment**: Upstash Redis (serverless, multi-region)
-- **Dashboard**: Bull Board at `/admin/queues`
+### Queue Technology Stack (PLANNED vs ACTUAL)
 
-### 19 Queues Defined
-| Queue | Priority | Concurrency | Rate Limit | Isolation |
-|-------|----------|-------------|------------|-----------|
-| afip:invoice | High | 3 | 10/min | Shared |
-| payment:webhook | High | 10 | 100/min | Shared |
-| whatsapp:outbound | High | 5 | 50/min | Per-org |
-| whatsapp:inbound | Normal | 20 | 200/min | Shared |
-| voice:transcription | Normal | 5 | 20/min | Shared |
-| voice:extraction | Normal | 10 | 50/min | Shared |
-| job:notification | Normal | 10 | 100/min | Per-org |
-| invoice:pdf | Normal | 5 | 50/min | Shared |
-| notification:dispatch | Normal | 20 | 200/min | Shared |
-| notification:reminders | Normal | 10 | 100/min | Shared |
-| tracking:eta | Normal | 10 | 50/min | Shared |
-| consumer:notification | Normal | 20 | 200/min | Shared |
-| consumer:fraud-detection | Low | 10 | 100/min | Shared |
-| consumer:lead-matching | Normal | 10 | 100/min | Shared |
-| sync:offline | Low | 10 | 100/min | Per-org |
-| reconciliation | Low | 2 | 5/min | Shared |
-| cleanup | Low | 2 | 10/min | Shared |
-| analytics | Low | 5 | 50/min | Shared |
-| scheduler | Normal | 5 | 100/min | Shared |
+| Aspect | Planned | Actual |
+|--------|---------|--------|
+| **Primary Queue** | BullMQ on Redis 7+ | Mixed: 2 BullMQ + 6 DB polling |
+| **Deployment** | Upstash Redis (serverless) | PostgreSQL + Redis |
+| **Dashboard** | Bull Board at `/admin/queues` | ❌ Not implemented |
+| **Monitoring** | Prometheus metrics | Console logging only |
 
-### Worker Pools (Updated for Phase 9.6, 9.9, 15)
-- **High**: 2 instances, 512MB each, 5 concurrency
-- **Normal**: 4 instances, 1GB each, 10 concurrency
-- **Low**: 2 instances, 256MB each, 5 concurrency
-- **Scheduler**: 1 instance, 256MB, 5 concurrency
+### 19 Queues Defined (PLANNED - only 2 implemented as BullMQ)
+| Queue | Priority | Concurrency | Rate Limit | Isolation | **Status** |
+|-------|----------|-------------|------------|-----------|------------|
+| afip:invoice | High | 3 | 10/min | Shared | 🔧 DB Polling |
+| payment:webhook | High | 10 | 100/min | Shared | 🔧 DB Polling |
+| whatsapp:outbound | High | 5 | 50/min | Per-org | 🔧 DB Polling |
+| whatsapp:inbound | Normal | 20 | 200/min | Shared | ⏳ Not Implemented |
+| voice:transcription | Normal | 3 | 10/min | Shared | ✅ BullMQ |
+| voice:extraction | Normal | 10 | 50/min | Shared | ✅ Merged into voice:transcription |
+| job:notification | Normal | 10 | 100/min | Per-org | ⏳ Not Implemented |
+| invoice:pdf | Normal | 5 | 50/min | Shared | ⏳ Not Implemented |
+| notification:dispatch | Normal | 20 | 200/min | Shared | ⏳ Not Implemented |
+| notification:reminders | Normal | 5 | 100/min | Shared | ✅ BullMQ |
+| tracking:eta | Normal | 10 | 50/min | Shared | ⏳ Not Implemented |
+| consumer:notification | Normal | 20 | 200/min | Shared | ⏳ Not Implemented |
+| consumer:fraud-detection | Low | 10 | 100/min | Shared | ⏳ Not Implemented |
+| consumer:lead-matching | Normal | 10 | 100/min | Shared | ⏳ Not Implemented |
+| sync:offline | Low | 10 | 100/min | Per-org | ⏳ Not Implemented |
+| reconciliation | Low | 2 | 5/min | Shared | 🔧 setInterval-based |
+| cleanup | Low | 2 | 10/min | Shared | 🔧 Cron job |
+| analytics | Low | 5 | 50/min | Shared | ⏳ Not Implemented |
+| scheduler | Normal | 5 | 100/min | Shared | ⏳ Not Implemented |
 
-### Key Features
-- Per-queue message schemas with Zod validation
-- 4 backoff strategies (exponential, fixed, AFIP, WhatsApp)
-- Idempotency with Redis-backed store
-- Ordering guarantees (FIFO per-org, per-entity, global)
-- Dead letter queue with manual/auto retry
-- Comprehensive metrics and alerting
-- Backpressure handling with soft/hard limits
+### Worker Pools (PLANNED - not implemented)
+> ⚠️ Worker pools with dedicated instances are NOT implemented. All workers run within the main application process.
+
+- **High**: 2 instances, 512MB each, 5 concurrency (⏳ PLANNED)
+- **Normal**: 4 instances, 1GB each, 10 concurrency (⏳ PLANNED)
+- **Low**: 2 instances, 256MB each, 5 concurrency (⏳ PLANNED)
+- **Scheduler**: 1 instance, 256MB, 5 concurrency (⏳ PLANNED)
+
+### Key Features Implementation Status
+| Feature | Status |
+|---------|--------|
+| Per-queue message schemas with Zod validation | ⏳ Partial |
+| 4 backoff strategies (exponential, fixed, AFIP, WhatsApp) | ✅ Implemented in workers |
+| Idempotency with Redis-backed store | ⏳ Not Implemented |
+| Ordering guarantees (FIFO per-org, per-entity, global) | ⏳ Not Implemented |
+| Dead letter queue with manual/auto retry | ⏳ Not Implemented |
+| Comprehensive metrics and alerting | ⏳ Not Implemented |
+| Backpressure handling with soft/hard limits | ⏳ Not Implemented |
+| Capability-based kill switches | ✅ Implemented |
 
 ### Phase Updates
-- **Phase 9.6**: Notification dispatch and reminder scheduling queues
-- **Phase 9.9**: GPS tracking ETA calculation queue
-- **Phase 15**: Consumer marketplace queues (notifications, fraud detection, lead matching)
+- **Phase 9.6**: Notification dispatch (⏳) and reminder scheduling queues (✅ BullMQ)
+- **Phase 9.9**: GPS tracking ETA calculation queue (⏳)
+- **Phase 15**: Consumer marketplace queues (⏳ all pending)
 
 ---
 
 **Document Metadata**
 ```
-Version: 2.1
+Version: 2.2
 Last Updated: 2025-12-10
 Queues Documented: 19
-Queues Implemented: 2-3 BullMQ + 3 Database Polling
+Queues Actually Implemented:
+  - BullMQ: 2 (voice-processing, reminder)
+  - DB Polling: 6 (AFIP, WhatsApp Out, MP Payment, Webhook, Aggregation, Buffer Cleanup)
+  - Cron/Timer: 4 (Reminder Scheduler, Report Processing, Report Cleanup, MP Reconciliation)
 Phases Covered: Core, 9.6, 9.9, 15
 ```
 
 ## Changelog
+
+### v2.2 (2025-12-10)
+- Expanded implementation status warning with comprehensive worker inventory
+- Added capability check column to all worker tables
+- Documented Queue Manager vs Reality discrepancy (6 queues defined, 0 workers registered)
+- Updated all 6 database polling workers with source tables
+- Added 4 scheduler/cron jobs with schedules
+- Added Implementation Decision Notes explaining why DB polling was chosen
+- Updated Summary section to show PLANNED vs ACTUAL status
+- Marked all 19 queues with implementation status icons
+- Updated version to 2.2
 
 ### v2.1 (2025-12-10)
 - Added critical implementation status warning section
