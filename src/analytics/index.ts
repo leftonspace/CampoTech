@@ -169,6 +169,15 @@ export {
   generateMRRKPIs,
 } from './kpis/revenue/mrr-calculator';
 
+export {
+  calculateARPUMetrics,
+  getARPUBySegment,
+  getARPUByServiceType,
+  getARPUTrend,
+  getCustomerRevenueDistribution,
+  generateARPUKPIs,
+} from './kpis/revenue/arpu-calculator';
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // KPIs - Operations (Phase 10.2)
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -191,6 +200,16 @@ export {
   generateTechnicianKPIs,
 } from './kpis/operations/technician-efficiency';
 
+export {
+  DEFAULT_SLAS,
+  calculateSLACompliance,
+  getSLAByUrgency,
+  getSLAByServiceType,
+  getSLAViolations,
+  getSLATrend,
+  generateSLAKPIs,
+} from './kpis/operations/sla-compliance';
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // KPIs - Financial (Phase 10.2)
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -205,6 +224,27 @@ export {
   generateFinancialKPIs,
 } from './kpis/financial/cash-flow-analyzer';
 
+export {
+  calculateProfitability,
+  getProfitabilityByServiceType,
+  getProfitabilityByTechnician,
+  getProfitabilityByCustomer,
+  getProfitabilityTrend,
+  getCostBreakdown,
+  generateProfitabilityKPIs,
+} from './kpis/financial/profitability-calculator';
+
+export {
+  IVA_RATES,
+  calculateTaxSummary,
+  generateLibroIVA,
+  formatLibroIVAForExport,
+  getMonthlyTaxTrend,
+  getTaxConditionBreakdown,
+  generateCITIVentas,
+  generateTaxKPIs,
+} from './kpis/financial/tax-summary';
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // KPIs - Customers (Phase 10.2)
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -218,6 +258,25 @@ export {
   getTopCustomersByCLV,
   generateCustomerKPIs,
 } from './kpis/customers/customer-lifetime-value';
+
+export {
+  calculateSatisfactionMetrics,
+  getSatisfactionByCategory,
+  getSatisfactionByServiceType,
+  getSatisfactionByTechnician,
+  getSatisfactionTrend,
+  generateSatisfactionKPIs,
+} from './kpis/customers/satisfaction-scorer';
+
+export {
+  SEGMENT_DEFINITIONS,
+  segmentCustomers,
+  calculateRFMScores,
+  getSegmentTrend,
+  getCustomerProfiles,
+  getSegmentRecommendations,
+  generateSegmentKPIs,
+} from './kpis/customers/segment-analyzer';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // REPORTS - Phase 10.3
