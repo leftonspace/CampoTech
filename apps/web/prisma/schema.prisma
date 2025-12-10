@@ -33,6 +33,7 @@ model Organization {
   reports          Report[]
   reportHistory    ReportHistory[]
   reviews          Review[]
+  locations        Location[]
 
   @@map("organizations")
 }
@@ -49,19 +50,25 @@ model User {
   avatar         String?
   isActive       Boolean         @default(true)
   organizationId String
+  homeLocationId String?         // Technician's home/primary location
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
   organization         Organization      @relation(fields: [organizationId], references: [id])
+  homeLocation         Location?         @relation("TechnicianHomeLocation", fields: [homeLocationId], references: [id], onDelete: SetNull)
   assignedJobs         Job[]             @relation("TechnicianJobs")
   createdJobs          Job[]             @relation("CreatorJobs")
   createdScheduledReports ScheduledReport[] @relation("ScheduledReportCreator")
   createdReports       Report[]          @relation("ReportCreator")
   generatedReports     ReportHistory[]   @relation("ReportHistoryGenerator")
   technicianReviews    Review[]          @relation("TechnicianReviews")
+  managedLocations     Location[]        @relation("LocationManager")
+  requestedTransfers   InterLocationTransfer[] @relation("TransferRequester")
+  approvedTransfers    InterLocationTransfer[] @relation("TransferApprover")
 
   @@unique([email, organizationId])
   @@index([organizationId])
+  @@index([homeLocationId])
   @@map("users")
 }
 
@@ -88,16 +95,22 @@ model Customer {
   address        Json     // { street, number, floor, apartment, city, postalCode, coordinates }
   notes          String?
   organizationId String
+  locationId     String?  // Primary service location for this customer
+  zoneId         String?  // Service zone within the location
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id])
+  location     Location?    @relation("CustomerLocation", fields: [locationId], references: [id], onDelete: SetNull)
+  zone         Zone?        @relation("CustomerZone", fields: [zoneId], references: [id], onDelete: SetNull)
   jobs         Job[]
   invoices     Invoice[]
   reviews      Review[]
 
   @@index([phone])
   @@index([organizationId])
+  @@index([locationId])
+  @@index([zoneId])
   @@map("customers")
 }
 
@@ -127,6 +140,8 @@ model Job {
   technicianId   String?
   createdById    String
   organizationId String
+  locationId     String?  // Service location for this job
+  zoneId         String?  // Service zone within the location
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -134,6 +149,8 @@ model Job {
   technician   User?        @relation("TechnicianJobs", fields: [technicianId], references: [id])
   createdBy    User         @relation("CreatorJobs", fields: [createdById], references: [id])
   organization Organization @relation(fields: [organizationId], references: [id])
+  location     Location?    @relation("JobLocation", fields: [locationId], references: [id], onDelete: SetNull)
+  zone         Zone?        @relation("JobZone", fields: [zoneId], references: [id], onDelete: SetNull)
   invoice      Invoice?
   review       Review?
 
@@ -141,6 +158,8 @@ model Job {
   @@index([scheduledDate])
   @@index([technicianId])
   @@index([organizationId])
+  @@index([locationId])
+  @@index([zoneId])
   @@map("jobs")
 }
 
@@ -190,16 +209,19 @@ model Invoice {
   jobId          String?  @unique
   customerId     String
   organizationId String
+  locationId     String?  // Location that issued this invoice (for AFIP punto de venta)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   job          Job?         @relation(fields: [jobId], references: [id])
   customer     Customer     @relation(fields: [customerId], references: [id])
   organization Organization @relation(fields: [organizationId], references: [id])
+  location     Location?    @relation("InvoiceLocation", fields: [locationId], references: [id], onDelete: SetNull)
   payments     Payment[]
 
   @@index([status])
   @@index([organizationId])
+  @@index([locationId])
   @@map("invoices")
 }
 
@@ -607,4 +629,209 @@ model Review {
   @@index([technicianId])
   @@index([rating])
   @@map("reviews")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 11: MULTI-LOCATION SUPPORT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Location {
+  id             String   @id @default(cuid())
+  organizationId String
+  code           String   // Short code for the location (e.g., "CABA", "GBA-N", "MDZ")
+  name           String
+  type           LocationType @default(BRANCH)
+  address        Json     // { street, number, city, province, postalCode, country }
+  coordinates    Json?    // { lat, lng }
+  timezone       String   @default("America/Argentina/Buenos_Aires")
+  phone          String?
+  email          String?
+  managerId      String?  // User who manages this location
+  isHeadquarters Boolean  @default(false)
+  isActive       Boolean  @default(true)
+  coverageRadius Int?     // Service coverage radius in km (if circular)
+  coverageArea   Json?    // GeoJSON polygon for service coverage area
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  manager      User?             @relation("LocationManager", fields: [managerId], references: [id], onDelete: SetNull)
+  settings     LocationSettings?
+  afipConfig   LocationAfipConfig?
+  zones        Zone[]
+  jobs         Job[]             @relation("JobLocation")
+  customers    Customer[]        @relation("CustomerLocation")
+  invoices     Invoice[]         @relation("InvoiceLocation")
+  technicians  User[]            @relation("TechnicianHomeLocation")
+  transfersFrom InterLocationTransfer[] @relation("TransferFromLocation")
+  transfersTo   InterLocationTransfer[] @relation("TransferToLocation")
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@index([isActive])
+  @@index([type])
+  @@map("locations")
+}
+
+enum LocationType {
+  HEADQUARTERS  // Main office / Casa central
+  BRANCH        // Branch office / Sucursal
+  WAREHOUSE     // Storage only / Depósito
+  SERVICE_POINT // Service point without office / Punto de servicio
+}
+
+model Zone {
+  id          String   @id @default(cuid())
+  locationId  String
+  code        String   // Short code (e.g., "Z1", "NORTE", "CENTRO")
+  name        String
+  description String?
+  boundary    Json?    // GeoJSON polygon defining the zone boundary
+  color       String?  // Hex color for map display (e.g., "#FF5733")
+  priority    Int      @default(0) // Higher priority zones are preferred for assignment
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  location  Location   @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  jobs      Job[]      @relation("JobZone")
+  customers Customer[] @relation("CustomerZone")
+
+  @@unique([locationId, code])
+  @@index([locationId])
+  @@index([isActive])
+  @@map("zones")
+}
+
+model LocationSettings {
+  id             String   @id @default(cuid())
+  locationId     String   @unique
+
+  // Operating Hours
+  operatingHours Json     @default("{}") // { monday: { open: '08:00', close: '18:00' }, ... }
+  holidays       Json     @default("[]") // Array of holiday dates
+
+  // Service Settings
+  serviceRadius        Int?     // Default service radius in km
+  maxJobsPerDay        Int?     // Maximum jobs that can be scheduled per day
+  defaultJobDuration   Int?     // Default job duration in minutes
+  allowEmergencyJobs   Boolean  @default(true)
+  emergencyFeePercent  Decimal? @db.Decimal(5, 2) // Extra fee % for emergency jobs
+
+  // Pricing Variations
+  pricingMultiplier    Decimal  @default(1.0) @db.Decimal(5, 3) // Price multiplier for this location
+  travelFeePerKm       Decimal? @db.Decimal(10, 2) // Travel fee per km
+  minimumTravelFee     Decimal? @db.Decimal(10, 2) // Minimum travel fee
+
+  // Notification Settings
+  notifyOnNewJob       Boolean  @default(true)
+  notifyOnJobComplete  Boolean  @default(true)
+  notificationEmails   String[] @default([])
+
+  // WhatsApp Settings
+  whatsappNumber       String?  // Location-specific WhatsApp number
+  whatsappBusinessId   String?  // WhatsApp Business Account ID
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@map("location_settings")
+}
+
+model LocationAfipConfig {
+  id             String   @id @default(cuid())
+  locationId     String   @unique
+
+  // AFIP Configuration
+  puntoDeVenta       Int      // Punto de venta number for this location
+  tiposPuntoDeVenta  String   @default("CAJA") // CAJA, EXPORT, etc.
+  cuit               String?  // CUIT if different from organization (for franchises)
+  razonSocial        String?  // Business name if different from organization
+  domicilioFiscal    Json?    // { calle, numero, piso, depto, localidad, provincia, cp }
+  condicionIva       String   @default("RESPONSABLE_INSCRIPTO") // RESPONSABLE_INSCRIPTO, MONOTRIBUTISTA, EXENTO
+
+  // Invoice Numbering
+  facturaALastNumber Int      @default(0)
+  facturaBLastNumber Int      @default(0)
+  facturaCLastNumber Int      @default(0)
+  notaCreditoALastNumber Int  @default(0)
+  notaCreditoBLastNumber Int  @default(0)
+  notaCreditoCLastNumber Int  @default(0)
+
+  // Certificate
+  certificatePath    String?  // Path to AFIP certificate
+  certificateExpiry  DateTime?
+  privateKeyPath     String?
+
+  // API Credentials
+  wsaaToken          String?  // Current WSAA token
+  wsaaTokenExpiry    DateTime?
+
+  isActive           Boolean  @default(true)
+  lastSyncAt         DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@index([puntoDeVenta])
+  @@map("location_afip_configs")
+}
+
+model InterLocationTransfer {
+  id               String   @id @default(cuid())
+  organizationId   String
+  fromLocationId   String
+  toLocationId     String
+
+  // Transfer Details
+  transferType     TransferType
+  referenceId      String?  // ID of the related entity (job, technician assignment, etc.)
+  reason           String?
+  notes            String?
+
+  // Financial (if applicable)
+  amount           Decimal? @db.Decimal(10, 2) // Transfer amount for inter-location charges
+
+  // Status Tracking
+  status           TransferStatus @default(PENDING)
+  requestedById    String
+  approvedById     String?
+  requestedAt      DateTime @default(now())
+  approvedAt       DateTime?
+  completedAt      DateTime?
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  fromLocation Location @relation("TransferFromLocation", fields: [fromLocationId], references: [id])
+  toLocation   Location @relation("TransferToLocation", fields: [toLocationId], references: [id])
+  requestedBy  User     @relation("TransferRequester", fields: [requestedById], references: [id])
+  approvedBy   User?    @relation("TransferApprover", fields: [approvedById], references: [id])
+
+  @@index([organizationId])
+  @@index([fromLocationId])
+  @@index([toLocationId])
+  @@index([status])
+  @@index([transferType])
+  @@map("inter_location_transfers")
+}
+
+enum TransferType {
+  JOB_ASSIGNMENT    // Job transferred to another location
+  TECHNICIAN_LOAN   // Technician temporarily assigned to another location
+  CUSTOMER_REFERRAL // Customer referred to another location
+  RESOURCE_SHARE    // Sharing of equipment/inventory
+  FINANCIAL         // Financial transfer between locations
+}
+
+enum TransferStatus {
+  PENDING
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+  CANCELLED
 }
