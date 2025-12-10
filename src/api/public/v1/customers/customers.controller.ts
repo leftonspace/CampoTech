@@ -313,6 +313,52 @@ export function createCustomersController(pool: Pool): Router {
   );
 
   // ─────────────────────────────────────────────────────────────────────────────
+  // VALIDATE CUIT/CUIL
+  // POST /customers/validate-cuit
+  // Purpose: Validate Argentine tax ID format and check digit
+  // ─────────────────────────────────────────────────────────────────────────────
+  router.post(
+    '/validate-cuit',
+    requireScopes('read:customers'),
+    async (req: Request, res: Response) => {
+      try {
+        const context = (req as any).apiContext as ApiRequestContext;
+        const { cuit } = req.body;
+
+        if (!cuit || typeof cuit !== 'string') {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'CUIT is required',
+            },
+          });
+        }
+
+        const validation = validateCUIT(cuit);
+
+        res.json({
+          success: true,
+          data: validation,
+          meta: {
+            requestId: context.requestId,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      } catch (error) {
+        console.error('[CustomersAPI] Validate CUIT error:', error);
+        res.status(500).json({
+          success: false,
+          error: {
+            code: 'INTERNAL_ERROR',
+            message: 'An error occurred while validating CUIT.',
+          },
+        });
+      }
+    }
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────────
   // BATCH DELETE CUSTOMERS
   // POST /customers/batch-delete
   // ─────────────────────────────────────────────────────────────────────────────
@@ -683,4 +729,103 @@ function decodeCursor(cursor: string): { value: any; id: string } | null {
   } catch {
     return null;
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CUIT VALIDATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface CUITValidationResult {
+  valid: boolean;
+  formatted: string | null;
+  type: 'persona_fisica_masculino' | 'persona_fisica_femenino' | 'persona_fisica' | 'empresa' | 'unknown' | null;
+  typeDescription: string | null;
+  errors: string[];
+}
+
+/**
+ * Validate Argentine CUIT/CUIL
+ * Format: XX-XXXXXXXX-X
+ * - First 2 digits: Type prefix
+ *   - 20: Natural person (male)
+ *   - 27: Natural person (female)
+ *   - 23: Natural person (either gender)
+ *   - 30, 33, 34: Legal entities
+ * - Middle 8 digits: Document number
+ * - Last digit: Check digit (modulo 11)
+ */
+function validateCUIT(input: string): CUITValidationResult {
+  const errors: string[] = [];
+
+  // Remove any formatting (dashes, spaces, dots)
+  const digits = input.replace(/[-.\s]/g, '');
+
+  // Check length
+  if (digits.length !== 11) {
+    errors.push('CUIT debe tener 11 dígitos');
+    return { valid: false, formatted: null, type: null, typeDescription: null, errors };
+  }
+
+  // Check all characters are digits
+  if (!/^\d+$/.test(digits)) {
+    errors.push('CUIT solo puede contener números');
+    return { valid: false, formatted: null, type: null, typeDescription: null, errors };
+  }
+
+  // Extract parts
+  const prefix = digits.substring(0, 2);
+  const document = digits.substring(2, 10);
+  const checkDigit = parseInt(digits.substring(10, 11), 10);
+
+  // Validate prefix
+  const validPrefixes: Record<string, { type: CUITValidationResult['type']; description: string }> = {
+    '20': { type: 'persona_fisica_masculino', description: 'Persona física masculino' },
+    '23': { type: 'persona_fisica', description: 'Persona física' },
+    '24': { type: 'persona_fisica', description: 'Persona física' },
+    '27': { type: 'persona_fisica_femenino', description: 'Persona física femenino' },
+    '30': { type: 'empresa', description: 'Empresa / Sociedad' },
+    '33': { type: 'empresa', description: 'Empresa / Sociedad' },
+    '34': { type: 'empresa', description: 'Empresa / Sociedad' },
+  };
+
+  if (!validPrefixes[prefix]) {
+    errors.push(`Prefijo ${prefix} no es válido. Prefijos válidos: 20, 23, 24, 27, 30, 33, 34`);
+    return { valid: false, formatted: `${prefix}-${document}-${checkDigit}`, type: 'unknown', typeDescription: 'Prefijo desconocido', errors };
+  }
+
+  // Calculate check digit using Modulo 11
+  const weights = [5, 4, 3, 2, 7, 6, 5, 4, 3, 2];
+  let sum = 0;
+
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(digits[i], 10) * weights[i];
+  }
+
+  const remainder = sum % 11;
+  const calculatedCheck = 11 - remainder;
+
+  // Special cases for modulo 11
+  let expectedCheck: number;
+  if (calculatedCheck === 11) {
+    expectedCheck = 0;
+  } else if (calculatedCheck === 10) {
+    // Invalid CUIT - check digit would be 10 which is not allowed
+    errors.push('CUIT inválido - dígito verificador no válido');
+    return { valid: false, formatted: `${prefix}-${document}-${checkDigit}`, type: validPrefixes[prefix].type, typeDescription: validPrefixes[prefix].description, errors };
+  } else {
+    expectedCheck = calculatedCheck;
+  }
+
+  if (checkDigit !== expectedCheck) {
+    errors.push(`Dígito verificador incorrecto. Esperado: ${expectedCheck}, recibido: ${checkDigit}`);
+    return { valid: false, formatted: `${prefix}-${document}-${checkDigit}`, type: validPrefixes[prefix].type, typeDescription: validPrefixes[prefix].description, errors };
+  }
+
+  return {
+    valid: true,
+    formatted: `${prefix}-${document}-${checkDigit}`,
+    type: validPrefixes[prefix].type,
+    typeDescription: validPrefixes[prefix].description,
+    errors: [],
+  };
 }
