@@ -109,6 +109,17 @@ export {
   CreateReportOptions,
 } from './dashboard.service';
 
+// Usage Reports Service
+export {
+  UsageReportsService,
+  createUsageReportsService,
+  CreateReportOptions as CreateUsageReportOptions,
+  ReportMetricConfig,
+  ReportFilters,
+  ReportGenerationResult,
+  ScheduledReport,
+} from './usage-reports';
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // UNIFIED ANALYTICS SERVICE
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -119,6 +130,7 @@ import { RateLimitMonitorService, createRateLimitMonitorService } from './rate-l
 import { ErrorTrackingService, createErrorTrackingService } from './error-tracking.service';
 import { AlertingService, createAlertingService } from './alerting.service';
 import { DashboardService, createDashboardService } from './dashboard.service';
+import { UsageReportsService, createUsageReportsService } from './usage-reports';
 import { AnalyticsConfig, DEFAULT_ANALYTICS_CONFIG } from './analytics.types';
 
 /**
@@ -130,6 +142,7 @@ export class AnalyticsService {
   readonly errors: ErrorTrackingService;
   readonly alerts: AlertingService;
   readonly dashboards: DashboardService;
+  readonly reports: UsageReportsService;
 
   private pool: Pool;
   private config: AnalyticsConfig;
@@ -143,6 +156,7 @@ export class AnalyticsService {
     this.errors = createErrorTrackingService(pool);
     this.alerts = createAlertingService(pool);
     this.dashboards = createDashboardService(pool);
+    this.reports = createUsageReportsService(pool);
   }
 
   /**

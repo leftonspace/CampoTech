@@ -11,6 +11,7 @@ import { OrgScopedRepository, objectToCamel } from '../../shared/repositories/ba
 import { Payment, PaymentStatus, PaymentMethod, PaginatedResult, PaginationParams, DateRange } from '../../shared/types/domain.types';
 import { createPaymentStateMachine } from '../../shared/utils/state-machine';
 import { withTransaction, validateMoney } from '../../shared/utils/database.utils';
+import { emitWebhookSafe } from '../../shared/services/webhook-bridge';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -247,6 +248,19 @@ export class PaymentService {
       notes: data.notes,
     });
 
+    // Emit payment.created webhook event
+    emitWebhookSafe(orgId, 'payment.created', {
+      payment: {
+        id: payment.id,
+        invoice_id: payment.invoiceId,
+        customer_id: payment.customerId,
+        amount: payment.amount,
+        method: payment.method,
+        status: payment.status,
+        created_at: payment.createdAt,
+      },
+    }, { actor_type: 'system' });
+
     return payment;
   }
 
@@ -256,6 +270,8 @@ export class PaymentService {
     if (payment.status !== 'pending') {
       throw new Error('Payment must be pending to process');
     }
+
+    let invoiceFullyPaid = false;
 
     // Use transaction to ensure atomicity of payment + invoice update
     await withTransaction(this.pool, async (client: PoolClient) => {
@@ -283,10 +299,39 @@ export class PaymentService {
           `UPDATE invoices SET status = 'paid', paid_at = NOW(), updated_at = NOW() WHERE id = $1`,
           [payment.invoiceId]
         );
+        invoiceFullyPaid = true;
       }
     });
 
-    return this.getById(orgId, id);
+    const completedPayment = await this.getById(orgId, id);
+
+    // Emit payment.completed webhook event
+    emitWebhookSafe(orgId, 'payment.completed', {
+      payment: {
+        id: completedPayment.id,
+        invoice_id: completedPayment.invoiceId,
+        customer_id: completedPayment.customerId,
+        amount: completedPayment.amount,
+        method: completedPayment.method,
+        status: completedPayment.status,
+        completed_at: completedPayment.completedAt,
+      },
+      invoice_fully_paid: invoiceFullyPaid,
+    }, { actor_type: 'system' });
+
+    // If invoice fully paid, also emit invoice.paid
+    if (invoiceFullyPaid) {
+      emitWebhookSafe(orgId, 'invoice.paid', {
+        invoice: { id: payment.invoiceId },
+        payment: {
+          id: completedPayment.id,
+          amount: completedPayment.amount,
+          method: completedPayment.method,
+        },
+      }, { actor_type: 'system' });
+    }
+
+    return completedPayment;
   }
 
   async failPayment(orgId: string, id: string, reason: string): Promise<Payment> {
@@ -299,7 +344,23 @@ export class PaymentService {
     await this.repo.updateStatus(id, 'failed');
     await this.repo.updateInOrg(orgId, id, { failureReason: reason } as any);
 
-    return this.getById(orgId, id);
+    const failedPayment = await this.getById(orgId, id);
+
+    // Emit payment.failed webhook event
+    emitWebhookSafe(orgId, 'payment.failed', {
+      payment: {
+        id: failedPayment.id,
+        invoice_id: failedPayment.invoiceId,
+        customer_id: failedPayment.customerId,
+        amount: failedPayment.amount,
+        method: failedPayment.method,
+        status: failedPayment.status,
+        failed_at: failedPayment.failedAt,
+      },
+      error: reason,
+    }, { actor_type: 'system' });
+
+    return failedPayment;
   }
 
   async refund(orgId: string, id: string, data: RefundPaymentDTO): Promise<Payment> {
@@ -367,7 +428,26 @@ export class PaymentService {
       }
     });
 
-    return this.getById(orgId, id);
+    const refundedPayment = await this.getById(orgId, id);
+
+    // Emit payment.refunded webhook event
+    emitWebhookSafe(orgId, 'payment.refunded', {
+      payment: {
+        id: refundedPayment.id,
+        invoice_id: refundedPayment.invoiceId,
+        customer_id: refundedPayment.customerId,
+        original_amount: payment.amount,
+        status: refundedPayment.status,
+        refunded_at: refundedPayment.refundedAt,
+      },
+      refund: {
+        amount: data.amount,
+        reason: data.reason,
+        total_refunded: totalRefunded + data.amount,
+      },
+    }, { actor_type: 'system' });
+
+    return refundedPayment;
   }
 
   async getDailySummary(orgId: string, date: Date): Promise<{ total: number; count: number; byMethod: Record<string, number> }> {

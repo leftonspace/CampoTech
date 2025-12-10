@@ -12,6 +12,7 @@ import { Invoice, InvoiceStatus, InvoiceType, InvoiceLineItem, IVACondition, Pag
 import { createInvoiceStateMachine, InvoiceTransitionContext } from '../../shared/utils/state-machine';
 import { determineInvoiceType, calculateTax, IVA_RATES } from '../../shared/utils/validation';
 import { validateMoney, validateQuantity, validateTaxRate } from '../../shared/utils/database.utils';
+import { emitWebhookSafe } from '../../shared/services/webhook-bridge';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -238,7 +239,7 @@ export class InvoiceService {
 
     const total = Math.round((subtotal + taxAmount) * 100) / 100;
 
-    return this.repo.createInOrg(orgId, {
+    const invoice = await this.repo.createInOrg(orgId, {
       jobId: data.jobId,
       customerId: data.customerId,
       invoiceType,
@@ -250,6 +251,24 @@ export class InvoiceService {
       taxAmount,
       total,
     });
+
+    // Emit invoice.created webhook event
+    emitWebhookSafe(orgId, 'invoice.created', {
+      invoice: {
+        id: invoice.id,
+        customer_id: invoice.customerId,
+        job_id: invoice.jobId,
+        invoice_type: invoice.invoiceType,
+        status: invoice.status,
+        subtotal: invoice.subtotal,
+        tax_amount: invoice.taxAmount,
+        total: invoice.total,
+        due_date: invoice.dueDate,
+        created_at: invoice.createdAt,
+      },
+    }, { actor_type: 'system' });
+
+    return invoice;
   }
 
   async submitToAFIP(orgId: string, id: string): Promise<Invoice> {
@@ -296,14 +315,37 @@ export class InvoiceService {
       throw new Error('Invoice must be issued to mark as sent');
     }
     await this.repo.markSent(id);
+
+    // Emit invoice.sent webhook event
+    emitWebhookSafe(orgId, 'invoice.sent', {
+      invoice: {
+        id: invoice.id,
+        customer_id: invoice.customerId,
+        invoice_number: invoice.invoiceNumber,
+        total: invoice.total,
+        sent_at: new Date().toISOString(),
+      },
+    }, { actor_type: 'system' });
   }
 
-  async markAsPaid(orgId: string, id: string): Promise<void> {
+  async markAsPaid(orgId: string, id: string, payment?: { id: string; amount: number; method: string }): Promise<void> {
     const invoice = await this.getById(orgId, id);
     if (!['issued', 'sent'].includes(invoice.status)) {
       throw new Error('Invoice must be issued or sent to mark as paid');
     }
     await this.repo.markPaid(id);
+
+    // Emit invoice.paid webhook event
+    emitWebhookSafe(orgId, 'invoice.paid', {
+      invoice: {
+        id: invoice.id,
+        customer_id: invoice.customerId,
+        invoice_number: invoice.invoiceNumber,
+        total: invoice.total,
+        paid_at: new Date().toISOString(),
+      },
+      payment: payment || null,
+    }, { actor_type: 'system' });
   }
 
   async void(orgId: string, id: string, reason: string): Promise<void> {
@@ -312,6 +354,18 @@ export class InvoiceService {
       throw new Error('Invoice is already voided');
     }
     await this.repo.voidInvoice(id, reason);
+
+    // Emit invoice.voided webhook event (not standard but useful)
+    emitWebhookSafe(orgId, 'invoice.voided', {
+      invoice: {
+        id: invoice.id,
+        customer_id: invoice.customerId,
+        invoice_number: invoice.invoiceNumber,
+        total: invoice.total,
+        voided_at: new Date().toISOString(),
+      },
+      reason,
+    }, { actor_type: 'system' });
   }
 
   async createFromJob(orgId: string, jobId: string, sellerIVA: IVACondition, buyerIVA: IVACondition, puntoVenta: number): Promise<Invoice> {
