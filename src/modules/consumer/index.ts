@@ -104,3 +104,29 @@ export {
   VerificationService,
   VERIFICATION_REQUIREMENTS,
 } from './trust';
+
+// Mode Switching
+export {
+  ModeSwitchService,
+  createModeSwitchRoutes,
+} from './mode-switch';
+
+// Leads Dashboard (Business)
+export {
+  LeadsDashboardService,
+  createLeadsDashboardRoutes,
+} from './leads';
+
+// Marketing & Growth
+export {
+  SeoPagesService,
+  ReferralService,
+  createSeoRoutes,
+  createReferralRoutes,
+} from './marketing';
+
+// Analytics
+export {
+  MarketplaceAnalyticsService,
+  createMarketplaceAnalyticsRoutes,
+} from './analytics';
