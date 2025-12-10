@@ -12,6 +12,8 @@ import { DateRange, ReportTemplate, TimeGranularity } from '../../analytics.type
 // TEMPLATE DEFINITIONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
+import { TAX_REPORT_TEMPLATES } from './tax-report.template';
+
 export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
   // Revenue Reports
   revenue_summary: {
@@ -294,6 +296,9 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     defaultGranularity: 'day',
     availableFormats: ['pdf', 'excel'],
   },
+
+  // Tax Reports (merged from tax-report.template.ts)
+  ...TAX_REPORT_TEMPLATES,
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

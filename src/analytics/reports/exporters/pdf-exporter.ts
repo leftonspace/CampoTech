@@ -3,11 +3,12 @@
  * ===================
  *
  * Phase 10.3: Report Generation Engine
- * Generates PDF reports using React-PDF or similar.
+ * Generates PDF reports using PDFKit with puppeteer fallback.
  */
 
 import { ReportData, ReportSection, ChartData, TableData } from '../report-generator';
 import { KPIValue } from '../../analytics.types';
+import { log } from '../../../lib/logging/logger';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -38,12 +39,19 @@ export interface PDFDocument {
   };
 }
 
+// Page dimensions in points (72 points = 1 inch)
+const PAGE_SIZES = {
+  A4: { width: 595.28, height: 841.89 },
+  letter: { width: 612, height: 792 },
+};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PDF GENERATOR
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /**
  * Generate PDF document from report data
+ * Uses PDFKit for native PDF generation, with puppeteer fallback
  */
 export async function generatePDF(
   reportData: ReportData,
@@ -56,19 +64,284 @@ export async function generatePDF(
     includeTables = true,
   } = options;
 
-  // Build PDF structure
-  const pdfContent = buildPDFContent(reportData, { includeCharts, includeTables });
+  log.info('Generating PDF report', { templateId: reportData.templateId, pageSize, orientation });
 
-  // For actual implementation, you would use a library like:
-  // - @react-pdf/renderer (for React-based PDF generation)
-  // - pdfkit (for Node.js PDF generation)
-  // - puppeteer (for HTML-to-PDF conversion)
+  // Try PDFKit first (lighter weight, no browser needed)
+  try {
+    const pdfBuffer = await generateWithPDFKit(reportData, options);
+    log.info('PDF generated with PDFKit', { size: pdfBuffer.length });
+    return pdfBuffer;
+  } catch (pdfKitError) {
+    log.warn('PDFKit generation failed, trying puppeteer fallback', { error: pdfKitError });
+  }
 
-  // This is a placeholder that returns an HTML representation
-  // that could be converted to PDF
-  const htmlContent = generateHTMLReport(reportData, pdfContent);
+  // Try puppeteer as fallback (better HTML rendering)
+  try {
+    const pdfBuffer = await generateWithPuppeteer(reportData, options);
+    log.info('PDF generated with puppeteer', { size: pdfBuffer.length });
+    return pdfBuffer;
+  } catch (puppeteerError) {
+    log.warn('Puppeteer generation failed, using HTML fallback', { error: puppeteerError });
+  }
 
+  // Final fallback: return HTML that can be printed to PDF by client
+  const htmlContent = generateHTMLReport(reportData, buildPDFContent(reportData, { includeCharts, includeTables }));
+  log.info('Returning HTML content as PDF fallback');
   return Buffer.from(htmlContent, 'utf-8');
+}
+
+/**
+ * Generate PDF using PDFKit library
+ */
+async function generateWithPDFKit(
+  reportData: ReportData,
+  options: PDFExportOptions
+): Promise<Buffer> {
+  const PDFDocument = await import('pdfkit').then(m => m.default || m).catch(() => null);
+  if (!PDFDocument) {
+    throw new Error('PDFKit not available');
+  }
+
+  return new Promise((resolve, reject) => {
+    try {
+      const { pageSize = 'A4', orientation = 'portrait', margins = { top: 50, right: 50, bottom: 50, left: 50 } } = options;
+      const size = PAGE_SIZES[pageSize];
+      const isLandscape = orientation === 'landscape';
+
+      const doc = new PDFDocument({
+        size: pageSize.toUpperCase(),
+        layout: orientation,
+        margins,
+        info: {
+          Title: reportData.templateName,
+          Author: 'CampoTech Analytics',
+          Subject: `Informe generado el ${formatDateTime(reportData.generatedAt)}`,
+          Creator: 'CampoTech Report Engine',
+        },
+      });
+
+      const chunks: Buffer[] = [];
+      doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      // Header
+      doc.fillColor('#16a34a')
+        .fontSize(24)
+        .text(reportData.templateName, { align: 'left' });
+
+      doc.moveDown(0.5);
+      doc.fillColor('#6b7280')
+        .fontSize(10)
+        .text(`Período: ${formatDate(reportData.dateRange.start)} - ${formatDate(reportData.dateRange.end)}`);
+      doc.text(`Generado: ${formatDateTime(reportData.generatedAt)}`);
+
+      doc.moveDown(1);
+      doc.strokeColor('#e5e7eb').lineWidth(1)
+        .moveTo(margins.left, doc.y)
+        .lineTo(isLandscape ? size.height - margins.right : size.width - margins.right, doc.y)
+        .stroke();
+
+      doc.moveDown(1);
+
+      // Sections
+      for (const section of reportData.sections) {
+        // Check if we need a new page
+        if (doc.y > (isLandscape ? size.width : size.height) - 150) {
+          doc.addPage();
+        }
+
+        doc.fillColor('#374151')
+          .fontSize(16)
+          .text(section.title);
+        doc.moveDown(0.5);
+
+        switch (section.type) {
+          case 'kpi_grid':
+            renderKPIGrid(doc, section.data as KPIValue[], margins, isLandscape ? size.height : size.width);
+            break;
+          case 'table':
+            if (options.includeTables !== false) {
+              renderTable(doc, section.data as TableData, margins, isLandscape ? size.height : size.width);
+            }
+            break;
+          case 'chart':
+            if (options.includeCharts !== false) {
+              renderChartAsTable(doc, section.data as ChartData, margins, isLandscape ? size.height : size.width);
+            }
+            break;
+        }
+
+        doc.moveDown(1);
+      }
+
+      // Footer
+      doc.moveDown(2);
+      doc.strokeColor('#e5e7eb').lineWidth(1)
+        .moveTo(margins.left, doc.y)
+        .lineTo(isLandscape ? size.height - margins.right : size.width - margins.right, doc.y)
+        .stroke();
+      doc.moveDown(0.5);
+      doc.fillColor('#9ca3af')
+        .fontSize(8)
+        .text('Informe generado automáticamente por CampoTech Analytics', { align: 'center' });
+      doc.text(`Tiempo de generación: ${reportData.metadata.generationTimeMs}ms | Registros: ${reportData.metadata.totalRecords}`, { align: 'center' });
+
+      doc.end();
+    } catch (error) {
+      reject(error);
+    }
+  });
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderKPIGrid(doc: any, kpis: KPIValue[], margins: { left: number; right: number }, pageWidth: number): void {
+  const colWidth = (pageWidth - margins.left - margins.right) / 2;
+
+  for (let i = 0; i < kpis.length; i += 2) {
+    const kpi1 = kpis[i];
+    const kpi2 = kpis[i + 1];
+    const startY = doc.y;
+
+    // First KPI
+    doc.fillColor('#111827').fontSize(18).text(formatKPIValue(kpi1), margins.left, startY, { width: colWidth - 10 });
+    doc.fillColor('#6b7280').fontSize(9).text(kpi1.name, margins.left, doc.y, { width: colWidth - 10 });
+    if (kpi1.changePercent) {
+      const trendColor = kpi1.trend === 'up' ? '#22c55e' : kpi1.trend === 'down' ? '#ef4444' : '#6b7280';
+      doc.fillColor(trendColor).fontSize(8).text(`${kpi1.changePercent > 0 ? '+' : ''}${kpi1.changePercent.toFixed(1)}%`, { continued: false });
+    }
+
+    // Second KPI (if exists)
+    if (kpi2) {
+      doc.fillColor('#111827').fontSize(18).text(formatKPIValue(kpi2), margins.left + colWidth, startY, { width: colWidth - 10 });
+      doc.fillColor('#6b7280').fontSize(9).text(kpi2.name, margins.left + colWidth, doc.y - 15, { width: colWidth - 10 });
+    }
+
+    doc.moveDown(1.5);
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderTable(doc: any, tableData: TableData, margins: { left: number; right: number }, pageWidth: number): void {
+  if (tableData.rows.length === 0) {
+    doc.fillColor('#6b7280').fontSize(10).text('No hay datos disponibles', { italic: true });
+    return;
+  }
+
+  const tableWidth = pageWidth - margins.left - margins.right;
+  const colWidth = tableWidth / tableData.columns.length;
+
+  // Header row
+  doc.fillColor('#374151').fontSize(9);
+  let headerX = margins.left;
+  for (const col of tableData.columns) {
+    doc.text(col.label, headerX, doc.y, { width: colWidth - 5, continued: false });
+    headerX += colWidth;
+  }
+  doc.moveDown(0.3);
+  doc.strokeColor('#e5e7eb').lineWidth(0.5).moveTo(margins.left, doc.y).lineTo(pageWidth - margins.right, doc.y).stroke();
+  doc.moveDown(0.3);
+
+  // Data rows (max 15 to avoid page overflow)
+  const maxRows = Math.min(tableData.rows.length, 15);
+  for (let i = 0; i < maxRows; i++) {
+    const row = tableData.rows[i];
+    let cellX = margins.left;
+    const rowY = doc.y;
+
+    doc.fillColor('#4b5563').fontSize(8);
+    for (const col of tableData.columns) {
+      const value = formatCellValue(row[col.key], col.type);
+      doc.text(value, cellX, rowY, { width: colWidth - 5, height: 12, ellipsis: true });
+      cellX += colWidth;
+    }
+    doc.moveDown(0.5);
+  }
+
+  if (tableData.rows.length > maxRows) {
+    doc.fillColor('#9ca3af').fontSize(8).text(`... y ${tableData.rows.length - maxRows} filas más`);
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderChartAsTable(doc: any, chartData: ChartData, margins: { left: number; right: number }, pageWidth: number): void {
+  // Render chart data as a table since PDFKit doesn't support native charts
+  const tableWidth = pageWidth - margins.left - margins.right;
+  const colCount = chartData.datasets.length + 1;
+  const colWidth = tableWidth / colCount;
+
+  // Header
+  doc.fillColor('#374151').fontSize(9);
+  doc.text('Período', margins.left, doc.y, { width: colWidth - 5, continued: false });
+  let headerX = margins.left + colWidth;
+  for (const ds of chartData.datasets) {
+    doc.text(ds.label, headerX, doc.y - 12, { width: colWidth - 5, continued: false });
+    headerX += colWidth;
+  }
+  doc.moveDown(0.3);
+  doc.strokeColor('#e5e7eb').lineWidth(0.5).moveTo(margins.left, doc.y).lineTo(pageWidth - margins.right, doc.y).stroke();
+  doc.moveDown(0.3);
+
+  // Data rows (max 10)
+  const maxRows = Math.min(chartData.labels.length, 10);
+  for (let i = 0; i < maxRows; i++) {
+    let cellX = margins.left;
+    const rowY = doc.y;
+
+    doc.fillColor('#4b5563').fontSize(8);
+    doc.text(chartData.labels[i], cellX, rowY, { width: colWidth - 5 });
+    cellX += colWidth;
+
+    for (const ds of chartData.datasets) {
+      doc.text(formatNumber(ds.data[i]), cellX, rowY, { width: colWidth - 5 });
+      cellX += colWidth;
+    }
+    doc.moveDown(0.5);
+  }
+}
+
+/**
+ * Generate PDF using puppeteer (HTML to PDF conversion)
+ */
+async function generateWithPuppeteer(
+  reportData: ReportData,
+  options: PDFExportOptions
+): Promise<Buffer> {
+  const puppeteer = await import('puppeteer').then(m => m.default || m).catch(() => null);
+  if (!puppeteer) {
+    throw new Error('Puppeteer not available');
+  }
+
+  const { pageSize = 'A4', orientation = 'portrait', margins = { top: 50, right: 50, bottom: 50, left: 50 } } = options;
+  const { includeCharts = true, includeTables = true } = options;
+
+  const htmlContent = generateHTMLReport(reportData, buildPDFContent(reportData, { includeCharts, includeTables }));
+
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+
+  try {
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+
+    const pdfBuffer = await page.pdf({
+      format: pageSize,
+      landscape: orientation === 'landscape',
+      margin: {
+        top: `${margins.top}px`,
+        right: `${margins.right}px`,
+        bottom: `${margins.bottom}px`,
+        left: `${margins.left}px`,
+      },
+      printBackground: true,
+    });
+
+    return Buffer.from(pdfBuffer);
+  } finally {
+    await browser.close();
+  }
 }
 
 /**
