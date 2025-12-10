@@ -8,6 +8,13 @@
 
 // Report Generator
 export { generateReport } from './report-generator';
+export type {
+  ReportData,
+  ReportSection,
+  ChartData,
+  TableData,
+  GenerateReportOptions,
+} from './report-generator';
 
 // Exporters
 export { generatePDF } from './exporters/pdf-exporter';
@@ -21,12 +28,22 @@ export {
   updateScheduledReport,
   deleteScheduledReport,
   setReportEnabled,
+  getScheduledReportById,
   getScheduledReports,
   getDueReports,
   executeScheduledReport,
   processScheduledReports,
   calculateNextRunTime,
   getScheduleDescription,
+} from './scheduler/report-scheduler';
+
+// Re-export scheduler types
+export type {
+  ScheduledReport,
+  ReportSchedule,
+  ReportRecipient,
+  ScheduleReportInput,
+  ReportDeliveryResult,
 } from './scheduler/report-scheduler';
 
 // Scheduling

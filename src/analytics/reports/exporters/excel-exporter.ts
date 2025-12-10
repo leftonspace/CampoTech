@@ -3,11 +3,12 @@
  * =====================
  *
  * Phase 10.3: Report Generation Engine
- * Generates Excel reports with multiple sheets.
+ * Generates Excel reports with multiple sheets using xlsx library.
  */
 
 import { ReportData, ReportSection, ChartData, TableData } from '../report-generator';
 import { KPIValue } from '../../analytics.types';
+import { log } from '../../../lib/logging/logger';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -36,7 +37,7 @@ interface ExcelSheet {
 
 /**
  * Generate Excel workbook from report data
- * Returns data in a format compatible with xlsx/exceljs libraries
+ * Uses xlsx library for actual Excel generation with CSV fallback
  */
 export async function generateExcel(
   reportData: ReportData,
@@ -45,7 +46,10 @@ export async function generateExcel(
   const {
     separateSheets = true,
     autoWidth = true,
+    freezeHeaders = true,
   } = options;
+
+  log.info('Generating Excel report', { templateId: reportData.templateId, separateSheets });
 
   const sheets: ExcelSheet[] = [];
 
@@ -65,10 +69,166 @@ export async function generateExcel(
     sheets.push(createCombinedDataSheet(reportData));
   }
 
-  // Convert to CSV format as fallback (actual implementation would use xlsx library)
-  const workbook = createWorkbookJSON(sheets);
+  // Try xlsx library first
+  try {
+    const xlsxBuffer = await generateWithXLSX(sheets, { autoWidth, freezeHeaders });
+    log.info('Excel generated with xlsx library', { size: xlsxBuffer.length });
+    return xlsxBuffer;
+  } catch (xlsxError) {
+    log.warn('xlsx generation failed, trying exceljs fallback', { error: xlsxError });
+  }
 
-  return Buffer.from(JSON.stringify(workbook, null, 2), 'utf-8');
+  // Try exceljs as fallback
+  try {
+    const excelBuffer = await generateWithExcelJS(sheets, reportData, { autoWidth, freezeHeaders });
+    log.info('Excel generated with exceljs', { size: excelBuffer.length });
+    return excelBuffer;
+  } catch (exceljsError) {
+    log.warn('exceljs generation failed, using CSV fallback', { error: exceljsError });
+  }
+
+  // Fallback to CSV format
+  const csvBuffer = generateCSVFallback(sheets);
+  log.info('Returning CSV as Excel fallback', { size: csvBuffer.length });
+  return csvBuffer;
+}
+
+/**
+ * Generate Excel using xlsx (SheetJS) library
+ */
+async function generateWithXLSX(
+  sheets: ExcelSheet[],
+  options: { autoWidth: boolean; freezeHeaders: boolean }
+): Promise<Buffer> {
+  const XLSX = await import('xlsx').then(m => m.default || m).catch(() => null);
+  if (!XLSX) {
+    throw new Error('xlsx library not available');
+  }
+
+  const workbook = XLSX.utils.book_new();
+
+  for (const sheet of sheets) {
+    // Convert data to array of arrays with headers
+    const headers = sheet.columns.map(c => c.header);
+    const rows = sheet.data.map(row => sheet.columns.map(c => row[c.key]));
+    const sheetData = [headers, ...rows];
+
+    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+    // Set column widths
+    if (options.autoWidth) {
+      const colWidths = sheet.columns.map((col, idx) => {
+        let maxWidth = col.header.length;
+        for (const row of sheet.data) {
+          const cellValue = String(row[col.key] || '');
+          maxWidth = Math.max(maxWidth, cellValue.length);
+        }
+        return { wch: Math.min(maxWidth + 2, 50) }; // Cap at 50 chars
+      });
+      worksheet['!cols'] = colWidths;
+    }
+
+    // Freeze first row (header)
+    if (options.freezeHeaders) {
+      worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
+    }
+
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheet.name);
+  }
+
+  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+  return Buffer.from(buffer);
+}
+
+/**
+ * Generate Excel using exceljs library
+ */
+async function generateWithExcelJS(
+  sheets: ExcelSheet[],
+  reportData: ReportData,
+  options: { autoWidth: boolean; freezeHeaders: boolean }
+): Promise<Buffer> {
+  const ExcelJS = await import('exceljs').then(m => m.default || m).catch(() => null);
+  if (!ExcelJS) {
+    throw new Error('exceljs library not available');
+  }
+
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = 'CampoTech Analytics';
+  workbook.created = new Date();
+  workbook.modified = new Date();
+  workbook.lastModifiedBy = 'CampoTech Report Engine';
+
+  for (const sheet of sheets) {
+    const worksheet = workbook.addWorksheet(sheet.name);
+
+    // Define columns
+    worksheet.columns = sheet.columns.map(col => ({
+      header: col.header,
+      key: col.key,
+      width: col.width || 15,
+    }));
+
+    // Add rows
+    for (const row of sheet.data) {
+      worksheet.addRow(row);
+    }
+
+    // Style header row
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFF3F4F6' },
+    };
+
+    // Freeze header row
+    if (options.freezeHeaders) {
+      worksheet.views = [{ state: 'frozen', ySplit: 1 }];
+    }
+
+    // Auto-fit columns
+    if (options.autoWidth) {
+      worksheet.columns.forEach(column => {
+        if (column.eachCell) {
+          let maxLength = 0;
+          column.eachCell({ includeEmpty: true }, cell => {
+            const cellLength = cell.value ? String(cell.value).length : 10;
+            if (cellLength > maxLength) {
+              maxLength = cellLength;
+            }
+          });
+          column.width = Math.min(maxLength + 2, 50);
+        }
+      });
+    }
+  }
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+
+/**
+ * Generate CSV as fallback (compatible with Excel import)
+ */
+function generateCSVFallback(sheets: ExcelSheet[]): Buffer {
+  const csvSheets = sheets.map(sheet => {
+    const headers = sheet.columns.map(c => escapeCSV(c.header)).join(',');
+    const rows = sheet.data.map(row =>
+      sheet.columns.map(c => escapeCSV(formatCSVValue(row[c.key]))).join(',')
+    );
+    return `=== ${sheet.name} ===\n${headers}\n${rows.join('\n')}`;
+  });
+
+  return Buffer.from(csvSheets.join('\n\n'), 'utf-8');
+}
+
+function escapeCSV(value: string): string {
+  if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
 }
 
 /**

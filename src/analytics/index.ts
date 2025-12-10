@@ -282,11 +282,23 @@ export {
 // REPORTS - Phase 10.3
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// Report Generator
 export { generateReport } from './reports/report-generator';
+export type {
+  ReportData,
+  ReportSection,
+  ChartData,
+  TableData,
+  GenerateReportOptions,
+} from './reports/report-generator';
+
+// Exporters
 export { generatePDF } from './reports/exporters/pdf-exporter';
 export { generateExcel } from './reports/exporters/excel-exporter';
 export { generateCSV } from './reports/exporters/csv-exporter';
+export { sendReportEmail, configureEmailSender } from './reports/exporters/email-sender';
 
+// Templates
 export {
   REPORT_TEMPLATES,
   REPORT_CATEGORIES,
@@ -294,18 +306,73 @@ export {
   getTemplatesByCategory,
   getTemplateById,
   getDateRangeFromPreset,
+  getGranularityOptions,
 } from './reports/templates/report-templates';
 
+export {
+  TAX_REPORT_TEMPLATES,
+  getTaxReportTemplates,
+  getTaxReportTemplateById,
+  formatCUIT,
+  validateCUIT,
+  getFiscalPeriod,
+  formatTaxAmount,
+} from './reports/templates/tax-report.template';
+
+// Scheduler
 export {
   scheduleReport,
   updateScheduledReport,
   deleteScheduledReport,
   setReportEnabled,
+  getScheduledReportById,
   getScheduledReports,
   getDueReports,
   executeScheduledReport,
   processScheduledReports,
+  calculateNextRunTime,
+  getScheduleDescription,
 } from './reports/scheduler/report-scheduler';
+
+// Scheduling
+export {
+  initializeCronJobs,
+  registerCronJob,
+  startCronScheduler,
+  stopCronScheduler,
+  runJob,
+  setJobEnabled,
+  getRegisteredJobs,
+  getJobStatus,
+  calculateNextRun,
+  isValidCronExpression,
+  getCronDescription,
+  CRON_JOBS,
+} from './reports/scheduling/cron-jobs';
+
+// Delivery Queue
+export {
+  queueDelivery,
+  queueEmailDelivery,
+  queueWebhookDelivery,
+  processDeliveryQueue,
+  getQueueStats,
+  retryJob as retryDeliveryJob,
+  cancelJob as cancelDeliveryJob,
+  cleanupOldJobs as cleanupOldDeliveryJobs,
+} from './reports/scheduling/delivery-queue';
+
+// Report History
+export {
+  saveReportExecution,
+  updateExecutionStatus,
+  getReportExecution,
+  getReportHistory,
+  getLatestExecution,
+  getExecutionStats,
+  cleanupOldExecutions,
+  cleanupOldReportHistory,
+} from './reports/history/report-history';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PREDICTIONS - Phase 10.5
