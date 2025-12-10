@@ -11,17 +11,18 @@
 
 | Metric | Value |
 |--------|-------|
-| **Overall Implementation** | **17%** |
-| **Overall Integration** | **17%** |
+| **Overall Implementation** | **33%** |
+| **Overall Integration** | **33%** |
 | **Status** | 🟡 **IN PROGRESS** |
 | **P0 Critical Issues** | 0 |
 | **P1 High Priority Issues** | 0 |
 | **P2 Medium Priority Issues** | 0 |
-| **Missing Files** | 0 (for 11.1) |
-| **Total Files Implemented** | 1 (schema) |
+| **Missing Files** | 0 (for 11.1, 11.2) |
+| **Total Files Implemented** | 14 |
 
 ### Completion Timeline
 - **2025-12-10:** Phase 11.1 Database Schema Extensions completed
+- **2025-12-10:** Phase 11.2 Location Service completed
 
 ---
 
@@ -30,7 +31,7 @@
 | Sub-Phase | Name | Implementation | Integration | Status |
 |-----------|------|----------------|-------------|--------|
 | 11.1 | Database Schema Extensions | **100%** | **100%** | ✅ Complete |
-| 11.2 | Location Service | **0%** | **0%** | ⏳ Pending |
+| 11.2 | Location Service | **100%** | **100%** | ✅ Complete |
 | 11.3 | Multi-Location Billing & Invoicing | **0%** | **0%** | ⏳ Pending |
 | 11.4 | Team & Resource Management | **0%** | **0%** | ⏳ Pending |
 | 11.5 | Multi-Location UI | **0%** | **0%** | ⏳ Pending |
@@ -80,203 +81,100 @@ Actual Implementation: /apps/web/prisma/schema.prisma
 | 11.1.5 | Implement per-location AFIP punto de venta | ✅ | `LocationAfipConfig` with puntoDeVenta, invoice numbers |
 | 11.1.6 | Update RLS policies for location-based access | ⚠️ | Handled at app level (Prisma filters), not DB RLS |
 
-### Models Created
-
-#### Location Model
-```prisma
-model Location {
-  id             String   @id @default(cuid())
-  organizationId String
-  code           String   // Short code (e.g., "CABA", "GBA-N")
-  name           String
-  type           LocationType @default(BRANCH)
-  address        Json     // { street, number, city, province, postalCode, country }
-  coordinates    Json?    // { lat, lng }
-  timezone       String   @default("America/Argentina/Buenos_Aires")
-  phone          String?
-  email          String?
-  managerId      String?
-  isHeadquarters Boolean  @default(false)
-  isActive       Boolean  @default(true)
-  coverageRadius Int?     // km
-  coverageArea   Json?    // GeoJSON polygon
-
-  @@unique([organizationId, code])
-  @@map("locations")
-}
-```
-
-#### LocationType Enum
-```prisma
-enum LocationType {
-  HEADQUARTERS  // Casa central
-  BRANCH        // Sucursal
-  WAREHOUSE     // Depósito
-  SERVICE_POINT // Punto de servicio
-}
-```
-
-#### Zone Model
-```prisma
-model Zone {
-  id          String   @id @default(cuid())
-  locationId  String
-  code        String   // e.g., "Z1", "NORTE"
-  name        String
-  description String?
-  boundary    Json?    // GeoJSON polygon
-  color       String?  // Hex color for maps
-  priority    Int      @default(0)
-  isActive    Boolean  @default(true)
-
-  @@unique([locationId, code])
-  @@map("zones")
-}
-```
-
-#### LocationSettings Model
-```prisma
-model LocationSettings {
-  id                   String   @id @default(cuid())
-  locationId           String   @unique
-  operatingHours       Json     @default("{}")
-  holidays             Json     @default("[]")
-  serviceRadius        Int?
-  maxJobsPerDay        Int?
-  defaultJobDuration   Int?
-  allowEmergencyJobs   Boolean  @default(true)
-  emergencyFeePercent  Decimal?
-  pricingMultiplier    Decimal  @default(1.0)
-  travelFeePerKm       Decimal?
-  minimumTravelFee     Decimal?
-  notifyOnNewJob       Boolean  @default(true)
-  notifyOnJobComplete  Boolean  @default(true)
-  notificationEmails   String[] @default([])
-  whatsappNumber       String?
-  whatsappBusinessId   String?
-
-  @@map("location_settings")
-}
-```
-
-#### LocationAfipConfig Model
-```prisma
-model LocationAfipConfig {
-  id                    String    @id @default(cuid())
-  locationId            String    @unique
-  puntoDeVenta          Int       // AFIP punto de venta number
-  tiposPuntoDeVenta     String    @default("CAJA")
-  cuit                  String?
-  razonSocial           String?
-  domicilioFiscal       Json?
-  condicionIva          String    @default("RESPONSABLE_INSCRIPTO")
-  facturaALastNumber    Int       @default(0)
-  facturaBLastNumber    Int       @default(0)
-  facturaCLastNumber    Int       @default(0)
-  notaCreditoALastNumber Int      @default(0)
-  notaCreditoBLastNumber Int      @default(0)
-  notaCreditoCLastNumber Int      @default(0)
-  certificatePath       String?
-  certificateExpiry     DateTime?
-  privateKeyPath        String?
-  wsaaToken             String?
-  wsaaTokenExpiry       DateTime?
-  isActive              Boolean   @default(true)
-  lastSyncAt            DateTime?
-
-  @@map("location_afip_configs")
-}
-```
-
-#### InterLocationTransfer Model
-```prisma
-model InterLocationTransfer {
-  id              String         @id @default(cuid())
-  organizationId  String
-  fromLocationId  String
-  toLocationId    String
-  transferType    TransferType
-  referenceId     String?
-  reason          String?
-  notes           String?
-  amount          Decimal?
-  status          TransferStatus @default(PENDING)
-  requestedById   String
-  approvedById    String?
-  requestedAt     DateTime       @default(now())
-  approvedAt      DateTime?
-  completedAt     DateTime?
-
-  @@map("inter_location_transfers")
-}
-```
-
-#### Transfer Enums
-```prisma
-enum TransferType {
-  JOB_ASSIGNMENT
-  TECHNICIAN_LOAN
-  CUSTOMER_REFERRAL
-  RESOURCE_SHARE
-  FINANCIAL
-}
-
-enum TransferStatus {
-  PENDING
-  APPROVED
-  IN_PROGRESS
-  COMPLETED
-  REJECTED
-  CANCELLED
-}
-```
-
-### Updated Existing Models
-
-| Model | Fields Added | Relations Added |
-|-------|--------------|-----------------|
-| Organization | - | `locations Location[]` |
-| User | `homeLocationId String?` | `homeLocation Location?`, `managedLocations Location[]`, `requestedTransfers`, `approvedTransfers` |
-| Customer | `locationId String?`, `zoneId String?` | `location Location?`, `zone Zone?` |
-| Job | `locationId String?`, `zoneId String?` | `location Location?`, `zone Zone?` |
-| Invoice | `locationId String?` | `location Location?` |
-
-### Database Indexes Added
-
-| Model | Index Fields |
-|-------|--------------|
-| Location | `organizationId`, `isActive`, `type` |
-| Zone | `locationId`, `isActive` |
-| InterLocationTransfer | `organizationId`, `fromLocationId`, `toLocationId`, `status`, `transferType` |
-| Job | `locationId`, `zoneId` |
-| Invoice | `locationId` |
-| Customer | `locationId`, `zoneId` |
-| User | `homeLocationId` |
-
 ---
 
-## 11.2 Location Service (0% Implementation / 0% Integration) ⏳ PENDING
+## 11.2 Location Service (100% Implementation / 100% Integration) ✅ COMPLETED
 
-### Files Required
+> **Completion Date:** 2025-12-10
+
+### Specification Reference
 ```
-/src/modules/locations/
-├── location.service.ts
-├── location.repository.ts
-├── location.controller.ts
-├── location.routes.ts
-├── location.validation.ts
-├── zone-manager.ts
-├── coverage-calculator.ts
-└── location.types.ts
+Original Plan: /src/modules/locations/
+├── location.service.ts      ✅
+├── location.repository.ts   ✅ (merged into service with Prisma)
+├── location.controller.ts   ✅ (implemented as Next.js API routes)
+├── location.routes.ts       ✅ (implemented as Next.js API routes)
+├── location.validation.ts   ✅
+├── zone-manager.ts          ✅
+├── coverage-calculator.ts   ✅
+└── location.types.ts        ✅
+
+API Routes Created:
+├── /api/locations/route.ts              ✅ (GET, POST)
+├── /api/locations/[id]/route.ts         ✅ (GET, PUT, DELETE)
+├── /api/locations/[id]/settings/route.ts ✅ (GET, PUT)
+├── /api/locations/[id]/zones/route.ts   ✅ (GET, POST)
+├── /api/locations/[id]/afip/route.ts    ✅ (GET, POST, PUT)
+├── /api/locations/coverage/route.ts     ✅ (GET, POST)
+└── /api/zones/[id]/route.ts             ✅ (GET, PUT, DELETE)
 ```
 
-### Tasks
-- [ ] 11.2.1 Implement location CRUD operations
-- [ ] 11.2.2 Create zone management (service areas)
-- [ ] 11.2.3 Build coverage area calculator (polygon/radius)
-- [ ] 11.2.4 Implement location-based pricing variations
-- [ ] 11.2.5 Create automatic job assignment by location/zone
-- [ ] 11.2.6 Build API endpoints for location management
+### Task Checklist
+
+| Task | Description | Status | Notes |
+|------|-------------|--------|-------|
+| 11.2.1 | Implement location CRUD operations | ✅ | Full CRUD in LocationService |
+| 11.2.2 | Create zone management (service areas) | ✅ | ZoneManager with CRUD and geo functions |
+| 11.2.3 | Build coverage area calculator (polygon/radius) | ✅ | CoverageCalculator with Haversine formula |
+| 11.2.4 | Implement location-based pricing variations | ✅ | `calculateLocationPrice` with multiplier & travel fee |
+| 11.2.5 | Create automatic job assignment by location/zone | ✅ | `getJobAssignmentSuggestions` with scoring |
+| 11.2.6 | Build API endpoints for location management | ✅ | 7 API route files created |
+
+### Files Created
+
+| File | Location | Lines | Purpose |
+|------|----------|-------|---------|
+| location.types.ts | `src/modules/locations/` | ~400 | TypeScript interfaces and DTOs |
+| location.validation.ts | `src/modules/locations/` | ~280 | Zod validation schemas |
+| location.service.ts | `src/modules/locations/` | ~650 | Business logic and CRUD |
+| zone-manager.ts | `src/modules/locations/` | ~350 | Zone CRUD and geometry |
+| coverage-calculator.ts | `src/modules/locations/` | ~400 | Geographic calculations |
+| index.ts | `src/modules/locations/` | ~15 | Module exports |
+| route.ts | `apps/web/app/api/locations/` | ~100 | List/Create locations |
+| route.ts | `apps/web/app/api/locations/[id]/` | ~130 | Get/Update/Delete location |
+| route.ts | `apps/web/app/api/locations/[id]/settings/` | ~90 | Location settings |
+| route.ts | `apps/web/app/api/locations/[id]/zones/` | ~100 | Zone management |
+| route.ts | `apps/web/app/api/locations/[id]/afip/` | ~140 | AFIP configuration |
+| route.ts | `apps/web/app/api/locations/coverage/` | ~100 | Coverage check |
+| route.ts | `apps/web/app/api/zones/[id]/` | ~120 | Individual zone CRUD |
+
+### Key Features Implemented
+
+#### LocationService
+- **CRUD Operations**: Create, read, update, delete locations with validation
+- **Settings Management**: Operating hours, pricing, notifications per location
+- **AFIP Configuration**: Per-location punto de venta for Argentina tax compliance
+- **Coverage Check**: Check if coordinates are within service area
+- **Job Assignment**: Suggest best location/zone for customer location
+- **Price Calculation**: Apply location-based pricing multipliers and travel fees
+- **Capacity Management**: Track jobs per day and available slots
+
+#### ZoneManager
+- **Zone CRUD**: Create, update, delete service zones
+- **Polygon Validation**: Validate GeoJSON polygon structures
+- **Point-in-Polygon**: Ray casting algorithm for containment check
+- **Priority Management**: Zone priority for assignment ranking
+- **Bulk Updates**: Update multiple zone priorities at once
+
+#### CoverageCalculator
+- **Distance Calculation**: Haversine formula for accurate earth distances
+- **Travel Time Estimation**: Based on average speed
+- **Radius Coverage**: Check if point is within circular radius
+- **Polygon Coverage**: Check if point is inside GeoJSON polygon
+- **Job Assignment Scoring**: Multi-factor ranking (distance, availability, capacity, priority)
+- **Polygon Utilities**: Bounding box, centroid, area calculation
+
+### API Endpoints Summary
+
+| Endpoint | Methods | Auth | Description |
+|----------|---------|------|-------------|
+| `/api/locations` | GET, POST | Required | List/create locations |
+| `/api/locations/[id]` | GET, PUT, DELETE | Required | Location CRUD |
+| `/api/locations/[id]/settings` | GET, PUT | Required | Location settings |
+| `/api/locations/[id]/zones` | GET, POST | Required | Zones for location |
+| `/api/locations/[id]/afip` | GET, POST, PUT | Owner only | AFIP config |
+| `/api/locations/coverage` | GET, POST | Required | Coverage check |
+| `/api/zones/[id]` | GET, PUT, DELETE | Required | Individual zone |
 
 ---
 
@@ -369,26 +267,33 @@ enum TransferStatus {
 
 ---
 
-## Appendix A: Schema File Tree
+## Appendix A: File Tree
 
 ```
-apps/web/prisma/schema.prisma
-├── Organizations & Users
-│   ├── Organization (updated: locations relation)
-│   └── User (updated: homeLocationId, location relations)
-├── Customers (updated: locationId, zoneId)
-├── Jobs (updated: locationId, zoneId)
-├── Invoices & Payments (updated: locationId)
-├── Phase 11: Multi-Location Support (NEW)
-│   ├── Location model
-│   ├── LocationType enum
-│   ├── Zone model
-│   ├── LocationSettings model
-│   ├── LocationAfipConfig model
-│   ├── InterLocationTransfer model
-│   ├── TransferType enum
-│   └── TransferStatus enum
-└── Other existing models...
+src/modules/locations/
+├── index.ts                    ✅ Module exports
+├── location.types.ts           ✅ TypeScript interfaces
+├── location.validation.ts      ✅ Zod schemas
+├── location.service.ts         ✅ Business logic
+├── zone-manager.ts             ✅ Zone management
+└── coverage-calculator.ts      ✅ Geographic calculations
+
+apps/web/app/api/
+├── locations/
+│   ├── route.ts                ✅ GET/POST locations
+│   ├── coverage/
+│   │   └── route.ts            ✅ Coverage check
+│   └── [id]/
+│       ├── route.ts            ✅ GET/PUT/DELETE location
+│       ├── settings/
+│       │   └── route.ts        ✅ Location settings
+│       ├── zones/
+│       │   └── route.ts        ✅ Zone list/create
+│       └── afip/
+│           └── route.ts        ✅ AFIP config
+└── zones/
+    └── [id]/
+        └── route.ts            ✅ Zone CRUD
 ```
 
 ---
@@ -421,7 +326,9 @@ npx prisma migrate dev --name phase-11-multi-location  # With migration
 | New Enums | 3 |
 | Updated Models | 5 |
 | New Indexes | 11 |
-| API Routes Created | 0 |
+| Service Files | 6 |
+| API Routes Created | 7 |
 | UI Pages Created | 0 |
+| Total Lines of Code | ~2,500 |
 
-**Phase 11.1 is 100% complete. Proceed to Phase 11.2 for Location Service implementation.**
+**Phase 11.1 and 11.2 are 100% complete. Proceed to Phase 11.3 for Multi-Location Billing.**
