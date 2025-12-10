@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { scheduleJobReminders } from '@/../../src/workers/notifications/reminder-scheduler';
 import { sendNotification } from '@/../../src/modules/notifications/notification.service';
+import { collectJobCreated } from '@/src/analytics';
 
 export async function GET(request: NextRequest) {
   try {
@@ -112,6 +113,16 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Collect analytics event (non-blocking)
+    collectJobCreated(session.organizationId, {
+      jobId: job.id,
+      customerId: job.customerId,
+      technicianId: job.technicianId || undefined,
+      serviceType: job.serviceType || 'other',
+      estimatedAmount: 0, // Not available at creation
+      scheduledAt: job.scheduledDate || undefined,
+    }).catch((err) => console.error('Analytics event error:', err));
 
     // Send notification to assigned technician
     if (job.technicianId) {
