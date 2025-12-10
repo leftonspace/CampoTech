@@ -126,3 +126,45 @@ export {
   getWarehouseCountHistory,
   getProductsNeedingCount,
 } from './inventory-count.service';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REORDER POINT CALCULATOR (Phase 12.3)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export {
+  calculateReorderPoint,
+  getProductsAtReorderPoint,
+  generateReorderSuggestions,
+  autoCreatePurchaseOrders,
+  optimizeReorderSettings,
+  getReorderDashboard,
+} from './reorder-point.calculator';
+
+export type {
+  ReorderPointCalculation,
+  ReorderSuggestion,
+  ReorderSettings,
+} from './reorder-point.calculator';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FIFO COST CALCULATOR (Phase 12.3)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export {
+  addInventoryLayer,
+  getInventoryLayers,
+  calculateFIFOCost,
+  calculateConsumptionCost,
+  consumeInventoryFIFO,
+  getProductValuation,
+  getTotalInventoryValuation,
+  getInventoryAgingAnalysis,
+  calculateWeightedAverageCost,
+} from './fifo-calculator';
+
+export type {
+  InventoryLayer,
+  FIFOCostResult,
+  CostingResult,
+  StockValuation,
+} from './fifo-calculator';
