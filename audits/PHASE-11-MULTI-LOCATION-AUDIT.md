@@ -11,19 +11,20 @@
 
 | Metric | Value |
 |--------|-------|
-| **Overall Implementation** | **50%** |
-| **Overall Integration** | **50%** |
+| **Overall Implementation** | **67%** |
+| **Overall Integration** | **67%** |
 | **Status** | 🟡 **IN PROGRESS** |
 | **P0 Critical Issues** | 0 |
 | **P1 High Priority Issues** | 0 |
 | **P2 Medium Priority Issues** | 0 |
-| **Missing Files** | 0 (for 11.1, 11.2, 11.3) |
-| **Total Files Implemented** | 22 |
+| **Missing Files** | 0 (for 11.1, 11.2, 11.3, 11.4) |
+| **Total Files Implemented** | 30 |
 
 ### Completion Timeline
 - **2025-12-10:** Phase 11.1 Database Schema Extensions completed
 - **2025-12-10:** Phase 11.2 Location Service completed
 - **2025-12-10:** Phase 11.3 Multi-Location Billing & Invoicing completed
+- **2025-12-10:** Phase 11.4 Team & Resource Management completed
 
 ---
 
@@ -34,7 +35,7 @@
 | 11.1 | Database Schema Extensions | **100%** | **100%** | ✅ Complete |
 | 11.2 | Location Service | **100%** | **100%** | ✅ Complete |
 | 11.3 | Multi-Location Billing & Invoicing | **100%** | **100%** | ✅ Complete |
-| 11.4 | Team & Resource Management | **0%** | **0%** | ⏳ Pending |
+| 11.4 | Team & Resource Management | **100%** | **100%** | ✅ Complete |
 | 11.5 | Multi-Location UI | **0%** | **0%** | ⏳ Pending |
 | 11.6 | Location Analytics | **0%** | **0%** | ⏳ Pending |
 
@@ -263,23 +264,88 @@ API Routes Created:
 
 ---
 
-## 11.4 Team & Resource Management (0% Implementation / 0% Integration) ⏳ PENDING
+## 11.4 Team & Resource Management (100% Implementation / 100% Integration) ✅ COMPLETED
 
-### Files Required
+> **Completion Date:** 2025-12-10
+
+### Specification Reference
 ```
-/src/modules/locations/resources/
-├── location-assignment.service.ts
-├── resource-sharing.ts
-├── capacity-manager.ts
-└── inter-location-dispatch.ts
+Original Plan: /src/modules/locations/resources/
+├── location-assignment.service.ts  ✅
+├── resource-sharing.ts             ✅
+├── capacity-manager.ts             ✅
+├── inter-location-dispatch.ts      ✅
+└── index.ts                        ✅
+
+API Routes Created:
+├── /api/locations/team/route.ts     ✅ (GET, POST, PUT, DELETE)
+├── /api/locations/capacity/route.ts ✅ (GET, POST)
+└── /api/locations/dispatch/route.ts ✅ (GET, POST, PUT)
 ```
 
-### Tasks
-- [ ] 11.4.1 Implement technician home location assignment
-- [ ] 11.4.2 Create resource sharing between locations
-- [ ] 11.4.3 Build capacity planning per location
-- [ ] 11.4.4 Implement cross-location job dispatch
-- [ ] 11.4.5 Create travel time estimation between locations
+### Task Checklist
+
+| Task | Description | Status | Notes |
+|------|-------------|--------|-------|
+| 11.4.1 | Implement technician home location assignment | ✅ | `LocationAssignmentService` with assign/unassign |
+| 11.4.2 | Create resource sharing between locations | ✅ | `ResourceSharingService` with approval workflow |
+| 11.4.3 | Build capacity planning per location | ✅ | `CapacityManager` with forecasting |
+| 11.4.4 | Implement cross-location job dispatch | ✅ | `InterLocationDispatchService` with optimization |
+| 11.4.5 | Create travel time estimation between locations | ✅ | Travel time matrix using Haversine formula |
+| 11.4.6 | Build API endpoints for team resources | ✅ | 3 API route files with full CRUD |
+
+### Files Created
+
+| File | Location | Lines | Purpose |
+|------|----------|-------|---------|
+| location-assignment.service.ts | `src/modules/locations/resources/` | ~500 | Technician home location management |
+| resource-sharing.ts | `src/modules/locations/resources/` | ~550 | Inter-location resource sharing |
+| capacity-manager.ts | `src/modules/locations/resources/` | ~500 | Location capacity planning |
+| inter-location-dispatch.ts | `src/modules/locations/resources/` | ~600 | Cross-location job dispatch |
+| index.ts | `src/modules/locations/resources/` | ~50 | Module exports |
+| route.ts | `apps/web/app/api/locations/team/` | ~200 | Team management API |
+| route.ts | `apps/web/app/api/locations/capacity/` | ~180 | Capacity planning API |
+| route.ts | `apps/web/app/api/locations/dispatch/` | ~220 | Dispatch management API |
+
+### Key Features Implemented
+
+#### LocationAssignmentService
+- **Technician Assignment**: Assign/unassign technicians to home locations
+- **Team Views**: Get location teams and organization-wide assignments
+- **Bulk Operations**: Bulk assign multiple technicians at once
+- **Assignment Recommendations**: AI-powered suggestions for unassigned technicians
+- **Team Balance Report**: Workload analysis across locations
+
+#### ResourceSharingService
+- **Sharing Workflow**: Request → Approve → Complete flow for resource loans
+- **Resource Types**: TECHNICIAN, EQUIPMENT, VEHICLE, INVENTORY
+- **Availability Tracking**: Track where resources currently are
+- **Sharing Metrics**: Reports on inter-location sharing patterns
+- **Location Summary**: Resource counts (own, borrowed, lent, available)
+
+#### CapacityManager
+- **Daily Capacity**: Track max jobs, scheduled, and available slots
+- **Time Slot Management**: Granular capacity per time window
+- **Capacity Forecasting**: 14-day forecast with utilization predictions
+- **Bottleneck Detection**: Identify over-capacity and skill gaps
+- **Workload Distribution**: Analyze job distribution across locations
+- **Slot Finder**: Find best available slot for new jobs
+
+#### InterLocationDispatchService
+- **Candidate Finding**: Score technicians across all locations for a job
+- **Dispatch Recommendations**: AI-powered best-match suggestions
+- **Cross-Location Dispatch**: Create and track inter-location job assignments
+- **Travel Time Matrix**: Distance and time between all location pairs
+- **Availability Windows**: Track technician free slots across date range
+- **Dispatch Optimization**: Suggest reassignments to reduce travel
+
+### API Endpoints Summary
+
+| Endpoint | Methods | Auth | Description |
+|----------|---------|------|-------------|
+| `/api/locations/team` | GET, POST, PUT, DELETE | Required | Team assignment management |
+| `/api/locations/capacity` | GET, POST | Required | Capacity planning and slot checking |
+| `/api/locations/dispatch` | GET, POST, PUT | Required | Cross-location dispatch management |
 
 ---
 
@@ -342,18 +408,30 @@ src/modules/locations/
 ├── location.service.ts         ✅ Business logic
 ├── zone-manager.ts             ✅ Zone management
 ├── coverage-calculator.ts      ✅ Geographic calculations
-└── billing/
-    ├── index.ts                ✅ Billing exports
-    ├── punto-venta-manager.ts  ✅ AFIP punto de venta
-    ├── location-invoice-router.ts ✅ Invoice routing
-    ├── consolidated-billing.ts ✅ Multi-location billing
-    └── inter-location-charges.ts ✅ Transfer charges
+├── billing/
+│   ├── index.ts                ✅ Billing exports
+│   ├── punto-venta-manager.ts  ✅ AFIP punto de venta
+│   ├── location-invoice-router.ts ✅ Invoice routing
+│   ├── consolidated-billing.ts ✅ Multi-location billing
+│   └── inter-location-charges.ts ✅ Transfer charges
+└── resources/
+    ├── index.ts                ✅ Resources exports
+    ├── location-assignment.service.ts ✅ Technician assignment
+    ├── resource-sharing.ts     ✅ Inter-location sharing
+    ├── capacity-manager.ts     ✅ Capacity planning
+    └── inter-location-dispatch.ts ✅ Cross-location dispatch
 
 apps/web/app/api/
 ├── locations/
 │   ├── route.ts                ✅ GET/POST locations
 │   ├── coverage/
 │   │   └── route.ts            ✅ Coverage check
+│   ├── team/
+│   │   └── route.ts            ✅ Team management
+│   ├── capacity/
+│   │   └── route.ts            ✅ Capacity planning
+│   ├── dispatch/
+│   │   └── route.ts            ✅ Cross-location dispatch
 │   └── [id]/
 │       ├── route.ts            ✅ GET/PUT/DELETE location
 │       ├── settings/
@@ -404,9 +482,9 @@ npx prisma migrate dev --name phase-11-multi-location  # With migration
 | New Enums | 3 |
 | Updated Models | 5 |
 | New Indexes | 11 |
-| Service Files | 11 |
-| API Routes Created | 10 |
+| Service Files | 16 |
+| API Routes Created | 13 |
 | UI Pages Created | 0 |
-| Total Lines of Code | ~4,500 |
+| Total Lines of Code | ~7,000 |
 
-**Phase 11.1, 11.2, and 11.3 are 100% complete. Proceed to Phase 11.4 for Team & Resource Management.**
+**Phase 11.1, 11.2, 11.3, and 11.4 are 100% complete. Proceed to Phase 11.5 for Multi-Location UI.**
