@@ -55,6 +55,46 @@ export {
   createWhiteLabelAdminRoutes,
 } from './whitelabel.routes';
 
+// Theme Generator
+export {
+  generateTheme,
+  generateDarkTheme,
+  generateCSSVariables,
+  generateTailwindTheme,
+  getBrandingConfig,
+  saveBrandingConfig,
+  generateOrganizationThemeCSS,
+  hexToHSL,
+  hslToHex,
+  adjustLightness,
+  getComplementaryColor,
+  isLightColor,
+} from './theme-generator';
+
+export type {
+  ThemeColors,
+  ThemeTypography,
+  ThemeSpacing,
+  ThemeConfig,
+  BrandingConfig,
+} from './theme-generator';
+
+// Email Templates
+export {
+  getEmailTemplate,
+  saveEmailTemplate,
+  resetEmailTemplate,
+  renderEmailTemplate,
+  getAllEmailTemplates,
+} from './email-templates';
+
+export type {
+  EmailTemplateType,
+  EmailTemplate,
+  EmailTemplateInput,
+  RenderContext,
+} from './email-templates';
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // INITIALIZATION HELPER
 // ═══════════════════════════════════════════════════════════════════════════════

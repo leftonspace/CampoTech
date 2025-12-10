@@ -63,3 +63,23 @@ export {
   createTrackingRoutes,
   createTechnicianTrackingRoutes,
 } from './tracking.routes';
+
+// Notification Preferences
+export {
+  getNotificationPreferences,
+  updateNotificationPreferences,
+  updateSinglePreference,
+  registerPushToken,
+  unregisterPushToken,
+  shouldNotify,
+  getNotifiableCustomers,
+  setWhatsAppOptIn,
+  getDefaultPreferences,
+} from './notification-preferences';
+
+export type {
+  NotificationChannel,
+  NotificationEventType,
+  NotificationPreference,
+  CustomerNotificationPreferences,
+} from './notification-preferences';
