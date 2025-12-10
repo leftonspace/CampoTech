@@ -8,9 +8,9 @@ import {
   useMaterial,
   returnMaterial,
   getJobMaterialSummary,
-  generateJobEstimate,
-  getMaterialUsageReport,
-  getJobProfitability,
+  getMaterialEstimates,
+  generateMaterialUsageReport,
+  getJobProfitabilityReport,
 } from '@/src/modules/inventory';
 
 /**
@@ -45,15 +45,16 @@ export async function GET(request: NextRequest) {
     }
 
     // Generate job estimate
-    if (view === 'estimate' && jobId) {
+    if (view === 'estimate') {
       const serviceType = searchParams.get('serviceType') || 'general';
-      const estimate = await generateJobEstimate(session.organizationId, jobId, serviceType);
+      const warehouseId = searchParams.get('warehouseId') || undefined;
+      const estimate = await getMaterialEstimates(session.organizationId, serviceType, warehouseId);
       return NextResponse.json({ success: true, data: estimate });
     }
 
     // Job profitability
     if (view === 'profitability' && jobId) {
-      const profitability = await getJobProfitability(session.organizationId, jobId);
+      const profitability = await getJobProfitabilityReport(session.organizationId, jobId);
       return NextResponse.json({ success: true, data: profitability });
     }
 
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
     if (view === 'usage-report') {
       const dateFrom = new Date(searchParams.get('dateFrom') || Date.now() - 30 * 24 * 60 * 60 * 1000);
       const dateTo = new Date(searchParams.get('dateTo') || Date.now());
-      const report = await getMaterialUsageReport(session.organizationId, dateFrom, dateTo);
+      const report = await generateMaterialUsageReport(session.organizationId, dateFrom, dateTo);
       return NextResponse.json({ success: true, data: report });
     }
 
@@ -99,8 +100,7 @@ export async function POST(request: NextRequest) {
     // Add material to job
     if (action === 'add' || !action) {
       const { jobId, productId, quantity, unitPrice, discount, sourceType, sourceId, notes, reserveStock } = body;
-      const material = await addJobMaterial({
-        organizationId: session.organizationId,
+      const material = await addJobMaterial(session.organizationId, {
         jobId,
         productId,
         quantity,
@@ -117,8 +117,7 @@ export async function POST(request: NextRequest) {
     // Use material
     if (action === 'use') {
       const { jobMaterialId, usedQty, fromVehicle, technicianId } = body;
-      const result = await useMaterial({
-        organizationId: session.organizationId,
+      const result = await useMaterial(session.organizationId, {
         jobMaterialId,
         usedQty,
         fromVehicle,
@@ -130,8 +129,7 @@ export async function POST(request: NextRequest) {
     // Return material
     if (action === 'return') {
       const { jobMaterialId, returnedQty, reason, toWarehouseId } = body;
-      const result = await returnMaterial({
-        organizationId: session.organizationId,
+      const result = await returnMaterial(session.organizationId, {
         jobMaterialId,
         returnedQty,
         reason,
