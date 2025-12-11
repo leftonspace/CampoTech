@@ -168,8 +168,8 @@ async function processOperation(
         await prisma.job.update({
           where: { id: data.id as string },
           data: {
-            status: data.status as string,
-            notes: data.notes as string,
+            ...(data.status && { status: data.status as 'PENDING' | 'ASSIGNED' | 'EN_ROUTE' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' }),
+            ...(data.resolution && { resolution: data.resolution as string }),
             completedAt: data.completedAt ? new Date(data.completedAt as string) : undefined,
             updatedAt: new Date(),
           },
