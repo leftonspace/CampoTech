@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
     // Fetch organization details for notifications
     const organization = await prisma.organization.findUnique({
       where: { id: session.organizationId },
-      select: { businessName: true },
+      select: { name: true },
     });
 
     // Fetch admin name for email
@@ -178,7 +178,7 @@ export async function POST(request: NextRequest) {
       whatsappError: null as string | null,
     };
 
-    const organizationName = organization?.businessName || 'CampoTech';
+    const organizationName = organization?.name || 'CampoTech';
 
     // Send welcome email if email is provided
     if (user.email) {
