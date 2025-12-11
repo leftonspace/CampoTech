@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
 import { ArrowLeft } from 'lucide-react';
+import AddressAutocomplete, { ParsedAddress } from '@/components/ui/AddressAutocomplete';
 
 // Country codes for phone input
 const COUNTRY_CODES = [
@@ -29,9 +30,29 @@ export default function NewCustomerPage() {
       street: '',
       city: '',
       postalCode: '',
+      state: '',
+      fullAddress: '',
+      lat: undefined as number | undefined,
+      lng: undefined as number | undefined,
     },
     notes: '',
   });
+
+  // Handle address selection from autocomplete
+  const handleAddressSelect = (parsed: ParsedAddress) => {
+    setFormData({
+      ...formData,
+      address: {
+        street: parsed.street,
+        city: parsed.city,
+        postalCode: parsed.postalCode,
+        state: parsed.state,
+        fullAddress: parsed.fullAddress,
+        lat: parsed.lat,
+        lng: parsed.lng,
+      },
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,34 +161,65 @@ export default function NewCustomerPage() {
           />
         </div>
 
-        {/* Address */}
+        {/* Address with Google Places Autocomplete */}
         <div className="space-y-4">
           <label className="label block">Dirección</label>
-          <input
-            type="text"
-            value={formData.address.street}
-            onChange={(e) =>
+
+          {/* Address Autocomplete Search */}
+          <AddressAutocomplete
+            value={formData.address.fullAddress}
+            onChange={(value) =>
               setFormData({
                 ...formData,
-                address: { ...formData.address, street: e.target.value },
+                address: { ...formData.address, fullAddress: value },
               })
             }
-            placeholder="Calle y número"
-            className="input"
+            onSelect={handleAddressSelect}
+            placeholder="Buscar dirección..."
+            defaultCountry="AR"
           />
-          <div className="grid gap-4 sm:grid-cols-2">
+
+          {/* Editable address fields (shown after selection or for manual entry) */}
+          <div className="space-y-3 rounded-md border border-gray-200 bg-gray-50 p-4">
+            <p className="text-xs font-medium text-gray-500 uppercase">Detalles de dirección (editables)</p>
             <input
               type="text"
-              value={formData.address.city}
+              value={formData.address.street}
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  address: { ...formData.address, city: e.target.value },
+                  address: { ...formData.address, street: e.target.value },
                 })
               }
-              placeholder="Ciudad"
-              className="input"
+              placeholder="Calle y número"
+              className="input bg-white"
             />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input
+                type="text"
+                value={formData.address.city}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    address: { ...formData.address, city: e.target.value },
+                  })
+                }
+                placeholder="Ciudad / Localidad"
+                className="input bg-white"
+              />
+              <input
+                type="text"
+                value={formData.address.state}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    address: { ...formData.address, state: e.target.value },
+                  })
+                }
+                placeholder="Provincia / Estado"
+                className="input bg-white"
+              />
+            </div>
             <input
               type="text"
               value={formData.address.postalCode}
@@ -178,7 +230,7 @@ export default function NewCustomerPage() {
                 })
               }
               placeholder="Código postal"
-              className="input"
+              className="input bg-white sm:w-1/2"
             />
           </div>
         </div>
