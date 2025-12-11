@@ -834,6 +834,151 @@ export function createJobsController(pool: Pool): Router {
     }
   );
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // JOB STATUS TRANSITION
+  // POST /:id/status
+  // Generic status transition endpoint with validation
+  // ─────────────────────────────────────────────────────────────────────────────
+  router.post(
+    '/:id/status',
+    requireScopes(writeScope('jobs')),
+    async (req: Request, res: Response) => {
+      try {
+        const apiContext = (req as any).apiContext as ApiRequestContext;
+        const { id } = req.params;
+
+        const statusSchema = z.object({
+          status: z.enum([
+            'pending',
+            'assigned',
+            'scheduled',
+            'en_route',
+            'in_progress',
+            'on_hold',
+            'completed',
+            'cancelled',
+            'needs_revisit',
+          ]),
+          reason: z.string().max(500).optional(),
+          notes: z.string().max(2000).optional(),
+        });
+
+        const parseResult = statusSchema.safeParse(req.body);
+
+        if (!parseResult.success) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'INVALID_INPUT',
+              message: 'Invalid status transition data',
+              details: parseResult.error.flatten().fieldErrors,
+            },
+          });
+        }
+
+        const { status: newStatus, reason, notes } = parseResult.data;
+
+        // Get current job status
+        const currentJob = await pool.query(
+          'SELECT id, status, assigned_technician_id FROM jobs WHERE id = $1 AND org_id = $2',
+          [id, apiContext.orgId]
+        );
+
+        if (currentJob.rows.length === 0) {
+          return res.status(404).json({
+            success: false,
+            error: { code: 'NOT_FOUND', message: 'Job not found' },
+          });
+        }
+
+        const currentStatus = currentJob.rows[0].status;
+
+        // Define valid transitions
+        const validTransitions: Record<string, string[]> = {
+          pending: ['assigned', 'scheduled', 'cancelled'],
+          assigned: ['pending', 'scheduled', 'en_route', 'cancelled'],
+          scheduled: ['pending', 'assigned', 'en_route', 'in_progress', 'on_hold', 'cancelled'],
+          en_route: ['scheduled', 'in_progress', 'on_hold', 'cancelled'],
+          in_progress: ['on_hold', 'completed', 'needs_revisit', 'cancelled'],
+          on_hold: ['scheduled', 'in_progress', 'cancelled'],
+          completed: ['needs_revisit'], // Very limited - mostly final
+          cancelled: [], // Final state
+          needs_revisit: ['scheduled', 'assigned', 'cancelled'],
+        };
+
+        const allowedTransitions = validTransitions[currentStatus] || [];
+
+        if (!allowedTransitions.includes(newStatus)) {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'INVALID_TRANSITION',
+              message: `Cannot transition from '${currentStatus}' to '${newStatus}'`,
+              details: {
+                currentStatus,
+                requestedStatus: newStatus,
+                allowedTransitions,
+              },
+            },
+          });
+        }
+
+        // Build update query
+        const updates: string[] = ['status = $1', 'updated_at = NOW()'];
+        const values: any[] = [newStatus];
+        let paramIndex = 2;
+
+        // Handle specific status transitions
+        if (newStatus === 'in_progress' && currentStatus !== 'on_hold') {
+          updates.push(`actual_start = COALESCE(actual_start, NOW())`);
+        }
+
+        if (newStatus === 'completed') {
+          updates.push(`actual_end = NOW()`);
+        }
+
+        if (notes) {
+          updates.push(`notes = COALESCE(notes, '') || E'\\n\\n[Status: ${newStatus}] ' || $${paramIndex++}`);
+          values.push(notes);
+        }
+
+        if (reason && ['cancelled', 'on_hold', 'needs_revisit'].includes(newStatus)) {
+          updates.push(`internal_notes = COALESCE(internal_notes, '') || E'\\n\\n[${newStatus} reason] ' || $${paramIndex++}`);
+          values.push(reason);
+        }
+
+        values.push(id, apiContext.orgId);
+
+        const result = await pool.query(
+          `UPDATE jobs
+           SET ${updates.join(', ')}
+           WHERE id = $${paramIndex++} AND org_id = $${paramIndex}
+           RETURNING *`,
+          values
+        );
+
+        // Log action
+        await pool.query(
+          `INSERT INTO job_history (job_id, action, actor_type, actor_id, details)
+           VALUES ($1, 'status_changed', 'api', $2, $3)`,
+          [
+            id,
+            apiContext.apiKeyId || apiContext.oauthClientId,
+            JSON.stringify({ from: currentStatus, to: newStatus, reason }),
+          ]
+        );
+
+        res.json({ success: true, data: formatJobResponse(result.rows[0]) });
+      } catch (error) {
+        console.error('[Jobs API] Status transition error:', error);
+        res.status(500).json({
+          success: false,
+          error: { code: 'SERVER_ERROR', message: 'Failed to update job status' },
+        });
+      }
+    }
+  );
+
   // Add note
   router.post(
     '/:id/notes',
