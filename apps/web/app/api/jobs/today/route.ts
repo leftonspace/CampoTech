@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
             address: true,
           },
         },
-        assignedTo: {
+        technician: {
           select: {
             id: true,
             name: true,
@@ -51,8 +51,8 @@ export async function GET(request: NextRequest) {
         },
       },
       orderBy: [
-        { scheduledTimeStart: 'asc' },
-        { priority: 'desc' },
+        { scheduledDate: 'asc' },
+        { urgency: 'desc' },
       ],
     });
 

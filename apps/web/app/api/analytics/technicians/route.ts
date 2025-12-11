@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
       select: {
         id: true,
         status: true,
-        assignedToId: true,
+        technicianId: true,
       },
     });
 
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
 
     // Calculate per-technician stats
     const technicianPerformance = technicians.map((tech) => {
-      const techJobs = jobs.filter((j) => j.assignedToId === tech.id);
+      const techJobs = jobs.filter((j) => j.technicianId === tech.id);
       const techCompleted = techJobs.filter((j) => j.status === 'completed').length;
 
       return {
