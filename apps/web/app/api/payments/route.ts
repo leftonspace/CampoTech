@@ -141,7 +141,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (totalPaid._sum.amount && totalPaid._sum.amount >= invoice.totalAmount) {
+    const paidAmount = totalPaid._sum.amount ? Number(totalPaid._sum.amount) : 0;
+    const invoiceTotal = invoice.total ? Number(invoice.total) : 0;
+    if (paidAmount >= invoiceTotal) {
       await prisma.invoice.update({
         where: { id: invoiceId },
         data: { status: 'paid' },

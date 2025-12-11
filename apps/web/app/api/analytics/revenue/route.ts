@@ -65,12 +65,12 @@ export async function GET(req: NextRequest) {
     });
 
     // Calculate KPIs
-    const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+    const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
     const invoiceCount = invoices.length;
     const avgTicket = invoiceCount > 0 ? totalRevenue / invoiceCount : 0;
 
     const paidInvoices = invoices.filter((inv) => inv.status === 'paid');
-    const paidRevenue = paidInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+    const paidRevenue = paidInvoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
     const collectionRate = totalRevenue > 0 ? (paidRevenue / totalRevenue) * 100 : 0;
 
     // Top customers
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
       if (!customerTotals[id]) {
         customerTotals[id] = { name: inv.customer.name, total: 0, count: 0 };
       }
-      customerTotals[id].total += inv.totalAmount || 0;
+      customerTotals[id].total += inv.total ? Number(inv.total) : 0;
       customerTotals[id].count += 1;
     });
 
