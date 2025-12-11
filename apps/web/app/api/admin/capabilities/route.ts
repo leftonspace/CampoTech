@@ -13,7 +13,7 @@ import {
   getCapabilityService,
   CapabilityPath,
   CapabilityCategory,
-} from '../../../../../core/config/capabilities';
+} from '../../../../../../core/config/capabilities';
 
 // Spanish descriptions for capabilities
 const CAPABILITY_DESCRIPTIONS: Record<string, { name: string; description: string }> = {

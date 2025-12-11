@@ -11,7 +11,7 @@ import { getSession } from '@/lib/auth';
 import {
   getCapabilityService,
   CapabilityPath,
-} from '../../../../../../core/config/capabilities';
+} from '../../../../../../../core/config/capabilities';
 
 export async function PATCH(
   request: NextRequest,
