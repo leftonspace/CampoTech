@@ -43,9 +43,7 @@ export async function GET(req: NextRequest) {
         where: { organizationId },
         select: {
           id: true,
-          firstName: true,
-          lastName: true,
-          companyName: true,
+          name: true,
           email: true,
           createdAt: true,
           _count: {
@@ -158,13 +156,11 @@ export async function GET(req: NextRequest) {
       .slice(0, 10)
       .map(([customerId, revenue]) => {
         const customer = customers.find((c) => c.id === customerId);
-        const name = customer?.companyName ||
-          `${customer?.firstName || ''} ${customer?.lastName || ''}`.trim() ||
-          'Unknown';
+        const customerName = customer?.name || 'Unknown';
         const jobCount = customer?._count?.jobs || 0;
         return {
           id: customerId,
-          name,
+          name: customerName,
           value: revenue,
           secondaryValue: jobCount,
         };
