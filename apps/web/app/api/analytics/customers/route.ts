@@ -129,7 +129,8 @@ export async function GET(req: NextRequest) {
     const customerRevenue: Record<string, number> = {};
     invoices.forEach((inv) => {
       if (inv.customerId) {
-        customerRevenue[inv.customerId] = (customerRevenue[inv.customerId] || 0) + (inv.total || 0);
+        const totalNum = inv.total ? Number(inv.total) : 0;
+        customerRevenue[inv.customerId] = (customerRevenue[inv.customerId] || 0) + totalNum;
       }
     });
     const clvValues = Object.values(customerRevenue);
