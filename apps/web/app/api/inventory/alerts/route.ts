@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
               select: {
                 id: true,
                 name: true,
-                type: true,
+                locationType: true,
               },
             },
           },
@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     });
 
     const alerts: Array<{
-      type: 'LOW_STOCK' | 'OUT_OF_STOCK' | 'REORDER_NEEDED';
+      type: 'LOW_STOCK' | 'OUT_OF_STOCK';
       severity: 'critical' | 'warning' | 'info';
       item: {
         id: string;
@@ -51,8 +51,6 @@ export async function GET(request: NextRequest) {
       details: {
         currentStock: number;
         minStockLevel: number | null;
-        reorderPoint: number | null;
-        reorderQuantity: number | null;
         locationBreakdown?: Array<{
           locationId: string;
           locationName: string;
@@ -62,7 +60,7 @@ export async function GET(request: NextRequest) {
     }> = [];
 
     for (const item of items) {
-      const totalStock = item.stocks.reduce((sum, s) => sum + s.quantity, 0);
+      const totalStock = item.stocks.reduce((sum: number, s: { quantity: number }) => sum + s.quantity, 0);
 
       // Out of stock alert
       if (totalStock === 0) {
@@ -78,9 +76,7 @@ export async function GET(request: NextRequest) {
           details: {
             currentStock: 0,
             minStockLevel: item.minStockLevel,
-            reorderPoint: item.reorderPoint,
-            reorderQuantity: item.reorderQuantity,
-            locationBreakdown: item.stocks.map((s) => ({
+            locationBreakdown: item.stocks.map((s: { locationId: string; location: { name: string }; quantity: number }) => ({
               locationId: s.locationId,
               locationName: s.location.name,
               quantity: s.quantity,
@@ -104,34 +100,11 @@ export async function GET(request: NextRequest) {
           details: {
             currentStock: totalStock,
             minStockLevel: item.minStockLevel,
-            reorderPoint: item.reorderPoint,
-            reorderQuantity: item.reorderQuantity,
-            locationBreakdown: item.stocks.map((s) => ({
+            locationBreakdown: item.stocks.map((s: { locationId: string; location: { name: string }; quantity: number }) => ({
               locationId: s.locationId,
               locationName: s.location.name,
               quantity: s.quantity,
             })),
-          },
-        });
-        continue;
-      }
-
-      // Reorder point alert
-      if (item.reorderPoint && totalStock <= item.reorderPoint && !alerts.find((a) => a.item.id === item.id)) {
-        alerts.push({
-          type: 'REORDER_NEEDED',
-          severity: 'info',
-          item: {
-            id: item.id,
-            name: item.name,
-            sku: item.sku,
-          },
-          message: `${item.name} alcanzó el punto de reorden`,
-          details: {
-            currentStock: totalStock,
-            minStockLevel: item.minStockLevel,
-            reorderPoint: item.reorderPoint,
-            reorderQuantity: item.reorderQuantity,
           },
         });
       }
@@ -149,7 +122,6 @@ export async function GET(request: NextRequest) {
       info: alerts.filter((a) => a.severity === 'info').length,
       outOfStock: alerts.filter((a) => a.type === 'OUT_OF_STOCK').length,
       lowStock: alerts.filter((a) => a.type === 'LOW_STOCK').length,
-      reorderNeeded: alerts.filter((a) => a.type === 'REORDER_NEEDED').length,
     };
 
     return NextResponse.json({

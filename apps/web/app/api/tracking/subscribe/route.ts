@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
 
           // Check for offline technicians
           const currentIds = new Set(locations.map((l) => l.userId));
-          for (const [userId, lastLoc] of lastLocations) {
+          for (const [userId] of Array.from(lastLocations.entries())) {
             if (!currentIds.has(userId)) {
               // Technician went offline
               controller.enqueue(

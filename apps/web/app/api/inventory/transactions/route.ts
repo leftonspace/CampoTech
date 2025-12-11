@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { InventoryTransactionType } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,20 +23,23 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const itemId = searchParams.get('itemId');
     const locationId = searchParams.get('locationId');
-    const type = searchParams.get('type');
+    const transactionType = searchParams.get('type') as InventoryTransactionType | null;
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
     // Build where clause
     const where: Record<string, unknown> = {
-      item: {
-        organizationId: session.organizationId,
-      },
+      organizationId: session.organizationId,
     };
 
     if (itemId) where.itemId = itemId;
-    if (locationId) where.locationId = locationId;
-    if (type) where.type = type;
+    if (locationId) {
+      where.OR = [
+        { fromLocationId: locationId },
+        { toLocationId: locationId },
+      ];
+    }
+    if (transactionType) where.transactionType = transactionType;
 
     const [transactions, total] = await Promise.all([
       prisma.inventoryTransaction.findMany({
@@ -49,18 +53,18 @@ export async function GET(request: NextRequest) {
               unit: true,
             },
           },
-          location: {
+          fromLocation: {
             select: {
               id: true,
               name: true,
-              type: true,
+              locationType: true,
             },
           },
-          destinationLocation: {
+          toLocation: {
             select: {
               id: true,
               name: true,
-              type: true,
+              locationType: true,
             },
           },
           performedBy: {
@@ -69,14 +73,8 @@ export async function GET(request: NextRequest) {
               name: true,
             },
           },
-          job: {
-            select: {
-              id: true,
-              jobNumber: true,
-            },
-          },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { performedAt: 'desc' },
         take: limit,
         skip: offset,
       }),
@@ -118,36 +116,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       itemId,
-      locationId,
-      destinationLocationId,
-      type,
+      fromLocationId,
+      toLocationId,
+      transactionType,
       quantity,
-      unitCost,
-      jobId,
       notes,
-      reference,
     } = body;
 
     // Validate required fields
-    if (!itemId || !locationId || !type || !quantity) {
+    if (!itemId || !transactionType || !quantity) {
       return NextResponse.json(
-        { success: false, error: 'Artículo, ubicación, tipo y cantidad son requeridos' },
+        { success: false, error: 'Artículo, tipo y cantidad son requeridos' },
         { status: 400 }
       );
     }
 
     // Validate type
-    const validTypes = [
-      'STOCK_IN',
-      'STOCK_OUT',
-      'TRANSFER',
-      'ADJUSTMENT',
-      'USED_ON_JOB',
-      'RETURNED',
-      'DAMAGED',
-      'LOST',
-    ];
-    if (!validTypes.includes(type)) {
+    const validTypes = Object.values(InventoryTransactionType);
+    if (!validTypes.includes(transactionType)) {
       return NextResponse.json(
         { success: false, error: 'Tipo de transacción inválido' },
         { status: 400 }
@@ -177,38 +163,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify location belongs to organization
-    const location = await prisma.inventoryLocation.findFirst({
-      where: {
-        id: locationId,
-        organizationId: session.organizationId,
-      },
-    });
-
-    if (!location) {
-      return NextResponse.json(
-        { success: false, error: 'Ubicación no encontrada' },
-        { status: 404 }
-      );
-    }
-
-    // For transfers, verify destination location
-    if (type === 'TRANSFER') {
-      if (!destinationLocationId) {
+    // Validate locations based on transaction type
+    if (transactionType === 'TRANSFER') {
+      if (!fromLocationId || !toLocationId) {
         return NextResponse.json(
-          { success: false, error: 'Se requiere ubicación de destino para transferencias' },
+          { success: false, error: 'Se requieren ubicaciones de origen y destino para transferencias' },
           { status: 400 }
         );
       }
+    }
 
-      const destLocation = await prisma.inventoryLocation.findFirst({
+    // Verify locations exist and belong to organization
+    if (fromLocationId) {
+      const fromLocation = await prisma.inventoryLocation.findFirst({
         where: {
-          id: destinationLocationId,
+          id: fromLocationId,
           organizationId: session.organizationId,
         },
       });
 
-      if (!destLocation) {
+      if (!fromLocation) {
+        return NextResponse.json(
+          { success: false, error: 'Ubicación de origen no encontrada' },
+          { status: 404 }
+        );
+      }
+    }
+
+    if (toLocationId) {
+      const toLocation = await prisma.inventoryLocation.findFirst({
+        where: {
+          id: toLocationId,
+          organizationId: session.organizationId,
+        },
+      });
+
+      if (!toLocation) {
         return NextResponse.json(
           { success: false, error: 'Ubicación de destino no encontrada' },
           { status: 404 }
@@ -216,17 +206,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get or create stock record for source location
-    let sourceStock = await prisma.inventoryStock.findFirst({
-      where: {
-        itemId,
-        locationId,
-      },
-    });
+    // For outgoing transactions (USE, TRANSFER from), check sufficient stock
+    const outgoingTypes: InventoryTransactionType[] = ['USE', 'TRANSFER'];
+    if (outgoingTypes.includes(transactionType) && fromLocationId) {
+      const sourceStock = await prisma.inventoryStock.findFirst({
+        where: {
+          itemId,
+          locationId: fromLocationId,
+        },
+      });
 
-    // For outgoing transactions, check if sufficient stock
-    const outgoingTypes = ['STOCK_OUT', 'TRANSFER', 'USED_ON_JOB', 'DAMAGED', 'LOST'];
-    if (outgoingTypes.includes(type)) {
       if (!sourceStock || sourceStock.quantity < qty) {
         return NextResponse.json(
           { success: false, error: `Stock insuficiente. Disponible: ${sourceStock?.quantity || 0}` },
@@ -237,40 +226,31 @@ export async function POST(request: NextRequest) {
 
     // Perform transaction
     const result = await prisma.$transaction(async (tx) => {
-      // Update source stock
-      if (sourceStock) {
-        const newQuantity =
-          type === 'STOCK_IN' || type === 'RETURNED'
-            ? sourceStock.quantity + qty
-            : sourceStock.quantity - qty;
-
-        await tx.inventoryStock.update({
-          where: { id: sourceStock.id },
-          data: {
-            quantity: newQuantity,
-            lastUpdated: new Date(),
+      // Decrease stock from source location
+      if (fromLocationId) {
+        const sourceStock = await tx.inventoryStock.findFirst({
+          where: {
+            itemId,
+            locationId: fromLocationId,
           },
         });
-      } else {
-        // Create stock record for incoming
-        if (type === 'STOCK_IN' || type === 'RETURNED') {
-          await tx.inventoryStock.create({
+
+        if (sourceStock) {
+          await tx.inventoryStock.update({
+            where: { id: sourceStock.id },
             data: {
-              itemId,
-              locationId,
-              quantity: qty,
-              reservedQuantity: 0,
+              quantity: sourceStock.quantity - qty,
             },
           });
         }
       }
 
-      // For transfers, update destination stock
-      if (type === 'TRANSFER' && destinationLocationId) {
+      // Increase stock at destination location
+      if (toLocationId) {
         const destStock = await tx.inventoryStock.findFirst({
           where: {
             itemId,
-            locationId: destinationLocationId,
+            locationId: toLocationId,
           },
         });
 
@@ -279,16 +259,14 @@ export async function POST(request: NextRequest) {
             where: { id: destStock.id },
             data: {
               quantity: destStock.quantity + qty,
-              lastUpdated: new Date(),
             },
           });
         } else {
           await tx.inventoryStock.create({
             data: {
               itemId,
-              locationId: destinationLocationId,
+              locationId: toLocationId,
               quantity: qty,
-              reservedQuantity: 0,
             },
           });
         }
@@ -297,21 +275,14 @@ export async function POST(request: NextRequest) {
       // Create transaction record
       const transaction = await tx.inventoryTransaction.create({
         data: {
+          organizationId: session.organizationId,
           itemId,
-          locationId,
-          destinationLocationId: type === 'TRANSFER' ? destinationLocationId : null,
-          type,
+          fromLocationId: fromLocationId || null,
+          toLocationId: toLocationId || null,
+          transactionType: transactionType as InventoryTransactionType,
           quantity: qty,
-          unitCost: unitCost ? parseFloat(unitCost) : item.unitCost,
-          totalCost: unitCost
-            ? parseFloat(unitCost) * qty
-            : item.unitCost
-              ? Number(item.unitCost) * qty
-              : null,
-          jobId: jobId || null,
           performedById: session.userId,
           notes,
-          reference,
         },
         include: {
           item: {
@@ -321,13 +292,13 @@ export async function POST(request: NextRequest) {
               sku: true,
             },
           },
-          location: {
+          fromLocation: {
             select: {
               id: true,
               name: true,
             },
           },
-          destinationLocation: {
+          toLocation: {
             select: {
               id: true,
               name: true,

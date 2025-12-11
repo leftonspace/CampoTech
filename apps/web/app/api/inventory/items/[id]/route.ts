@@ -37,7 +37,7 @@ export async function GET(
               select: {
                 id: true,
                 name: true,
-                type: true,
+                locationType: true,
               },
             },
           },
@@ -46,7 +46,13 @@ export async function GET(
           take: 20,
           orderBy: { createdAt: 'desc' },
           include: {
-            location: {
+            fromLocation: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+            toLocation: {
               select: {
                 id: true,
                 name: true,
@@ -77,8 +83,7 @@ export async function GET(
     }
 
     // Calculate totals
-    const totalStock = item.stocks.reduce((sum, s) => sum + s.quantity, 0);
-    const totalReserved = item.stocks.reduce((sum, s) => sum + s.reservedQuantity, 0);
+    const totalStock = item.stocks.reduce((sum: number, s: { quantity: number }) => sum + s.quantity, 0);
     const isLowStock = totalStock <= (item.minStockLevel || 0);
 
     return NextResponse.json({
@@ -86,8 +91,7 @@ export async function GET(
       data: {
         ...item,
         totalStock,
-        totalReserved,
-        availableStock: totalStock - totalReserved,
+        availableStock: totalStock,
         isLowStock,
       },
     });
@@ -145,11 +149,9 @@ export async function PUT(
       description,
       category,
       unit,
-      unitCost,
+      costPrice,
+      salePrice,
       minStockLevel,
-      maxStockLevel,
-      reorderPoint,
-      reorderQuantity,
       imageUrl,
       isActive,
     } = body;
@@ -180,11 +182,9 @@ export async function PUT(
         ...(description !== undefined && { description }),
         ...(category !== undefined && { category }),
         ...(unit !== undefined && { unit }),
-        ...(unitCost !== undefined && { unitCost: unitCost ? parseFloat(unitCost) : null }),
-        ...(minStockLevel !== undefined && { minStockLevel: minStockLevel ? parseInt(minStockLevel) : null }),
-        ...(maxStockLevel !== undefined && { maxStockLevel: maxStockLevel ? parseInt(maxStockLevel) : null }),
-        ...(reorderPoint !== undefined && { reorderPoint: reorderPoint ? parseInt(reorderPoint) : null }),
-        ...(reorderQuantity !== undefined && { reorderQuantity: reorderQuantity ? parseInt(reorderQuantity) : null }),
+        ...(costPrice !== undefined && { costPrice: parseFloat(costPrice) }),
+        ...(salePrice !== undefined && { salePrice: parseFloat(salePrice) }),
+        ...(minStockLevel !== undefined && { minStockLevel: parseInt(minStockLevel) }),
         ...(imageUrl !== undefined && { imageUrl }),
         ...(isActive !== undefined && { isActive }),
       },
@@ -245,7 +245,7 @@ export async function DELETE(
     }
 
     // Check if item has stock
-    const hasStock = existing.stocks.some((s) => s.quantity > 0);
+    const hasStock = existing.stocks.some((s: { quantity: number }) => s.quantity > 0);
     if (hasStock) {
       return NextResponse.json(
         { success: false, error: 'No se puede eliminar un artículo con stock. Primero ajuste el inventario a cero.' },

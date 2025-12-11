@@ -17,40 +17,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
-
-interface TechnicianLocation {
-  id: string;
-  name: string;
-  phone: string;
-  avatar: string | null;
-  specialty: string | null;
-  skillLevel: string | null;
-  isOnline: boolean;
-  lastSeen: string | null;
-  location: {
-    lat: number;
-    lng: number;
-    accuracy: number | null;
-    heading: number | null;
-    speed: number | null;
-  } | null;
-  currentJob: {
-    id: string;
-    jobNumber: string;
-    status: string;
-    description: string;
-    scheduledDate: string | null;
-    scheduledTimeSlot?: { start?: string; end?: string } | null;
-    customerName: string;
-    address: unknown;
-  } | null;
-  tracking: {
-    sessionId: string;
-    status: string;
-    etaMinutes: number | null;
-    movementMode: string;
-  } | null;
-}
+import { TechnicianLocation } from './LiveTechnicianMap';
 
 interface TechnicianPanelProps {
   technician: TechnicianLocation;

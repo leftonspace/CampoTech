@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { InventoryLocationType } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const type = searchParams.get('type');
+    const locationType = searchParams.get('type') as InventoryLocationType | null;
     const includeVehicles = searchParams.get('includeVehicles') !== 'false';
     const includeStock = searchParams.get('includeStock') === 'true';
 
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
     const locations = await prisma.inventoryLocation.findMany({
       where: {
         organizationId: session.organizationId,
-        ...(type ? { type } : {}),
+        ...(locationType ? { locationType } : {}),
       },
       include: {
         vehicle: includeVehicles
@@ -63,15 +64,15 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: [{ type: 'asc' }, { name: 'asc' }],
+      orderBy: [{ locationType: 'asc' }, { name: 'asc' }],
     });
 
     // Calculate stats
     const stats = {
       total: locations.length,
-      warehouses: locations.filter((l) => l.type === 'WAREHOUSE').length,
-      vehicles: locations.filter((l) => l.type === 'VEHICLE').length,
-      mobile: locations.filter((l) => l.type === 'MOBILE').length,
+      warehouses: locations.filter((l) => l.locationType === 'WAREHOUSE').length,
+      vehicles: locations.filter((l) => l.locationType === 'VEHICLE').length,
+      hubs: locations.filter((l) => l.locationType === 'HUB').length,
     };
 
     return NextResponse.json({
@@ -110,10 +111,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, type, address, vehicleId, isActive = true } = body;
+    const { name, locationType, address, vehicleId, isActive = true } = body;
 
     // Validate required fields
-    if (!name || !type) {
+    if (!name || !locationType) {
       return NextResponse.json(
         { success: false, error: 'Nombre y tipo son requeridos' },
         { status: 400 }
@@ -121,8 +122,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate type
-    const validTypes = ['WAREHOUSE', 'VEHICLE', 'MOBILE'];
-    if (!validTypes.includes(type)) {
+    const validTypes = ['HUB', 'VEHICLE', 'WAREHOUSE'];
+    if (!validTypes.includes(locationType)) {
       return NextResponse.json(
         { success: false, error: 'Tipo de ubicación inválido' },
         { status: 400 }
@@ -130,7 +131,7 @@ export async function POST(request: NextRequest) {
     }
 
     // If vehicle type, verify vehicle exists and belongs to org
-    if (type === 'VEHICLE' && vehicleId) {
+    if (locationType === 'VEHICLE' && vehicleId) {
       const vehicle = await prisma.vehicle.findFirst({
         where: {
           id: vehicleId,
@@ -162,9 +163,9 @@ export async function POST(request: NextRequest) {
       data: {
         organizationId: session.organizationId,
         name,
-        type,
+        locationType: locationType as InventoryLocationType,
         address: address || null,
-        vehicleId: type === 'VEHICLE' ? vehicleId : null,
+        vehicleId: locationType === 'VEHICLE' ? vehicleId : null,
         isActive,
       },
       include: {
