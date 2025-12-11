@@ -6,6 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { sendWelcomeEmail } from '@/lib/email';
+import { requestOTP } from '@/lib/otp';
 
 export async function GET(request: NextRequest) {
   try {
@@ -132,6 +134,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Fetch organization details for notifications
+    const organization = await prisma.organization.findUnique({
+      where: { id: session.organizationId },
+      select: { businessName: true },
+    });
+
+    // Fetch admin name for email
+    const admin = await prisma.user.findUnique({
+      where: { id: session.userId },
+      select: { name: true },
+    });
+
     const user = await prisma.user.create({
       data: {
         name: body.name,
@@ -156,11 +170,71 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Send notifications in the background (don't block the response)
+    const notificationResults = {
+      emailSent: false,
+      whatsappOtpSent: false,
+      emailError: null as string | null,
+      whatsappError: null as string | null,
+    };
+
+    const organizationName = organization?.businessName || 'CampoTech';
+
+    // Send welcome email if email is provided
+    if (user.email) {
+      try {
+        const emailResult = await sendWelcomeEmail(
+          user.email,
+          user.name,
+          organizationName,
+          user.role,
+          admin?.name || undefined
+        );
+        notificationResults.emailSent = emailResult.success;
+        if (!emailResult.success) {
+          notificationResults.emailError = emailResult.error || 'Unknown email error';
+          console.error('[User Create] Welcome email failed:', emailResult.error);
+        } else {
+          console.log('[User Create] Welcome email sent to:', user.email);
+        }
+      } catch (emailError) {
+        console.error('[User Create] Welcome email exception:', emailError);
+        notificationResults.emailError = emailError instanceof Error ? emailError.message : 'Email exception';
+      }
+    }
+
+    // Send WhatsApp OTP for phone verification
+    if (user.phone) {
+      try {
+        const otpResult = await requestOTP(user.phone, 'whatsapp');
+        notificationResults.whatsappOtpSent = otpResult.success;
+        if (!otpResult.success) {
+          notificationResults.whatsappError = otpResult.error || 'Unknown WhatsApp error';
+          console.error('[User Create] WhatsApp OTP failed:', otpResult.error);
+        } else {
+          console.log('[User Create] WhatsApp OTP sent to:', user.phone, otpResult.devMode ? '(dev mode)' : '');
+        }
+      } catch (otpError) {
+        console.error('[User Create] WhatsApp OTP exception:', otpError);
+        notificationResults.whatsappError = otpError instanceof Error ? otpError.message : 'OTP exception';
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: user,
-      notificationSent: false,
-      onboardingInitialized: false,
+      notificationSent: notificationResults.emailSent || notificationResults.whatsappOtpSent,
+      onboardingInitialized: notificationResults.whatsappOtpSent,
+      notifications: {
+        email: {
+          sent: notificationResults.emailSent,
+          error: notificationResults.emailError,
+        },
+        whatsapp: {
+          sent: notificationResults.whatsappOtpSent,
+          error: notificationResults.whatsappError,
+        },
+      },
     });
   } catch (error) {
     console.error('Create user error:', error);
