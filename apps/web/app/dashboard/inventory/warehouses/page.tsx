@@ -236,6 +236,8 @@ function NewWarehouseModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="input mt-1 w-full"
               placeholder="Almacén central"
+              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el nombre del almacén')}
+              onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
             />
           </div>
 
@@ -248,6 +250,8 @@ function NewWarehouseModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
               className="input mt-1 w-full"
               placeholder="WH-001"
+              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el código del almacén')}
+              onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
             />
           </div>
 

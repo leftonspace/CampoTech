@@ -29,7 +29,19 @@ export async function GET(request: NextRequest) {
     };
 
     if (status) {
-      where.status = status;
+      // Map frontend status values to enum values
+      const statusMap: Record<string, string> = {
+        'pending': 'PENDING',
+        'completed': 'COMPLETED',
+        'failed': 'FAILED',
+        'refunded': 'REFUNDED',
+        'cancelled': 'CANCELLED',
+      };
+      const mappedStatus = statusMap[status.toLowerCase()] || status.toUpperCase();
+      const validStatuses = ['PENDING', 'COMPLETED', 'FAILED', 'REFUNDED', 'CANCELLED'];
+      if (validStatuses.includes(mappedStatus)) {
+        where.status = mappedStatus;
+      }
     }
 
     if (invoiceId) {

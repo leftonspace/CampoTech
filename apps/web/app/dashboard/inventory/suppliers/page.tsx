@@ -288,6 +288,8 @@ function NewSupplierModal({ onClose }: { onClose: () => void }) {
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="input mt-1 w-full"
               placeholder="Distribuidora XYZ"
+              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el nombre del proveedor')}
+              onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
             />
           </div>
 

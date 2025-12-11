@@ -118,6 +118,8 @@ export default function NewLocationPage() {
                   placeholder="SUC-001"
                   required
                   pattern="[A-Z0-9-]+"
+                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá un código válido')}
+                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                 />
                 <p className="mt-1 text-xs text-gray-500">
                   Código único (solo mayúsculas, números y guiones)
@@ -134,6 +136,8 @@ export default function NewLocationPage() {
                   className="input mt-1"
                   placeholder="Sucursal Centro"
                   required
+                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el nombre de la sucursal')}
+                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                 />
               </div>
             </div>

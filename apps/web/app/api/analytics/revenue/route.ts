@@ -95,19 +95,28 @@ export async function GET(req: NextRequest) {
         secondaryValue: data.count,
       }));
 
+    // Unique customers count for ARPU calculation
+    const uniqueCustomers = new Set(invoices.map(inv => inv.customer?.id).filter(Boolean));
+    const arpu = uniqueCustomers.size > 0 ? totalRevenue / uniqueCustomers.size : 0;
+
     return NextResponse.json({
       kpis: {
         totalRevenue: { value: Math.round(totalRevenue), change: 0 },
         invoiceCount: { value: invoiceCount, change: 0 },
         avgTicket: { value: Math.round(avgTicket), change: 0 },
         collectionRate: { value: Math.round(collectionRate * 10) / 10, change: 0 },
-        growthRate: { value: 0, change: 0 },
-        pendingRevenue: { value: Math.round(totalRevenue - paidRevenue), change: 0 },
+        mrr: { value: Math.round(totalRevenue / 12), change: 0 },
+        arpu: { value: Math.round(arpu), change: 0 },
       },
       revenueTrend: [],
       revenueByService: [],
-      revenueByPayment: [],
+      revenueByMonth: [],
+      paymentMethods: [],
       topCustomers,
+      comparison: {
+        current: Math.round(totalRevenue),
+        previous: 0,
+      },
     });
   } catch (error) {
     console.error('Revenue analytics error:', error);

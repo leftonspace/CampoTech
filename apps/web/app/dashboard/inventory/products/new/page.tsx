@@ -129,6 +129,8 @@ export default function NewProductPage() {
                 placeholder="Ej: Cable HDMI 2m"
                 className="input"
                 required
+                onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el nombre del producto')}
+                onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
               />
             </div>
 
@@ -162,6 +164,8 @@ export default function NewProductPage() {
                       placeholder="SKU-0001"
                       className="input pl-10"
                       required
+                      onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el SKU')}
+                      onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                     />
                   </div>
                   <button
@@ -260,6 +264,8 @@ export default function NewProductPage() {
                   placeholder="0.00"
                   className="input pl-10"
                   required
+                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el precio de venta')}
+                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                 />
               </div>
             </div>
@@ -280,6 +286,8 @@ export default function NewProductPage() {
                   placeholder="0.00"
                   className="input pl-10"
                   required
+                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el costo')}
+                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                 />
               </div>
             </div>

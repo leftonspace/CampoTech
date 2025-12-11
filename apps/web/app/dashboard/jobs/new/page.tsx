@@ -151,6 +151,8 @@ export default function NewJobPage() {
             placeholder="Ej: Instalación de aire acondicionado"
             className="input"
             required
+            onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el título del trabajo')}
+            onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
           />
         </div>
 
@@ -182,6 +184,8 @@ export default function NewJobPage() {
             placeholder="Dirección del servicio"
             className="input"
             required
+            onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá la dirección del servicio')}
+            onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
           />
         </div>
 

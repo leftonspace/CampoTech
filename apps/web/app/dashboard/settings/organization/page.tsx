@@ -194,6 +194,8 @@ export default function OrganizationSettingsPage() {
                 onChange={(e) => handleChange('name', e.target.value)}
                 className="input"
                 required
+                onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá la razón social')}
+                onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
               />
             </div>
 
@@ -210,6 +212,8 @@ export default function OrganizationSettingsPage() {
                   placeholder="XX-XXXXXXXX-X"
                   className="input"
                   required
+                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el CUIT')}
+                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                 />
               </div>
               <div>
