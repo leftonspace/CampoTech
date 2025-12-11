@@ -18,13 +18,21 @@ import {
   MessageCircle,
   BarChart3,
   Building2,
+  MapPin,
+  Calendar,
+  Truck,
+  Package,
 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Mapa', href: '/dashboard/map', icon: MapPin },
+  { name: 'Calendario', href: '/dashboard/calendar', icon: Calendar },
   { name: 'Trabajos', href: '/dashboard/jobs', icon: Briefcase },
   { name: 'Clientes', href: '/dashboard/customers', icon: Users },
+  { name: 'Flota', href: '/dashboard/fleet', icon: Truck },
+  { name: 'Inventario', href: '/dashboard/inventory', icon: Package },
   { name: 'Facturas', href: '/dashboard/invoices', icon: FileText },
   { name: 'Pagos', href: '/dashboard/payments', icon: CreditCard },
   { name: 'Analytics', href: '/dashboard/analytics/overview', icon: BarChart3 },

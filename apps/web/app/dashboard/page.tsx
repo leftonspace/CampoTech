@@ -15,7 +15,11 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
+  Truck,
+  Package,
+  Calendar,
 } from 'lucide-react';
+import { StockAlerts, FleetStatus, TodaySchedule } from '@/components/dashboard';
 
 interface DashboardStats {
   todayJobs: number;
@@ -165,6 +169,69 @@ export default function DashboardPage() {
                 <p className="text-center text-sm text-gray-500">Sin actividad reciente</p>
               )}
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Operations widgets row */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Today's schedule by technician */}
+        <div className="card">
+          <div className="card-header flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary-600" />
+              <h2 className="card-title text-lg">Agenda de hoy</h2>
+            </div>
+            <Link
+              href="/dashboard/calendar"
+              className="text-sm text-primary-600 hover:underline"
+            >
+              Ver calendario
+              <ArrowRight className="ml-1 inline h-4 w-4" />
+            </Link>
+          </div>
+          <div className="card-content">
+            <TodaySchedule />
+          </div>
+        </div>
+
+        {/* Fleet status */}
+        <div className="card">
+          <div className="card-header flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Truck className="h-5 w-5 text-primary-600" />
+              <h2 className="card-title text-lg">Estado de flota</h2>
+            </div>
+            <Link
+              href="/dashboard/fleet"
+              className="text-sm text-primary-600 hover:underline"
+            >
+              Ver flota
+              <ArrowRight className="ml-1 inline h-4 w-4" />
+            </Link>
+          </div>
+          <div className="card-content">
+            <FleetStatus />
+          </div>
+        </div>
+
+        {/* Stock alerts */}
+        <div className="card">
+          <div className="card-header flex flex-row items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-primary-600" />
+              <h2 className="card-title text-lg">Alertas de stock</h2>
+            </div>
+            <Link
+              href="/dashboard/inventory/stock?filter=low"
+              className="text-sm text-primary-600 hover:underline"
+            >
+              Ver inventario
+              <ArrowRight className="ml-1 inline h-4 w-4" />
+            </Link>
+          </div>
+          <div className="card-content">
+            <StockAlerts />
           </div>
         </div>
       </div>
