@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
           organizationId,
           createdAt: { gte: dateRange.start, lte: dateRange.end },
         },
-        select: { id: true, totalAmount: true, status: true },
+        select: { id: true, total: true, status: true },
       }),
       prisma.customer.count({
         where: { organizationId },
@@ -74,9 +74,9 @@ export async function GET(req: NextRequest) {
     const completedJobs = jobs.filter((j) => j.status === 'completed').length;
     const completionRate = totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
 
-    const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+    const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
     const paidInvoices = invoices.filter((i) => i.status === 'paid');
-    const collectedRevenue = paidInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+    const collectedRevenue = paidInvoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
     const collectionRate = totalRevenue > 0 ? (collectedRevenue / totalRevenue) * 100 : 0;
 
     const avgTicket = invoices.length > 0 ? totalRevenue / invoices.length : 0;

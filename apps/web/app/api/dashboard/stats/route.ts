@@ -77,7 +77,7 @@ export async function GET() {
         pendingJobs,
         completedToday,
         pendingInvoices,
-        unpaidAmount: unpaidInvoices._sum.total || 0,
+        unpaidAmount: unpaidInvoices._sum.total ? Number(unpaidInvoices._sum.total) : 0,
         monthlyRevenue: 0, // TODO: Calculate from paid invoices
       },
     });
