@@ -64,12 +64,6 @@ export async function GET(
                 name: true,
               },
             },
-            job: {
-              select: {
-                id: true,
-                jobNumber: true,
-              },
-            },
           },
         },
       },
