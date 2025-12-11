@@ -150,11 +150,13 @@ export async function POST(request: NextRequest) {
   }
 }
 
+type ResolutionType = 'server_wins' | 'client_wins' | 'merged';
+
 async function processOperation(
   organizationId: string,
   operation: SyncOperation,
   userId: string
-): Promise<{ conflict?: boolean; resolution?: string; serverData?: unknown }> {
+): Promise<{ conflict?: boolean; resolution?: ResolutionType; serverData?: unknown }> {
   const { table, action, data, timestamp } = operation;
   const clientTimestamp = new Date(timestamp);
 
