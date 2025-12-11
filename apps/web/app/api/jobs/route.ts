@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { scheduleJobReminders } from '@/../../src/workers/notifications/reminder-scheduler';
-import { sendNotification } from '@/../../src/modules/notifications/notification.service';
-import { collectJobCreated } from '@/src/analytics';
 
 export async function GET(request: NextRequest) {
   try {
@@ -113,55 +110,6 @@ export async function POST(request: NextRequest) {
         },
       },
     });
-
-    // Collect analytics event (non-blocking)
-    collectJobCreated(session.organizationId, {
-      jobId: job.id,
-      customerId: job.customerId,
-      technicianId: job.technicianId || undefined,
-      serviceType: job.serviceType || 'other',
-      estimatedAmount: 0, // Not available at creation
-      scheduledAt: job.scheduledDate || undefined,
-    }).catch((err) => console.error('Analytics event error:', err));
-
-    // Send notification to assigned technician
-    if (job.technicianId) {
-      try {
-        await sendNotification({
-          eventType: 'job_assigned',
-          userId: job.technicianId,
-          organizationId: session.organizationId,
-          title: 'Nuevo trabajo asignado',
-          body: `Te asignaron: ${job.description || 'Sin descripción'} - ${job.customer?.name || 'Cliente'}`,
-          entityType: 'job',
-          entityId: job.id,
-          templateName: 'job_assigned_tech',
-          templateParams: {
-            '1': job.technician?.name || 'Técnico',
-            '2': job.customer?.name || 'Cliente',
-            '3': job.description || 'Servicio técnico',
-            '4': job.scheduledDate
-              ? new Intl.DateTimeFormat('es-AR', {
-                  weekday: 'long',
-                  day: 'numeric',
-                  month: 'long',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  timeZone: 'America/Argentina/Buenos_Aires',
-                }).format(new Date(job.scheduledDate))
-              : 'Fecha a confirmar',
-          },
-        });
-
-        // Schedule reminders if job has scheduled date
-        if (job.scheduledDate) {
-          await scheduleJobReminders(job.id);
-        }
-      } catch (notifError) {
-        console.error('Error sending job notification:', notifError);
-        // Don't fail job creation if notification fails
-      }
-    }
 
     return NextResponse.json({
       success: true,
