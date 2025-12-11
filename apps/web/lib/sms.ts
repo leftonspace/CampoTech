@@ -37,13 +37,25 @@ export class TwilioSMSProvider implements SMSProvider {
         success: true,
         messageId: result.sid,
       };
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error sending SMS';
-      console.error(`Failed to send SMS to ${to}:`, errorMessage);
+    } catch (error: unknown) {
+      // Extract detailed Twilio error info
+      let errorMessage = 'Unknown error sending SMS';
+      let errorCode = '';
+
+      if (error && typeof error === 'object') {
+        const twilioError = error as { message?: string; code?: number; moreInfo?: string };
+        errorMessage = twilioError.message || errorMessage;
+        errorCode = twilioError.code ? ` (Code: ${twilioError.code})` : '';
+        if (twilioError.moreInfo) {
+          console.error(`Twilio error details: ${twilioError.moreInfo}`);
+        }
+      }
+
+      console.error(`Failed to send SMS to ${to}:`, errorMessage, errorCode);
 
       return {
         success: false,
-        error: errorMessage,
+        error: `${errorMessage}${errorCode}`,
       };
     }
   }

@@ -127,7 +127,7 @@ export async function requestOTP(phone: string): Promise<OTPRequestResult> {
       console.error(`Failed to send OTP SMS: ${smsResult.error}`);
       return {
         success: false,
-        error: 'No pudimos enviar el SMS. Por favor intentá de nuevo.',
+        error: `SMS error: ${smsResult.error || 'Unknown error'}`,
       };
     }
 
