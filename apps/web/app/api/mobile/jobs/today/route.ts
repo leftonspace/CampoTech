@@ -61,7 +61,8 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             productId: true,
-            quantity: true,
+            estimatedQty: true,
+            usedQty: true,
           },
         },
       },
