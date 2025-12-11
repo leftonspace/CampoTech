@@ -87,7 +87,7 @@ function DLQContent() {
     ? items.filter((item) => item.queue === queueFilter)
     : items;
 
-  const queues = [...new Set(items.map((item) => item.queue))];
+  const queues = Array.from(new Set(items.map((item) => item.queue)));
 
   const stats = {
     total: items.length,
