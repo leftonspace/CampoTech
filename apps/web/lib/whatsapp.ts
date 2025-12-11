@@ -67,17 +67,18 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
     // Special handling for Argentine mobile numbers
     // International format: 54 9 XX XXXX XXXX (with 9 prefix)
     // Local format: 54 XX 15 XXXX XXXX (with 15 prefix)
-    // Meta's sandbox seems to store numbers in local format
+    // Meta's sandbox stores numbers in local format with "15" prefix
     if (digits.startsWith('549') && digits.length === 13) {
       // Convert from international (9) to local (15) format
-      // 5491162107127 -> 5411156210712 7
-      const countryCode = '54';
+      // 5491162107127 -> 541115 + 62107127
       const areaCode = digits.substring(3, 5); // e.g., "11"
       const localNumber = digits.substring(5); // e.g., "62107127"
-      digits = `${countryCode}${areaCode}15${localNumber}`;
-      console.log(`[WhatsApp] Converted Argentine number from international to local format: ${digits}`);
+      const converted = `54${areaCode}15${localNumber}`;
+      console.log(`[WhatsApp] Converting Argentine number: ${digits} -> ${converted}`);
+      digits = converted;
     }
 
+    console.log(`[WhatsApp] Final phone number for API: ${digits}`);
     return digits;
   }
 
@@ -87,6 +88,7 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
   async sendMessage(to: string, message: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
       const formattedPhone = this.formatPhoneNumber(to);
+      console.log(`[WhatsApp] Sending message to formatted phone: ${formattedPhone}`);
 
       const response = await fetch(
         `${this.baseUrl}/${this.apiVersion}/${this.phoneNumberId}/messages`,
@@ -121,7 +123,7 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
       }
 
       const successData = data as WhatsAppAPIResponse;
-      console.log(`WhatsApp message sent to ${to}, ID: ${successData.messages[0].id}`);
+      console.log(`WhatsApp message sent to ${formattedPhone}, ID: ${successData.messages[0].id}`);
 
       return {
         success: true,
