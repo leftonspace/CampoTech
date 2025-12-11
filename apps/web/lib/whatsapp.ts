@@ -57,28 +57,13 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
 
   /**
    * Format phone number for WhatsApp API
-   * WhatsApp expects numbers without + or spaces, just digits
-   * Special handling for Argentine numbers which have different formats
+   * WhatsApp expects numbers in E.164 format: digits with country code, no + sign
+   * WhatsApp accounts use INTERNATIONAL format (e.g., 5491162107127 with "9")
    */
   private formatPhoneNumber(phone: string): string {
-    // Remove all non-digit characters
-    let digits = phone.replace(/\D/g, '');
-
-    // Special handling for Argentine mobile numbers
-    // International format: 54 9 XX XXXX XXXX (with 9 prefix)
-    // Local format: 54 XX 15 XXXX XXXX (with 15 prefix)
-    // Meta's sandbox stores numbers in local format with "15" prefix
-    if (digits.startsWith('549') && digits.length === 13) {
-      // Convert from international (9) to local (15) format
-      // 5491162107127 -> 541115 + 62107127
-      const areaCode = digits.substring(3, 5); // e.g., "11"
-      const localNumber = digits.substring(5); // e.g., "62107127"
-      const converted = `54${areaCode}15${localNumber}`;
-      console.log(`[WhatsApp] Converting Argentine number: ${digits} -> ${converted}`);
-      digits = converted;
-    }
-
-    console.log(`[WhatsApp] Final phone number for API: ${digits}`);
+    // Remove all non-digit characters (including +)
+    const digits = phone.replace(/\D/g, '');
+    console.log(`[WhatsApp] Phone number for API (no conversion): ${digits}`);
     return digits;
   }
 
