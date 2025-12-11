@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requestOTP } from '@/lib/otp';
+import { requestOTP, OTPChannel } from '@/lib/otp';
 
 export async function POST(request: NextRequest) {
   try {
     console.log('[OTP Request] Starting...');
 
     const body = await request.json();
-    const { phone } = body;
-    console.log('[OTP Request] Phone received:', phone);
+    const { phone, channel = 'sms' } = body as { phone: string; channel?: OTPChannel };
+    console.log('[OTP Request] Phone received:', phone, 'Channel:', channel);
 
     if (!phone) {
       return NextResponse.json(
@@ -39,9 +39,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Request OTP (will send SMS in production, log in dev)
-    console.log('[OTP Request] Calling requestOTP...');
-    const result = await requestOTP(phone);
+    // Request OTP (will send via selected channel in production, log in dev)
+    console.log('[OTP Request] Calling requestOTP with channel:', channel);
+    const result = await requestOTP(phone, channel);
     console.log('[OTP Request] OTP result:', JSON.stringify(result));
 
     if (!result.success) {
