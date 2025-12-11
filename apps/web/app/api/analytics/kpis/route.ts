@@ -88,7 +88,7 @@ export async function GET(req: NextRequest) {
 
     // Revenue KPIs
     if (!category || category === 'revenue') {
-      const revenue = invoiceData._sum?.total || 0;
+      const revenue = invoiceData._sum?.total ? Number(invoiceData._sum.total) : 0;
       categories.push({
         id: 'revenue',
         name: 'Ingresos',
@@ -144,7 +144,7 @@ export async function GET(req: NextRequest) {
 
     // Customer KPIs
     if (!category || category === 'customers') {
-      const avgRating = reviewData._avg?.rating || 0;
+      const avgRating = reviewData._avg?.rating ? Number(reviewData._avg.rating) : 0;
       categories.push({
         id: 'customers',
         name: 'Clientes',
