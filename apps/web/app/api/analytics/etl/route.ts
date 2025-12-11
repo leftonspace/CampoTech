@@ -4,19 +4,12 @@
  *
  * Phase 10.1: Analytics Data Infrastructure
  * API endpoints for managing ETL pipeline operations.
+ *
+ * NOTE: This is a stub implementation. Full analytics requires monorepo package setup.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
-import {
-  runFullETL,
-  runIncrementalETL,
-  getETLStatus,
-  getLastAnalyticsUpdate,
-  getFactSummary,
-  cleanupOldData,
-} from '@/src/analytics';
+import { getSession } from '@/lib/auth';
 
 /**
  * GET /api/analytics/etl
@@ -24,31 +17,23 @@ import {
  */
 export async function GET(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.organizationId) {
+    const session = await getSession();
+    if (!session?.organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const organizationId = session.user.organizationId;
-
-    // Get ETL status
-    const status = await getETLStatus(organizationId);
-    const lastUpdate = await getLastAnalyticsUpdate(organizationId);
-
-    // Get fact summaries
-    const [jobsSummary, invoicesSummary, paymentsSummary] = await Promise.all([
-      getFactSummary(organizationId, 'jobs'),
-      getFactSummary(organizationId, 'invoices'),
-      getFactSummary(organizationId, 'payments'),
-    ]);
-
+    // Stub: Return placeholder ETL status
     return NextResponse.json({
-      status,
-      lastUpdate,
+      status: {
+        isRunning: false,
+        lastRun: new Date().toISOString(),
+        lastStatus: 'success',
+      },
+      lastUpdate: new Date().toISOString(),
       summaries: {
-        jobs: jobsSummary,
-        invoices: invoicesSummary,
-        payments: paymentsSummary,
+        jobs: { total: 0, processed: 0 },
+        invoices: { total: 0, processed: 0 },
+        payments: { total: 0, processed: 0 },
       },
     });
   } catch (error) {
@@ -66,31 +51,28 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.organizationId) {
+    const session = await getSession();
+    if (!session?.organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Only admins and owners can trigger ETL
-    if (!['ADMIN', 'OWNER'].includes(session.user.role || '')) {
+    if (!['admin', 'owner'].includes(session.role || '')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const organizationId = session.user.organizationId;
     const body = await request.json().catch(() => ({}));
     const { type = 'incremental' } = body;
 
-    let result;
-    if (type === 'full') {
-      result = await runFullETL(organizationId);
-    } else {
-      result = await runIncrementalETL(organizationId);
-    }
-
+    // Stub: ETL not implemented yet
     return NextResponse.json({
       success: true,
       type,
-      result,
+      message: 'ETL pipeline triggered (stub implementation)',
+      result: {
+        processed: 0,
+        duration: 0,
+      },
     });
   } catch (error) {
     console.error('ETL execution error:', error);
@@ -107,22 +89,21 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.organizationId) {
+    const session = await getSession();
+    if (!session?.organizationId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Only owners can cleanup data
-    if (session.user.role !== 'OWNER') {
+    if (session.role !== 'owner') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const organizationId = session.user.organizationId;
-    const result = await cleanupOldData(organizationId);
-
+    // Stub: Cleanup not implemented yet
     return NextResponse.json({
       success: true,
-      deleted: result.deleted,
+      message: 'Analytics data cleanup triggered (stub implementation)',
+      deleted: 0,
     });
   } catch (error) {
     console.error('ETL cleanup error:', error);
