@@ -1,0 +1,33 @@
+{
+  "name": "@campotech/analytics",
+  "version": "1.0.0",
+  "description": "Analytics module for CampoTech - KPIs, reports, predictions, and data infrastructure",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --external @prisma/client",
+    "dev": "tsup src/index.ts --format cjs,esm --dts --watch --external @prisma/client",
+    "clean": "rm -rf dist",
+    "type-check": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@prisma/client": "^5.0.0"
+  },
+  "devDependencies": {
+    "@prisma/client": "^5.8.0",
+    "@types/node": "^20.10.0",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.0"
+  }
+}

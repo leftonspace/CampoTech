@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  transpilePackages: ['@campotech/analytics'],
   images: {
     domains: ['api.mercadopago.com'],
     formats: ['image/avif', 'image/webp'],
