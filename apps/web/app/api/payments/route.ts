@@ -119,10 +119,9 @@ export async function POST(request: NextRequest) {
         organizationId: session.organizationId,
         invoiceId,
         amount,
-        method: method || 'cash',
+        method: method || 'CASH',
         status: 'COMPLETED',
         reference,
-        notes,
         paidAt: new Date(),
       },
       include: {
