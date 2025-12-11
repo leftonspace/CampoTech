@@ -1,7 +1,11 @@
+/**
+ * Users API Route
+ * Self-contained implementation
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { initializeOnboarding } from '@/../../src/modules/users/onboarding/onboarding-workflow';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +21,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const role = searchParams.get('role');
-    const specialty = searchParams.get('specialty');
     const limit = parseInt(searchParams.get('limit') || '50');
     const page = parseInt(searchParams.get('page') || '1');
 
@@ -35,10 +38,6 @@ export async function GET(request: NextRequest) {
 
     if (role) {
       where.role = role;
-    }
-
-    if (specialty) {
-      where.specialty = specialty;
     }
 
     const [users, total] = await Promise.all([
@@ -92,15 +91,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if session has organizationId
     if (!session.organizationId) {
       return NextResponse.json(
-        { success: false, error: 'Session missing organizationId. Please log out and log back in.' },
+        { success: false, error: 'Session missing organizationId' },
         { status: 400 }
       );
     }
 
-    // Only OWNER, ADMIN, and DISPATCHER can create users
     if (!['OWNER', 'ADMIN', 'DISPATCHER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'Forbidden: insufficient permissions' },
@@ -110,7 +107,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    // Validate required fields
     if (!body.name || !body.phone) {
       return NextResponse.json(
         { success: false, error: 'Name and phone are required' },
@@ -118,11 +114,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if phone already exists
     const existingPhone = await prisma.user.findFirst({
-      where: {
-        phone: body.phone,
-      },
+      where: { phone: body.phone },
     });
 
     if (existingPhone) {
@@ -132,36 +125,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if email already exists in organization (if provided)
-    if (body.email) {
-      const existingEmail = await prisma.user.findFirst({
-        where: {
-          email: body.email,
-          organizationId: session.organizationId,
-        },
-      });
-
-      if (existingEmail) {
-        return NextResponse.json(
-          { success: false, error: 'Email already in use in this organization' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Prevent creating OWNER role
     if (body.role === 'OWNER') {
       return NextResponse.json(
         { success: false, error: 'Cannot create users with OWNER role' },
         { status: 400 }
       );
     }
-
-    // Get organization name for notification
-    const organization = await prisma.organization.findUnique({
-      where: { id: session.organizationId },
-      select: { name: true },
-    });
 
     const user = await prisma.user.create({
       data: {
@@ -187,41 +156,16 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Initialize onboarding with WhatsApp-first welcome message and verification
-    let onboardingInitialized = false;
-    let notificationSent = false;
-
-    if (body.sendNotification !== false) {
-      try {
-        const onboardingResult = await initializeOnboarding(
-          user.id,
-          session.organizationId,
-          true // Send notification
-        );
-
-        onboardingInitialized = onboardingResult.success;
-        notificationSent = onboardingResult.success;
-
-        if (!onboardingResult.success) {
-          console.warn('Failed to initialize onboarding:', onboardingResult.error);
-        }
-      } catch (onboardingError) {
-        console.error('Error initializing onboarding:', onboardingError);
-        // Don't fail user creation if onboarding fails
-      }
-    }
-
     return NextResponse.json({
       success: true,
       data: user,
-      notificationSent,
-      onboardingInitialized,
+      notificationSent: false,
+      onboardingInitialized: false,
     });
   } catch (error) {
     console.error('Create user error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { success: false, error: `Error creating user: ${errorMessage}` },
+      { success: false, error: 'Error creating user' },
       { status: 500 }
     );
   }

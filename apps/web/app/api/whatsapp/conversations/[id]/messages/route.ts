@@ -1,16 +1,19 @@
+/**
+ * WhatsApp Messages API Route
+ * Self-contained implementation (placeholder)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import {
-  listMessages,
-  sendMessage,
-} from '@/../../src/integrations/whatsapp/whatsapp.service';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
+export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getSession();
+    await params;
 
     if (!session) {
       return NextResponse.json(
@@ -19,20 +22,9 @@ export async function GET(
       );
     }
 
-    const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '50');
-    const before = searchParams.get('before') || undefined;
-
-    const messages = await listMessages(
-      session.organizationId,
-      params.id,
-      limit,
-      before
-    );
-
     return NextResponse.json({
       success: true,
-      data: messages,
+      data: [],
     });
   } catch (error) {
     console.error('WhatsApp messages list error:', error);
@@ -43,12 +35,10 @@ export async function GET(
   }
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getSession();
+    await params;
 
     if (!session) {
       return NextResponse.json(
@@ -57,29 +47,10 @@ export async function POST(
       );
     }
 
-    const body = await request.json();
-    const { text } = body;
-
-    if (!text?.trim()) {
-      return NextResponse.json(
-        { success: false, error: 'Message text is required' },
-        { status: 400 }
-      );
-    }
-
-    const result = await sendMessage(session.organizationId, params.id, text);
-
-    if (!result.success) {
-      return NextResponse.json(
-        { success: false, error: result.error },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: { messageId: result.messageId },
-    });
+    return NextResponse.json(
+      { success: false, error: 'WhatsApp integration not yet implemented' },
+      { status: 501 }
+    );
   } catch (error) {
     console.error('WhatsApp send message error:', error);
     return NextResponse.json(

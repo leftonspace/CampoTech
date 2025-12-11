@@ -1,14 +1,13 @@
+/**
+ * Tracking Update API Route
+ * Self-contained implementation (placeholder)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import {
-  updatePosition,
-  calculateETA,
-} from '@/../../src/modules/tracking/tracking.service';
-import { prisma } from '@/lib/prisma';
 
 /**
  * POST /api/tracking/update
- * Endpoint for technician app to update position
  */
 export async function POST(request: NextRequest) {
   try {
@@ -22,7 +21,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { lat, lng, speed, heading, accuracy, jobId } = body;
+    const { lat, lng, jobId } = body;
 
     if (!lat || !lng || !jobId) {
       return NextResponse.json(
@@ -31,41 +30,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Find active tracking session for this job
-    const trackingSession = await prisma.trackingSession.findFirst({
-      where: {
-        jobId,
-        technicianId: session.userId,
-        status: 'active',
-      },
-    });
-
-    if (!trackingSession) {
-      return NextResponse.json(
-        { success: false, error: 'Sesión de seguimiento no encontrada' },
-        { status: 404 }
-      );
-    }
-
-    // Update position
-    await updatePosition(trackingSession.id, {
-      lat,
-      lng,
-      speed,
-      heading,
-      accuracy,
-    });
-
-    // Calculate new ETA
-    const etaMinutes = await calculateETA(trackingSession.id);
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        etaMinutes,
-        status: trackingSession.status,
-      },
-    });
+    return NextResponse.json(
+      { success: false, error: 'Tracking module not yet implemented' },
+      { status: 501 }
+    );
   } catch (error) {
     console.error('Position update error:', error);
     return NextResponse.json(
