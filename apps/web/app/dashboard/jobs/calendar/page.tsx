@@ -383,7 +383,7 @@ export default function JobsCalendarPage() {
 // HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function isSameDay(dateStr: string | undefined, date: Date): boolean {
+function isSameDay(dateStr: string | Date | null | undefined, date: Date): boolean {
   if (!dateStr) return false;
   const d = new Date(dateStr);
   return (

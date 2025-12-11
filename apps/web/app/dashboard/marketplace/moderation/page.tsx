@@ -158,7 +158,7 @@ function ModerationContent() {
 
   // Bulk approve
   const handleBulkApprove = async () => {
-    for (const reviewId of selectedItems) {
+    for (const reviewId of Array.from(selectedItems)) {
       try {
         await approveMutation.mutateAsync(reviewId);
       } catch (error) {

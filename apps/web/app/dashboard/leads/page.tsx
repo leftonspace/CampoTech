@@ -345,7 +345,7 @@ export default function LeadsPage() {
               )}
             >
               {tab.label}
-              {tab.count !== null && tab.count > 0 && (
+              {tab.count != null && tab.count > 0 && (
                 <span
                   className={cn(
                     'rounded-full px-2 py-0.5 text-xs',

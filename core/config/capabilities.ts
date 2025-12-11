@@ -655,7 +655,7 @@ export class CapabilityService {
       this.cache.delete(`${orgId}:${path}`);
     } else if (path) {
       // Invalidate all orgs for this path
-      for (const key of this.cache.keys()) {
+      for (const key of Array.from(this.cache.keys())) {
         if (key.endsWith(`:${path}`)) {
           this.cache.delete(key);
         }
