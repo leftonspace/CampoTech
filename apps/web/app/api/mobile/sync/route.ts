@@ -114,19 +114,7 @@ export async function POST(request: NextRequest) {
       }),
     ]);
 
-    // Record sync operation
-    await prisma.syncOperation.create({
-      data: {
-        organizationId: session.organizationId,
-        userId: session.userId,
-        deviceId,
-        direction: 'bidirectional',
-        operationsCount: operations?.length || 0,
-        changesCount: jobs.length + customers.length + products.length,
-        conflictsCount: conflicts.length,
-        syncedAt: now,
-      },
-    });
+    // Note: Sync operation logging skipped - SyncOperation model not available
 
     return NextResponse.json({
       success: true,
