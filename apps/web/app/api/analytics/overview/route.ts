@@ -71,11 +71,11 @@ export async function GET(req: NextRequest) {
 
     // Calculate KPIs
     const totalJobs = jobs.length;
-    const completedJobs = jobs.filter((j) => j.status === 'completed').length;
+    const completedJobs = jobs.filter((j) => j.status === 'COMPLETED').length;
     const completionRate = totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
 
     const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
-    const paidInvoices = invoices.filter((i) => i.status === 'paid');
+    const paidInvoices = invoices.filter((i) => i.status === 'PAID');
     const collectedRevenue = paidInvoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
     const collectionRate = totalRevenue > 0 ? (collectedRevenue / totalRevenue) * 100 : 0;
 

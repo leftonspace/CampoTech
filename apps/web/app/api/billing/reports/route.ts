@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       const locInvoices = invoices.filter((inv) => inv.locationId === loc.id);
       const total = locInvoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
       const paid = locInvoices
-        .filter((inv) => inv.status === 'paid')
+        .filter((inv) => inv.status === 'PAID')
         .reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
 
       return {
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
 
     const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
     const paidRevenue = invoices
-      .filter((inv) => inv.status === 'paid')
+      .filter((inv) => inv.status === 'PAID')
       .reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
 
     return NextResponse.json({
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
 
     const total = invoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
     const paid = invoices
-      .filter((inv) => inv.status === 'paid')
+      .filter((inv) => inv.status === 'PAID')
       .reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
 
     return NextResponse.json({

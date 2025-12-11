@@ -66,9 +66,9 @@ export async function GET(req: NextRequest) {
 
     // Calculate KPIs
     const totalJobs = jobs.length;
-    const completedJobs = jobs.filter((j) => j.status === 'completed').length;
+    const completedJobs = jobs.filter((j) => j.status === 'COMPLETED').length;
     const completionRate = totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
-    const pendingJobs = jobs.filter((j) => j.status === 'pending').length;
+    const pendingJobs = jobs.filter((j) => j.status === 'PENDING').length;
 
     // Jobs by status
     const statusCounts: Record<string, number> = {};

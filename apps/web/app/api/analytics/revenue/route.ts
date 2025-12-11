@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
     const invoiceCount = invoices.length;
     const avgTicket = invoiceCount > 0 ? totalRevenue / invoiceCount : 0;
 
-    const paidInvoices = invoices.filter((inv) => inv.status === 'paid');
+    const paidInvoices = invoices.filter((inv) => inv.status === 'PAID');
     const paidRevenue = paidInvoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
     const collectionRate = totalRevenue > 0 ? (paidRevenue / totalRevenue) * 100 : 0;
 

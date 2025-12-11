@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
           gte: today,
           lt: tomorrow,
         },
-        status: { not: 'cancelled' },
+        status: { not: 'CANCELLED' },
       },
       include: {
         customer: {
@@ -59,11 +59,11 @@ export async function GET(request: NextRequest) {
     // Get summary stats
     const summary = {
       total: jobs.length,
-      pending: jobs.filter((j) => j.status === 'pending').length,
-      scheduled: jobs.filter((j) => j.status === 'scheduled').length,
-      enCamino: jobs.filter((j) => j.status === 'en_camino').length,
-      working: jobs.filter((j) => j.status === 'working').length,
-      completed: jobs.filter((j) => j.status === 'completed').length,
+      pending: jobs.filter((j) => j.status === 'PENDING').length,
+      assigned: jobs.filter((j) => j.status === 'ASSIGNED').length,
+      enRoute: jobs.filter((j) => j.status === 'EN_ROUTE').length,
+      inProgress: jobs.filter((j) => j.status === 'IN_PROGRESS').length,
+      completed: jobs.filter((j) => j.status === 'COMPLETED').length,
     };
 
     return NextResponse.json({

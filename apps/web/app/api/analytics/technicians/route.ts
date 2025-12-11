@@ -79,13 +79,13 @@ export async function GET(req: NextRequest) {
 
     const activeTechnicians = technicians.length;
     const totalJobs = jobs.length;
-    const completedJobs = jobs.filter((j) => j.status === 'completed').length;
+    const completedJobs = jobs.filter((j) => j.status === 'COMPLETED').length;
     const avgJobsPerTech = activeTechnicians > 0 ? totalJobs / activeTechnicians : 0;
 
     // Calculate per-technician stats
     const technicianPerformance = technicians.map((tech) => {
       const techJobs = jobs.filter((j) => j.technicianId === tech.id);
-      const techCompleted = techJobs.filter((j) => j.status === 'completed').length;
+      const techCompleted = techJobs.filter((j) => j.status === 'COMPLETED').length;
 
       return {
         id: tech.id,
