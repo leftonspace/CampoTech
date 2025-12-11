@@ -11,8 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Queue, Job } from 'bullmq';
 import Redis from 'ioredis';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { getSession } from '@/lib/auth';
 
 // =============================================================================
 // CONFIGURATION
@@ -51,18 +50,17 @@ interface DLQEntry {
 
 async function requireAdmin(request: NextRequest): Promise<{ user: any } | NextResponse> {
   try {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
 
-    if (!session?.user) {
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const userRole = (session.user as any).role || (session.user as any).organizationRole;
-    if (!['owner', 'admin'].includes(userRole)) {
+    if (!['owner', 'admin'].includes(session.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    return { user: session.user };
+    return { user: session };
   } catch {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
