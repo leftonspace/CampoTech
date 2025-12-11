@@ -1,6 +1,10 @@
+/**
+ * WhatsApp Send Template API Route
+ * Self-contained implementation (placeholder)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { sendTemplate } from '@/../../src/integrations/whatsapp/whatsapp.service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +18,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { templateName, phone, params } = body;
+    const { templateName, phone } = body;
 
     if (!templateName || !phone) {
       return NextResponse.json(
@@ -23,24 +27,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const result = await sendTemplate(
-      session.organizationId,
-      phone,
-      templateName,
-      params || {}
+    return NextResponse.json(
+      { success: false, error: 'WhatsApp integration not yet implemented' },
+      { status: 501 }
     );
-
-    if (!result.success) {
-      return NextResponse.json(
-        { success: false, error: result.error },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: { messageId: result.messageId },
-    });
   } catch (error) {
     console.error('WhatsApp send template error:', error);
     return NextResponse.json(

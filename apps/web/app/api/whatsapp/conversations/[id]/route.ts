@@ -1,13 +1,19 @@
+/**
+ * WhatsApp Conversation API Route
+ * Self-contained implementation (placeholder)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getConversation } from '@/../../src/integrations/whatsapp/whatsapp.service';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
+
+export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getSession();
+    await params;
 
     if (!session) {
       return NextResponse.json(
@@ -16,19 +22,10 @@ export async function GET(
       );
     }
 
-    const conversation = await getConversation(session.organizationId, params.id);
-
-    if (!conversation) {
-      return NextResponse.json(
-        { success: false, error: 'Conversation not found' },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: conversation,
-    });
+    return NextResponse.json(
+      { success: false, error: 'Conversation not found' },
+      { status: 404 }
+    );
   } catch (error) {
     console.error('WhatsApp conversation get error:', error);
     return NextResponse.json(
