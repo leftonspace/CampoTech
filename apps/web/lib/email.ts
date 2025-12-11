@@ -32,7 +32,9 @@ class ResendEmailProvider implements EmailProvider {
 
   constructor() {
     const apiKey = process.env.RESEND_API_KEY;
-    const from = process.env.EMAIL_FROM || 'CampoTech <noreply@campotech.com>';
+    // Use Resend's free testing domain if no custom domain is configured
+    // This works without domain verification: onboarding@resend.dev
+    const from = process.env.EMAIL_FROM || 'CampoTech <onboarding@resend.dev>';
 
     if (!apiKey) {
       throw new Error('RESEND_API_KEY environment variable is not set');
