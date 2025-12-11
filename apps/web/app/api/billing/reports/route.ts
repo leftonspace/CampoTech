@@ -1,28 +1,12 @@
+/**
+ * Billing Reports API Route
+ * Self-contained implementation (placeholder)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import {
-  ConsolidatedBillingService,
-} from '@/src/modules/locations/billing';
-import { z } from 'zod';
 
-const consolidatedBilling = new ConsolidatedBillingService(prisma);
-
-const DateRangeSchema = z.object({
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
-});
-
-const LocationSummarySchema = z.object({
-  locationId: z.string().cuid(),
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
-});
-
-/**
- * GET /api/billing/reports
- * Get organization-wide billing report
- */
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
@@ -38,33 +22,68 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
 
-    const dateRange = DateRangeSchema.parse({
-      startDate: startDate || undefined,
-      endDate: endDate || undefined,
+    const dateFilter: any = {};
+    if (startDate) dateFilter.gte = new Date(startDate);
+    if (endDate) dateFilter.lte = new Date(endDate);
+
+    // Get basic billing data
+    const [invoices, locations] = await Promise.all([
+      prisma.invoice.findMany({
+        where: {
+          organizationId: session.organizationId,
+          ...(startDate || endDate ? { createdAt: dateFilter } : {}),
+        },
+        select: {
+          id: true,
+          totalAmount: true,
+          status: true,
+          locationId: true,
+        },
+      }),
+      prisma.location.findMany({
+        where: { organizationId: session.organizationId },
+        select: { id: true, name: true },
+      }),
+    ]);
+
+    // Aggregate by location
+    const locationTotals = locations.map((loc) => {
+      const locInvoices = invoices.filter((inv) => inv.locationId === loc.id);
+      const total = locInvoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+      const paid = locInvoices
+        .filter((inv) => inv.status === 'paid')
+        .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+
+      return {
+        locationId: loc.id,
+        locationName: loc.name,
+        totalRevenue: total,
+        collectedRevenue: paid,
+        pendingRevenue: total - paid,
+        invoiceCount: locInvoices.length,
+      };
     });
 
-    const report = await consolidatedBilling.getOrganizationBillingReport(
-      session.organizationId,
-      {
-        startDate: dateRange.startDate ? new Date(dateRange.startDate) : undefined,
-        endDate: dateRange.endDate ? new Date(dateRange.endDate) : undefined,
-      }
-    );
+    const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+    const paidRevenue = invoices
+      .filter((inv) => inv.status === 'paid')
+      .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
 
     return NextResponse.json({
       success: true,
-      data: report,
+      data: {
+        summary: {
+          totalRevenue,
+          collectedRevenue: paidRevenue,
+          pendingRevenue: totalRevenue - paidRevenue,
+          totalInvoices: invoices.length,
+        },
+        byLocation: locationTotals,
+        interLocationCharges: [],
+      },
     });
   } catch (error) {
     console.error('Get billing report error:', error);
-
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { success: false, error: 'Validation error', details: error.errors },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
       { success: false, error: 'Error fetching billing report' },
       { status: 500 }
@@ -72,10 +91,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/**
- * POST /api/billing/reports/location-summary
- * Get billing summary for a specific location
- */
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
@@ -88,31 +103,44 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const input = LocationSummarySchema.parse(body);
+    const { locationId } = body;
 
-    const summary = await consolidatedBilling.getLocationBillingSummary(
-      session.organizationId,
-      input.locationId,
-      {
-        startDate: input.startDate ? new Date(input.startDate) : undefined,
-        endDate: input.endDate ? new Date(input.endDate) : undefined,
-      }
-    );
-
-    return NextResponse.json({
-      success: true,
-      data: summary,
-    });
-  } catch (error) {
-    console.error('Get location summary error:', error);
-
-    if (error instanceof z.ZodError) {
+    if (!locationId) {
       return NextResponse.json(
-        { success: false, error: 'Validation error', details: error.errors },
+        { success: false, error: 'Location ID required' },
         { status: 400 }
       );
     }
 
+    const invoices = await prisma.invoice.findMany({
+      where: {
+        organizationId: session.organizationId,
+        locationId,
+      },
+      select: {
+        id: true,
+        totalAmount: true,
+        status: true,
+      },
+    });
+
+    const total = invoices.reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+    const paid = invoices
+      .filter((inv) => inv.status === 'paid')
+      .reduce((sum, inv) => sum + (inv.totalAmount || 0), 0);
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        locationId,
+        totalRevenue: total,
+        collectedRevenue: paid,
+        pendingRevenue: total - paid,
+        invoiceCount: invoices.length,
+      },
+    });
+  } catch (error) {
+    console.error('Get location summary error:', error);
     return NextResponse.json(
       { success: false, error: 'Error fetching location billing summary' },
       { status: 500 }

@@ -1,34 +1,12 @@
+/**
+ * Billing Routing API Route
+ * Self-contained implementation (placeholder)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import {
-  LocationInvoiceRouter,
-  InvoiceRoutingError,
-} from '@/src/modules/locations/billing';
-import { z } from 'zod';
 
-const invoiceRouter = new LocationInvoiceRouter(prisma);
-
-const RoutingInputSchema = z.object({
-  jobId: z.string().cuid().optional(),
-  customerId: z.string().cuid().optional(),
-  customerCoordinates: z.object({
-    lat: z.number().min(-90).max(90),
-    lng: z.number().min(-180).max(180),
-  }).optional(),
-  customerCondicionIva: z.enum([
-    'RESPONSABLE_INSCRIPTO',
-    'MONOTRIBUTISTA',
-    'EXENTO',
-    'CONSUMIDOR_FINAL',
-  ]).optional(),
-  explicitLocationId: z.string().cuid().optional(),
-});
-
-/**
- * POST /api/billing/routing
- * Determine best location to issue invoice from
- */
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
@@ -41,31 +19,56 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const input = RoutingInputSchema.parse(body);
+    const { jobId, customerId, explicitLocationId } = body;
 
-    const result = await invoiceRouter.routeInvoice(session.organizationId, input);
+    // If explicit location provided, use it
+    if (explicitLocationId) {
+      const location = await prisma.location.findFirst({
+        where: {
+          id: explicitLocationId,
+          organizationId: session.organizationId,
+        },
+        select: { id: true, name: true },
+      });
+
+      if (location) {
+        return NextResponse.json({
+          success: true,
+          data: {
+            locationId: location.id,
+            locationName: location.name,
+            reason: 'explicit_selection',
+          },
+        });
+      }
+    }
+
+    // Get first active location as default
+    const defaultLocation = await prisma.location.findFirst({
+      where: {
+        organizationId: session.organizationId,
+        isActive: true,
+      },
+      select: { id: true, name: true },
+    });
+
+    if (!defaultLocation) {
+      return NextResponse.json({
+        success: false,
+        error: 'No active locations found',
+      }, { status: 404 });
+    }
 
     return NextResponse.json({
       success: true,
-      data: result,
+      data: {
+        locationId: defaultLocation.id,
+        locationName: defaultLocation.name,
+        reason: 'default_location',
+      },
     });
   } catch (error) {
     console.error('Invoice routing error:', error);
-
-    if (error instanceof InvoiceRoutingError) {
-      return NextResponse.json(
-        { success: false, error: error.message, code: error.code },
-        { status: error.statusCode }
-      );
-    }
-
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { success: false, error: 'Validation error', details: error.errors },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
       { success: false, error: 'Error determining invoice routing' },
       { status: 500 }
@@ -73,10 +76,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/**
- * GET /api/billing/routing
- * Get all routing options (locations with AFIP config)
- */
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
@@ -88,15 +87,31 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const options = await invoiceRouter.getRoutingOptions(session.organizationId);
+    // Get all active locations as routing options
+    const locations = await prisma.location.findMany({
+      where: {
+        organizationId: session.organizationId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        address: true,
+      },
+    });
 
     return NextResponse.json({
       success: true,
-      data: options,
+      data: locations.map((loc) => ({
+        locationId: loc.id,
+        locationName: loc.name,
+        address: loc.address,
+        hasAfipConfig: false, // Placeholder
+        canIssueInvoices: true,
+      })),
     });
   } catch (error) {
     console.error('Get routing options error:', error);
-
     return NextResponse.json(
       { success: false, error: 'Error fetching routing options' },
       { status: 500 }
