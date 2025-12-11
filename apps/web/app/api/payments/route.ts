@@ -146,7 +146,7 @@ export async function POST(request: NextRequest) {
     if (paidAmount >= invoiceTotal) {
       await prisma.invoice.update({
         where: { id: invoiceId },
-        data: { status: 'paid' },
+        data: { status: 'PAID' },
       });
     }
 
