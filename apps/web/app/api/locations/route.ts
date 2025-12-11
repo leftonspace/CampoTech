@@ -97,10 +97,14 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    // Generate code from name if not provided
+    const code = body.code || body.name.substring(0, 10).toUpperCase().replace(/\s+/g, '-');
+
     const location = await prisma.location.create({
       data: {
+        code,
         name: body.name,
-        address: body.address,
+        address: body.address || {},
         phone: body.phone,
         email: body.email,
         organizationId: session.organizationId,
