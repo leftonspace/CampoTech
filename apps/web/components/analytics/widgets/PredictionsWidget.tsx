@@ -82,7 +82,15 @@ export default function PredictionsWidget({ compact = false, className = '' }: P
     );
   }
 
-  if (!data) {
+  // Check for valid data structure
+  const isValidData = data &&
+    data.demand?.forecasts &&
+    data.demand?.accuracy &&
+    data.revenue &&
+    data.churn?.summary &&
+    data.anomalies?.summary;
+
+  if (!isValidData) {
     return (
       <div className={`bg-white rounded-xl border border-gray-200 p-6 ${className}`}>
         <div className="text-center text-gray-500 py-8">
