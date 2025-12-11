@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
         invoiceId,
         amount,
         method: method || 'cash',
-        status: 'completed',
+        status: 'COMPLETED',
         reference,
         notes,
         paidAt: new Date(),
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
     const totalPaid = await prisma.payment.aggregate({
       where: {
         invoiceId,
-        status: 'completed',
+        status: 'COMPLETED',
       },
       _sum: {
         amount: true,
