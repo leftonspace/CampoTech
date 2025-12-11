@@ -73,12 +73,12 @@ export async function POST(
       );
     }
 
-    // Check if assignment already exists
+    // Check if assignment already exists (active assignment has no assignedUntil date)
     const existingAssignment = await prisma.vehicleAssignment.findFirst({
       where: {
         vehicleId: id,
         userId,
-        endDate: null, // Active assignment
+        assignedUntil: null,
       },
     });
 
@@ -112,7 +112,7 @@ export async function POST(
         where: {
           vehicleId: id,
           isPrimaryDriver: true,
-          endDate: null,
+          assignedUntil: null,
         },
         data: { isPrimaryDriver: false },
       });
@@ -124,7 +124,7 @@ export async function POST(
         vehicleId: id,
         userId,
         isPrimaryDriver,
-        startDate: new Date(),
+        assignedFrom: new Date(),
       },
       include: {
         user: {
@@ -204,7 +204,7 @@ export async function DELETE(
       where: {
         vehicleId: id,
         userId,
-        endDate: null,
+        assignedUntil: null,
       },
     });
 
@@ -218,7 +218,7 @@ export async function DELETE(
     // End the assignment (soft delete)
     await prisma.vehicleAssignment.update({
       where: { id: assignment.id },
-      data: { endDate: new Date() },
+      data: { assignedUntil: new Date() },
     });
 
     return NextResponse.json({

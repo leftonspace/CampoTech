@@ -14,35 +14,7 @@ import {
   Navigation,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
-
-interface CalendarEvent {
-  id: string;
-  title: string;
-  start: string;
-  end: string;
-  backgroundColor: string;
-  extendedProps: {
-    jobNumber: string;
-    status: string;
-    urgency: string;
-    serviceType: string;
-    description: string;
-    customer: {
-      id: string;
-      name: string;
-      phone: string;
-      address: unknown;
-    };
-    technician: {
-      id: string;
-      name: string;
-      avatar: string | null;
-      specialty: string | null;
-    } | null;
-    estimatedDuration: number | null;
-    scheduledTimeSlot: { start?: string; end?: string } | null;
-  };
-}
+import { CalendarEvent } from './CalendarView';
 
 interface JobCardProps {
   event: CalendarEvent;

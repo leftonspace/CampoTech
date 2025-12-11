@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { VehicleDocumentType } from '@prisma/client';
 
 export async function GET(
   request: NextRequest,
@@ -124,15 +125,17 @@ export async function POST(
 
     const body = await request.json();
     const {
-      type,
-      name,
+      documentType,
+      fileName,
       fileUrl,
+      fileSize,
+      mimeType,
       expiryDate,
       notes,
     } = body;
 
     // Validate required fields
-    if (!type || !name || !fileUrl) {
+    if (!documentType || !fileName || !fileUrl) {
       return NextResponse.json(
         { success: false, error: 'Tipo, nombre y archivo son requeridos' },
         { status: 400 }
@@ -140,16 +143,8 @@ export async function POST(
     }
 
     // Validate document type
-    const validTypes = [
-      'TARJETA_VERDE',
-      'SEGURO',
-      'VTV',
-      'CEDULA_AZUL',
-      'MULTA',
-      'FACTURA_MANTENIMIENTO',
-      'OTRO',
-    ];
-    if (!validTypes.includes(type)) {
+    const validTypes = Object.values(VehicleDocumentType);
+    if (!validTypes.includes(documentType)) {
       return NextResponse.json(
         { success: false, error: 'Tipo de documento inválido' },
         { status: 400 }
@@ -160,9 +155,11 @@ export async function POST(
     const document = await prisma.vehicleDocument.create({
       data: {
         vehicleId: id,
-        type,
-        name,
+        documentType: documentType as VehicleDocumentType,
+        fileName,
         fileUrl,
+        fileSize: fileSize || null,
+        mimeType: mimeType || null,
         expiryDate: expiryDate ? new Date(expiryDate) : null,
         notes,
         uploadedById: session.userId,
@@ -171,11 +168,11 @@ export async function POST(
 
     // Update vehicle expiry dates if relevant document type
     const updateData: Record<string, Date> = {};
-    if (type === 'SEGURO' && expiryDate) {
+    if (documentType === 'INSURANCE' && expiryDate) {
       updateData.insuranceExpiry = new Date(expiryDate);
-    } else if (type === 'VTV' && expiryDate) {
+    } else if (documentType === 'VTV' && expiryDate) {
       updateData.vtvExpiry = new Date(expiryDate);
-    } else if (type === 'TARJETA_VERDE' && expiryDate) {
+    } else if (documentType === 'REGISTRATION' && expiryDate) {
       updateData.registrationExpiry = new Date(expiryDate);
     }
 

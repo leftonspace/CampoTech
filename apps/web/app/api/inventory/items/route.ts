@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { InventoryCategory } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
               select: {
                 id: true,
                 name: true,
-                type: true,
+                locationType: true,
               },
             },
           },
@@ -69,20 +70,19 @@ export async function GET(request: NextRequest) {
 
     // Calculate total stock and check for low stock
     const itemsWithTotals = items.map((item) => {
-      const totalStock = item.stocks.reduce((sum, s) => sum + s.quantity, 0);
+      const totalStock = item.stocks.reduce((sum: number, s: { quantity: number }) => sum + s.quantity, 0);
       const isLowStock = totalStock <= (item.minStockLevel || 0);
 
       return {
         ...item,
         totalStock,
         isLowStock,
-        stocksByLocation: item.stocks.map((s) => ({
+        stocksByLocation: item.stocks.map((s: { locationId: string; location: { name: string; locationType: string }; quantity: number }) => ({
           locationId: s.locationId,
           locationName: s.location.name,
-          locationType: s.location.type,
+          locationType: s.location.locationType,
           quantity: s.quantity,
-          reservedQuantity: s.reservedQuantity,
-          availableQuantity: s.quantity - s.reservedQuantity,
+          availableQuantity: s.quantity,
         })),
       };
     });
@@ -93,10 +93,13 @@ export async function GET(request: NextRequest) {
       : itemsWithTotals;
 
     // Calculate stats
+    const categories = items.map((item) => item.category).filter(Boolean);
+    const uniqueCategories = Array.from(new Set(categories));
+
     const stats = {
       totalItems: items.length,
       lowStockItems: itemsWithTotals.filter((item) => item.isLowStock).length,
-      categories: [...new Set(items.map((item) => item.category))].filter(Boolean),
+      categories: uniqueCategories,
     };
 
     return NextResponse.json({
@@ -141,11 +144,9 @@ export async function POST(request: NextRequest) {
       description,
       category,
       unit,
-      unitCost,
+      costPrice,
+      salePrice,
       minStockLevel,
-      maxStockLevel,
-      reorderPoint,
-      reorderQuantity,
       imageUrl,
       isActive = true,
     } = body;
@@ -158,36 +159,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for duplicate SKU
-    if (sku) {
-      const existingSku = await prisma.inventoryItem.findFirst({
-        where: {
-          organizationId: session.organizationId,
-          sku,
-        },
-      });
+    if (!sku) {
+      return NextResponse.json(
+        { success: false, error: 'El SKU es requerido' },
+        { status: 400 }
+      );
+    }
 
-      if (existingSku) {
-        return NextResponse.json(
-          { success: false, error: 'Ya existe un artículo con ese SKU' },
-          { status: 400 }
-        );
-      }
+    // Check for duplicate SKU
+    const existingSku = await prisma.inventoryItem.findFirst({
+      where: {
+        organizationId: session.organizationId,
+        sku,
+      },
+    });
+
+    if (existingSku) {
+      return NextResponse.json(
+        { success: false, error: 'Ya existe un artículo con ese SKU' },
+        { status: 400 }
+      );
     }
 
     const item = await prisma.inventoryItem.create({
       data: {
         organizationId: session.organizationId,
         name,
-        sku: sku || undefined,
+        sku,
         description,
-        category,
+        category: category || InventoryCategory.PARTS,
         unit: unit || 'unidad',
-        unitCost: unitCost ? parseFloat(unitCost) : null,
-        minStockLevel: minStockLevel ? parseInt(minStockLevel) : null,
-        maxStockLevel: maxStockLevel ? parseInt(maxStockLevel) : null,
-        reorderPoint: reorderPoint ? parseInt(reorderPoint) : null,
-        reorderQuantity: reorderQuantity ? parseInt(reorderQuantity) : null,
+        costPrice: costPrice ? parseFloat(costPrice) : 0,
+        salePrice: salePrice ? parseFloat(salePrice) : 0,
+        minStockLevel: minStockLevel ? parseInt(minStockLevel) : 0,
         imageUrl,
         isActive,
       },

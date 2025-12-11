@@ -17,38 +17,8 @@ import {
   Phone,
   Briefcase,
 } from 'lucide-react';
-import { CalendarView } from '@/components/calendar/CalendarView';
+import { CalendarView, CalendarEvent } from '@/components/calendar/CalendarView';
 import { JobCard } from '@/components/calendar/JobCard';
-
-interface CalendarEvent {
-  id: string;
-  title: string;
-  start: string;
-  end: string;
-  backgroundColor: string;
-  borderColor: string;
-  extendedProps: {
-    jobNumber: string;
-    status: string;
-    urgency: string;
-    serviceType: string;
-    description: string;
-    customer: {
-      id: string;
-      name: string;
-      phone: string;
-      address: unknown;
-    };
-    technician: {
-      id: string;
-      name: string;
-      avatar: string | null;
-      specialty: string | null;
-    } | null;
-    estimatedDuration: number | null;
-    scheduledTimeSlot: { start?: string; end?: string } | null;
-  };
-}
 
 interface Technician {
   id: string;
