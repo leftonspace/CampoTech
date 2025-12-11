@@ -24,43 +24,54 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'all';
 
-    // Placeholder predictions data
+    // Placeholder predictions data - matches PredictionsSummary interface
     const placeholderData = {
       demand: {
-        forecasts: [],
-        accuracy: 0,
-        message: 'Demand forecasting not yet implemented',
+        forecasts: [
+          { date: new Date().toISOString(), predictedDemand: 0 },
+        ],
+        accuracy: { mape: 15 },
       },
       revenue: {
         currentMRR: 0,
         growthRate: 0,
-        scenarios: [],
-        message: 'Revenue projection not yet implemented',
+        scenarios: [
+          { name: 'Conservador', nextMonth: 0, sixMonths: 0 },
+          { name: 'Base', nextMonth: 0, sixMonths: 0 },
+          { name: 'Optimista', nextMonth: 0, sixMonths: 0 },
+        ],
       },
       churn: {
-        summary: { totalCustomers: 0, atRisk: 0, riskRate: 0 },
+        summary: {
+          totalAtRisk: 0,
+          highRiskCount: 0,
+          potentialRevenueLoss: 0
+        },
         topRisks: [],
-        message: 'Churn prediction not yet implemented',
       },
       anomalies: {
-        summary: { total: 0, critical: 0, warning: 0 },
+        summary: {
+          totalAnomalies: 0,
+          criticalCount: 0,
+          warningCount: 0
+        },
         recent: [],
-        message: 'Anomaly detection not yet implemented',
       },
     };
 
+    // Return data directly (widget expects raw data, not wrapped)
     switch (type) {
       case 'demand':
-        return NextResponse.json({ success: true, data: placeholderData.demand });
+        return NextResponse.json(placeholderData.demand);
       case 'revenue':
-        return NextResponse.json({ success: true, data: placeholderData.revenue });
+        return NextResponse.json(placeholderData.revenue);
       case 'churn':
-        return NextResponse.json({ success: true, data: placeholderData.churn });
+        return NextResponse.json(placeholderData.churn);
       case 'anomalies':
-        return NextResponse.json({ success: true, data: placeholderData.anomalies });
+        return NextResponse.json(placeholderData.anomalies);
       case 'all':
       default:
-        return NextResponse.json({ success: true, data: placeholderData });
+        return NextResponse.json(placeholderData);
     }
   } catch (error) {
     console.error('Predictions error:', error);
