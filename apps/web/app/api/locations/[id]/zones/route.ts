@@ -1,10 +1,10 @@
+/**
+ * Location Zones API Route
+ * Self-contained implementation (placeholder)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { LocationService, LocationError } from '@/src/modules/locations';
-import { CreateZoneSchema, ZoneFiltersSchema } from '@/src/modules/locations';
-
-const locationService = new LocationService(prisma);
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -17,7 +17,7 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getSession();
-    const { id: locationId } = await params;
+    await params;
 
     if (!session) {
       return NextResponse.json(
@@ -26,37 +26,19 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const { searchParams } = new URL(request.url);
-    const filters = ZoneFiltersSchema.parse({
-      locationId,
-      isActive: searchParams.get('isActive') || undefined,
-      search: searchParams.get('search') || undefined,
-      page: searchParams.get('page') || 1,
-      limit: searchParams.get('limit') || 50,
-    });
-
-    const result = await locationService.listZones(session.organizationId, filters);
-
+    // Placeholder - zones not implemented
     return NextResponse.json({
       success: true,
-      data: result.zones,
+      data: [],
       pagination: {
-        page: result.page,
-        limit: result.limit,
-        total: result.total,
-        totalPages: result.totalPages,
+        page: 1,
+        limit: 50,
+        total: 0,
+        totalPages: 0,
       },
     });
   } catch (error) {
     console.error('List zones error:', error);
-
-    if (error instanceof LocationError) {
-      return NextResponse.json(
-        { success: false, error: error.message, code: error.code },
-        { status: error.statusCode }
-      );
-    }
-
     return NextResponse.json(
       { success: false, error: 'Error fetching zones' },
       { status: 500 }
@@ -71,7 +53,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getSession();
-    const { id: locationId } = await params;
+    await params;
 
     if (!session) {
       return NextResponse.json(
@@ -88,35 +70,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const body = await request.json();
-    const validatedData = CreateZoneSchema.parse({
-      ...body,
-      locationId,
-    });
-
-    const zone = await locationService.createZone(session.organizationId, validatedData);
-
-    return NextResponse.json({
-      success: true,
-      data: zone,
-    }, { status: 201 });
+    return NextResponse.json(
+      { success: false, error: 'Locations module not yet implemented' },
+      { status: 501 }
+    );
   } catch (error) {
     console.error('Create zone error:', error);
-
-    if (error instanceof LocationError) {
-      return NextResponse.json(
-        { success: false, error: error.message, code: error.code },
-        { status: error.statusCode }
-      );
-    }
-
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json(
-        { success: false, error: 'Validation error', details: (error as any).errors },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
       { success: false, error: 'Error creating zone' },
       { status: 500 }

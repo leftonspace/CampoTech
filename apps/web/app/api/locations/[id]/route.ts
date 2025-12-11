@@ -1,10 +1,11 @@
+/**
+ * Location API Route
+ * Self-contained implementation (placeholder)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { LocationService, LocationError } from '@/src/modules/locations';
-import { UpdateLocationSchema } from '@/src/modules/locations';
-
-const locationService = new LocationService(prisma);
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -26,7 +27,19 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const location = await locationService.getLocation(session.organizationId, id);
+    const location = await prisma.location.findFirst({
+      where: {
+        id,
+        organizationId: session.organizationId,
+      },
+    });
+
+    if (!location) {
+      return NextResponse.json(
+        { success: false, error: 'Location not found' },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -34,14 +47,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     console.error('Get location error:', error);
-
-    if (error instanceof LocationError) {
-      return NextResponse.json(
-        { success: false, error: error.message, code: error.code },
-        { status: error.statusCode }
-      );
-    }
-
     return NextResponse.json(
       { success: false, error: 'Error fetching location' },
       { status: 500 }
@@ -74,35 +79,38 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const validatedData = UpdateLocationSchema.parse(body);
 
-    const location = await locationService.updateLocation(
-      session.organizationId,
-      id,
-      validatedData
-    );
+    const location = await prisma.location.updateMany({
+      where: {
+        id,
+        organizationId: session.organizationId,
+      },
+      data: {
+        name: body.name,
+        address: body.address,
+        phone: body.phone,
+        email: body.email,
+        updatedAt: new Date(),
+      },
+    });
+
+    if (location.count === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Location not found' },
+        { status: 404 }
+      );
+    }
+
+    const updated = await prisma.location.findFirst({
+      where: { id, organizationId: session.organizationId },
+    });
 
     return NextResponse.json({
       success: true,
-      data: location,
+      data: updated,
     });
   } catch (error) {
     console.error('Update location error:', error);
-
-    if (error instanceof LocationError) {
-      return NextResponse.json(
-        { success: false, error: error.message, code: error.code },
-        { status: error.statusCode }
-      );
-    }
-
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json(
-        { success: false, error: 'Validation error', details: (error as any).errors },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
       { success: false, error: 'Error updating location' },
       { status: 500 }
@@ -134,7 +142,23 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    await locationService.deleteLocation(session.organizationId, id);
+    const result = await prisma.location.updateMany({
+      where: {
+        id,
+        organizationId: session.organizationId,
+      },
+      data: {
+        isActive: false,
+        updatedAt: new Date(),
+      },
+    });
+
+    if (result.count === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Location not found' },
+        { status: 404 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -142,14 +166,6 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     });
   } catch (error) {
     console.error('Delete location error:', error);
-
-    if (error instanceof LocationError) {
-      return NextResponse.json(
-        { success: false, error: error.message, code: error.code },
-        { status: error.statusCode }
-      );
-    }
-
     return NextResponse.json(
       { success: false, error: 'Error deleting location' },
       { status: 500 }
