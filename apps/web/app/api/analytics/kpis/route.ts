@@ -4,32 +4,13 @@
  *
  * Phase 10.2: Business Intelligence KPIs
  * Returns all KPIs for the organization.
+ *
+ * NOTE: This is a stub implementation. Full analytics requires monorepo package setup.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../../lib/auth';
-
-import {
-  // Revenue KPIs
-  generateRevenueKPIs,
-  generateMRRKPIs,
-  generateARPUKPIs,
-  // Operations KPIs
-  generateJobKPIs,
-  generateTechnicianKPIs,
-  generateSLAKPIs,
-  // Financial KPIs
-  generateFinancialKPIs,
-  generateProfitabilityKPIs,
-  generateTaxKPIs,
-  // Customer KPIs
-  generateCustomerKPIs,
-  generateSatisfactionKPIs,
-  generateSegmentKPIs,
-  // Helpers
-  getDateRangeFromPreset,
-} from '@/src/analytics';
+import { getSession } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -56,12 +37,12 @@ interface KPICategory {
 export async function GET(req: NextRequest) {
   try {
     // Check authentication
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const organizationId = session.user.organizationId;
+    const organizationId = session.organizationId;
     if (!organizationId) {
       return NextResponse.json({ error: 'No organization' }, { status: 400 });
     }
@@ -72,66 +53,124 @@ export async function GET(req: NextRequest) {
     const category = searchParams.get('category'); // Optional: filter by category
     const dateRange = getDateRangeFromPreset(rangePreset);
 
+    // Get actual data from database
+    const [jobCount, customerCount, invoiceData, reviewData] = await Promise.all([
+      prisma.job.count({
+        where: {
+          organizationId,
+          createdAt: { gte: dateRange.start, lte: dateRange.end },
+        },
+      }).catch(() => 0),
+      prisma.customer.count({
+        where: { organizationId },
+      }).catch(() => 0),
+      prisma.invoice.aggregate({
+        where: {
+          organizationId,
+          status: 'PAID',
+          createdAt: { gte: dateRange.start, lte: dateRange.end },
+        },
+        _sum: { total: true },
+        _count: true,
+      }).catch(() => ({ _sum: { total: 0 }, _count: 0 })),
+      prisma.review.aggregate({
+        where: {
+          organizationId,
+          createdAt: { gte: dateRange.start, lte: dateRange.end },
+        },
+        _avg: { rating: true },
+        _count: true,
+      }).catch(() => ({ _avg: { rating: 0 }, _count: 0 })),
+    ]);
+
     // Build category list based on filter
     const categories: KPICategory[] = [];
 
     // Revenue KPIs
     if (!category || category === 'revenue') {
-      const [revenueKPIs, mrrKPIs, arpuKPIs] = await Promise.all([
-        generateRevenueKPIs(organizationId, dateRange),
-        generateMRRKPIs(organizationId, dateRange),
-        generateARPUKPIs(organizationId, dateRange),
-      ]);
-
+      const revenue = invoiceData._sum?.total || 0;
       categories.push({
         id: 'revenue',
         name: 'Ingresos',
-        kpis: [...revenueKPIs, ...mrrKPIs, ...arpuKPIs].map(formatKPI),
+        kpis: [
+          {
+            id: 'total_revenue',
+            name: 'Ingresos Totales',
+            value: revenue,
+            format: 'currency',
+            status: revenue > 0 ? 'good' : 'warning',
+          },
+          {
+            id: 'invoice_count',
+            name: 'Facturas Emitidas',
+            value: invoiceData._count || 0,
+            format: 'number',
+            status: 'good',
+          },
+          {
+            id: 'avg_invoice',
+            name: 'Factura Promedio',
+            value: invoiceData._count > 0 ? Math.round(revenue / invoiceData._count) : 0,
+            format: 'currency',
+            status: 'good',
+          },
+        ],
       });
     }
 
     // Operations KPIs
     if (!category || category === 'operations') {
-      const [jobKPIs, technicianKPIs, slaKPIs] = await Promise.all([
-        generateJobKPIs(organizationId, dateRange),
-        generateTechnicianKPIs(organizationId, dateRange),
-        generateSLAKPIs(organizationId, dateRange),
-      ]);
-
       categories.push({
         id: 'operations',
         name: 'Operaciones',
-        kpis: [...jobKPIs, ...technicianKPIs, ...slaKPIs].map(formatKPI),
-      });
-    }
-
-    // Financial KPIs
-    if (!category || category === 'financial') {
-      const [financialKPIs, profitabilityKPIs, taxKPIs] = await Promise.all([
-        generateFinancialKPIs(organizationId, dateRange),
-        generateProfitabilityKPIs(organizationId, dateRange),
-        generateTaxKPIs(organizationId, dateRange),
-      ]);
-
-      categories.push({
-        id: 'financial',
-        name: 'Finanzas',
-        kpis: [...financialKPIs, ...profitabilityKPIs, ...taxKPIs].map(formatKPI),
+        kpis: [
+          {
+            id: 'total_jobs',
+            name: 'Trabajos Totales',
+            value: jobCount,
+            format: 'number',
+            status: jobCount > 0 ? 'good' : 'warning',
+          },
+          {
+            id: 'jobs_per_day',
+            name: 'Trabajos por Día',
+            value: Math.round(jobCount / getDaysInRange(dateRange) * 10) / 10,
+            format: 'number',
+            status: 'good',
+          },
+        ],
       });
     }
 
     // Customer KPIs
     if (!category || category === 'customers') {
-      const [customerKPIs, satisfactionKPIs, segmentKPIs] = await Promise.all([
-        generateCustomerKPIs(organizationId, dateRange),
-        generateSatisfactionKPIs(organizationId, dateRange),
-        generateSegmentKPIs(organizationId, dateRange),
-      ]);
-
+      const avgRating = reviewData._avg?.rating || 0;
       categories.push({
         id: 'customers',
         name: 'Clientes',
-        kpis: [...customerKPIs, ...satisfactionKPIs, ...segmentKPIs].map(formatKPI),
+        kpis: [
+          {
+            id: 'total_customers',
+            name: 'Clientes Totales',
+            value: customerCount,
+            format: 'number',
+            status: customerCount > 0 ? 'good' : 'warning',
+          },
+          {
+            id: 'satisfaction',
+            name: 'Satisfacción',
+            value: Math.round(avgRating * 20), // Convert 5-star to percentage
+            format: 'percent',
+            status: avgRating >= 4 ? 'good' : avgRating >= 3 ? 'warning' : 'bad',
+          },
+          {
+            id: 'review_count',
+            name: 'Reseñas',
+            value: reviewData._count || 0,
+            format: 'number',
+            status: 'good',
+          },
+        ],
       });
     }
 
@@ -178,22 +217,33 @@ export async function GET(req: NextRequest) {
 // HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function formatKPI(kpi: {
-  id: string;
-  name: string;
-  value: number;
-  previousValue?: number;
-  changePercent?: number;
-  format?: string;
-  status?: 'good' | 'warning' | 'bad';
-}) {
-  return {
-    id: kpi.id,
-    name: kpi.name,
-    value: kpi.value,
-    previousValue: kpi.previousValue,
-    changePercent: kpi.changePercent,
-    format: kpi.format || 'number',
-    status: kpi.status,
-  };
+function getDateRangeFromPreset(preset: string): { start: Date; end: Date } {
+  const end = new Date();
+  const start = new Date();
+
+  switch (preset) {
+    case 'today':
+      start.setHours(0, 0, 0, 0);
+      break;
+    case 'week':
+      start.setDate(start.getDate() - 7);
+      break;
+    case 'month':
+      start.setMonth(start.getMonth() - 1);
+      break;
+    case 'quarter':
+      start.setMonth(start.getMonth() - 3);
+      break;
+    case 'year':
+      start.setFullYear(start.getFullYear() - 1);
+      break;
+    default:
+      start.setMonth(start.getMonth() - 1);
+  }
+
+  return { start, end };
+}
+
+function getDaysInRange(dateRange: { start: Date; end: Date }): number {
+  return Math.max(1, Math.ceil((dateRange.end.getTime() - dateRange.start.getTime()) / (1000 * 60 * 60 * 24)));
 }

@@ -4,13 +4,13 @@
  *
  * Phase 10.4: Analytics Dashboard UI
  * Customer segmentation, CLV, and retention metrics for analytics dashboard.
+ *
+ * NOTE: This is a stub implementation. Full analytics requires monorepo package setup.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '../../../../lib/auth';
-import { prisma } from '@repo/database';
-import { getDateRangeFromPreset } from '../../../../../../../src/analytics/reports/templates/report-templates';
+import { getSession } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GET /api/analytics/customers
@@ -19,12 +19,12 @@ import { getDateRangeFromPreset } from '../../../../../../../src/analytics/repor
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const organizationId = session.user.organizationId;
+    const organizationId = session.organizationId;
     if (!organizationId) {
       return NextResponse.json({ error: 'No organization' }, { status: 400 });
     }
@@ -209,6 +209,31 @@ export async function GET(req: NextRequest) {
 }
 
 // Helper functions
+function getDateRangeFromPreset(preset: 'today' | 'week' | 'month' | 'quarter' | 'year'): { start: Date; end: Date } {
+  const end = new Date();
+  const start = new Date();
+
+  switch (preset) {
+    case 'today':
+      start.setHours(0, 0, 0, 0);
+      break;
+    case 'week':
+      start.setDate(start.getDate() - 7);
+      break;
+    case 'month':
+      start.setMonth(start.getMonth() - 1);
+      break;
+    case 'quarter':
+      start.setMonth(start.getMonth() - 3);
+      break;
+    case 'year':
+      start.setFullYear(start.getFullYear() - 1);
+      break;
+  }
+
+  return { start, end };
+}
+
 function getPreviousRange(start: Date, end: Date): { start: Date; end: Date } {
   const duration = end.getTime() - start.getTime();
   return {
@@ -225,7 +250,6 @@ function aggregateCustomerGrowth(
   const days = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
   const groupByWeek = days > 31;
 
-  // Cumulative count up to start
   let cumulative = customers.filter((c) => c.createdAt < start).length;
 
   const groups: Record<string, number> = {};
