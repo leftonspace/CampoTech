@@ -1,12 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowLeft, Search, Calendar, Clock, User } from 'lucide-react';
+import { ArrowLeft, Search, Calendar, Clock, User, MapPin } from 'lucide-react';
 import Link from 'next/link';
+import AddressAutocomplete, { ParsedAddress } from '@/components/ui/AddressAutocomplete';
+
+// Customer type with address
+interface CustomerAddress {
+  street?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  fullAddress?: string;
+}
+
+interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  address?: CustomerAddress;
+}
 
 export default function NewJobPage() {
   const router = useRouter();
@@ -14,10 +31,8 @@ export default function NewJobPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [useCustomerAddress, setUseCustomerAddress] = useState(true);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -29,6 +44,27 @@ export default function NewJobPage() {
     scheduledTimeEnd: '',
     assignedToId: '',
   });
+
+  // Auto-fill address when customer is selected
+  useEffect(() => {
+    if (selectedCustomer && useCustomerAddress) {
+      const customerAddress = selectedCustomer.address;
+      if (customerAddress) {
+        // Use fullAddress if available, otherwise build from parts
+        const addressString = customerAddress.fullAddress ||
+          [customerAddress.street, customerAddress.city, customerAddress.state, customerAddress.postalCode]
+            .filter(Boolean)
+            .join(', ');
+        setFormData((prev) => ({ ...prev, address: addressString }));
+      }
+    }
+  }, [selectedCustomer, useCustomerAddress]);
+
+  // Handle address selection from autocomplete
+  const handleAddressSelect = (parsed: ParsedAddress) => {
+    setFormData((prev) => ({ ...prev, address: parsed.fullAddress }));
+    setUseCustomerAddress(false);
+  };
 
   const { data: customersData } = useQuery({
     queryKey: ['customers-search', customerSearch],
@@ -42,7 +78,7 @@ export default function NewJobPage() {
     queryFn: () => api.users.list(),
   });
 
-  const customers = customersData?.data as Array<{ id: string; name: string; phone: string }> | undefined;
+  const customers = customersData?.data as Customer[] | undefined;
   const teamMembers = usersData?.data as Array<{ id: string; name: string; role: string }> | undefined;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -119,6 +155,7 @@ export default function NewJobPage() {
                       onClick={() => {
                         setSelectedCustomer(customer);
                         setCustomerSearch('');
+                        setUseCustomerAddress(true); // Reset to use customer address
                       }}
                       className="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-gray-50"
                     >
@@ -171,22 +208,49 @@ export default function NewJobPage() {
           />
         </div>
 
-        {/* Address */}
+        {/* Address with Google Places Autocomplete */}
         <div>
           <label htmlFor="address" className="label mb-1 block">
-            Dirección *
+            Dirección del servicio *
           </label>
-          <input
-            id="address"
-            type="text"
+
+          {/* Show indicator when using customer address */}
+          {selectedCustomer && selectedCustomer.address && useCustomerAddress && (
+            <div className="mb-2 flex items-center gap-2 rounded-md bg-primary-50 px-3 py-2 text-sm text-primary-700">
+              <MapPin className="h-4 w-4" />
+              <span>Usando la dirección del cliente</span>
+              <button
+                type="button"
+                onClick={() => setUseCustomerAddress(false)}
+                className="ml-auto text-primary-600 hover:underline"
+              >
+                Usar otra dirección
+              </button>
+            </div>
+          )}
+
+          <AddressAutocomplete
             value={formData.address}
-            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-            placeholder="Dirección del servicio"
-            className="input"
+            onChange={(value) => {
+              setFormData({ ...formData, address: value });
+              if (value !== '') setUseCustomerAddress(false);
+            }}
+            onSelect={handleAddressSelect}
+            placeholder={selectedCustomer ? "Buscar otra dirección..." : "Buscar dirección del servicio..."}
+            defaultCountry="AR"
             required
-            onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá la dirección del servicio')}
-            onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
           />
+
+          {/* Option to reset to customer address */}
+          {selectedCustomer && selectedCustomer.address && !useCustomerAddress && (
+            <button
+              type="button"
+              onClick={() => setUseCustomerAddress(true)}
+              className="mt-2 text-sm text-primary-600 hover:underline"
+            >
+              ← Volver a usar la dirección del cliente
+            </button>
+          )}
         </div>
 
         {/* Priority */}
