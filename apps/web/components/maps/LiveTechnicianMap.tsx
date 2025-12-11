@@ -25,6 +25,7 @@ export interface TechnicianLocation {
     status: string;
     description?: string;
     scheduledDate?: string | null;
+    scheduledTimeSlot?: { start?: string; end?: string } | null;
     customerName: string;
     address?: unknown;
   } | null;
@@ -65,7 +66,8 @@ export function LiveTechnicianMap({
     const loadLeaflet = async () => {
       try {
         const leaflet = await import('leaflet');
-        // Import CSS with side effect
+        // Import CSS with side effect - suppress TS error for CSS import
+        // @ts-expect-error CSS imports are handled by bundler
         await import('leaflet/dist/leaflet.css');
         setL(leaflet.default);
       } catch (error) {

@@ -161,7 +161,7 @@ export function TechnicianPanel({ technician, onClose }: TechnicianPanelProps) {
                 <p>
                   {technician.location.lat.toFixed(6)}, {technician.location.lng.toFixed(6)}
                 </p>
-                {technician.location.speed !== null && technician.location.speed > 0 && (
+                {technician.location.speed != null && technician.location.speed > 0 && (
                   <p className="text-xs text-gray-400">
                     {Math.round(technician.location.speed)} km/h
                   </p>

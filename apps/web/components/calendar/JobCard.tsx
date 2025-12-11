@@ -84,7 +84,7 @@ export function JobCard({ event, onClose }: JobCardProps) {
     month: 'long',
   });
 
-  const mapsUrl = getGoogleMapsUrl(job.customer.address);
+  const mapsUrl = job.customer ? getGoogleMapsUrl(job.customer.address) : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -97,7 +97,7 @@ export function JobCard({ event, onClose }: JobCardProps) {
           <div>
             <h3 className="font-semibold">{job.jobNumber}</h3>
             <p className="text-sm opacity-90">
-              {serviceTypeLabels[job.serviceType] || job.serviceType}
+              {job.serviceType ? (serviceTypeLabels[job.serviceType] || job.serviceType) : 'Servicio'}
             </p>
           </div>
           <button
@@ -141,40 +141,49 @@ export function JobCard({ event, onClose }: JobCardProps) {
           </div>
 
           {/* Customer */}
-          <div className="rounded-lg bg-gray-50 p-3">
-            <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-              Cliente
-            </h4>
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-gray-600 font-medium">
-                {getInitials(job.customer.name)}
+          {job.customer ? (
+            <div className="rounded-lg bg-gray-50 p-3">
+              <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                Cliente
+              </h4>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 text-gray-600 font-medium">
+                  {getInitials(job.customer.name)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-gray-900">{job.customer.name}</p>
+                  <a
+                    href={`tel:${job.customer.phone}`}
+                    className="flex items-center gap-1 text-sm text-primary-600 hover:underline"
+                  >
+                    <Phone className="h-3 w-3" />
+                    {job.customer.phone}
+                  </a>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900">{job.customer.name}</p>
-                <a
-                  href={`tel:${job.customer.phone}`}
-                  className="flex items-center gap-1 text-sm text-primary-600 hover:underline"
-                >
-                  <Phone className="h-3 w-3" />
-                  {job.customer.phone}
-                </a>
+              <div className="mt-2 flex items-start gap-2 text-sm text-gray-600">
+                <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
+                <span>{formatAddress(job.customer.address)}</span>
+                {mapsUrl && (
+                  <a
+                    href={mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 text-primary-600 hover:text-primary-700"
+                  >
+                    <Navigation className="h-4 w-4" />
+                  </a>
+                )}
               </div>
             </div>
-            <div className="mt-2 flex items-start gap-2 text-sm text-gray-600">
-              <MapPin className="h-4 w-4 text-gray-400 flex-shrink-0 mt-0.5" />
-              <span>{formatAddress(job.customer.address)}</span>
-              {mapsUrl && (
-                <a
-                  href={mapsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-shrink-0 text-primary-600 hover:text-primary-700"
-                >
-                  <Navigation className="h-4 w-4" />
-                </a>
-              )}
+          ) : (
+            <div className="rounded-lg bg-gray-50 p-3">
+              <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                Cliente
+              </h4>
+              <p className="text-sm text-gray-500">Sin información de cliente</p>
             </div>
-          </div>
+          )}
 
           {/* Technician */}
           {job.technician ? (
