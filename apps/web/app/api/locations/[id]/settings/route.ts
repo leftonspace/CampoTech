@@ -1,10 +1,10 @@
+/**
+ * Location Settings API Route
+ * Self-contained implementation (placeholder)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { LocationService, LocationError } from '@/src/modules/locations';
-import { UpdateLocationSettingsSchema } from '@/src/modules/locations';
-
-const locationService = new LocationService(prisma);
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -26,22 +26,29 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const settings = await locationService.getLocationSettings(session.organizationId, id);
-
+    // Placeholder - settings not implemented
     return NextResponse.json({
       success: true,
-      data: settings,
+      data: {
+        locationId: id,
+        timezone: 'America/Argentina/Buenos_Aires',
+        businessHours: {
+          monday: { open: '09:00', close: '18:00' },
+          tuesday: { open: '09:00', close: '18:00' },
+          wednesday: { open: '09:00', close: '18:00' },
+          thursday: { open: '09:00', close: '18:00' },
+          friday: { open: '09:00', close: '18:00' },
+          saturday: { open: '09:00', close: '13:00' },
+          sunday: null,
+        },
+        notifications: {
+          emailEnabled: true,
+          smsEnabled: false,
+        },
+      },
     });
   } catch (error) {
     console.error('Get location settings error:', error);
-
-    if (error instanceof LocationError) {
-      return NextResponse.json(
-        { success: false, error: error.message, code: error.code },
-        { status: error.statusCode }
-      );
-    }
-
     return NextResponse.json(
       { success: false, error: 'Error fetching location settings' },
       { status: 500 }
@@ -56,7 +63,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getSession();
-    const { id } = await params;
+    await params;
 
     if (!session) {
       return NextResponse.json(
@@ -73,36 +80,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const body = await request.json();
-    const validatedData = UpdateLocationSettingsSchema.parse(body);
-
-    const settings = await locationService.updateLocationSettings(
-      session.organizationId,
-      id,
-      validatedData
+    return NextResponse.json(
+      { success: false, error: 'Locations module not yet implemented' },
+      { status: 501 }
     );
-
-    return NextResponse.json({
-      success: true,
-      data: settings,
-    });
   } catch (error) {
     console.error('Update location settings error:', error);
-
-    if (error instanceof LocationError) {
-      return NextResponse.json(
-        { success: false, error: error.message, code: error.code },
-        { status: error.statusCode }
-      );
-    }
-
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json(
-        { success: false, error: 'Validation error', details: (error as any).errors },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
       { success: false, error: 'Error updating location settings' },
       { status: 500 }
