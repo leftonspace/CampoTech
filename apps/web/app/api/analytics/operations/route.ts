@@ -68,7 +68,7 @@ export async function GET(req: NextRequest) {
     const totalJobs = jobs.length;
     const completedJobs = jobs.filter((j) => j.status === 'COMPLETED').length;
     const completionRate = totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
-    const pendingJobs = jobs.filter((j) => j.status === 'PENDING').length;
+    const cancelledJobs = jobs.filter((j) => j.status === 'CANCELLED').length;
 
     // Jobs by status
     const statusCounts: Record<string, number> = {};
@@ -89,14 +89,14 @@ export async function GET(req: NextRequest) {
         completionRate: { value: Math.round(completionRate * 10) / 10, change: 0 },
         avgDuration: { value: 0, change: 0 },
         slaCompliance: { value: 0, change: 0 },
-        pendingJobs: { value: pendingJobs, change: 0 },
+        cancelledJobs: { value: cancelledJobs, change: 0 },
       },
-      jobTrend: [],
+      jobsTrend: [],
       jobsByStatus,
-      jobsByServiceType: [],
-      jobsByPriority: [],
+      jobsByService: [],
+      jobsByUrgency: [],
       activityHeatmap: [],
-      topTechnicians: [],
+      slaByUrgency: [],
     });
   } catch (error) {
     console.error('Operations analytics error:', error);

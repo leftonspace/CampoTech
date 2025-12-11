@@ -1,6 +1,10 @@
 import { prisma } from '@/lib/prisma';
 import { getOrCreateSMSProvider } from '@/lib/sms';
+import { getOrCreateWhatsAppProvider } from '@/lib/whatsapp';
 import crypto from 'crypto';
+
+// Message channel types
+export type OTPChannel = 'sms' | 'whatsapp';
 
 // OTP Configuration
 const OTP_LENGTH = 6;
@@ -54,7 +58,8 @@ export interface OTPVerifyResult {
 }
 
 // Request (send) an OTP
-export async function requestOTP(phone: string): Promise<OTPRequestResult> {
+// channel: 'sms' (default) or 'whatsapp'
+export async function requestOTP(phone: string, channel: OTPChannel = 'sms'): Promise<OTPRequestResult> {
   try {
     // Normalize phone number
     const normalizedPhone = normalizePhone(phone);
@@ -117,21 +122,41 @@ export async function requestOTP(phone: string): Promise<OTPRequestResult> {
       return { success: true, devMode: true };
     }
 
-    // Send SMS
-    const smsProvider = getOrCreateSMSProvider();
+    // Prepare message
     const message = `Tu código de verificación de CampoTech es: ${otp}. Expira en ${OTP_EXPIRY_MINUTES} minutos.`;
 
-    const smsResult = await smsProvider.sendSMS(normalizedPhone, message);
+    // Send via selected channel
+    if (channel === 'whatsapp') {
+      // Send via WhatsApp
+      const whatsappProvider = getOrCreateWhatsAppProvider();
+      const whatsappResult = await whatsappProvider.sendMessage(normalizedPhone, message);
 
-    if (!smsResult.success) {
-      console.error(`Failed to send OTP SMS: ${smsResult.error}`);
-      return {
-        success: false,
-        error: `SMS error: ${smsResult.error || 'Unknown error'}`,
-      };
+      if (!whatsappResult.success) {
+        console.error(`Failed to send OTP via WhatsApp: ${whatsappResult.error}`);
+        return {
+          success: false,
+          error: `WhatsApp error: ${whatsappResult.error || 'Unknown error'}`,
+        };
+      }
+
+      console.log(`OTP sent via WhatsApp to ${normalizedPhone}`);
+      return { success: true };
+    } else {
+      // Send via SMS (default)
+      const smsProvider = getOrCreateSMSProvider();
+      const smsResult = await smsProvider.sendSMS(normalizedPhone, message);
+
+      if (!smsResult.success) {
+        console.error(`Failed to send OTP SMS: ${smsResult.error}`);
+        return {
+          success: false,
+          error: `SMS error: ${smsResult.error || 'Unknown error'}`,
+        };
+      }
+
+      console.log(`OTP sent via SMS to ${normalizedPhone}`);
+      return { success: true };
     }
-
-    return { success: true };
   } catch (error) {
     console.error('Error requesting OTP:', error);
     return {
