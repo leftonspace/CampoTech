@@ -4,8 +4,11 @@ import { requestOTP } from '@/lib/otp';
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('[OTP Request] Starting...');
+
     const body = await request.json();
     const { phone } = body;
+    console.log('[OTP Request] Phone received:', phone);
 
     if (!phone) {
       return NextResponse.json(
@@ -16,6 +19,7 @@ export async function POST(request: NextRequest) {
 
     // Clean phone number for user lookup
     const cleanPhone = phone.replace(/\D/g, '');
+    console.log('[OTP Request] Clean phone:', cleanPhone, 'Last 10:', cleanPhone.slice(-10));
 
     // Check if user exists
     const user = await prisma.user.findFirst({
@@ -26,6 +30,7 @@ export async function POST(request: NextRequest) {
         isActive: true,
       },
     });
+    console.log('[OTP Request] User found:', user ? user.id : 'null');
 
     if (!user) {
       return NextResponse.json(
@@ -35,7 +40,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Request OTP (will send SMS in production, log in dev)
+    console.log('[OTP Request] Calling requestOTP...');
     const result = await requestOTP(phone);
+    console.log('[OTP Request] OTP result:', JSON.stringify(result));
 
     if (!result.success) {
       return NextResponse.json(
@@ -58,7 +65,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Request OTP error:', error);
+    console.error('[OTP Request] EXCEPTION:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
       { success: false, error: { message: 'Error al enviar el código', debug: errorMessage } },
