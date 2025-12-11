@@ -241,6 +241,8 @@ export default function LocationZonesPage() {
                   className="input mt-1"
                   placeholder="ZONA-001"
                   required
+                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el código de la zona')}
+                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                 />
               </div>
               <div>
@@ -254,6 +256,8 @@ export default function LocationZonesPage() {
                   className="input mt-1"
                   placeholder="Zona Centro"
                   required
+                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el nombre de la zona')}
+                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                 />
               </div>
             </div>

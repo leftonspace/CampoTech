@@ -312,6 +312,8 @@ function PriceItemModal({ item, onClose, onSave, isLoading }: PriceItemModalProp
                 placeholder="Ej: Instalación de aire acondicionado"
                 className="input"
                 required
+                onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el nombre del item')}
+                onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
               />
             </div>
 
@@ -348,6 +350,8 @@ function PriceItemModal({ item, onClose, onSave, isLoading }: PriceItemModalProp
                   placeholder="0.00"
                   className="input"
                   required
+                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el precio')}
+                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                 />
               </div>
               <div>

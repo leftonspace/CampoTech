@@ -128,6 +128,8 @@ export default function NewInventoryCountPage() {
               onChange={(e) => setFormData({ ...formData, warehouseId: e.target.value })}
               className="input pl-10"
               required
+              onInvalid={(e) => (e.target as HTMLSelectElement).setCustomValidity('Por favor, seleccioná un almacén')}
+              onInput={(e) => (e.target as HTMLSelectElement).setCustomValidity('')}
             >
               <option value="">Seleccionar almacén</option>
               {warehouses?.map((wh) => (

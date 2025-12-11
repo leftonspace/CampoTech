@@ -220,6 +220,8 @@ export default function NewPurchaseOrderPage() {
                   onChange={(e) => setFormData({ ...formData, supplierId: e.target.value })}
                   className="input pl-10"
                   required
+                  onInvalid={(e) => (e.target as HTMLSelectElement).setCustomValidity('Por favor, seleccioná un proveedor')}
+                  onInput={(e) => (e.target as HTMLSelectElement).setCustomValidity('')}
                 >
                   <option value="">Seleccionar proveedor</option>
                   {suppliers?.map((supplier) => (

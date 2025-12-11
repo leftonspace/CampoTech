@@ -608,6 +608,8 @@ function TeamMemberModal({
                 placeholder="Nombre completo"
                 className="input"
                 required
+                onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el nombre')}
+                onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
               />
             </div>
 
@@ -652,6 +654,8 @@ function TeamMemberModal({
                     placeholder={selectedCountry.example}
                     className={`input flex-1 ${phoneError ? 'border-red-500' : ''}`}
                     required
+                    onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el teléfono')}
+                    onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                   />
                 </div>
               )}
@@ -682,6 +686,8 @@ function TeamMemberModal({
                 placeholder="email@ejemplo.com"
                 className="input"
                 required
+                onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el email')}
+                onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
               />
               <p className="mt-1 text-xs text-gray-500">
                 Se enviará una notificación al empleado
