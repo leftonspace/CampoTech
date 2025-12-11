@@ -193,12 +193,12 @@ async function processOperation(
 
     case 'job_photos': {
       if (action === 'create' && data.jobId) {
+        type PhotoTypeEnum = 'BEFORE' | 'DURING' | 'AFTER' | 'SIGNATURE' | 'DOCUMENT';
         await prisma.jobPhoto.create({
           data: {
             jobId: data.jobId as string,
-            url: data.url as string,
-            type: (data.type as string) || 'after',
-            caption: data.caption as string,
+            photoUrl: data.photoUrl as string,
+            photoType: (data.photoType as PhotoTypeEnum) || 'AFTER',
             takenAt: data.takenAt ? new Date(data.takenAt as string) : new Date(),
           },
         });
