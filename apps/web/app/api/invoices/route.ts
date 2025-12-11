@@ -159,6 +159,7 @@ export async function POST(request: NextRequest) {
         subtotal,
         taxAmount: totalIva,
         total: subtotal + totalIva,
+        items: processedLineItems, // Required Json field
         lineItems: {
           create: processedLineItems,
         },
