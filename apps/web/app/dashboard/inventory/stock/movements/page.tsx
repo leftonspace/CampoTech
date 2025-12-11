@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { cn, formatDate, formatCurrency } from '@/lib/utils';
+import { cn, formatDateTime, formatCurrency } from '@/lib/utils';
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -434,7 +434,7 @@ export default function StockMovementsPage() {
                         )}
 
                         <div className="mt-1 text-xs text-gray-400">
-                          {formatDate(movement.createdAt, 'PPp')}
+                          {formatDateTime(movement.createdAt)}
                           {movement.createdByName && ` • ${movement.createdByName}`}
                         </div>
                       </div>

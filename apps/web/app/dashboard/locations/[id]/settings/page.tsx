@@ -137,16 +137,21 @@ export default function LocationSettingsPage() {
   };
 
   const updateHours = (day: string, field: 'open' | 'close' | 'closed', value: string | boolean) => {
-    setSettings((prev) => ({
-      ...prev,
-      operatingHours: {
-        ...prev.operatingHours,
-        [day]: {
-          ...prev.operatingHours?.[day],
-          [field]: value,
+    setSettings((prev) => {
+      const currentDay = prev.operatingHours?.[day] || { open: '09:00', close: '18:00' };
+      return {
+        ...prev,
+        operatingHours: {
+          ...prev.operatingHours,
+          [day]: {
+            open: currentDay.open,
+            close: currentDay.close,
+            closed: currentDay.closed,
+            [field]: value,
+          },
         },
-      },
-    }));
+      };
+    });
   };
 
   const isLoading = loadingSettings || loadingAfip;

@@ -66,6 +66,7 @@ export default function TrackingMap({
       const L = await import('leaflet');
 
       // Import Leaflet CSS
+      // @ts-ignore - CSS import handled by bundler
       await import('leaflet/dist/leaflet.css');
 
       // Fix default marker icons (common Leaflet issue with bundlers)
