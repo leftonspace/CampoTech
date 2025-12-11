@@ -165,14 +165,27 @@ async function processOperation(
         }
 
         // Apply client update
+        type JobStatusType = 'PENDING' | 'ASSIGNED' | 'EN_ROUTE' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+        const updateData: {
+          status?: JobStatusType;
+          resolution?: string;
+          completedAt?: Date;
+          updatedAt: Date;
+        } = {
+          updatedAt: new Date(),
+        };
+        if (data.status) {
+          updateData.status = data.status as JobStatusType;
+        }
+        if (data.resolution) {
+          updateData.resolution = data.resolution as string;
+        }
+        if (data.completedAt) {
+          updateData.completedAt = new Date(data.completedAt as string);
+        }
         await prisma.job.update({
           where: { id: data.id as string },
-          data: {
-            ...(data.status && { status: data.status as 'PENDING' | 'ASSIGNED' | 'EN_ROUTE' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' }),
-            ...(data.resolution && { resolution: data.resolution as string }),
-            completedAt: data.completedAt ? new Date(data.completedAt as string) : undefined,
-            updatedAt: new Date(),
-          },
+          data: updateData,
         });
       }
       break;
