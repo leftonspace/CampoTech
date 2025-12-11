@@ -83,8 +83,8 @@ export async function POST(request: NextRequest) {
           organizationId: session.organizationId,
           updatedAt: { gt: lastSync },
           OR: [
-            { assignedToId: session.userId },
-            { assignedToId: null },
+            { technicianId: session.userId },
+            { technicianId: null },
           ],
         },
         include: {

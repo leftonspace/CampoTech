@@ -36,9 +36,9 @@ export async function GET(request: NextRequest) {
           lt: tomorrow,
         },
         // For technicians, only show assigned jobs
-        ...(session.role === 'technician' ? { assignedToId: session.userId } : {}),
+        ...(session.role === 'technician' ? { technicianId: session.userId } : {}),
         // Exclude cancelled jobs
-        status: { not: 'cancelled' },
+        status: { not: 'CANCELLED' },
       },
       include: {
         customer: {
@@ -50,54 +50,50 @@ export async function GET(request: NextRequest) {
             address: true,
           },
         },
-        assignedTo: {
+        technician: {
           select: {
             id: true,
             name: true,
             phone: true,
           },
         },
-        lineItems: {
+        materials: {
           select: {
             id: true,
-            description: true,
+            productId: true,
             quantity: true,
-            unitPrice: true,
           },
         },
       },
       orderBy: [
-        { scheduledTimeStart: 'asc' },
-        { priority: 'desc' },
+        { scheduledDate: 'asc' },
+        { urgency: 'desc' },
       ],
     });
 
     // Format jobs for mobile
     const formattedJobs = jobs.map((job) => ({
       id: job.id,
+      jobNumber: job.jobNumber,
       status: job.status,
-      priority: job.priority,
+      urgency: job.urgency,
+      serviceType: job.serviceType,
       scheduledDate: job.scheduledDate,
-      scheduledTimeStart: job.scheduledTimeStart,
-      scheduledTimeEnd: job.scheduledTimeEnd,
-      address: job.address,
-      notes: job.notes,
+      scheduledTimeSlot: job.scheduledTimeSlot,
       description: job.description,
       customer: job.customer,
-      assignedTo: job.assignedTo,
-      lineItems: job.lineItems,
-      totalAmount: job.totalAmount,
+      technician: job.technician,
+      materials: job.materials,
       completedAt: job.completedAt,
     }));
 
     // Get summary stats
     const summary = {
       total: jobs.length,
-      pending: jobs.filter((j) => j.status === 'pending').length,
-      scheduled: jobs.filter((j) => j.status === 'scheduled').length,
-      enCamino: jobs.filter((j) => j.status === 'en_camino').length,
-      working: jobs.filter((j) => j.status === 'working').length,
-      completed: jobs.filter((j) => j.status === 'completed').length,
+      pending: jobs.filter((j) => j.status === 'PENDING').length,
+      scheduled: jobs.filter((j) => j.status === 'SCHEDULED').length,
+      inProgress: jobs.filter((j) => j.status === 'IN_PROGRESS').length,
+      completed: jobs.filter((j) => j.status === 'COMPLETED').length,
     };
 
     return NextResponse.json({

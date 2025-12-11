@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
             name: true,
           },
         },
-        assignedTo: {
+        technician: {
           select: {
             name: true,
           },
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
         id: true,
         invoiceNumber: true,
         status: true,
-        totalAmount: true,
+        total: true,
         createdAt: true,
         customer: {
           select: {
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
         timestamp: job.updatedAt,
         metadata: {
           status: job.status,
-          assignedTo: job.assignedTo?.name,
+          assignedTo: job.technician?.name,
         },
       })),
       ...recentInvoices.map((invoice) => ({
