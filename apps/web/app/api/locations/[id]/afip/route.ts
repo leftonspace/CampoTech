@@ -1,10 +1,10 @@
+/**
+ * Location AFIP Configuration API Route
+ * Self-contained implementation (placeholder)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { LocationService, LocationError } from '@/src/modules/locations';
-import { CreateLocationAfipConfigSchema, UpdateLocationAfipConfigSchema } from '@/src/modules/locations';
-
-const locationService = new LocationService(prisma);
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -34,22 +34,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const config = await locationService.getLocationAfipConfig(session.organizationId, id);
-
+    // Placeholder - AFIP config not implemented
     return NextResponse.json({
       success: true,
-      data: config,
+      data: null,
     });
   } catch (error) {
     console.error('Get AFIP config error:', error);
-
-    if (error instanceof LocationError) {
-      return NextResponse.json(
-        { success: false, error: error.message, code: error.code },
-        { status: error.statusCode }
-      );
-    }
-
     return NextResponse.json(
       { success: false, error: 'Error fetching AFIP configuration' },
       { status: 500 }
@@ -64,7 +55,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function POST(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getSession();
-    const { id } = await params;
+    await params;
 
     if (!session) {
       return NextResponse.json(
@@ -81,39 +72,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const body = await request.json();
-    const validatedData = CreateLocationAfipConfigSchema.parse({
-      ...body,
-      locationId: id,
-    });
-
-    const config = await locationService.upsertLocationAfipConfig(
-      session.organizationId,
-      id,
-      validatedData
+    return NextResponse.json(
+      { success: false, error: 'Locations module not yet implemented' },
+      { status: 501 }
     );
-
-    return NextResponse.json({
-      success: true,
-      data: config,
-    }, { status: 201 });
   } catch (error) {
     console.error('Create AFIP config error:', error);
-
-    if (error instanceof LocationError) {
-      return NextResponse.json(
-        { success: false, error: error.message, code: error.code },
-        { status: error.statusCode }
-      );
-    }
-
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json(
-        { success: false, error: 'Validation error', details: (error as any).errors },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
       { success: false, error: 'Error creating AFIP configuration' },
       { status: 500 }
@@ -128,7 +92,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getSession();
-    const { id } = await params;
+    await params;
 
     if (!session) {
       return NextResponse.json(
@@ -145,36 +109,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const body = await request.json();
-    const validatedData = UpdateLocationAfipConfigSchema.parse(body);
-
-    const config = await locationService.upsertLocationAfipConfig(
-      session.organizationId,
-      id,
-      validatedData
+    return NextResponse.json(
+      { success: false, error: 'Locations module not yet implemented' },
+      { status: 501 }
     );
-
-    return NextResponse.json({
-      success: true,
-      data: config,
-    });
   } catch (error) {
     console.error('Update AFIP config error:', error);
-
-    if (error instanceof LocationError) {
-      return NextResponse.json(
-        { success: false, error: error.message, code: error.code },
-        { status: error.statusCode }
-      );
-    }
-
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json(
-        { success: false, error: 'Validation error', details: (error as any).errors },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
       { success: false, error: 'Error updating AFIP configuration' },
       { status: 500 }
