@@ -44,6 +44,13 @@ model Organization {
   // System Tables
   failedJobs       FailedJob[]      @relation("FailedJobOrg")
   idempotencyKeys  IdempotencyKey[] @relation("IdempotencyOrg")
+  // Employee Tracking & Fleet Management
+  trackingSessions     TrackingSession[]      @relation("OrgTrackingSessions")
+  vehicles             Vehicle[]              @relation("OrgVehicles")
+  inventoryItems       InventoryItem[]        @relation("OrgInventoryItems")
+  inventoryLocations   InventoryLocation[]    @relation("OrgInventoryLocations")
+  inventoryTransactions InventoryTransaction[] @relation("OrgInventoryTransactions")
+  dashboardAlerts      DashboardAlert[]       @relation("OrgDashboardAlerts")
 
   @@map("organizations")
 }
@@ -78,6 +85,13 @@ model User {
   vehicleStocks        VehicleStock[]
   uploadedPhotos       JobPhoto[]        @relation("PhotoUploader")
   reviewedTranscripts  VoiceTranscript[] @relation("TranscriptReviewer")
+  // Employee Tracking & Fleet Management
+  currentLocation      TechnicianLocation?    @relation("TechnicianCurrentLocation")
+  trackingSessions     TrackingSession[]      @relation("TechnicianTrackingSessions")
+  uploadedVehicleDocs  VehicleDocument[]      @relation("UploadedVehicleDocuments")
+  vehicleAssignments   VehicleAssignment[]    @relation("UserVehicleAssignments")
+  createdMaintenance   VehicleMaintenance[]   @relation("CreatedMaintenanceLogs")
+  inventoryTransactions InventoryTransaction[] @relation("PerformedTransactions")
 
   @@unique([email, organizationId])
   @@index([organizationId])
@@ -170,6 +184,7 @@ model Job {
   materials      JobMaterial[]
   reservations   StockReservation[]
   jobPhotos      JobPhoto[]   @relation("JobPhotos")
+  trackingSessions TrackingSession[] @relation("JobTrackingSessions")
 
   @@index([status])
   @@index([scheduledDate])
@@ -1884,4 +1899,446 @@ model IdempotencyKey {
   @@index([expiresAt])
   @@index([organizationId])
   @@map("idempotency_keys")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EMPLOYEE TRACKING SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model TechnicianLocation {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  latitude    Decimal  @db.Decimal(10, 8)
+  longitude   Decimal  @db.Decimal(11, 8)
+  accuracy    Decimal? @db.Decimal(6, 2)
+  heading     Decimal? @db.Decimal(5, 2)
+  speed       Decimal? @db.Decimal(6, 2)
+  altitude    Decimal? @db.Decimal(10, 2)
+  isOnline    Boolean  @default(true)
+  lastSeen    DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation("TechnicianCurrentLocation", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isOnline])
+  @@index([lastSeen])
+  @@map("technician_locations")
+}
+
+model TechnicianLocationHistory {
+  id          String   @id @default(cuid())
+  userId      String
+  jobId       String?
+  sessionId   String?
+  latitude    Decimal  @db.Decimal(10, 8)
+  longitude   Decimal  @db.Decimal(11, 8)
+  accuracy    Decimal? @db.Decimal(6, 2)
+  heading     Decimal? @db.Decimal(5, 2)
+  speed       Decimal? @db.Decimal(6, 2)
+  movementMode String?  // driving, walking, stationary
+  recordedAt  DateTime @default(now())
+
+  @@index([userId, recordedAt])
+  @@index([jobId])
+  @@index([sessionId])
+  @@map("technician_location_history")
+}
+
+model TrackingSession {
+  id                  String   @id @default(cuid())
+  jobId               String
+  technicianId        String
+  organizationId      String
+  status              TrackingSessionStatus @default(ACTIVE)
+  currentLat          Decimal? @db.Decimal(10, 8)
+  currentLng          Decimal? @db.Decimal(11, 8)
+  currentSpeed        Decimal? @db.Decimal(6, 2)
+  currentHeading      Decimal? @db.Decimal(5, 2)
+  destinationLat      Decimal? @db.Decimal(10, 8)
+  destinationLng      Decimal? @db.Decimal(11, 8)
+  destinationAddress  String?
+  etaMinutes          Int?
+  etaUpdatedAt        DateTime?
+  routePolyline       String?  @db.Text
+  movementMode        String   @default("driving")
+  positionUpdateCount Int      @default(0)
+  lastPositionAt      DateTime?
+  startedAt           DateTime @default(now())
+  arrivedAt           DateTime?
+  completedAt         DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  job          Job          @relation("JobTrackingSessions", fields: [jobId], references: [id], onDelete: Cascade)
+  technician   User         @relation("TechnicianTrackingSessions", fields: [technicianId], references: [id], onDelete: Cascade)
+  organization Organization @relation("OrgTrackingSessions", fields: [organizationId], references: [id], onDelete: Cascade)
+  tokens       TrackingToken[]
+
+  @@index([jobId])
+  @@index([technicianId])
+  @@index([organizationId])
+  @@index([status])
+  @@map("tracking_sessions")
+}
+
+enum TrackingSessionStatus {
+  ACTIVE
+  ARRIVED
+  COMPLETED
+  CANCELLED
+}
+
+model TrackingToken {
+  id             String   @id @default(cuid())
+  token          String   @unique
+  jobId          String
+  sessionId      String?
+  expiresAt      DateTime
+  accessCount    Int      @default(0)
+  lastAccessedAt DateTime?
+  createdAt      DateTime @default(now())
+
+  session TrackingSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([jobId])
+  @@index([expiresAt])
+  @@map("tracking_tokens")
+}
+
+model EtaCache {
+  id             String   @id @default(cuid())
+  originLat      Decimal  @db.Decimal(10, 8)
+  originLng      Decimal  @db.Decimal(11, 8)
+  destLat        Decimal  @db.Decimal(10, 8)
+  destLng        Decimal  @db.Decimal(11, 8)
+  durationMinutes Int
+  distanceMeters  Int
+  source         String   // google, haversine, cached
+  calculatedAt   DateTime @default(now())
+  expiresAt      DateTime
+
+  @@index([expiresAt])
+  @@map("eta_cache")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FLEET MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model Vehicle {
+  id                   String        @id @default(cuid())
+  organizationId       String
+  plateNumber          String
+  make                 String        // Ford, Chevrolet, etc.
+  model                String        // Transit, S10, etc.
+  year                 Int
+  vin                  String?       // Vehicle Identification Number
+  color                String?
+  status               VehicleStatus @default(ACTIVE)
+  currentMileage       Int?
+  fuelType             FuelType      @default(GASOLINE)
+  insuranceCompany     String?
+  insurancePolicyNumber String?
+  insuranceExpiry      DateTime?
+  vtvExpiry            DateTime?     // Buenos Aires vehicle inspection
+  registrationExpiry   DateTime?
+  lastServiceDate      DateTime?
+  nextServiceDate      DateTime?
+  nextServiceMileage   Int?
+  notes                String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  organization    Organization       @relation("OrgVehicles", fields: [organizationId], references: [id], onDelete: Cascade)
+  documents       VehicleDocument[]
+  assignments     VehicleAssignment[]
+  maintenanceLogs VehicleMaintenance[]
+  inventoryLocations InventoryLocation[] @relation("VehicleInventoryLocations")
+
+  @@unique([organizationId, plateNumber])
+  @@index([organizationId])
+  @@index([status])
+  @@index([insuranceExpiry])
+  @@index([vtvExpiry])
+  @@map("vehicles")
+}
+
+enum VehicleStatus {
+  ACTIVE
+  MAINTENANCE
+  INACTIVE
+  RETIRED
+}
+
+enum FuelType {
+  GASOLINE
+  DIESEL
+  ELECTRIC
+  GNC
+  HYBRID
+}
+
+model VehicleDocument {
+  id           String             @id @default(cuid())
+  vehicleId    String
+  documentType VehicleDocumentType
+  fileName     String
+  fileUrl      String
+  fileSize     Int?
+  mimeType     String?
+  expiryDate   DateTime?
+  notes        String?
+  uploadedById String
+  uploadedAt   DateTime           @default(now())
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  vehicle    Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  uploadedBy User    @relation("UploadedVehicleDocuments", fields: [uploadedById], references: [id])
+
+  @@index([vehicleId])
+  @@index([documentType])
+  @@index([expiryDate])
+  @@map("vehicle_documents")
+}
+
+enum VehicleDocumentType {
+  INSURANCE
+  VTV
+  REGISTRATION
+  TITLE
+  GREEN_CARD
+  SERVICE_RECORD
+  OTHER
+}
+
+model VehicleAssignment {
+  id             String    @id @default(cuid())
+  vehicleId      String
+  userId         String
+  assignedFrom   DateTime  @default(now())
+  assignedUntil  DateTime?
+  isPrimaryDriver Boolean  @default(false)
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  user    User    @relation("UserVehicleAssignments", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId])
+  @@index([userId])
+  @@index([assignedFrom, assignedUntil])
+  @@map("vehicle_assignments")
+}
+
+model VehicleMaintenance {
+  id              String          @id @default(cuid())
+  vehicleId       String
+  maintenanceType MaintenanceType
+  description     String
+  mileageAtService Int?
+  cost            Decimal?        @db.Decimal(10, 2)
+  vendor          String?
+  invoiceNumber   String?
+  scheduledDate   DateTime?
+  completedDate   DateTime?
+  nextServiceDate DateTime?
+  nextServiceMileage Int?
+  notes           String?
+  createdById     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  vehicle   Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  createdBy User?   @relation("CreatedMaintenanceLogs", fields: [createdById], references: [id])
+
+  @@index([vehicleId])
+  @@index([maintenanceType])
+  @@index([scheduledDate])
+  @@map("vehicle_maintenance")
+}
+
+enum MaintenanceType {
+  OIL_CHANGE
+  TIRE_ROTATION
+  BRAKE_SERVICE
+  INSPECTION
+  REPAIR
+  SCHEDULED_SERVICE
+  OTHER
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ENHANCED INVENTORY MANAGEMENT (for Employee Tracking System)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model InventoryItem {
+  id              String   @id @default(cuid())
+  organizationId  String
+  sku             String
+  name            String
+  description     String?
+  category        InventoryCategory @default(PARTS)
+  unit            String   @default("pieza")
+  minStockLevel   Int      @default(0)
+  costPrice       Decimal  @db.Decimal(10, 2)
+  salePrice       Decimal  @db.Decimal(10, 2)
+  isActive        Boolean  @default(true)
+  imageUrl        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization           @relation("OrgInventoryItems", fields: [organizationId], references: [id], onDelete: Cascade)
+  stocks       InventoryStock[]
+  transactions InventoryTransaction[]
+
+  @@unique([organizationId, sku])
+  @@index([organizationId])
+  @@index([category])
+  @@index([isActive])
+  @@map("inventory_items")
+}
+
+enum InventoryCategory {
+  PARTS
+  TOOLS
+  CONSUMABLES
+  EQUIPMENT
+  SAFETY
+  OTHER
+}
+
+model InventoryLocation {
+  id             String   @id @default(cuid())
+  organizationId String
+  locationType   InventoryLocationType
+  name           String
+  vehicleId      String?
+  address        String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation("OrgInventoryLocations", fields: [organizationId], references: [id], onDelete: Cascade)
+  vehicle      Vehicle?     @relation("VehicleInventoryLocations", fields: [vehicleId], references: [id], onDelete: SetNull)
+  stocks       InventoryStock[]
+  transactionsFrom InventoryTransaction[] @relation("TransactionFromLocation")
+  transactionsTo   InventoryTransaction[] @relation("TransactionToLocation")
+
+  @@index([organizationId])
+  @@index([locationType])
+  @@index([vehicleId])
+  @@map("inventory_locations")
+}
+
+enum InventoryLocationType {
+  HUB
+  VEHICLE
+  WAREHOUSE
+}
+
+model InventoryStock {
+  id            String   @id @default(cuid())
+  itemId        String
+  locationId    String
+  quantity      Int      @default(0)
+  lastCountedAt DateTime?
+  updatedAt     DateTime @updatedAt
+
+  item     InventoryItem     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  location InventoryLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, locationId])
+  @@index([itemId])
+  @@index([locationId])
+  @@index([quantity])
+  @@map("inventory_stock")
+}
+
+model InventoryTransaction {
+  id              String                  @id @default(cuid())
+  organizationId  String
+  itemId          String
+  fromLocationId  String?
+  toLocationId    String?
+  quantity        Int
+  transactionType InventoryTransactionType
+  jobId           String?
+  notes           String?
+  performedById   String
+  performedAt     DateTime                @default(now())
+  createdAt       DateTime                @default(now())
+
+  organization Organization      @relation("OrgInventoryTransactions", fields: [organizationId], references: [id], onDelete: Cascade)
+  item         InventoryItem     @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  fromLocation InventoryLocation? @relation("TransactionFromLocation", fields: [fromLocationId], references: [id])
+  toLocation   InventoryLocation? @relation("TransactionToLocation", fields: [toLocationId], references: [id])
+  performedBy  User              @relation("PerformedTransactions", fields: [performedById], references: [id])
+
+  @@index([organizationId])
+  @@index([itemId])
+  @@index([fromLocationId])
+  @@index([toLocationId])
+  @@index([transactionType])
+  @@index([performedAt])
+  @@map("inventory_transactions")
+}
+
+enum InventoryTransactionType {
+  PURCHASE
+  TRANSFER
+  USE
+  ADJUSTMENT
+  RETURN
+  INITIAL_STOCK
+  SCRAP
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DASHBOARD ALERTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model DashboardAlert {
+  id             String       @id @default(cuid())
+  organizationId String
+  alertType      AlertType
+  severity       AlertSeverity
+  title          String
+  message        String
+  entityType     String?      // vehicle, inventory_item, job, etc.
+  entityId       String?
+  isRead         Boolean      @default(false)
+  isDismissed    Boolean      @default(false)
+  expiresAt      DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation("OrgDashboardAlerts", fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([alertType])
+  @@index([severity])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("dashboard_alerts")
+}
+
+enum AlertType {
+  VEHICLE_DOCUMENT_EXPIRING
+  VEHICLE_DOCUMENT_EXPIRED
+  LOW_STOCK
+  OUT_OF_STOCK
+  VEHICLE_MAINTENANCE_DUE
+  JOB_OVERDUE
+  TECHNICIAN_OFFLINE
+  SYSTEM
+}
+
+enum AlertSeverity {
+  CRITICAL
+  WARNING
+  INFO
 }

@@ -57,11 +57,14 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
 
   /**
    * Format phone number for WhatsApp API
-   * WhatsApp expects numbers without + or spaces, just digits
+   * WhatsApp expects numbers in E.164 format: digits with country code, no + sign
+   * WhatsApp accounts use INTERNATIONAL format (e.g., 5491162107127 with "9")
    */
   private formatPhoneNumber(phone: string): string {
-    // Remove all non-digit characters
-    return phone.replace(/\D/g, '');
+    // Remove all non-digit characters (including +)
+    const digits = phone.replace(/\D/g, '');
+    console.log(`[WhatsApp] Phone number for API (no conversion): ${digits}`);
+    return digits;
   }
 
   /**
@@ -70,6 +73,7 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
   async sendMessage(to: string, message: string): Promise<{ success: boolean; messageId?: string; error?: string }> {
     try {
       const formattedPhone = this.formatPhoneNumber(to);
+      console.log(`[WhatsApp] Sending message to formatted phone: ${formattedPhone}`);
 
       const response = await fetch(
         `${this.baseUrl}/${this.apiVersion}/${this.phoneNumberId}/messages`,
@@ -104,7 +108,7 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
       }
 
       const successData = data as WhatsAppAPIResponse;
-      console.log(`WhatsApp message sent to ${to}, ID: ${successData.messages[0].id}`);
+      console.log(`WhatsApp message sent to ${formattedPhone}, ID: ${successData.messages[0].id}`);
 
       return {
         success: true,
