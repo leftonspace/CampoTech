@@ -26,64 +26,6 @@ interface AddressAutocompleteProps {
   defaultCountry?: string; // ISO country code, e.g., 'AR' for Argentina
 }
 
-// Google Maps type declarations (inline to avoid requiring @types/google.maps)
-interface GoogleMapsAddressComponent {
-  long_name: string;
-  short_name: string;
-  types: string[];
-}
-
-interface GoogleMapsGeometry {
-  location: {
-    lat: () => number;
-    lng: () => number;
-  };
-}
-
-interface GoogleMapsPlaceResult {
-  address_components?: GoogleMapsAddressComponent[];
-  formatted_address?: string;
-  geometry?: GoogleMapsGeometry;
-  name?: string;
-}
-
-interface GoogleMapsAutocomplete {
-  addListener: (event: string, callback: () => void) => void;
-  getPlace: () => GoogleMapsPlaceResult;
-}
-
-interface GoogleMapsPlacesService {
-  Autocomplete: new (
-    input: HTMLInputElement,
-    options: {
-      types?: string[];
-      componentRestrictions?: { country: string };
-      fields?: string[];
-    }
-  ) => GoogleMapsAutocomplete;
-}
-
-interface GoogleMapsEventService {
-  clearInstanceListeners: (instance: GoogleMapsAutocomplete) => void;
-}
-
-interface GoogleMaps {
-  places: GoogleMapsPlacesService;
-  event: GoogleMapsEventService;
-}
-
-interface GoogleAPI {
-  maps: GoogleMaps;
-}
-
-// Declare window.google
-declare global {
-  interface Window {
-    google?: GoogleAPI;
-    initGoogleMapsCallback?: () => void;
-  }
-}
-
 // Singleton to track if Google Maps is loading/loaded
 let googleMapsPromise: Promise<void> | null = null;
 let isGoogleMapsLoaded = false;
@@ -107,14 +49,14 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
 
     // Create callback
     const callbackName = 'initGoogleMapsCallback';
-    (window as Window)[callbackName] = () => {
+    (window as any)[callbackName] = () => {
       isGoogleMapsLoaded = true;
       resolve();
     };
 
-    // Create script element
+    // Create script element - use the new API
     const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=${callbackName}`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=places&callback=${callbackName}&loading=async`;
     script.async = true;
     script.defer = true;
     script.onerror = () => {
@@ -128,22 +70,15 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
   return googleMapsPromise;
 }
 
-// Parse Google Place result into our address structure
-function parseGooglePlace(place: GoogleMapsPlaceResult): ParsedAddress {
-  const components = place.address_components || [];
+// Parse address components from the new Places API
+function parseAddressComponents(place: any): ParsedAddress {
+  const addressComponents = place.addressComponents || [];
 
   const getComponent = (types: string[]): string => {
-    const component = components.find((c: GoogleMapsAddressComponent) =>
+    const component = addressComponents.find((c: any) =>
       types.some((type) => c.types.includes(type))
     );
-    return component?.long_name || '';
-  };
-
-  const getShortComponent = (types: string[]): string => {
-    const component = components.find((c: GoogleMapsAddressComponent) =>
-      types.some((type) => c.types.includes(type))
-    );
-    return component?.short_name || '';
+    return component?.longText || component?.long_name || '';
   };
 
   // Build street address
@@ -151,7 +86,7 @@ function parseGooglePlace(place: GoogleMapsPlaceResult): ParsedAddress {
   const route = getComponent(['route']);
   const street = streetNumber ? `${route} ${streetNumber}` : route;
 
-  // Get city (locality or administrative_area_level_2 for Argentina)
+  // Get city
   const city = getComponent(['locality', 'administrative_area_level_2', 'sublocality_level_1']);
 
   // Get state/province
@@ -163,15 +98,20 @@ function parseGooglePlace(place: GoogleMapsPlaceResult): ParsedAddress {
   // Get country
   const country = getComponent(['country']);
 
+  // Get coordinates
+  const location = place.location;
+  const lat = location?.lat?.() ?? location?.lat;
+  const lng = location?.lng?.() ?? location?.lng;
+
   return {
     street,
     city,
     state,
     postalCode,
     country,
-    fullAddress: place.formatted_address || '',
-    lat: place.geometry?.location?.lat(),
-    lng: place.geometry?.location?.lng(),
+    fullAddress: place.formattedAddress || place.formatted_address || '',
+    lat: typeof lat === 'number' ? lat : undefined,
+    lng: typeof lng === 'number' ? lng : undefined,
   };
 }
 
@@ -185,131 +125,174 @@ export default function AddressAutocomplete({
   required = false,
   defaultCountry = 'AR',
 }: AddressAutocompleteProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<GoogleMapsAutocomplete | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const autocompleteElementRef = useRef<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [isFocused, setIsFocused] = useState(false);
+  const [manualInput, setManualInput] = useState(value);
+  const [showManualInput, setShowManualInput] = useState(false);
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
-  // Initialize Google Places Autocomplete
+  // Sync manual input with value prop
+  useEffect(() => {
+    setManualInput(value);
+  }, [value]);
+
+  // Initialize Google Places Autocomplete Element (new API)
   useEffect(() => {
     if (!apiKey) {
       setError('Google Maps API key not configured');
       setIsLoading(false);
+      setShowManualInput(true);
       return;
     }
 
     let mounted = true;
 
     loadGoogleMaps(apiKey)
-      .then(() => {
-        if (!mounted || !inputRef.current || !window.google) return;
+      .then(async () => {
+        if (!mounted || !containerRef.current || !window.google) return;
 
-        // Create autocomplete instance
-        const autocomplete = new window.google.maps.places.Autocomplete(
-          inputRef.current,
-          {
-            types: ['address'],
-            componentRestrictions: { country: defaultCountry.toLowerCase() },
-            fields: ['address_components', 'formatted_address', 'geometry', 'name'],
+        try {
+          // Check if PlaceAutocompleteElement is available (new API)
+          if (window.google.maps.places.PlaceAutocompleteElement) {
+            // Create the new PlaceAutocompleteElement
+            const autocompleteElement = new (window.google.maps.places as any).PlaceAutocompleteElement({
+              componentRestrictions: { country: [defaultCountry.toLowerCase()] },
+              types: ['address'],
+            });
+
+            // Style the element
+            autocompleteElement.style.width = '100%';
+            autocompleteElement.style.height = '42px';
+
+            // Handle place selection
+            autocompleteElement.addEventListener('gmp-placeselect', async (event: any) => {
+              const place = event.place;
+
+              // Fetch detailed place data
+              await place.fetchFields({
+                fields: ['displayName', 'formattedAddress', 'location', 'addressComponents'],
+              });
+
+              const parsed = parseAddressComponents(place);
+              onChange(parsed.fullAddress, parsed);
+              onSelect?.(parsed);
+            });
+
+            // Clear the container and append the element
+            if (containerRef.current) {
+              containerRef.current.innerHTML = '';
+              containerRef.current.appendChild(autocompleteElement);
+            }
+
+            autocompleteElementRef.current = autocompleteElement;
+            setIsLoading(false);
+          } else {
+            // Fallback: PlaceAutocompleteElement not available
+            console.warn('PlaceAutocompleteElement not available, using manual input');
+            setShowManualInput(true);
+            setIsLoading(false);
           }
-        );
-
-        // Handle place selection
-        autocomplete.addListener('place_changed', () => {
-          const place = autocomplete.getPlace();
-
-          if (place && place.formatted_address) {
-            const parsed = parseGooglePlace(place);
-            onChange(parsed.fullAddress, parsed);
-            onSelect?.(parsed);
-          }
-        });
-
-        autocompleteRef.current = autocomplete;
-        setIsLoading(false);
+        } catch (err) {
+          console.error('Error initializing PlaceAutocompleteElement:', err);
+          setShowManualInput(true);
+          setIsLoading(false);
+        }
       })
       .catch((err) => {
         if (mounted) {
           console.error('Failed to load Google Maps:', err);
           setError('Error cargando Google Maps');
+          setShowManualInput(true);
           setIsLoading(false);
         }
       });
 
     return () => {
       mounted = false;
-      // Clean up autocomplete listeners
-      if (autocompleteRef.current) {
-        window.google?.maps?.event?.clearInstanceListeners(autocompleteRef.current);
-      }
     };
   }, [apiKey, defaultCountry, onChange, onSelect]);
 
-  const handleInputChange = useCallback(
+  const handleManualInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      onChange(e.target.value);
+      const newValue = e.target.value;
+      setManualInput(newValue);
+      onChange(newValue);
     },
     [onChange]
   );
 
   const handleClear = useCallback(() => {
+    setManualInput('');
     onChange('');
-    inputRef.current?.focus();
+    // Also clear the autocomplete element if it exists
+    if (autocompleteElementRef.current) {
+      const input = autocompleteElementRef.current.querySelector('input');
+      if (input) {
+        input.value = '';
+      }
+    }
   }, [onChange]);
 
-  // If no API key, render simple input
-  if (!apiKey) {
+  // If no API key or fallback mode, render simple input
+  if (!apiKey || showManualInput) {
     return (
       <div className="relative">
         <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <input
           type="text"
-          value={value}
-          onChange={handleInputChange}
+          value={manualInput}
+          onChange={handleManualInputChange}
           placeholder={placeholder}
           className={`input pl-10 pr-10 ${className}`}
           disabled={disabled}
           required={required}
         />
-        <p className="mt-1 text-xs text-amber-600">
-          Autocompletado no disponible (configurar GOOGLE_MAPS_API_KEY)
-        </p>
+        {manualInput && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+        {!apiKey && (
+          <p className="mt-1 text-xs text-amber-600">
+            Autocompletado no disponible (configurar GOOGLE_MAPS_API_KEY)
+          </p>
+        )}
       </div>
     );
   }
 
   return (
     <div className="relative">
-      <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 z-10" />
+      {/* Icon */}
+      <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 z-10 pointer-events-none" />
 
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={handleInputChange}
-        onFocus={() => setIsFocused(true)}
-        onBlur={() => setIsFocused(false)}
-        placeholder={isLoading ? 'Cargando...' : placeholder}
-        className={`input pl-10 pr-10 ${className} ${error ? 'border-red-300' : ''}`}
-        disabled={disabled || isLoading}
-        required={required}
-        autoComplete="off"
-      />
-
-      {/* Loading indicator */}
-      {isLoading && (
-        <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 animate-spin" />
-      )}
+      {/* Google Places Autocomplete Container */}
+      <div
+        ref={containerRef}
+        className={`address-autocomplete-container ${className} ${disabled ? 'opacity-50 pointer-events-none' : ''}`}
+        style={{ minHeight: '42px' }}
+      >
+        {isLoading && (
+          <div className="input pl-10 pr-10 flex items-center text-gray-400">
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            Cargando...
+          </div>
+        )}
+      </div>
 
       {/* Clear button */}
       {!isLoading && value && (
         <button
           type="button"
           onClick={handleClear}
-          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10"
         >
           <X className="h-4 w-4" />
         </button>
@@ -320,12 +303,37 @@ export default function AddressAutocomplete({
         <p className="mt-1 text-xs text-red-500">{error}</p>
       )}
 
-      {/* Hint */}
-      {isFocused && !error && !isLoading && (
-        <p className="mt-1 text-xs text-gray-500">
-          Escribí la dirección y seleccioná una opción de la lista
-        </p>
-      )}
+      {/* CSS for styling the Google autocomplete element */}
+      <style jsx global>{`
+        .address-autocomplete-container {
+          position: relative;
+        }
+
+        .address-autocomplete-container gmp-place-autocomplete {
+          width: 100%;
+        }
+
+        .address-autocomplete-container gmp-place-autocomplete input {
+          width: 100%;
+          height: 42px;
+          padding: 0.5rem 2.5rem 0.5rem 2.5rem;
+          border: 1px solid #d1d5db;
+          border-radius: 0.5rem;
+          font-size: 0.875rem;
+          line-height: 1.25rem;
+          outline: none;
+          transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+
+        .address-autocomplete-container gmp-place-autocomplete input:focus {
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .address-autocomplete-container gmp-place-autocomplete input::placeholder {
+          color: #9ca3af;
+        }
+      `}</style>
     </div>
   );
 }
