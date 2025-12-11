@@ -29,7 +29,22 @@ export async function GET(request: NextRequest) {
     };
 
     if (status) {
-      where.status = status;
+      // Map frontend status values to enum values
+      const statusMap: Record<string, string> = {
+        'pending_cae': 'PENDING',
+        'draft': 'DRAFT',
+        'pending': 'PENDING',
+        'sent': 'SENT',
+        'paid': 'PAID',
+        'overdue': 'OVERDUE',
+        'cancelled': 'CANCELLED',
+      };
+      const mappedStatus = statusMap[status.toLowerCase()] || status.toUpperCase();
+      // Only add to query if it's a valid status
+      const validStatuses = ['DRAFT', 'PENDING', 'SENT', 'PAID', 'OVERDUE', 'CANCELLED'];
+      if (validStatuses.includes(mappedStatus)) {
+        where.status = mappedStatus;
+      }
     }
 
     if (customerId) {
