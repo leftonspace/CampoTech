@@ -1,10 +1,11 @@
+/**
+ * Locations API Route
+ * Self-contained implementation
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { LocationService, LocationError } from '@/src/modules/locations';
-import { CreateLocationSchema, LocationFiltersSchema } from '@/src/modules/locations';
-
-const locationService = new LocationService(prisma);
 
 /**
  * GET /api/locations
@@ -22,38 +23,48 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const filters = LocationFiltersSchema.parse({
-      type: searchParams.get('type') || undefined,
-      isActive: searchParams.get('isActive') || undefined,
-      isHeadquarters: searchParams.get('isHeadquarters') || undefined,
-      managerId: searchParams.get('managerId') || undefined,
-      search: searchParams.get('search') || undefined,
-      page: searchParams.get('page') || 1,
-      limit: searchParams.get('limit') || 20,
-    });
+    const search = searchParams.get('search');
+    const isActive = searchParams.get('isActive');
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '20');
 
-    const result = await locationService.listLocations(session.organizationId, filters);
+    const where: any = {
+      organizationId: session.organizationId,
+    };
+
+    if (isActive !== null && isActive !== undefined) {
+      where.isActive = isActive === 'true';
+    }
+
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: 'insensitive' } },
+        { address: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [locations, total] = await Promise.all([
+      prisma.location.findMany({
+        where,
+        orderBy: { name: 'asc' },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.location.count({ where }),
+    ]);
 
     return NextResponse.json({
       success: true,
-      data: result.locations,
+      data: locations,
       pagination: {
-        page: result.page,
-        limit: result.limit,
-        total: result.total,
-        totalPages: result.totalPages,
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     });
   } catch (error) {
     console.error('List locations error:', error);
-
-    if (error instanceof LocationError) {
-      return NextResponse.json(
-        { success: false, error: error.message, code: error.code },
-        { status: error.statusCode }
-      );
-    }
-
     return NextResponse.json(
       { success: false, error: 'Error fetching locations' },
       { status: 500 }
@@ -85,12 +96,16 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const validatedData = CreateLocationSchema.parse(body);
 
-    const location = await locationService.createLocation(
-      session.organizationId,
-      validatedData
-    );
+    const location = await prisma.location.create({
+      data: {
+        name: body.name,
+        address: body.address,
+        phone: body.phone,
+        email: body.email,
+        organizationId: session.organizationId,
+      },
+    });
 
     return NextResponse.json({
       success: true,
@@ -98,21 +113,6 @@ export async function POST(request: NextRequest) {
     }, { status: 201 });
   } catch (error) {
     console.error('Create location error:', error);
-
-    if (error instanceof LocationError) {
-      return NextResponse.json(
-        { success: false, error: error.message, code: error.code },
-        { status: error.statusCode }
-      );
-    }
-
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json(
-        { success: false, error: 'Validation error', details: (error as any).errors },
-        { status: 400 }
-      );
-    }
-
     return NextResponse.json(
       { success: false, error: 'Error creating location' },
       { status: 500 }
