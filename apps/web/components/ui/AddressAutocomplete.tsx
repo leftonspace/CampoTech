@@ -26,6 +26,27 @@ interface AddressAutocompleteProps {
   defaultCountry?: string; // ISO country code, e.g., 'AR' for Argentina
 }
 
+// Declare window.google for TypeScript
+declare global {
+  interface Window {
+    google?: {
+      maps: {
+        places: {
+          PlaceAutocompleteElement?: new (options: {
+            componentRestrictions?: { country: string[] };
+            types?: string[];
+          }) => HTMLElement & {
+            addEventListener: (event: string, callback: (e: any) => void) => void;
+            style: CSSStyleDeclaration;
+            querySelector: (selector: string) => HTMLInputElement | null;
+          };
+        };
+      };
+    };
+    initGoogleMapsCallback?: () => void;
+  }
+}
+
 // Singleton to track if Google Maps is loading/loaded
 let googleMapsPromise: Promise<void> | null = null;
 let isGoogleMapsLoaded = false;
