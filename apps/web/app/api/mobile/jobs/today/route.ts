@@ -92,7 +92,8 @@ export async function GET(request: NextRequest) {
     const summary = {
       total: jobs.length,
       pending: jobs.filter((j) => j.status === 'PENDING').length,
-      scheduled: jobs.filter((j) => j.status === 'SCHEDULED').length,
+      assigned: jobs.filter((j) => j.status === 'ASSIGNED').length,
+      enRoute: jobs.filter((j) => j.status === 'EN_ROUTE').length,
       inProgress: jobs.filter((j) => j.status === 'IN_PROGRESS').length,
       completed: jobs.filter((j) => j.status === 'COMPLETED').length,
     };
