@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "Field service management platform for the Argentine market",
-  "packageManager": "pnpm@8.15.0",
+  "packageManager": "pnpm@9.15.0",
   "scripts": {
     "build": "pnpm --filter @campotech/web build",
     "dev": "pnpm --filter @campotech/web dev",
