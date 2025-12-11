@@ -26,10 +26,60 @@ interface AddressAutocompleteProps {
   defaultCountry?: string; // ISO country code, e.g., 'AR' for Argentina
 }
 
-// Declare google types
+// Google Maps type declarations (inline to avoid requiring @types/google.maps)
+interface GoogleMapsAddressComponent {
+  long_name: string;
+  short_name: string;
+  types: string[];
+}
+
+interface GoogleMapsGeometry {
+  location: {
+    lat: () => number;
+    lng: () => number;
+  };
+}
+
+interface GoogleMapsPlaceResult {
+  address_components?: GoogleMapsAddressComponent[];
+  formatted_address?: string;
+  geometry?: GoogleMapsGeometry;
+  name?: string;
+}
+
+interface GoogleMapsAutocomplete {
+  addListener: (event: string, callback: () => void) => void;
+  getPlace: () => GoogleMapsPlaceResult;
+}
+
+interface GoogleMapsPlacesService {
+  Autocomplete: new (
+    input: HTMLInputElement,
+    options: {
+      types?: string[];
+      componentRestrictions?: { country: string };
+      fields?: string[];
+    }
+  ) => GoogleMapsAutocomplete;
+}
+
+interface GoogleMapsEventService {
+  clearInstanceListeners: (instance: GoogleMapsAutocomplete) => void;
+}
+
+interface GoogleMaps {
+  places: GoogleMapsPlacesService;
+  event: GoogleMapsEventService;
+}
+
+interface GoogleAPI {
+  maps: GoogleMaps;
+}
+
+// Declare window.google
 declare global {
   interface Window {
-    google: typeof google;
+    google?: GoogleAPI;
     initGoogleMapsCallback?: () => void;
   }
 }
@@ -79,18 +129,18 @@ function loadGoogleMaps(apiKey: string): Promise<void> {
 }
 
 // Parse Google Place result into our address structure
-function parseGooglePlace(place: google.maps.places.PlaceResult): ParsedAddress {
+function parseGooglePlace(place: GoogleMapsPlaceResult): ParsedAddress {
   const components = place.address_components || [];
 
   const getComponent = (types: string[]): string => {
-    const component = components.find((c) =>
+    const component = components.find((c: GoogleMapsAddressComponent) =>
       types.some((type) => c.types.includes(type))
     );
     return component?.long_name || '';
   };
 
   const getShortComponent = (types: string[]): string => {
-    const component = components.find((c) =>
+    const component = components.find((c: GoogleMapsAddressComponent) =>
       types.some((type) => c.types.includes(type))
     );
     return component?.short_name || '';
@@ -136,7 +186,7 @@ export default function AddressAutocomplete({
   defaultCountry = 'AR',
 }: AddressAutocompleteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const autocompleteRef = useRef<GoogleMapsAutocomplete | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -155,7 +205,7 @@ export default function AddressAutocomplete({
 
     loadGoogleMaps(apiKey)
       .then(() => {
-        if (!mounted || !inputRef.current) return;
+        if (!mounted || !inputRef.current || !window.google) return;
 
         // Create autocomplete instance
         const autocomplete = new window.google.maps.places.Autocomplete(
