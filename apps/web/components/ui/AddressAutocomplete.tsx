@@ -26,16 +26,17 @@ interface AddressAutocompleteProps {
   defaultCountry?: string;
 }
 
-// Suggestion type from new Google Places API
+// Suggestion type from new Google Places API (flexible to handle variations)
 interface PlaceSuggestion {
   placePrediction: {
-    placeId: string;
-    text: {
+    placeId?: string;
+    place_id?: string;
+    text?: {
       text: string;
     };
-    structuredFormat: {
-      mainText: { text: string };
-      secondaryText: { text: string };
+    structuredFormat?: {
+      mainText?: { text: string };
+      secondaryText?: { text: string };
     };
   };
 }
@@ -253,13 +254,15 @@ export default function AddressAutocomplete({
 
   const handleSelectSuggestion = useCallback(
     async (suggestion: PlaceSuggestion) => {
-      const placeId = suggestion.placePrediction.placeId;
+      const prediction = suggestion.placePrediction;
+      const placeId = prediction?.placeId || prediction?.place_id;
+      const fallbackText = prediction?.text?.text || prediction?.structuredFormat?.mainText?.text || '';
 
       setIsLoading(true);
 
       try {
         // Use new Place class to fetch details
-        if (window.google?.maps?.places?.Place) {
+        if (placeId && window.google?.maps?.places?.Place) {
           const place = new window.google.maps.places.Place({ id: placeId });
           const result = await place.fetchFields({
             fields: ['displayName', 'formattedAddress', 'location', 'addressComponents'],
@@ -270,12 +273,12 @@ export default function AddressAutocomplete({
           onSelect?.(parsed);
         } else {
           // Fallback - just use the suggestion text
-          onChange(suggestion.placePrediction.text.text);
+          onChange(fallbackText);
         }
       } catch (err) {
         console.error('[AddressAutocomplete] Error fetching place details:', err);
         // Fallback to suggestion text
-        onChange(suggestion.placePrediction.text.text);
+        onChange(fallbackText);
       } finally {
         setIsLoading(false);
         setIsOpen(false);
@@ -364,22 +367,31 @@ export default function AddressAutocomplete({
       {/* Suggestions dropdown */}
       {isOpen && suggestions.length > 0 && (
         <ul className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-auto">
-          {suggestions.map((suggestion, index) => (
-            <li
-              key={suggestion.placePrediction.placeId}
-              className={`px-4 py-3 cursor-pointer hover:bg-gray-50 ${
-                index === selectedIndex ? 'bg-blue-50' : ''
-              }`}
-              onClick={() => handleSelectSuggestion(suggestion)}
-            >
-              <div className="font-medium text-gray-900 text-sm">
-                {suggestion.placePrediction.structuredFormat.mainText.text}
-              </div>
-              <div className="text-gray-500 text-xs">
-                {suggestion.placePrediction.structuredFormat.secondaryText.text}
-              </div>
-            </li>
-          ))}
+          {suggestions.map((suggestion, index) => {
+            const prediction = suggestion.placePrediction;
+            const mainText = prediction?.structuredFormat?.mainText?.text || prediction?.text?.text || 'Address';
+            const secondaryText = prediction?.structuredFormat?.secondaryText?.text || '';
+            const placeId = prediction?.placeId || prediction?.place_id || index.toString();
+
+            return (
+              <li
+                key={placeId}
+                className={`px-4 py-3 cursor-pointer hover:bg-gray-50 ${
+                  index === selectedIndex ? 'bg-blue-50' : ''
+                }`}
+                onClick={() => handleSelectSuggestion(suggestion)}
+              >
+                <div className="font-medium text-gray-900 text-sm">
+                  {mainText}
+                </div>
+                {secondaryText && (
+                  <div className="text-gray-500 text-xs">
+                    {secondaryText}
+                  </div>
+                )}
+              </li>
+            );
+          })}
           <li className="px-4 py-2 text-xs text-gray-400 border-t">
             Powered by Google
           </li>
