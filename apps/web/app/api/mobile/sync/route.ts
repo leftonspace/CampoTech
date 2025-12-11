@@ -29,7 +29,7 @@ interface SyncResponse {
   serverChanges: {
     jobs: unknown[];
     customers: unknown[];
-    priceBookItems: unknown[];
+    products: unknown[];
   };
   conflicts: Array<{
     operationId: string;
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Fetch server changes since last sync
-    const [jobs, customers, priceBookItems] = await Promise.all([
+    const [jobs, customers, products] = await Promise.all([
       prisma.job.findMany({
         where: {
           organizationId: session.organizationId,
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
         },
         take: 100, // Limit for performance
       }),
-      prisma.priceBookItem.findMany({
+      prisma.product.findMany({
         where: {
           organizationId: session.organizationId,
           updatedAt: { gt: lastSync },
@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
         deviceId,
         direction: 'bidirectional',
         operationsCount: operations?.length || 0,
-        changesCount: jobs.length + customers.length + priceBookItems.length,
+        changesCount: jobs.length + customers.length + products.length,
         conflictsCount: conflicts.length,
         syncedAt: now,
       },
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
         serverChanges: {
           jobs: jobs.map(formatJobForMobile),
           customers,
-          priceBookItems,
+          products,
         },
         conflicts,
         syncedAt: now.toISOString(),
