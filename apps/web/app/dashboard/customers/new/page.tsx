@@ -87,6 +87,8 @@ export default function NewCustomerPage() {
             placeholder="Juan Pérez o Mi Empresa SRL"
             className="input"
             required
+            onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, completá este campo')}
+            onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
           />
         </div>
 
@@ -117,6 +119,8 @@ export default function NewCustomerPage() {
               placeholder="11 1234 5678"
               className="input flex-1"
               required
+              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá un número de teléfono')}
+              onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
             />
           </div>
         </div>
