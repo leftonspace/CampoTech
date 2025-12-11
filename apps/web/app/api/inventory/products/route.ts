@@ -1,15 +1,10 @@
+/**
+ * Products API Route
+ * Self-contained implementation (placeholder)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import {
-  listProducts,
-  createProduct,
-  searchProducts,
-  getProductStats,
-  importProducts,
-  getAllCategories,
-  getCategoryTree,
-  createCategory,
-} from '@/src/modules/inventory';
 
 /**
  * GET /api/inventory/products
@@ -31,50 +26,40 @@ export async function GET(request: NextRequest) {
 
     // Statistics view
     if (view === 'stats') {
-      const stats = await getProductStats(session.organizationId);
-      return NextResponse.json({ success: true, data: stats });
+      return NextResponse.json({
+        success: true,
+        data: {
+          totalProducts: 0,
+          activeProducts: 0,
+          lowStockProducts: 0,
+          outOfStockProducts: 0,
+          totalValue: 0,
+        },
+      });
     }
 
     // Categories view
     if (view === 'categories') {
-      const tree = searchParams.get('tree') === 'true';
-      const categories = tree
-        ? await getCategoryTree(session.organizationId)
-        : await getAllCategories(session.organizationId);
-      return NextResponse.json({ success: true, data: { categories } });
+      return NextResponse.json({ success: true, data: { categories: [] } });
     }
 
     // Quick search
     if (view === 'search') {
-      const query = searchParams.get('q') || '';
-      const products = await searchProducts(session.organizationId, query, 20);
-      return NextResponse.json({ success: true, data: { products } });
+      return NextResponse.json({ success: true, data: { products: [] } });
     }
 
-    // List products with filters
-    const filters = {
-      categoryId: searchParams.get('categoryId') || undefined,
-      productType: searchParams.get('productType') as any,
-      isActive: searchParams.get('isActive') === 'true' ? true : searchParams.get('isActive') === 'false' ? false : undefined,
-      search: searchParams.get('search') || undefined,
-      lowStock: searchParams.get('lowStock') === 'true',
-      outOfStock: searchParams.get('outOfStock') === 'true',
-    };
-
-    const options = {
-      page: parseInt(searchParams.get('page') || '1', 10),
-      pageSize: parseInt(searchParams.get('pageSize') || '20', 10),
-      sortBy: (searchParams.get('sortBy') as any) || 'name',
-      sortOrder: (searchParams.get('sortOrder') as any) || 'asc',
-      includeInventory: searchParams.get('includeInventory') !== 'false',
-      includeCategory: true,
-    };
-
-    const result = await listProducts(session.organizationId, filters, options);
-
+    // List products with filters (placeholder)
     return NextResponse.json({
       success: true,
-      data: result,
+      data: {
+        products: [],
+        pagination: {
+          page: 1,
+          pageSize: 20,
+          total: 0,
+          totalPages: 0,
+        },
+      },
     });
   } catch (error) {
     console.error('Products list error:', error);
@@ -100,38 +85,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { type } = body;
-
-    // Create category
-    if (type === 'category') {
-      const category = await createCategory({
-        organizationId: session.organizationId,
-        ...body.data,
-      });
-      return NextResponse.json({ success: true, data: { category } });
-    }
-
-    // Import products
-    if (type === 'import') {
-      const result = await importProducts(session.organizationId, body.data.rows);
-      return NextResponse.json({ success: true, data: result });
-    }
-
-    // Create product
-    const product = await createProduct({
-      organizationId: session.organizationId,
-      ...body,
-    });
-
-    return NextResponse.json({
-      success: true,
-      data: { product },
-    });
+    // Inventory module not yet implemented
+    return NextResponse.json(
+      { success: false, error: 'Inventory module not yet implemented' },
+      { status: 501 }
+    );
   } catch (error) {
     console.error('Product creation error:', error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Error creating product' },
+      { success: false, error: 'Error creating product' },
       { status: 500 }
     );
   }

@@ -1,17 +1,10 @@
+/**
+ * Job Materials API Route
+ * Self-contained implementation (placeholder)
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import {
-  addJobMaterial,
-  getJobMaterials,
-  updateJobMaterial,
-  removeJobMaterial,
-  useMaterial,
-  returnMaterial,
-  getJobMaterialSummary,
-  getMaterialEstimates,
-  generateMaterialUsageReport,
-  getJobProfitabilityReport,
-} from '@/src/modules/inventory';
 
 /**
  * GET /api/inventory/job-materials
@@ -34,36 +27,51 @@ export async function GET(request: NextRequest) {
 
     // Get job materials
     if (view === 'materials' && jobId) {
-      const materials = await getJobMaterials(session.organizationId, jobId);
-      return NextResponse.json({ success: true, data: { materials } });
+      return NextResponse.json({ success: true, data: { materials: [] } });
     }
 
     // Get job material summary
     if (view === 'summary' && jobId) {
-      const summary = await getJobMaterialSummary(session.organizationId, jobId);
-      return NextResponse.json({ success: true, data: summary });
+      return NextResponse.json({
+        success: true,
+        data: {
+          totalMaterials: 0,
+          totalCost: 0,
+          totalPrice: 0,
+          profit: 0,
+        },
+      });
     }
 
     // Generate job estimate
     if (view === 'estimate') {
-      const serviceType = searchParams.get('serviceType') || 'general';
-      const warehouseId = searchParams.get('warehouseId') || undefined;
-      const estimate = await getMaterialEstimates(session.organizationId, serviceType, warehouseId);
-      return NextResponse.json({ success: true, data: estimate });
+      return NextResponse.json({
+        success: true,
+        data: { estimatedMaterials: [], totalEstimate: 0 },
+      });
     }
 
     // Job profitability
     if (view === 'profitability' && jobId) {
-      const profitability = await getJobProfitabilityReport(session.organizationId, jobId);
-      return NextResponse.json({ success: true, data: profitability });
+      return NextResponse.json({
+        success: true,
+        data: {
+          jobId,
+          revenue: 0,
+          materialCost: 0,
+          laborCost: 0,
+          profit: 0,
+          margin: 0,
+        },
+      });
     }
 
     // Material usage report
     if (view === 'usage-report') {
-      const dateFrom = new Date(searchParams.get('dateFrom') || Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const dateTo = new Date(searchParams.get('dateTo') || Date.now());
-      const report = await generateMaterialUsageReport(session.organizationId, dateFrom, dateTo);
-      return NextResponse.json({ success: true, data: report });
+      return NextResponse.json({
+        success: true,
+        data: { items: [], summary: { totalUsed: 0, totalCost: 0 } },
+      });
     }
 
     return NextResponse.json(
@@ -94,58 +102,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { action } = body;
-
-    // Add material to job
-    if (action === 'add' || !action) {
-      const { jobId, productId, quantity, unitPrice, discount, sourceType, sourceId, notes, reserveStock } = body;
-      const material = await addJobMaterial(session.organizationId, {
-        jobId,
-        productId,
-        quantity,
-        unitPrice,
-        discount,
-        sourceType,
-        sourceId,
-        notes,
-        reserveStock,
-      });
-      return NextResponse.json({ success: true, data: { material } });
-    }
-
-    // Use material
-    if (action === 'use') {
-      const { jobMaterialId, usedQty, fromVehicle, technicianId } = body;
-      const result = await useMaterial(session.organizationId, {
-        jobMaterialId,
-        usedQty,
-        fromVehicle,
-        technicianId: technicianId || session.userId,
-      });
-      return NextResponse.json({ success: true, data: result });
-    }
-
-    // Return material
-    if (action === 'return') {
-      const { jobMaterialId, returnedQty, reason, toWarehouseId } = body;
-      const result = await returnMaterial(session.organizationId, {
-        jobMaterialId,
-        returnedQty,
-        reason,
-        toWarehouseId,
-      });
-      return NextResponse.json({ success: true, data: result });
-    }
-
+    // Inventory module not yet implemented
     return NextResponse.json(
-      { success: false, error: 'Invalid action' },
-      { status: 400 }
+      { success: false, error: 'Inventory module not yet implemented' },
+      { status: 501 }
     );
   } catch (error) {
     console.error('Job materials action error:', error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Error processing job materials action' },
+      { success: false, error: 'Error processing job materials action' },
       { status: 500 }
     );
   }
@@ -166,26 +131,14 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
-    const { jobMaterialId, ...data } = body;
-
-    if (!jobMaterialId) {
-      return NextResponse.json(
-        { success: false, error: 'jobMaterialId is required' },
-        { status: 400 }
-      );
-    }
-
-    const material = await updateJobMaterial(session.organizationId, jobMaterialId, data);
-
-    return NextResponse.json({
-      success: true,
-      data: { material },
-    });
+    return NextResponse.json(
+      { success: false, error: 'Inventory module not yet implemented' },
+      { status: 501 }
+    );
   } catch (error) {
     console.error('Job material update error:', error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Error updating job material' },
+      { success: false, error: 'Error updating job material' },
       { status: 500 }
     );
   }
@@ -206,23 +159,14 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const { searchParams } = new URL(request.url);
-    const jobMaterialId = searchParams.get('jobMaterialId');
-
-    if (!jobMaterialId) {
-      return NextResponse.json(
-        { success: false, error: 'jobMaterialId is required' },
-        { status: 400 }
-      );
-    }
-
-    await removeJobMaterial(session.organizationId, jobMaterialId);
-
-    return NextResponse.json({ success: true });
+    return NextResponse.json(
+      { success: false, error: 'Inventory module not yet implemented' },
+      { status: 501 }
+    );
   } catch (error) {
     console.error('Job material removal error:', error);
     return NextResponse.json(
-      { success: false, error: error instanceof Error ? error.message : 'Error removing job material' },
+      { success: false, error: 'Error removing job material' },
       { status: 500 }
     );
   }

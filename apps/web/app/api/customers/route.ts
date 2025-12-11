@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { collectCustomerCreated } from '@/src/analytics';
 
 export async function GET(request: NextRequest) {
   try {
@@ -83,12 +82,6 @@ export async function POST(request: NextRequest) {
         organizationId: session.organizationId,
       },
     });
-
-    // Collect analytics event (non-blocking)
-    collectCustomerCreated(session.organizationId, {
-      customerId: customer.id,
-      source: body.source || 'manual',
-    }).catch((err) => console.error('Analytics event error:', err));
 
     return NextResponse.json({
       success: true,
