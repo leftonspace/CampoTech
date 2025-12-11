@@ -313,7 +313,7 @@ export default function PredictionsPage() {
                 trend={allPredictions.anomalies.summary.criticalCount > 0 ? 'down' : 'stable'}
                 description={`${allPredictions.anomalies.summary.criticalCount} críticas`}
                 icon={<AlertTriangle size={24} />}
-                color={allPredictions.anomalies.summary.criticalCount > 0 ? 'red' : 'gray'}
+                color={allPredictions.anomalies.summary.criticalCount > 0 ? 'red' : 'blue'}
               />
             </KPIGrid>
 
