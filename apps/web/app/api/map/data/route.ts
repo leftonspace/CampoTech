@@ -583,7 +583,11 @@ export async function GET(request: NextRequest) {
     let zones: { id: string; name: string }[] = [];
     try {
       const zonesData = await prisma.zone.findMany({
-        where: { organizationId: session.organizationId },
+        where: {
+          location: {
+            organizationId: session.organizationId,
+          },
+        },
         select: { id: true, name: true },
         orderBy: { name: 'asc' },
       });
