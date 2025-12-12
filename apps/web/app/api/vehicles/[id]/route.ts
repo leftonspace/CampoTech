@@ -8,6 +8,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
+
+// Check if error is related to missing table
+function isTableNotFoundError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2021'
+  );
+}
 
 export async function GET(
   request: NextRequest,
@@ -25,51 +34,73 @@ export async function GET(
 
     const { id } = await params;
 
-    const vehicle = await prisma.vehicle.findFirst({
-      where: {
-        id,
-        organizationId: session.organizationId,
-      },
-      include: {
-        assignments: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true,
-                phone: true,
-                specialty: true,
+    // Try full query with related tables, fall back to basic query if tables don't exist
+    let vehicle: any = null;
+    try {
+      vehicle = await prisma.vehicle.findFirst({
+        where: {
+          id,
+          organizationId: session.organizationId,
+        },
+        include: {
+          assignments: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatar: true,
+                  phone: true,
+                  specialty: true,
+                },
               },
             },
+            orderBy: { assignedFrom: 'desc' },
           },
-          orderBy: { assignedFrom: 'desc' },
-        },
-        documents: {
-          include: {
-            uploadedBy: {
-              select: {
-                id: true,
-                name: true,
+          documents: {
+            include: {
+              uploadedBy: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
+            orderBy: { uploadedAt: 'desc' },
           },
-          orderBy: { uploadedAt: 'desc' },
-        },
-        maintenanceLogs: {
-          include: {
-            createdBy: {
-              select: {
-                id: true,
-                name: true,
+          maintenanceLogs: {
+            include: {
+              createdBy: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
+            orderBy: { createdAt: 'desc' },
+            take: 10,
           },
-          orderBy: { createdAt: 'desc' },
-          take: 10,
         },
-      },
-    });
+      });
+    } catch (queryError) {
+      // If related tables don't exist, query without them
+      if (isTableNotFoundError(queryError)) {
+        vehicle = await prisma.vehicle.findFirst({
+          where: {
+            id,
+            organizationId: session.organizationId,
+          },
+        });
+        // Add empty arrays for missing relations
+        if (vehicle) {
+          vehicle.assignments = [];
+          vehicle.documents = [];
+          vehicle.maintenanceLogs = [];
+        }
+      } else {
+        throw queryError;
+      }
+    }
 
     if (!vehicle) {
       return NextResponse.json(
