@@ -40,3 +40,5 @@ export type { MapLayerState } from './MapLayerControls';
 export { MapFiltersPanel } from './MapFiltersPanel';
 export type { MapFilters } from './MapFiltersPanel';
 export { ItineraryPanel } from './ItineraryPanel';
+export { ReassignJobDialog } from './ReassignJobDialog';
+export { CoordinatePickerDialog } from './CoordinatePickerDialog';

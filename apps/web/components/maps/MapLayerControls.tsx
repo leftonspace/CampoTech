@@ -8,14 +8,17 @@ import {
   Wrench,
   ChevronDown,
   ChevronRight,
-  Eye,
   EyeOff,
+  UserCheck,
+  UserX,
 } from 'lucide-react';
 
 export interface MapLayerState {
   customers: boolean;
   customersWithActiveJob: boolean;
   technicians: boolean;
+  techniciansActive: boolean;  // Groups: online, en_camino, trabajando
+  techniciansInactive: boolean; // Groups: offline
   techniciansOnline: boolean;
   techniciansEnRoute: boolean;
   techniciansWorking: boolean;
@@ -56,6 +59,7 @@ interface LayerItemProps {
   icon?: React.ReactNode;
   color?: string;
   indent?: boolean;
+  indentLevel?: number;
 }
 
 function LayerItem({
@@ -66,12 +70,14 @@ function LayerItem({
   icon,
   color,
   indent = false,
+  indentLevel = 1,
 }: LayerItemProps) {
+  const marginLeft = indent ? `${indentLevel * 16}px` : '0';
+
   return (
     <label
-      className={`flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-gray-50 cursor-pointer ${
-        indent ? 'ml-4' : ''
-      }`}
+      className="flex items-center justify-between py-1.5 px-2 rounded-md hover:bg-gray-50 cursor-pointer"
+      style={{ marginLeft }}
     >
       <div className="flex items-center gap-2">
         <input
@@ -145,6 +151,61 @@ function LayerGroup({
   );
 }
 
+interface SubGroupProps {
+  label: string;
+  icon: React.ReactNode;
+  color: string;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  allChecked: boolean;
+  onToggleAll: (checked: boolean) => void;
+  totalCount: number;
+  children: React.ReactNode;
+}
+
+function SubGroup({
+  label,
+  icon,
+  color,
+  isExpanded,
+  onToggleExpand,
+  allChecked,
+  onToggleAll,
+  totalCount,
+  children,
+}: SubGroupProps) {
+  return (
+    <div className="ml-4">
+      <div className="flex items-center justify-between py-1.5 px-2">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onToggleExpand}
+            className="p-0.5 hover:bg-gray-100 rounded"
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-3 w-3 text-gray-400" />
+            ) : (
+              <ChevronRight className="h-3 w-3 text-gray-400" />
+            )}
+          </button>
+          <input
+            type="checkbox"
+            checked={allChecked}
+            onChange={(e) => onToggleAll(e.target.checked)}
+            className="h-3.5 w-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+          />
+          <span className={color}>{icon}</span>
+          <span className="text-xs font-medium text-gray-600">{label}</span>
+        </div>
+        <span className="text-xs text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded-full">
+          {totalCount}
+        </span>
+      </div>
+      {isExpanded && <div className="pb-1">{children}</div>}
+    </div>
+  );
+}
+
 export function MapLayerControls({
   layers,
   onLayerChange,
@@ -155,6 +216,8 @@ export function MapLayerControls({
   const [expandedGroups, setExpandedGroups] = useState({
     customers: false,
     technicians: true,
+    techniciansActive: true,
+    techniciansInactive: false,
     jobs: true,
   });
 
@@ -165,6 +228,9 @@ export function MapLayerControls({
   const updateLayer = (key: keyof MapLayerState, value: boolean) => {
     onLayerChange({ ...layers, [key]: value });
   };
+
+  // Calculate active technicians count
+  const activeTechniciansCount = stats.techniciansOnline + stats.techniciansEnRoute + stats.techniciansWorking;
 
   // Toggle all sublayers when parent is toggled
   const toggleCustomers = (checked: boolean) => {
@@ -179,9 +245,29 @@ export function MapLayerControls({
     onLayerChange({
       ...layers,
       technicians: checked,
+      techniciansActive: checked,
+      techniciansInactive: checked,
       techniciansOnline: checked,
       techniciansEnRoute: checked,
       techniciansWorking: checked,
+      techniciansOffline: checked,
+    });
+  };
+
+  const toggleActiveTechnicians = (checked: boolean) => {
+    onLayerChange({
+      ...layers,
+      techniciansActive: checked,
+      techniciansOnline: checked,
+      techniciansEnRoute: checked,
+      techniciansWorking: checked,
+    });
+  };
+
+  const toggleInactiveTechnicians = (checked: boolean) => {
+    onLayerChange({
+      ...layers,
+      techniciansInactive: checked,
       techniciansOffline: checked,
     });
   };
@@ -230,7 +316,7 @@ export function MapLayerControls({
       </div>
 
       {/* Layer Groups */}
-      <div className="max-h-80 overflow-y-auto">
+      <div className="max-h-96 overflow-y-auto">
         {/* Customers */}
         <LayerGroup
           label="Clientes"
@@ -262,38 +348,67 @@ export function MapLayerControls({
           onToggleAll={toggleTechnicians}
           totalCount={stats.totalTechnicians}
         >
-          <LayerItem
-            label="En línea"
-            count={stats.techniciansOnline}
-            checked={layers.techniciansOnline}
-            onChange={(v) => updateLayer('techniciansOnline', v)}
-            icon={<div className="h-2 w-2 rounded-full bg-green-500" />}
-            indent
-          />
-          <LayerItem
-            label="En camino"
-            count={stats.techniciansEnRoute}
-            checked={layers.techniciansEnRoute}
-            onChange={(v) => updateLayer('techniciansEnRoute', v)}
-            icon={<div className="h-2 w-2 rounded-full bg-blue-500" />}
-            indent
-          />
-          <LayerItem
-            label="Trabajando"
-            count={stats.techniciansWorking}
-            checked={layers.techniciansWorking}
-            onChange={(v) => updateLayer('techniciansWorking', v)}
-            icon={<div className="h-2 w-2 rounded-full bg-amber-500" />}
-            indent
-          />
-          <LayerItem
-            label="Sin conexión"
-            count={stats.techniciansOffline}
-            checked={layers.techniciansOffline}
-            onChange={(v) => updateLayer('techniciansOffline', v)}
-            icon={<div className="h-2 w-2 rounded-full bg-gray-400" />}
-            indent
-          />
+          {/* Active Technicians Sub-Group */}
+          <SubGroup
+            label="Técnicos Activos"
+            icon={<UserCheck className="h-3.5 w-3.5" />}
+            color="text-green-600"
+            isExpanded={expandedGroups.techniciansActive}
+            onToggleExpand={() => toggleGroup('techniciansActive')}
+            allChecked={layers.techniciansActive}
+            onToggleAll={toggleActiveTechnicians}
+            totalCount={activeTechniciansCount}
+          >
+            <LayerItem
+              label="En línea"
+              count={stats.techniciansOnline}
+              checked={layers.techniciansOnline}
+              onChange={(v) => updateLayer('techniciansOnline', v)}
+              icon={<div className="h-2 w-2 rounded-full bg-green-500" />}
+              indent
+              indentLevel={2}
+            />
+            <LayerItem
+              label="En camino"
+              count={stats.techniciansEnRoute}
+              checked={layers.techniciansEnRoute}
+              onChange={(v) => updateLayer('techniciansEnRoute', v)}
+              icon={<div className="h-2 w-2 rounded-full bg-blue-500" />}
+              indent
+              indentLevel={2}
+            />
+            <LayerItem
+              label="Trabajando"
+              count={stats.techniciansWorking}
+              checked={layers.techniciansWorking}
+              onChange={(v) => updateLayer('techniciansWorking', v)}
+              icon={<div className="h-2 w-2 rounded-full bg-amber-500" />}
+              indent
+              indentLevel={2}
+            />
+          </SubGroup>
+
+          {/* Inactive Technicians Sub-Group */}
+          <SubGroup
+            label="Técnicos Inactivos"
+            icon={<UserX className="h-3.5 w-3.5" />}
+            color="text-gray-500"
+            isExpanded={expandedGroups.techniciansInactive}
+            onToggleExpand={() => toggleGroup('techniciansInactive')}
+            allChecked={layers.techniciansInactive}
+            onToggleAll={toggleInactiveTechnicians}
+            totalCount={stats.techniciansOffline}
+          >
+            <LayerItem
+              label="Sin conexión"
+              count={stats.techniciansOffline}
+              checked={layers.techniciansOffline}
+              onChange={(v) => updateLayer('techniciansOffline', v)}
+              icon={<div className="h-2 w-2 rounded-full bg-gray-400" />}
+              indent
+              indentLevel={2}
+            />
+          </SubGroup>
         </LayerGroup>
 
         {/* Jobs */}

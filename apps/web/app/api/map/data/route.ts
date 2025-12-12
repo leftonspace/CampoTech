@@ -3,6 +3,7 @@
  * GET /api/map/data
  *
  * Returns all map data layers: customers, technicians, and today's jobs
+ * Supports viewport bounds filtering for performance optimization
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -36,6 +37,7 @@ interface TechnicianLocation {
   currentCustomerName: string | null;
   etaMinutes: number | null;
   heading: number | null;
+  locationSource: 'current' | 'home' | 'office';
   nextJob: {
     id: string;
     jobNumber: string;
@@ -87,6 +89,13 @@ interface MapDataResponse {
   error?: string;
 }
 
+interface Bounds {
+  north: number;
+  south: number;
+  east: number;
+  west: number;
+}
+
 function parseAddress(address: unknown): { formatted: string; lat: number | null; lng: number | null } {
   if (!address || typeof address !== 'object') {
     return { formatted: '', lat: null, lng: null };
@@ -118,6 +127,30 @@ function parseAddress(address: unknown): { formatted: string; lat: number | null
   };
 }
 
+function isWithinBounds(lat: number, lng: number, bounds: Bounds | null): boolean {
+  if (!bounds) return true;
+  return lat >= bounds.south && lat <= bounds.north && lng >= bounds.west && lng <= bounds.east;
+}
+
+function parseBounds(boundsParam: string | null): Bounds | null {
+  if (!boundsParam) return null;
+
+  try {
+    // Format: "south,west,north,east"
+    const parts = boundsParam.split(',').map(Number);
+    if (parts.length !== 4 || parts.some(isNaN)) return null;
+
+    return {
+      south: parts[0],
+      west: parts[1],
+      north: parts[2],
+      east: parts[3],
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
@@ -141,6 +174,7 @@ export async function GET(request: NextRequest) {
     const layers = searchParams.get('layers')?.split(',') || ['customers', 'technicians', 'jobs'];
     const dateParam = searchParams.get('date');
     const technicianIdFilter = searchParams.get('technicianId');
+    const bounds = parseBounds(searchParams.get('bounds'));
 
     // Determine today's date range
     const today = dateParam ? new Date(dateParam) : new Date();
@@ -151,6 +185,30 @@ export async function GET(request: NextRequest) {
 
     // Online threshold (5 minutes ago)
     const onlineThreshold = new Date(Date.now() - 5 * 60 * 1000);
+
+    // Get organization's default office location for fallback
+    let officeLocation: { lat: number; lng: number } | null = null;
+    try {
+      const org = await prisma.organization.findUnique({
+        where: { id: session.organizationId },
+        select: {
+          headquarters: {
+            select: {
+              coordinates: true,
+            },
+          },
+        },
+      });
+
+      if (org?.headquarters?.coordinates) {
+        const coords = org.headquarters.coordinates as { lat?: number; lng?: number };
+        if (coords.lat && coords.lng) {
+          officeLocation = { lat: coords.lat, lng: coords.lng };
+        }
+      }
+    } catch {
+      // Headquarters relation might not exist
+    }
 
     let customers: CustomerLocation[] = [];
     let technicians: TechnicianLocation[] = [];
@@ -184,6 +242,9 @@ export async function GET(request: NextRequest) {
           const { formatted, lat, lng } = parseAddress(customer.address);
 
           if (lat === null || lng === null) return null;
+
+          // Apply bounds filter
+          if (!isWithinBounds(lat, lng, bounds)) return null;
 
           const lastCompletedJob = customer.jobs.find((j) => j.status === 'COMPLETED');
           const hasActiveJob = customer.jobs.some((j) =>
@@ -269,22 +330,33 @@ export async function GET(request: NextRequest) {
           const location = tech.currentLocation;
           const isOnline = location && location.lastSeen > onlineThreshold;
 
-          // Determine position: current location, home location, or null
+          // Determine position: current location, home location, or office fallback
           let lat: number | null = null;
           let lng: number | null = null;
           let lastUpdated: string | null = null;
+          let locationSource: 'current' | 'home' | 'office' = 'current';
 
           if (location) {
             lat = Number(location.latitude);
             lng = Number(location.longitude);
             lastUpdated = location.lastSeen?.toISOString() || null;
+            locationSource = 'current';
           } else if (tech.homeLocation?.coordinates) {
             const coords = tech.homeLocation.coordinates as { lat?: number; lng?: number };
             lat = coords.lat ?? null;
             lng = coords.lng ?? null;
+            locationSource = 'home';
+          } else if (officeLocation) {
+            // Fallback to office location
+            lat = officeLocation.lat;
+            lng = officeLocation.lng;
+            locationSource = 'office';
           }
 
           if (lat === null || lng === null) return null;
+
+          // Apply bounds filter
+          if (!isWithinBounds(lat, lng, bounds)) return null;
 
           // Current job is one that's IN_PROGRESS or EN_ROUTE
           const currentJob = tech.assignedJobs.find(j =>
@@ -325,6 +397,7 @@ export async function GET(request: NextRequest) {
             currentCustomerName: currentJob?.customer?.name || null,
             etaMinutes: activeSession?.etaMinutes || null,
             heading: activeSession?.currentHeading ? Number(activeSession.currentHeading) : null,
+            locationSource,
             nextJob: nextJob ? {
               id: nextJob.id,
               jobNumber: nextJob.jobNumber,
@@ -388,6 +461,9 @@ export async function GET(request: NextRequest) {
 
           if (lat === null || lng === null) return null;
 
+          // Apply bounds filter
+          if (!isWithinBounds(lat, lng, bounds)) return null;
+
           const timeSlot = job.scheduledTimeSlot as { start?: string } | null;
           const arrivedSession = job.trackingSessions[0];
 
@@ -412,23 +488,87 @@ export async function GET(request: NextRequest) {
         .filter((j): j is TodayJob => j !== null);
     }
 
-    // Calculate stats
+    // Calculate stats (always use full counts, not filtered by bounds)
+    const allTechnicians = await prisma.user.findMany({
+      where: {
+        organizationId: session.organizationId,
+        role: 'TECHNICIAN',
+        isActive: true,
+      },
+      select: {
+        id: true,
+        currentLocation: {
+          select: {
+            lastSeen: true,
+          },
+        },
+        assignedJobs: {
+          where: {
+            status: {
+              in: ['EN_ROUTE', 'IN_PROGRESS'],
+            },
+            scheduledDate: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+          },
+          select: {
+            status: true,
+          },
+          take: 1,
+        },
+      },
+    });
+
+    let techniciansOnline = 0;
+    let techniciansEnRoute = 0;
+    let techniciansWorking = 0;
+    let techniciansOffline = 0;
+
+    for (const tech of allTechnicians) {
+      const isOnline = tech.currentLocation && tech.currentLocation.lastSeen > onlineThreshold;
+      const currentJob = tech.assignedJobs[0];
+
+      if (isOnline) {
+        if (currentJob?.status === 'IN_PROGRESS') {
+          techniciansWorking++;
+        } else if (currentJob?.status === 'EN_ROUTE') {
+          techniciansEnRoute++;
+        } else {
+          techniciansOnline++;
+        }
+      } else {
+        techniciansOffline++;
+      }
+    }
+
     const allCustomers = await prisma.customer.count({
       where: { organizationId: session.organizationId },
+    });
+
+    const allTodayJobs = await prisma.job.findMany({
+      where: {
+        organizationId: session.organizationId,
+        scheduledDate: {
+          gte: startOfDay,
+          lte: endOfDay,
+        },
+      },
+      select: { status: true },
     });
 
     const stats = {
       totalCustomers: allCustomers,
       customersWithLocation: customers.length,
-      totalTechnicians: technicians.length,
-      techniciansOnline: technicians.filter((t) => t.status === 'en_linea').length,
-      techniciansEnRoute: technicians.filter((t) => t.status === 'en_camino').length,
-      techniciansWorking: technicians.filter((t) => t.status === 'trabajando').length,
-      techniciansOffline: technicians.filter((t) => t.status === 'sin_conexion').length,
-      todayJobsTotal: todayJobs.length,
-      todayJobsPending: todayJobs.filter((j) => ['PENDING', 'ASSIGNED'].includes(j.status)).length,
-      todayJobsInProgress: todayJobs.filter((j) => ['EN_ROUTE', 'IN_PROGRESS'].includes(j.status)).length,
-      todayJobsCompleted: todayJobs.filter((j) => j.status === 'COMPLETED').length,
+      totalTechnicians: allTechnicians.length,
+      techniciansOnline,
+      techniciansEnRoute,
+      techniciansWorking,
+      techniciansOffline,
+      todayJobsTotal: allTodayJobs.length,
+      todayJobsPending: allTodayJobs.filter((j) => ['PENDING', 'ASSIGNED'].includes(j.status)).length,
+      todayJobsInProgress: allTodayJobs.filter((j) => ['EN_ROUTE', 'IN_PROGRESS'].includes(j.status)).length,
+      todayJobsCompleted: allTodayJobs.filter((j) => j.status === 'COMPLETED').length,
     };
 
     // Fetch zones for filter dropdown

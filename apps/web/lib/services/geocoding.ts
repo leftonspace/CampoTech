@@ -2,7 +2,7 @@
  * Geocoding Service
  *
  * Provides address-to-coordinates conversion using multiple providers
- * with caching and fallback support
+ * with caching, queue support, and auto-geocoding hooks
  */
 
 import { prisma } from '@/lib/prisma';
@@ -15,14 +15,21 @@ interface GeocodingResult {
 }
 
 interface GeocodingQueueItem {
-  entityType: 'customer' | 'user' | 'job';
+  entityType: 'customer' | 'user' | 'job' | 'location';
   entityId: string;
   address: string;
   organizationId: string;
+  priority?: 'high' | 'normal' | 'low';
 }
+
+type GeocodingQueueStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
 // Cache TTL in milliseconds (7 days)
 const CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+
+// Rate limiting for Nominatim (1 request per second)
+let lastNominatimRequest = 0;
+const NOMINATIM_RATE_LIMIT_MS = 1100; // Slightly over 1 second to be safe
 
 /**
  * Geocode an address using available providers
@@ -57,7 +64,7 @@ export async function geocodeAddress(
     }
   }
 
-  // Fallback to Nominatim (OpenStreetMap)
+  // Fallback to Nominatim (OpenStreetMap) with rate limiting
   const nominatimResult = await geocodeWithNominatim(normalizedAddress);
   if (nominatimResult) {
     await cacheGeocode(normalizedAddress, nominatimResult);
@@ -112,6 +119,14 @@ async function geocodeWithGoogle(
  */
 async function geocodeWithNominatim(address: string): Promise<GeocodingResult | null> {
   try {
+    // Enforce rate limiting
+    const now = Date.now();
+    const timeSinceLastRequest = now - lastNominatimRequest;
+    if (timeSinceLastRequest < NOMINATIM_RATE_LIMIT_MS) {
+      await new Promise(resolve => setTimeout(resolve, NOMINATIM_RATE_LIMIT_MS - timeSinceLastRequest));
+    }
+    lastNominatimRequest = Date.now();
+
     const encodedAddress = encodeURIComponent(address);
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodedAddress}&countrycodes=ar&limit=1`;
 
@@ -227,7 +242,8 @@ function hashAddress(address: string): string {
  */
 export async function batchGeocodeCustomers(
   organizationId: string,
-  limit: number = 50
+  limit: number = 50,
+  onProgress?: (current: number, total: number, result: 'success' | 'failed') => void
 ): Promise<{ processed: number; success: number; failed: number }> {
   const customers = await prisma.customer.findMany({
     where: {
@@ -242,6 +258,7 @@ export async function batchGeocodeCustomers(
 
   let success = 0;
   let failed = 0;
+  let processed = 0;
 
   for (const customer of customers) {
     const addr = customer.address as {
@@ -272,11 +289,10 @@ export async function batchGeocodeCustomers(
 
     if (addressString.length < 10) {
       failed++;
+      processed++;
+      onProgress?.(processed, customers.length, 'failed');
       continue;
     }
-
-    // Rate limit for Nominatim (1 request per second)
-    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     const result = await geocodeAddress(addressString);
 
@@ -296,9 +312,13 @@ export async function batchGeocodeCustomers(
       });
 
       success++;
+      onProgress?.(processed + 1, customers.length, 'success');
     } else {
       failed++;
+      onProgress?.(processed + 1, customers.length, 'failed');
     }
+
+    processed++;
   }
 
   return {
@@ -308,14 +328,382 @@ export async function batchGeocodeCustomers(
   };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// GEOCODING QUEUE FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
 /**
- * Queue an entity for geocoding (for background processing)
+ * Queue an entity for geocoding
+ * Stores in database for background processing
  */
-export async function queueForGeocoding(item: GeocodingQueueItem): Promise<void> {
-  // For now, we'll process immediately
-  // In a production environment, this would add to a job queue (e.g., BullMQ)
-  console.log('Queued for geocoding:', item);
+export async function queueForGeocoding(item: GeocodingQueueItem): Promise<string | null> {
+  try {
+    // Check if GeocodingQueue table exists by trying to query
+    const queue = await prisma.$queryRawUnsafe<{ id: string }[]>(
+      `INSERT INTO "GeocodingQueue" ("id", "entityType", "entityId", "address", "organizationId", "priority", "status", "attempts", "createdAt", "updatedAt")
+       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'pending', 0, NOW(), NOW())
+       ON CONFLICT ("entityType", "entityId") DO UPDATE SET "address" = $3, "status" = 'pending', "attempts" = 0, "updatedAt" = NOW()
+       RETURNING "id"`,
+      item.entityType,
+      item.entityId,
+      item.address,
+      item.organizationId,
+      item.priority || 'normal'
+    );
+
+    if (queue.length > 0) {
+      // Trigger background processing
+      processGeocodingQueue(item.organizationId).catch(console.error);
+      return queue[0].id;
+    }
+
+    return null;
+  } catch (error) {
+    // Table might not exist, fall back to immediate processing
+    console.log('GeocodingQueue table not available, processing immediately');
+    await processGeocodingImmediately(item);
+    return null;
+  }
 }
+
+/**
+ * Process geocoding immediately (fallback when queue not available)
+ */
+async function processGeocodingImmediately(item: GeocodingQueueItem): Promise<boolean> {
+  const result = await geocodeAddress(item.address);
+
+  if (!result) {
+    return false;
+  }
+
+  try {
+    switch (item.entityType) {
+      case 'customer':
+        await updateCustomerCoordinates(item.entityId, result.lat, result.lng);
+        break;
+      case 'job':
+        await updateJobCoordinates(item.entityId, result.lat, result.lng);
+        break;
+      case 'user':
+        // Users don't have direct coordinates, they use homeLocation
+        break;
+      case 'location':
+        await updateLocationCoordinates(item.entityId, result.lat, result.lng);
+        break;
+    }
+    return true;
+  } catch (error) {
+    console.error('Failed to update coordinates:', error);
+    return false;
+  }
+}
+
+/**
+ * Process pending items in the geocoding queue
+ */
+export async function processGeocodingQueue(
+  organizationId?: string,
+  batchSize: number = 10
+): Promise<{ processed: number; success: number; failed: number }> {
+  let processed = 0;
+  let success = 0;
+  let failed = 0;
+
+  try {
+    // Get pending items from queue
+    const whereClause = organizationId
+      ? `WHERE "status" = 'pending' AND "organizationId" = $1 AND "attempts" < 3`
+      : `WHERE "status" = 'pending' AND "attempts" < 3`;
+
+    const items = await prisma.$queryRawUnsafe<{
+      id: string;
+      entityType: string;
+      entityId: string;
+      address: string;
+      organizationId: string;
+    }[]>(
+      `SELECT "id", "entityType", "entityId", "address", "organizationId"
+       FROM "GeocodingQueue"
+       ${whereClause}
+       ORDER BY "priority" DESC, "createdAt" ASC
+       LIMIT ${batchSize}`,
+      ...(organizationId ? [organizationId] : [])
+    );
+
+    for (const item of items) {
+      // Mark as processing
+      await prisma.$executeRawUnsafe(
+        `UPDATE "GeocodingQueue" SET "status" = 'processing', "updatedAt" = NOW() WHERE "id" = $1`,
+        item.id
+      );
+
+      const geocodeResult = await geocodeAddress(item.address);
+
+      if (geocodeResult) {
+        // Update the entity with coordinates
+        let updateSuccess = false;
+
+        try {
+          switch (item.entityType) {
+            case 'customer':
+              await updateCustomerCoordinates(item.entityId, geocodeResult.lat, geocodeResult.lng);
+              updateSuccess = true;
+              break;
+            case 'job':
+              await updateJobCoordinates(item.entityId, geocodeResult.lat, geocodeResult.lng);
+              updateSuccess = true;
+              break;
+            case 'location':
+              await updateLocationCoordinates(item.entityId, geocodeResult.lat, geocodeResult.lng);
+              updateSuccess = true;
+              break;
+          }
+        } catch (err) {
+          console.error('Failed to update entity coordinates:', err);
+        }
+
+        if (updateSuccess) {
+          // Mark as completed
+          await prisma.$executeRawUnsafe(
+            `UPDATE "GeocodingQueue" SET "status" = 'completed', "completedAt" = NOW(), "updatedAt" = NOW() WHERE "id" = $1`,
+            item.id
+          );
+          success++;
+        } else {
+          // Mark as failed
+          await prisma.$executeRawUnsafe(
+            `UPDATE "GeocodingQueue" SET "status" = 'failed', "attempts" = "attempts" + 1, "lastError" = $2, "updatedAt" = NOW() WHERE "id" = $1`,
+            item.id,
+            'Failed to update entity'
+          );
+          failed++;
+        }
+      } else {
+        // Geocoding failed, increment attempts
+        await prisma.$executeRawUnsafe(
+          `UPDATE "GeocodingQueue" SET "status" = 'pending', "attempts" = "attempts" + 1, "lastError" = $2, "updatedAt" = NOW() WHERE "id" = $1`,
+          item.id,
+          'Geocoding failed'
+        );
+        failed++;
+      }
+
+      processed++;
+    }
+  } catch (error) {
+    // Queue table might not exist
+    console.error('Geocoding queue processing error:', error);
+  }
+
+  return { processed, success, failed };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AUTO-GEOCODING HOOKS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Auto-geocode a customer address
+ * Call this when a customer is created or their address is updated
+ */
+export async function autoGeocodeCustomer(
+  customerId: string,
+  address: unknown,
+  organizationId: string
+): Promise<void> {
+  const addressString = formatAddress(address);
+
+  if (addressString.length < 10) {
+    return;
+  }
+
+  // Check if already has coordinates
+  const coords = extractCoordinates(address);
+  if (coords) {
+    return;
+  }
+
+  await queueForGeocoding({
+    entityType: 'customer',
+    entityId: customerId,
+    address: addressString + ', Argentina',
+    organizationId,
+    priority: 'high',
+  });
+}
+
+/**
+ * Auto-geocode a job address (from customer)
+ * Call this when a job is created
+ */
+export async function autoGeocodeJob(
+  jobId: string,
+  customerAddress: unknown,
+  organizationId: string
+): Promise<void> {
+  const addressString = formatAddress(customerAddress);
+
+  if (addressString.length < 10) {
+    return;
+  }
+
+  await queueForGeocoding({
+    entityType: 'job',
+    entityId: jobId,
+    address: addressString + ', Argentina',
+    organizationId,
+    priority: 'high',
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COORDINATE UPDATE FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Update customer with geocoded coordinates
+ */
+async function updateCustomerCoordinates(customerId: string, lat: number, lng: number): Promise<void> {
+  const customer = await prisma.customer.findUnique({
+    where: { id: customerId },
+    select: { address: true },
+  });
+
+  if (!customer) return;
+
+  const currentAddress = customer.address as Record<string, unknown> || {};
+
+  await prisma.customer.update({
+    where: { id: customerId },
+    data: {
+      address: {
+        ...currentAddress,
+        coordinates: { lat, lng },
+        geocodedAt: new Date().toISOString(),
+      },
+    },
+  });
+}
+
+/**
+ * Update job with geocoded coordinates
+ * Jobs typically inherit coordinates from customers, but we store them directly too
+ */
+async function updateJobCoordinates(jobId: string, lat: number, lng: number): Promise<void> {
+  // Jobs don't have direct lat/lng fields, but we can store in metadata
+  await prisma.job.update({
+    where: { id: jobId },
+    data: {
+      metadata: {
+        coordinates: { lat, lng },
+        geocodedAt: new Date().toISOString(),
+      },
+    },
+  });
+}
+
+/**
+ * Update location with geocoded coordinates
+ */
+async function updateLocationCoordinates(locationId: string, lat: number, lng: number): Promise<void> {
+  await prisma.location.update({
+    where: { id: locationId },
+    data: {
+      coordinates: { lat, lng },
+    },
+  });
+}
+
+/**
+ * Manually set coordinates for an entity
+ */
+export async function setManualCoordinates(
+  entityType: 'customer' | 'job' | 'location',
+  entityId: string,
+  lat: number,
+  lng: number
+): Promise<boolean> {
+  try {
+    switch (entityType) {
+      case 'customer':
+        await updateCustomerCoordinates(entityId, lat, lng);
+        break;
+      case 'job':
+        await updateJobCoordinates(entityId, lat, lng);
+        break;
+      case 'location':
+        await updateLocationCoordinates(entityId, lat, lng);
+        break;
+      default:
+        return false;
+    }
+    return true;
+  } catch (error) {
+    console.error('Failed to set manual coordinates:', error);
+    return false;
+  }
+}
+
+/**
+ * Trigger re-geocode for a single entity
+ */
+export async function triggerReGeocode(
+  entityType: 'customer' | 'job' | 'location',
+  entityId: string,
+  organizationId: string
+): Promise<boolean> {
+  try {
+    let address = '';
+
+    switch (entityType) {
+      case 'customer': {
+        const customer = await prisma.customer.findUnique({
+          where: { id: entityId },
+          select: { address: true },
+        });
+        address = formatAddress(customer?.address);
+        break;
+      }
+      case 'job': {
+        const job = await prisma.job.findUnique({
+          where: { id: entityId },
+          select: { customer: { select: { address: true } } },
+        });
+        address = formatAddress(job?.customer?.address);
+        break;
+      }
+      case 'location': {
+        const location = await prisma.location.findUnique({
+          where: { id: entityId },
+          select: { address: true },
+        });
+        address = formatAddress(location?.address);
+        break;
+      }
+    }
+
+    if (address.length < 10) {
+      return false;
+    }
+
+    await queueForGeocoding({
+      entityType,
+      entityId,
+      address: address + ', Argentina',
+      organizationId,
+      priority: 'high',
+    });
+
+    return true;
+  } catch (error) {
+    console.error('Failed to trigger re-geocode:', error);
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UTILITY FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
 
 /**
  * Parse address JSON and extract coordinates
@@ -368,4 +756,55 @@ export function formatAddress(address: unknown): string {
   if (addr.postalCode) parts.push(`CP ${addr.postalCode}`);
 
   return parts.join(', ');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LOCATION HISTORY CLEANUP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Delete old location history records
+ * Should be run periodically (e.g., daily cron job)
+ */
+export async function cleanupOldLocationHistory(daysToKeep: number = 30): Promise<number> {
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+
+    const result = await prisma.technicianLocationHistory.deleteMany({
+      where: {
+        recordedAt: {
+          lt: cutoffDate,
+        },
+      },
+    });
+
+    console.log(`Deleted ${result.count} old location history records`);
+    return result.count;
+  } catch (error) {
+    console.error('Failed to cleanup location history:', error);
+    return 0;
+  }
+}
+
+/**
+ * Delete old geocoding queue records
+ */
+export async function cleanupOldGeocodingQueue(daysToKeep: number = 7): Promise<number> {
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+
+    const result = await prisma.$executeRawUnsafe(
+      `DELETE FROM "GeocodingQueue" WHERE "status" IN ('completed', 'failed') AND "updatedAt" < $1`,
+      cutoffDate
+    );
+
+    console.log(`Deleted ${result} old geocoding queue records`);
+    return result as number;
+  } catch (error) {
+    // Table might not exist
+    console.error('Failed to cleanup geocoding queue:', error);
+    return 0;
+  }
 }
