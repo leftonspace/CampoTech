@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
           },
           _count: { select: { items: true } },
         },
-        orderBy: { expectedDeliveryDate: 'asc' },
+        orderBy: { expectedDate: 'asc' },
       });
 
       return NextResponse.json({
@@ -113,11 +113,11 @@ export async function GET(request: NextRequest) {
             organizationId: session.organizationId,
             status: 'RECEIVED',
           },
-          select: { totalAmount: true },
+          select: { total: true },
         }),
       ]);
 
-      const totalSpent = orders.reduce((sum, o) => sum + Number(o.totalAmount), 0);
+      const totalSpent = orders.reduce((sum, o) => sum + Number(o.total), 0);
       const receivedCount = orders.length;
 
       return NextResponse.json({
@@ -258,7 +258,6 @@ export async function POST(request: NextRequest) {
         // Create receiving record
         await tx.purchaseReceiving.create({
           data: {
-            organizationId: session.organizationId,
             purchaseOrderId: orderId,
             receivingNumber,
             notes,
@@ -278,7 +277,7 @@ export async function POST(request: NextRequest) {
           await tx.purchaseOrderItem.update({
             where: { id: item.itemId },
             data: {
-              receivedQty: { increment: receivedQty },
+              quantityReceived: { increment: receivedQty },
             },
           });
 
@@ -299,7 +298,7 @@ export async function POST(request: NextRequest) {
                 quantityOnHand: { increment: receivedQty },
                 quantityAvailable: { increment: receivedQty },
                 quantityOnOrder: { decrement: receivedQty },
-                totalCost: { increment: Number(orderItem.unitCost) * receivedQty },
+                totalCost: { increment: Number(orderItem.unitPrice) * receivedQty },
                 lastMovementAt: new Date(),
               },
             });
@@ -311,8 +310,8 @@ export async function POST(request: NextRequest) {
                 warehouseId: order.warehouseId,
                 quantityOnHand: receivedQty,
                 quantityAvailable: receivedQty,
-                unitCost: orderItem.unitCost,
-                totalCost: Number(orderItem.unitCost) * receivedQty,
+                unitCost: orderItem.unitPrice,
+                totalCost: Number(orderItem.unitPrice) * receivedQty,
               },
             });
           }
@@ -328,8 +327,8 @@ export async function POST(request: NextRequest) {
               quantity: receivedQty,
               direction: 'IN',
               toWarehouseId: order.warehouseId,
-              unitCost: orderItem.unitCost,
-              totalCost: Number(orderItem.unitCost) * receivedQty,
+              unitCost: orderItem.unitPrice,
+              totalCost: Number(orderItem.unitPrice) * receivedQty,
               reference: `PO: ${order.orderNumber}`,
               purchaseOrderId: orderId,
               performedById: session.userId,
@@ -343,8 +342,8 @@ export async function POST(request: NextRequest) {
           include: { items: true },
         });
 
-        const allReceived = updatedOrder?.items.every((i) => i.receivedQty >= i.quantity);
-        const anyReceived = updatedOrder?.items.some((i) => i.receivedQty > 0);
+        const allReceived = updatedOrder?.items.every((i) => i.quantityReceived >= i.quantity);
+        const anyReceived = updatedOrder?.items.some((i) => i.quantityReceived > 0);
 
         let newStatus = order.status;
         if (allReceived) {
@@ -357,7 +356,7 @@ export async function POST(request: NextRequest) {
           where: { id: orderId },
           data: {
             status: newStatus,
-            receivedAt: newStatus === 'RECEIVED' ? new Date() : undefined,
+            receivedDate: newStatus === 'RECEIVED' ? new Date() : undefined,
           },
         });
       });
@@ -389,7 +388,7 @@ export async function POST(request: NextRequest) {
 
       await prisma.purchaseOrder.update({
         where: { id: orderId },
-        data: { status: 'SENT', sentAt: new Date() },
+        data: { status: 'SENT' },
       });
 
       return NextResponse.json({
@@ -455,19 +454,19 @@ export async function POST(request: NextRequest) {
     // Calculate totals
     let subtotal = 0;
     const itemsData = body.items.map((item: any) => {
-      const lineTotal = item.quantity * item.unitCost;
-      subtotal += lineTotal;
+      const itemLineTotal = item.quantity * (item.unitPrice || item.unitCost);
+      subtotal += itemLineTotal;
       return {
         productId: item.productId,
         quantity: item.quantity,
-        unitCost: item.unitCost,
-        totalCost: lineTotal,
+        unitPrice: item.unitPrice || item.unitCost,
+        lineTotal: itemLineTotal,
         notes: item.notes || null,
       };
     });
 
     const taxAmount = body.taxAmount || 0;
-    const totalAmount = subtotal + taxAmount;
+    const total = subtotal + taxAmount;
 
     const order = await prisma.purchaseOrder.create({
       data: {
@@ -476,10 +475,10 @@ export async function POST(request: NextRequest) {
         supplierId: body.supplierId,
         warehouseId: body.warehouseId,
         status: 'DRAFT',
-        expectedDeliveryDate: body.expectedDeliveryDate ? new Date(body.expectedDeliveryDate) : null,
+        expectedDate: body.expectedDate || body.expectedDeliveryDate ? new Date(body.expectedDate || body.expectedDeliveryDate) : null,
         subtotal,
         taxAmount,
-        totalAmount,
+        total,
         notes: body.notes || null,
         items: {
           create: itemsData,
@@ -566,8 +565,8 @@ export async function PATCH(request: NextRequest) {
 
     const updateData: Prisma.PurchaseOrderUpdateInput = {};
 
-    if (body.expectedDeliveryDate !== undefined) {
-      updateData.expectedDeliveryDate = body.expectedDeliveryDate ? new Date(body.expectedDeliveryDate) : null;
+    if (body.expectedDate !== undefined || body.expectedDeliveryDate !== undefined) {
+      updateData.expectedDate = (body.expectedDate || body.expectedDeliveryDate) ? new Date(body.expectedDate || body.expectedDeliveryDate) : null;
     }
     if (body.notes !== undefined) updateData.notes = body.notes;
 
@@ -580,14 +579,14 @@ export async function PATCH(request: NextRequest) {
 
       let subtotal = 0;
       const itemsData = body.items.map((item: any) => {
-        const lineTotal = item.quantity * item.unitCost;
-        subtotal += lineTotal;
+        const itemLineTotal = item.quantity * (item.unitPrice || item.unitCost);
+        subtotal += itemLineTotal;
         return {
           purchaseOrderId: body.id,
           productId: item.productId,
           quantity: item.quantity,
-          unitCost: item.unitCost,
-          totalCost: lineTotal,
+          unitPrice: item.unitPrice || item.unitCost,
+          lineTotal: itemLineTotal,
           notes: item.notes || null,
         };
       });
@@ -597,7 +596,7 @@ export async function PATCH(request: NextRequest) {
       });
 
       updateData.subtotal = subtotal;
-      updateData.totalAmount = subtotal + (body.taxAmount || Number(existingOrder.taxAmount));
+      updateData.total = subtotal + (body.taxAmount || Number(existingOrder.taxAmount));
     }
 
     const order = await prisma.purchaseOrder.update({
