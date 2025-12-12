@@ -464,37 +464,36 @@ export async function GET(request: NextRequest) {
         orderBy: { scheduledDate: 'asc' },
       });
 
-      todayJobs = jobsData
-        .map((job) => {
-          const { formatted, lat, lng } = parseAddress(job.customer.address);
+      const mappedJobs = jobsData.map((job): TodayJob | null => {
+        const { formatted, lat, lng } = parseAddress(job.customer.address);
 
-          if (lat === null || lng === null) return null;
+        if (lat === null || lng === null) return null;
 
-          // Apply bounds filter
-          if (!isWithinBounds(lat, lng, bounds)) return null;
+        // Apply bounds filter
+        if (!isWithinBounds(lat, lng, bounds)) return null;
 
-          const timeSlot = job.scheduledTimeSlot as { start?: string } | null;
-          const arrivedSession = job.trackingSessions[0];
+        const timeSlot = job.scheduledTimeSlot as { start?: string } | null;
+        const arrivedSession = job.trackingSessions[0];
 
-          return {
-            id: job.id,
-            jobNumber: job.jobNumber,
-            lat,
-            lng,
-            status: job.status,
-            customerId: job.customer.id,
-            customerName: job.customer.name,
-            customerPhone: job.customer.phone,
-            technicianId: job.technicianId,
-            technicianName: job.technician?.name || null,
-            scheduledTime: timeSlot?.start || null,
-            arrivedAt: arrivedSession?.arrivedAt?.toISOString() || null,
-            address: formatted,
-            description: job.description,
-            serviceType: job.serviceType,
-          };
-        })
-        .filter((j): j is TodayJob => j !== null);
+        return {
+          id: job.id,
+          jobNumber: job.jobNumber,
+          lat,
+          lng,
+          status: job.status,
+          customerId: job.customer.id,
+          customerName: job.customer.name,
+          customerPhone: job.customer.phone || '',
+          technicianId: job.technicianId,
+          technicianName: job.technician?.name || null,
+          scheduledTime: timeSlot?.start || null,
+          arrivedAt: arrivedSession?.arrivedAt?.toISOString() || null,
+          address: formatted,
+          description: job.description || '',
+          serviceType: job.serviceType || '',
+        };
+      });
+      todayJobs = mappedJobs.filter((j): j is TodayJob => j !== null);
     }
 
     // Calculate stats (always use full counts, not filtered by bounds)
