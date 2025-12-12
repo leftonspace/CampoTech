@@ -478,6 +478,70 @@ export function createFeatureNotAvailableError(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// MODULE TO FEATURE MAPPING (For Navigation)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Maps navigation modules to their required features.
+ * Only modules listed here require tier access - others are always available.
+ */
+export const TIER_GATED_MODULES: Record<string, FeatureId> = {
+  map: 'live_tracking',
+  calendar: 'calendar_view',
+  fleet: 'fleet_management',
+  inventory: 'inventory_management',
+  payments: 'mercado_pago',
+  analytics: 'advanced_analytics',
+  locations: 'multi_location',
+  whatsapp: 'whatsapp_send',
+  team: 'multi_user',
+};
+
+/**
+ * Modules that are always available (no tier restriction).
+ * Access is controlled only by role permissions.
+ */
+export const ALWAYS_AVAILABLE_MODULES: string[] = [
+  'dashboard',
+  'jobs',
+  'customers',
+  'invoices',
+  'settings',
+];
+
+/**
+ * Check if a module requires tier access
+ */
+export function isModuleTierGated(module: string): boolean {
+  return module in TIER_GATED_MODULES;
+}
+
+/**
+ * Get the feature required for a module
+ */
+export function getModuleFeature(module: string): FeatureId | null {
+  return TIER_GATED_MODULES[module] || null;
+}
+
+/**
+ * Check if a module is locked for a given tier
+ */
+export function isModuleLocked(module: string, tier: SubscriptionTier): boolean {
+  const feature = TIER_GATED_MODULES[module];
+  if (!feature) return false;
+  return !hasFeatureAccess(tier, feature);
+}
+
+/**
+ * Get the minimum tier required for a module
+ */
+export function getModuleMinimumTier(module: string): SubscriptionTier | null {
+  const feature = TIER_GATED_MODULES[module];
+  if (!feature) return null;
+  return getMinimumTierForFeature(feature);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // NAVIGATION ITEMS WITH FEATURE GATING INFO
 // ═══════════════════════════════════════════════════════════════════════════════
 
