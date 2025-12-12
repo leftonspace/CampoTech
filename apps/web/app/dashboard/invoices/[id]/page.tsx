@@ -10,6 +10,7 @@ import {
   formatCurrency,
   formatDate,
   formatCUIT,
+  formatAddress,
   INVOICE_STATUS_LABELS,
   INVOICE_STATUS_COLORS,
   IVA_CONDITION_LABELS,
@@ -35,25 +36,6 @@ import {
   Share2,
 } from 'lucide-react';
 import { Invoice, Customer } from '@/types';
-
-// Helper to format address object to string
-function formatAddress(address: unknown): string {
-  if (!address) return '';
-  if (typeof address === 'string') return address;
-  if (typeof address === 'object') {
-    const addr = address as Record<string, unknown>;
-    const parts = [
-      addr.street,
-      addr.number,
-      addr.floor && `Piso ${addr.floor}`,
-      addr.apartment && `Depto ${addr.apartment}`,
-      addr.city,
-      addr.postalCode,
-    ].filter(Boolean);
-    return parts.join(', ') || '';
-  }
-  return '';
-}
 
 export default function InvoiceDetailPage() {
   const params = useParams();

@@ -76,6 +76,27 @@ export function formatRelativeTime(date: string | Date | null | undefined): stri
 }
 
 /**
+ * Format address object to string
+ */
+export function formatAddress(address: unknown): string {
+  if (!address) return '';
+  if (typeof address === 'string') return address;
+  if (typeof address === 'object') {
+    const addr = address as Record<string, unknown>;
+    const parts = [
+      addr.street,
+      addr.number,
+      addr.floor && `Piso ${addr.floor}`,
+      addr.apartment && `Depto ${addr.apartment}`,
+      addr.city,
+      addr.postalCode,
+    ].filter(Boolean);
+    return parts.join(', ') || '';
+  }
+  return '';
+}
+
+/**
  * Format CUIT with dashes (XX-XXXXXXXX-X)
  */
 export function formatCUIT(cuit: string): string {
