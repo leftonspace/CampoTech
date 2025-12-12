@@ -93,6 +93,8 @@ model User {
   vehicleAssignments   VehicleAssignment[]    @relation("UserVehicleAssignments")
   createdMaintenance   VehicleMaintenance[]   @relation("CreatedMaintenanceLogs")
   inventoryTransactions InventoryTransaction[] @relation("PerformedTransactions")
+  // Job Assignments (many-to-many)
+  jobAssignments       JobAssignment[]        @relation("TechnicianAssignments")
 
   @@unique([email, organizationId])
   @@index([organizationId])
@@ -186,6 +188,7 @@ model Job {
   reservations   StockReservation[]
   jobPhotos      JobPhoto[]   @relation("JobPhotos")
   trackingSessions TrackingSession[] @relation("JobTrackingSessions")
+  assignments    JobAssignment[] @relation("JobAssignments")
 
   @@index([status])
   @@index([scheduledDate])
@@ -218,6 +221,26 @@ enum JobStatus {
 enum Urgency {
   NORMAL
   URGENTE
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// JOB ASSIGNMENTS - Many-to-many relationship for multiple technicians per job
+// ────────────────────────────────────────────────────────────────────────────────
+
+model JobAssignment {
+  id           String   @id @default(cuid())
+  jobId        String
+  technicianId String
+  assignedAt   DateTime @default(now())
+  notes        String?
+
+  job        Job  @relation("JobAssignments", fields: [jobId], references: [id], onDelete: Cascade)
+  technician User @relation("TechnicianAssignments", fields: [technicianId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, technicianId])
+  @@index([jobId])
+  @@index([technicianId])
+  @@map("job_assignments")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1144,8 +1167,8 @@ model StockMovement {
   variant       ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Restrict)
   fromWarehouse Warehouse?      @relation("MovementFromWarehouse", fields: [fromWarehouseId], references: [id])
   toWarehouse   Warehouse?      @relation("MovementToWarehouse", fields: [toWarehouseId], references: [id])
-  job           Job?            @relation(fields: [jobId], references: [id], onDelete: SetNull)
-  purchaseOrder PurchaseOrder?  @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  job            Job?            @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  purchaseOrder  PurchaseOrder?  @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
   inventoryCount InventoryCount? @relation(fields: [inventoryCountId], references: [id], onDelete: SetNull)
 
   @@index([organizationId])

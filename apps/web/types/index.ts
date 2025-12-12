@@ -99,6 +99,15 @@ export type JobStatus =
 
 export type JobPriority = 'low' | 'normal' | 'high' | 'urgent';
 
+export interface JobAssignment {
+  id: string;
+  jobId: string;
+  technicianId: string;
+  technician: Pick<User, 'id' | 'name'>;
+  assignedAt: string;
+  notes?: string;
+}
+
 export interface Job {
   id: string;
   orgId: string;
@@ -106,6 +115,8 @@ export interface Job {
   customer?: Customer;
   assignedToId?: string;
   assignedTo?: User;
+  // Multiple technician assignments
+  assignments?: JobAssignment[];
   status: JobStatus;
   priority: JobPriority;
   title: string;

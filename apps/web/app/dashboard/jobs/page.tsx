@@ -147,6 +147,19 @@ export default function JobsPage() {
                       {job.customer?.name}
                       {job.scheduledDate && ` • ${formatDate(job.scheduledDate)}`}
                     </p>
+                    {/* Show assigned technicians */}
+                    {job.assignments && job.assignments.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {job.assignments.map((assignment) => (
+                          <span
+                            key={assignment.id}
+                            className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700"
+                          >
+                            {assignment.technician?.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <ChevronRight className="h-5 w-5 text-gray-400" />
                 </Link>

@@ -26,9 +26,12 @@ export async function GET(request: NextRequest) {
       where.status = status.toUpperCase();
     }
 
-    // If technician, only show their jobs
+    // If technician, only show their jobs (either via legacy field or assignments)
     if (session.role === 'TECHNICIAN') {
-      where.technicianId = session.userId;
+      where.OR = [
+        { technicianId: session.userId },
+        { assignments: { some: { technicianId: session.userId } } },
+      ];
     }
 
     const [jobs, total] = await Promise.all([
@@ -38,6 +41,13 @@ export async function GET(request: NextRequest) {
           customer: true,
           technician: {
             select: { id: true, name: true },
+          },
+          assignments: {
+            include: {
+              technician: {
+                select: { id: true, name: true },
+              },
+            },
           },
         },
         orderBy: { scheduledDate: 'asc' },
@@ -90,6 +100,13 @@ export async function POST(request: NextRequest) {
       : 1;
     const jobNumber = `JOB-${String(jobCount).padStart(5, '0')}`;
 
+    // Support both single technicianId (legacy) and array technicianIds
+    const technicianIds: string[] = body.technicianIds?.length
+      ? body.technicianIds
+      : body.technicianId
+        ? [body.technicianId]
+        : [];
+
     const job = await prisma.job.create({
       data: {
         jobNumber,
@@ -99,14 +116,28 @@ export async function POST(request: NextRequest) {
         scheduledDate: body.scheduledDate ? new Date(body.scheduledDate) : null,
         scheduledTimeSlot: body.scheduledTimeSlot,
         customerId: body.customerId,
-        technicianId: body.technicianId,
+        // Keep legacy technicianId for backwards compatibility (first technician)
+        technicianId: technicianIds[0] || null,
         createdById: session.userId,
         organizationId: session.organizationId,
+        // Create job assignments for all technicians
+        assignments: {
+          create: technicianIds.map((techId: string) => ({
+            technicianId: techId,
+          })),
+        },
       },
       include: {
         customer: true,
         technician: {
           select: { id: true, name: true },
+        },
+        assignments: {
+          include: {
+            technician: {
+              select: { id: true, name: true },
+            },
+          },
         },
       },
     });
