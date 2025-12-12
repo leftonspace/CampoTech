@@ -6,14 +6,10 @@ import { cn, formatCurrency } from '@/lib/utils';
 import {
   Package,
   Warehouse,
-  ShoppingCart,
-  TruckIcon,
-  Users,
   AlertTriangle,
   ArrowRight,
   Plus,
   ArrowUpDown,
-  FileText,
   BarChart3,
 } from 'lucide-react';
 
@@ -44,16 +40,12 @@ export default function InventoryPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Inventario</h1>
-          <p className="text-gray-500">Gestiona productos, stock y compras</p>
+          <p className="text-gray-500">Gestiona productos y stock en oficina y vehículos</p>
         </div>
         <div className="flex gap-2">
-          <Link href="/dashboard/inventory/products/new" className="btn-secondary">
+          <Link href="/dashboard/inventory/products/new" className="btn-primary">
             <Plus className="mr-2 h-4 w-4" />
             Nuevo producto
-          </Link>
-          <Link href="/dashboard/inventory/purchase-orders/new" className="btn-primary">
-            <ShoppingCart className="mr-2 h-4 w-4" />
-            Nueva orden
           </Link>
         </div>
       </div>
@@ -93,40 +85,20 @@ export default function InventoryPage() {
         />
       </div>
 
-      {/* Main sections grid */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Pending orders */}
-        <div className="card">
-          <div className="card-header flex flex-row items-center justify-between">
-            <h2 className="card-title text-lg">Ordenes pendientes</h2>
-            <Link
-              href="/dashboard/inventory/purchase-orders"
-              className="text-sm text-primary-600 hover:underline"
-            >
-              Ver todas
-              <ArrowRight className="ml-1 inline h-4 w-4" />
-            </Link>
-          </div>
-          <div className="card-content">
-            <PendingOrdersList />
-          </div>
+      {/* Low stock alerts */}
+      <div className="card">
+        <div className="card-header flex flex-row items-center justify-between">
+          <h2 className="card-title text-lg">Alertas de stock</h2>
+          <Link
+            href="/dashboard/inventory/stock?filter=low"
+            className="text-sm text-primary-600 hover:underline"
+          >
+            Ver todo
+            <ArrowRight className="ml-1 inline h-4 w-4" />
+          </Link>
         </div>
-
-        {/* Low stock alerts */}
-        <div className="card">
-          <div className="card-header flex flex-row items-center justify-between">
-            <h2 className="card-title text-lg">Alertas de stock</h2>
-            <Link
-              href="/dashboard/inventory/stock?filter=low"
-              className="text-sm text-primary-600 hover:underline"
-            >
-              Ver todo
-              <ArrowRight className="ml-1 inline h-4 w-4" />
-            </Link>
-          </div>
-          <div className="card-content">
-            <LowStockList />
-          </div>
+        <div className="card-content">
+          <LowStockList />
         </div>
       </div>
 
@@ -136,7 +108,7 @@ export default function InventoryPage() {
           <h2 className="card-title text-lg">Acciones rápidas</h2>
         </div>
         <div className="card-content">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             <QuickAction
               href="/dashboard/inventory/products"
               icon={Package}
@@ -150,16 +122,10 @@ export default function InventoryPage() {
               description="Ver movimientos de stock"
             />
             <QuickAction
-              href="/dashboard/inventory/suppliers"
-              icon={Users}
-              title="Proveedores"
-              description="Gestionar proveedores"
-            />
-            <QuickAction
-              href="/dashboard/inventory/purchase-orders"
-              icon={FileText}
-              title="Ordenes de compra"
-              description="Gestionar compras"
+              href="/dashboard/inventory/warehouses"
+              icon={Warehouse}
+              title="Almacenes"
+              description="Gestionar ubicaciones"
             />
           </div>
         </div>
@@ -237,79 +203,6 @@ function QuickAction({ href, icon: Icon, title, description }: QuickActionProps)
         <p className="text-sm text-gray-500">{description}</p>
       </div>
     </Link>
-  );
-}
-
-function PendingOrdersList() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['pending-orders'],
-    queryFn: async () => {
-      const res = await fetch('/api/inventory/purchase-orders?view=pending-receipt');
-      return res.json();
-    },
-  });
-
-  const orders = data?.data?.orders as Array<{
-    id: string;
-    orderNumber: string;
-    supplier: { name: string };
-    totalAmount: number;
-    status: string;
-    expectedDeliveryDate?: string;
-  }> | undefined;
-
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="flex gap-4 rounded-lg border p-4">
-            <div className="flex-1 space-y-2">
-              <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" />
-              <div className="h-3 w-3/4 animate-pulse rounded bg-gray-200" />
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (!orders?.length) {
-    return (
-      <div className="rounded-lg border border-dashed p-8 text-center">
-        <ShoppingCart className="mx-auto h-8 w-8 text-gray-400" />
-        <p className="mt-2 text-gray-500">No hay ordenes pendientes de recepción</p>
-      </div>
-    );
-  }
-
-  return (
-    <ul className="space-y-3">
-      {orders.slice(0, 5).map((order) => (
-        <li key={order.id}>
-          <Link
-            href={`/dashboard/inventory/purchase-orders/${order.id}`}
-            className="flex items-center gap-4 rounded-lg border p-4 transition-colors hover:bg-gray-50"
-          >
-            <div className="flex-1 min-w-0">
-              <p className="truncate font-medium text-gray-900">
-                {order.orderNumber}
-              </p>
-              <p className="truncate text-sm text-gray-500">
-                {order.supplier?.name}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="font-medium text-gray-900">
-                {formatCurrency(order.totalAmount)}
-              </p>
-              <p className="text-xs text-gray-500">
-                {order.expectedDeliveryDate || 'Sin fecha'}
-              </p>
-            </div>
-          </Link>
-        </li>
-      ))}
-    </ul>
   );
 }
 

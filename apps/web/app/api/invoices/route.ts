@@ -150,6 +150,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Map short invoice type to full enum value
+    const invoiceTypeMap: Record<string, string> = {
+      'A': 'FACTURA_A',
+      'B': 'FACTURA_B',
+      'C': 'FACTURA_C',
+      'FACTURA_A': 'FACTURA_A',
+      'FACTURA_B': 'FACTURA_B',
+      'FACTURA_C': 'FACTURA_C',
+    };
+    const mappedInvoiceType = invoiceTypeMap[invoiceType?.toUpperCase()] || 'FACTURA_C';
+
     // Calculate totals
     let subtotal = 0;
     let totalIva = 0;
@@ -188,7 +199,7 @@ export async function POST(request: NextRequest) {
         organizationId: session.organizationId,
         customerId,
         invoiceNumber,
-        type: invoiceType || 'FACTURA_C',
+        type: mappedInvoiceType,
         status: asDraft ? 'DRAFT' : 'PENDING',
         issuedAt: issueDate ? new Date(issueDate) : new Date(),
         dueDate: dueDate ? new Date(dueDate) : null,

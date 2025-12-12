@@ -100,13 +100,31 @@ export async function POST(request: NextRequest) {
     // Generate code from name if not provided
     const code = body.code || body.name.substring(0, 10).toUpperCase().replace(/\s+/g, '-');
 
+    // Build address JSON object from form fields
+    const addressJson = {
+      street: body.address || '',
+      city: body.city || '',
+      province: body.state || '',
+      postalCode: body.postalCode || '',
+      country: 'Argentina',
+    };
+
+    // Build coordinates if provided
+    const coordinatesJson = body.coordinates?.lat && body.coordinates?.lng
+      ? { lat: body.coordinates.lat, lng: body.coordinates.lng }
+      : null;
+
     const location = await prisma.location.create({
       data: {
         code,
         name: body.name,
-        address: body.address || {},
+        type: body.type || 'BRANCH',
+        address: addressJson,
+        coordinates: coordinatesJson,
         phone: body.phone,
         email: body.email,
+        isHeadquarters: body.isHeadquarters || false,
+        coverageRadius: body.coverageRadiusKm ? Math.round(body.coverageRadiusKm) : null,
         organizationId: session.organizationId,
       },
     });
