@@ -275,26 +275,40 @@ erDiagram
     organizations ||--o{ payments : "has"
     organizations ||--o{ price_book : "has"
     organizations ||--o{ whatsapp_messages : "has"
-    
+    organizations ||--o{ vehicles : "has"
+    organizations ||--o{ inventory_items : "has"
+    organizations ||--o{ inventory_locations : "has"
+
     users ||--o{ jobs : "assigned_to"
     users ||--o{ job_status_history : "changed_by"
-    
+    users ||--o{ vehicle_assignments : "assigned_to"
+    users ||--o{ inventory_transactions : "performed_by"
+
     customers ||--o{ jobs : "has"
     customers ||--o{ invoices : "has"
     customers ||--o{ whatsapp_messages : "has"
-    
+
     jobs ||--o{ job_status_history : "has"
     jobs ||--o{ job_photos : "has"
     jobs ||--o| invoices : "generates"
-    
+    jobs ||--o{ inventory_transactions : "uses_materials"
+
     invoices ||--o{ invoice_items : "has"
     invoices ||--o{ payments : "has"
-    
+
     payments ||--o{ payment_disputes : "has"
-    
+
     price_book ||--o{ invoice_items : "used_in"
-    
+
     whatsapp_messages ||--o| voice_transcripts : "has"
+
+    vehicles ||--o{ vehicle_documents : "has"
+    vehicles ||--o{ vehicle_assignments : "has"
+    vehicles ||--o| inventory_locations : "storage_for"
+
+    inventory_items ||--o{ inventory_stock : "has"
+    inventory_locations ||--o{ inventory_stock : "stores"
+    inventory_items ||--o{ inventory_transactions : "tracks"
 
     organizations {
         uuid id PK
@@ -303,7 +317,7 @@ erDiagram
         enum iva_condition
         jsonb settings
     }
-    
+
     users {
         uuid id PK
         uuid org_id FK
@@ -311,7 +325,7 @@ erDiagram
         text full_name
         text phone
     }
-    
+
     customers {
         uuid id PK
         uuid org_id FK
@@ -320,7 +334,7 @@ erDiagram
         enum doc_type
         text doc_number
     }
-    
+
     jobs {
         uuid id PK
         uuid org_id FK
@@ -330,7 +344,7 @@ erDiagram
         enum status
         date scheduled_date
     }
-    
+
     invoices {
         uuid id PK
         uuid org_id FK
@@ -341,7 +355,7 @@ erDiagram
         enum status
         decimal total
     }
-    
+
     payments {
         uuid id PK
         uuid org_id FK
@@ -349,6 +363,65 @@ erDiagram
         text mp_payment_id UK
         decimal amount
         enum status
+    }
+
+    vehicles {
+        text id PK
+        text org_id FK
+        text plate_number UK
+        text make
+        text model
+        enum status
+        date vtv_expiry
+        date insurance_expiry
+    }
+
+    vehicle_documents {
+        text id PK
+        text vehicle_id FK
+        enum document_type
+        text file_url
+        date expiry_date
+    }
+
+    vehicle_assignments {
+        text id PK
+        text vehicle_id FK
+        text user_id FK
+        boolean is_primary_driver
+    }
+
+    inventory_items {
+        text id PK
+        text org_id FK
+        text sku UK
+        text name
+        enum category
+        integer min_stock_level
+    }
+
+    inventory_locations {
+        text id PK
+        text org_id FK
+        enum location_type
+        text name
+        text vehicle_id FK
+    }
+
+    inventory_stock {
+        text id PK
+        text item_id FK
+        text location_id FK
+        integer quantity
+    }
+
+    inventory_transactions {
+        text id PK
+        text org_id FK
+        text item_id FK
+        enum transaction_type
+        integer quantity
+        text job_id FK
     }
 ```
 
@@ -600,6 +673,69 @@ CREATE TYPE photo_type_enum AS ENUM (
     'after',
     'signature',
     'document'
+);
+
+-- ============================================================================
+-- FLEET MANAGEMENT ENUMS (Phase 8)
+-- ============================================================================
+
+-- Vehicle Status
+CREATE TYPE vehicle_status_enum AS ENUM (
+    'active',           -- Vehicle in regular use
+    'maintenance',      -- Under maintenance
+    'inactive'          -- Out of service
+);
+
+-- Vehicle Fuel Type
+CREATE TYPE fuel_type_enum AS ENUM (
+    'gasoline',         -- Nafta
+    'diesel',           -- Diesel/Gasoil
+    'electric',         -- Eléctrico
+    'gnc'               -- Gas Natural Comprimido
+);
+
+-- Vehicle Document Type
+CREATE TYPE vehicle_document_type_enum AS ENUM (
+    'insurance',        -- Seguro
+    'vtv',              -- Verificación Técnica Vehicular (Buenos Aires)
+    'registration',     -- Cédula de identificación
+    'title',            -- Título de propiedad
+    'green_card'        -- Tarjeta Verde (ownership card)
+);
+
+-- ============================================================================
+-- INVENTORY MANAGEMENT ENUMS (Phase 9)
+-- ============================================================================
+
+-- Inventory Item Category
+CREATE TYPE inventory_category_enum AS ENUM (
+    'parts',            -- Repuestos
+    'tools',            -- Herramientas
+    'consumables',      -- Consumibles
+    'equipment'         -- Equipamiento
+);
+
+-- Inventory Unit
+CREATE TYPE inventory_unit_enum AS ENUM (
+    'pieza',            -- Unit/piece
+    'metro',            -- Meter
+    'litro',            -- Liter
+    'kg'                -- Kilogram
+);
+
+-- Inventory Location Type
+CREATE TYPE location_type_enum AS ENUM (
+    'hub',              -- Central warehouse/depot
+    'vehicle'           -- Vehicle storage
+);
+
+-- Inventory Transaction Type
+CREATE TYPE transaction_type_enum AS ENUM (
+    'purchase',         -- New stock into hub
+    'transfer',         -- Hub → Vehicle or Vehicle → Vehicle
+    'usage',            -- Item used on a job (linked to job_id)
+    'adjustment',       -- Inventory count correction
+    'return'            -- Customer return or job cancellation
 );
 ```
 
@@ -2165,6 +2301,342 @@ organizations.settings
 
 ---
 
+# 8.0. PHASE 8: FLEET MANAGEMENT
+
+## Vehicles Table
+
+```sql
+-- ============================================================================
+-- VEHICLES (Phase 8)
+-- ============================================================================
+
+CREATE TABLE vehicles (
+    -- Primary Key
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+
+    -- Organization (tenant)
+    organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+
+    -- Vehicle Identification
+    plate_number TEXT NOT NULL,
+    make TEXT NOT NULL,                     -- Brand (Ford, Fiat, etc.)
+    model TEXT NOT NULL,                    -- Model name
+    year INTEGER,                           -- Year of manufacture
+    vin TEXT,                               -- Vehicle Identification Number
+    color TEXT,
+
+    -- Status
+    status vehicle_status_enum NOT NULL DEFAULT 'active',
+    current_mileage INTEGER,                -- Current odometer reading
+
+    -- Fuel
+    fuel_type fuel_type_enum NOT NULL DEFAULT 'gasoline',
+
+    -- Insurance & Compliance (Buenos Aires)
+    insurance_company TEXT,
+    insurance_policy_number TEXT,
+    insurance_expiry DATE,
+    vtv_expiry DATE,                        -- Verificación Técnica Vehicular
+    registration_expiry DATE,
+
+    -- Notes
+    notes TEXT,
+
+    -- Timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Constraints
+    CONSTRAINT vehicles_org_plate_unique UNIQUE (organization_id, plate_number),
+    CONSTRAINT vehicles_year_valid CHECK (year IS NULL OR (year >= 1900 AND year <= EXTRACT(YEAR FROM CURRENT_DATE) + 1))
+);
+
+-- Indexes
+CREATE INDEX idx_vehicles_org ON vehicles(organization_id);
+CREATE INDEX idx_vehicles_org_status ON vehicles(organization_id, status);
+CREATE INDEX idx_vehicles_insurance_expiry ON vehicles(insurance_expiry) WHERE insurance_expiry IS NOT NULL;
+CREATE INDEX idx_vehicles_vtv_expiry ON vehicles(vtv_expiry) WHERE vtv_expiry IS NOT NULL;
+
+-- Trigger
+CREATE TRIGGER vehicles_updated_at
+    BEFORE UPDATE ON vehicles
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+```
+
+## Vehicle Documents Table
+
+```sql
+-- ============================================================================
+-- VEHICLE DOCUMENTS (Phase 8)
+-- ============================================================================
+
+CREATE TABLE vehicle_documents (
+    -- Primary Key
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+
+    -- Relations
+    vehicle_id TEXT NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+
+    -- Document Info
+    document_type vehicle_document_type_enum NOT NULL,
+    file_url TEXT NOT NULL,
+    file_name TEXT NOT NULL,
+
+    -- Expiry Tracking
+    expiry_date DATE,
+
+    -- Upload Info
+    uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    uploaded_by TEXT REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- Indexes
+CREATE INDEX idx_vehicle_documents_vehicle ON vehicle_documents(vehicle_id);
+CREATE INDEX idx_vehicle_documents_type ON vehicle_documents(vehicle_id, document_type);
+CREATE INDEX idx_vehicle_documents_expiry ON vehicle_documents(expiry_date) WHERE expiry_date IS NOT NULL;
+```
+
+## Vehicle Assignments Table
+
+```sql
+-- ============================================================================
+-- VEHICLE ASSIGNMENTS (Phase 8)
+-- ============================================================================
+
+CREATE TABLE vehicle_assignments (
+    -- Primary Key
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+
+    -- Relations
+    vehicle_id TEXT NOT NULL REFERENCES vehicles(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+    -- Assignment Period
+    assigned_from TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    assigned_until TIMESTAMPTZ,             -- NULL = permanent assignment
+
+    -- Driver Status
+    is_primary_driver BOOLEAN NOT NULL DEFAULT false,
+
+    -- Timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Constraints: Only one primary driver per vehicle
+    CONSTRAINT vehicle_primary_driver_unique UNIQUE (vehicle_id, is_primary_driver)
+        WHERE is_primary_driver = true
+);
+
+-- Indexes
+CREATE INDEX idx_vehicle_assignments_vehicle ON vehicle_assignments(vehicle_id);
+CREATE INDEX idx_vehicle_assignments_user ON vehicle_assignments(user_id);
+CREATE INDEX idx_vehicle_assignments_active ON vehicle_assignments(vehicle_id, assigned_from, assigned_until);
+```
+
+---
+
+# 8.0.1. PHASE 9: INVENTORY MANAGEMENT
+
+## Inventory Items Table
+
+```sql
+-- ============================================================================
+-- INVENTORY ITEMS (Phase 9)
+-- ============================================================================
+
+CREATE TABLE inventory_items (
+    -- Primary Key
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+
+    -- Organization (tenant)
+    organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+
+    -- Item Identification
+    sku TEXT NOT NULL,                      -- Stock Keeping Unit
+    name TEXT NOT NULL,
+    description TEXT,
+
+    -- Classification
+    category inventory_category_enum NOT NULL DEFAULT 'parts',
+    unit inventory_unit_enum NOT NULL DEFAULT 'pieza',
+
+    -- Stock Control
+    min_stock_level INTEGER DEFAULT 0,      -- Alert threshold
+
+    -- Pricing
+    cost_price DECIMAL(12, 2),              -- Purchase cost
+    sale_price DECIMAL(12, 2),              -- Sale price to customer
+
+    -- Status
+    is_active BOOLEAN NOT NULL DEFAULT true,
+
+    -- Timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Constraints
+    CONSTRAINT inventory_items_org_sku_unique UNIQUE (organization_id, sku),
+    CONSTRAINT inventory_items_name_not_empty CHECK (length(trim(name)) > 0)
+);
+
+-- Indexes
+CREATE INDEX idx_inventory_items_org ON inventory_items(organization_id);
+CREATE INDEX idx_inventory_items_org_category ON inventory_items(organization_id, category);
+CREATE INDEX idx_inventory_items_org_active ON inventory_items(organization_id) WHERE is_active = true;
+CREATE INDEX idx_inventory_items_search ON inventory_items USING gin(name gin_trgm_ops);
+
+-- Trigger
+CREATE TRIGGER inventory_items_updated_at
+    BEFORE UPDATE ON inventory_items
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+```
+
+## Inventory Locations Table
+
+```sql
+-- ============================================================================
+-- INVENTORY LOCATIONS (Phase 9)
+-- ============================================================================
+
+CREATE TABLE inventory_locations (
+    -- Primary Key
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+
+    -- Organization (tenant)
+    organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+
+    -- Location Info
+    location_type location_type_enum NOT NULL,
+    name TEXT NOT NULL,                     -- e.g., "Depósito Central", "Camioneta Ford #1"
+
+    -- Vehicle Link (for vehicle locations)
+    vehicle_id TEXT REFERENCES vehicles(id) ON DELETE SET NULL,
+
+    -- Hub Address (for hub locations)
+    address TEXT,
+
+    -- Status
+    is_active BOOLEAN NOT NULL DEFAULT true,
+
+    -- Timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Constraints
+    CONSTRAINT inventory_locations_vehicle_or_hub CHECK (
+        (location_type = 'vehicle' AND vehicle_id IS NOT NULL) OR
+        (location_type = 'hub' AND vehicle_id IS NULL)
+    )
+);
+
+-- Indexes
+CREATE INDEX idx_inventory_locations_org ON inventory_locations(organization_id);
+CREATE INDEX idx_inventory_locations_vehicle ON inventory_locations(vehicle_id) WHERE vehicle_id IS NOT NULL;
+CREATE INDEX idx_inventory_locations_type ON inventory_locations(organization_id, location_type);
+
+-- Trigger
+CREATE TRIGGER inventory_locations_updated_at
+    BEFORE UPDATE ON inventory_locations
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+```
+
+## Inventory Stock Table
+
+```sql
+-- ============================================================================
+-- INVENTORY STOCK (Phase 9)
+-- ============================================================================
+
+CREATE TABLE inventory_stock (
+    -- Primary Key
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+
+    -- Relations
+    item_id TEXT NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+    location_id TEXT NOT NULL REFERENCES inventory_locations(id) ON DELETE CASCADE,
+
+    -- Stock Level
+    quantity INTEGER NOT NULL DEFAULT 0,
+
+    -- Audit
+    last_counted_at TIMESTAMPTZ,
+
+    -- Timestamps
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Constraints
+    CONSTRAINT inventory_stock_item_location_unique UNIQUE (item_id, location_id),
+    CONSTRAINT inventory_stock_quantity_positive CHECK (quantity >= 0)
+);
+
+-- Indexes
+CREATE INDEX idx_inventory_stock_item ON inventory_stock(item_id);
+CREATE INDEX idx_inventory_stock_location ON inventory_stock(location_id);
+CREATE INDEX idx_inventory_stock_low ON inventory_stock(quantity)
+    WHERE quantity < 10;  -- For low stock alerts
+
+-- Trigger
+CREATE TRIGGER inventory_stock_updated_at
+    BEFORE UPDATE ON inventory_stock
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+```
+
+## Inventory Transactions Table
+
+```sql
+-- ============================================================================
+-- INVENTORY TRANSACTIONS (Phase 9)
+-- ============================================================================
+
+CREATE TABLE inventory_transactions (
+    -- Primary Key
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+
+    -- Organization (tenant)
+    organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+
+    -- Item
+    item_id TEXT NOT NULL REFERENCES inventory_items(id) ON DELETE RESTRICT,
+
+    -- Locations
+    from_location_id TEXT REFERENCES inventory_locations(id) ON DELETE SET NULL,
+    to_location_id TEXT REFERENCES inventory_locations(id) ON DELETE SET NULL,
+
+    -- Transaction Details
+    transaction_type transaction_type_enum NOT NULL,
+    quantity INTEGER NOT NULL,              -- Positive or negative
+    unit_cost DECIMAL(12, 2),               -- Cost per unit at time of transaction
+
+    -- Job Link (for usage transactions)
+    job_id TEXT REFERENCES jobs(id) ON DELETE SET NULL,
+
+    -- Notes
+    notes TEXT,
+
+    -- Performed By
+    performed_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+    performed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+
+    -- Constraints
+    CONSTRAINT inventory_transactions_from_or_to CHECK (
+        from_location_id IS NOT NULL OR to_location_id IS NOT NULL
+    ),
+    CONSTRAINT inventory_transactions_usage_has_job CHECK (
+        transaction_type != 'usage' OR job_id IS NOT NULL
+    )
+);
+
+-- Indexes
+CREATE INDEX idx_inventory_transactions_org ON inventory_transactions(organization_id);
+CREATE INDEX idx_inventory_transactions_item ON inventory_transactions(item_id);
+CREATE INDEX idx_inventory_transactions_from ON inventory_transactions(from_location_id) WHERE from_location_id IS NOT NULL;
+CREATE INDEX idx_inventory_transactions_to ON inventory_transactions(to_location_id) WHERE to_location_id IS NOT NULL;
+CREATE INDEX idx_inventory_transactions_job ON inventory_transactions(job_id) WHERE job_id IS NOT NULL;
+CREATE INDEX idx_inventory_transactions_date ON inventory_transactions(performed_at DESC);
+CREATE INDEX idx_inventory_transactions_type ON inventory_transactions(organization_id, transaction_type);
+```
+
+---
+
 # 8.1. PHASE 9.5-9.9: NOTIFICATIONS, VERIFICATION, TRACKING
 
 ## Notification Preferences Table
@@ -3567,6 +4039,17 @@ Phase 8: System Tables
 Phase 9: Indexes
   100_indexes.sql              -- All indexes
 
+Phase 8: Fleet Management
+  055_vehicles.sql                    -- Vehicles table (depends on organizations)
+  056_vehicle_documents.sql           -- Vehicle documents (depends on vehicles, users)
+  057_vehicle_assignments.sql         -- Vehicle assignments (depends on vehicles, users)
+
+Phase 9: Inventory Management
+  058_inventory_items.sql             -- Inventory items (depends on organizations)
+  059_inventory_locations.sql         -- Storage locations (depends on organizations, vehicles)
+  060_inventory_stock.sql             -- Stock levels (depends on items, locations)
+  061_inventory_transactions.sql      -- Stock movements (depends on items, locations, jobs, users)
+
 Phase 9.5-9.9: Extended Features
   015_notification_preferences.sql    -- Notification system
   016_employee_verification.sql       -- Employee onboarding
@@ -3709,14 +4192,14 @@ Procedure:
 # DOCUMENT METADATA
 
 ```
-Version: 2.0
+Version: 2.1
 Created: December 2025
-Last Updated: 2025-12-10
-Tables: 65+ (including Phase 9.5-9.9, 13, and 15)
-Enums: 25+
-Indexes: 120+
+Last Updated: 2025-12-12
+Tables: 72+ (including Phase 8, 9, 9.5-9.9, 13, and 15)
+Enums: 31+
+Indexes: 140+
 RLS Policies: 50+
-Migration Count: ~54
+Migration Count: ~61
 
 Database: PostgreSQL 15+
 Platform: Supabase
@@ -3727,7 +4210,19 @@ Compliant With:
 - Argentine data protection laws
 - Multi-tenant isolation standards
 - Consumer marketplace privacy requirements
+- Buenos Aires VTV compliance tracking
 ```
+
+## Changelog
+
+### v2.1 (2025-12-12)
+- **ADDED:** Fleet Management tables (vehicles, vehicle_documents, vehicle_assignments)
+- **ADDED:** Inventory Management tables (inventory_items, inventory_locations, inventory_stock, inventory_transactions)
+- **ADDED:** Fleet Management enums (vehicle_status_enum, fuel_type_enum, vehicle_document_type_enum)
+- **ADDED:** Inventory Management enums (inventory_category_enum, inventory_unit_enum, location_type_enum, transaction_type_enum)
+- **UPDATED:** ERD with new Fleet and Inventory relationships
+- **UPDATED:** Migration order with Phase 8 (Fleet) and Phase 9 (Inventory) tables
+- **ADDED:** Buenos Aires VTV compliance tracking to compliant standards
 
 ---
 

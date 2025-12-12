@@ -12,9 +12,9 @@
 
 | Category | Documented | Implemented | Status |
 |----------|------------|-------------|--------|
-| BullMQ Queues | 19 | 2 | ⚠️ ~10% |
+| BullMQ Queues | 23 | 2 | ⚠️ ~9% |
 | Database Polling Workers | 0 | 6 | 🔧 Alternative Pattern |
-| Scheduled Jobs | 6 | 4 | ⚠️ ~67% |
+| Scheduled Jobs | 8 | 4 | ⚠️ ~50% |
 | Bull Board Dashboard | ✓ | ❌ | ⏳ Not Implemented |
 | Fair Scheduler | ✓ | ❌ | ⏳ Not Implemented |
 | Memory Management | ✓ | ❌ | ⏳ Not Implemented |
@@ -40,13 +40,17 @@
 | Aggregation Processor | `/src/workers/whatsapp/aggregation-processor.worker.ts` | Timer + Redis poll | Redis keys (`msgbuf:*`) | `services.whatsapp_aggregation` |
 | Buffer Cleanup | `/src/workers/whatsapp/buffer-cleanup.worker.ts` | Timer interval | Redis + Database | None |
 
-**Scheduler / Cron Jobs (4 jobs):**
-| Job | File | Schedule | Description |
-|-----|------|----------|-------------|
-| Reminder Scheduler | `/src/workers/notifications/reminder-scheduler.ts` | Every 60s (setInterval) | Polls DB for due reminders |
-| Process Scheduled Reports | `/src/analytics/reports/scheduling/cron-jobs.ts` | `* * * * *` (every minute) | Report generation |
-| Cleanup Report History | `/src/analytics/reports/scheduling/cron-jobs.ts` | `0 2 * * *` (daily 2 AM) | Report cleanup |
-| MP Reconciliation | `/src/workers/payments/mp-reconciliation.service.ts` | Hourly check (setInterval) | Payment reconciliation |
+**Scheduler / Cron Jobs (4 implemented, 4 planned):**
+| Job | File | Schedule | Description | Status |
+|-----|------|----------|-------------|--------|
+| Reminder Scheduler | `/src/workers/notifications/reminder-scheduler.ts` | Every 60s (setInterval) | Polls DB for due reminders | ✅ |
+| Process Scheduled Reports | `/src/analytics/reports/scheduling/cron-jobs.ts` | `* * * * *` (every minute) | Report generation | ✅ |
+| Cleanup Report History | `/src/analytics/reports/scheduling/cron-jobs.ts` | `0 2 * * *` (daily 2 AM) | Report cleanup | ✅ |
+| MP Reconciliation | `/src/workers/payments/mp-reconciliation.service.ts` | Hourly check (setInterval) | Payment reconciliation | ✅ |
+| Fleet Document Expiry | `/src/workers/fleet/expiry-check.worker.ts` | `0 9 * * *` (daily 9 AM) | Check expiring documents | ⏳ |
+| Fleet Expiry Alerts | `/src/workers/fleet/expiry-alert.worker.ts` | Triggered by check | Send expiry notifications | ⏳ |
+| Inventory Low Stock | `/src/workers/inventory/stock-check.worker.ts` | `0 */4 * * *` (every 4h) | Check low stock levels | ⏳ |
+| Inventory Stock Alerts | `/src/workers/inventory/stock-alert.worker.ts` | Triggered by check | Send stock notifications | ⏳ |
 
 ### Queue Manager vs Reality
 
@@ -224,6 +228,14 @@ export enum QueueName {
 
   // GPS Tracking (Phase 9.9)
   TRACKING_ETA = 'tracking:eta',           // ⏳ NOT IMPLEMENTED
+
+  // Fleet Management (Phase 8)
+  FLEET_CHECK_EXPIRY = 'fleet:check-document-expiry',   // ⏳ NOT IMPLEMENTED
+  FLEET_SEND_ALERT = 'fleet:send-expiry-alert',         // ⏳ NOT IMPLEMENTED
+
+  // Inventory Management (Phase 9)
+  INVENTORY_CHECK_STOCK = 'inventory:check-low-stock',  // ⏳ NOT IMPLEMENTED
+  INVENTORY_SEND_ALERT = 'inventory:send-stock-alert',  // ⏳ NOT IMPLEMENTED
 
   // Consumer Marketplace (Phase 15)
   CONSUMER_NOTIFICATION = 'consumer:notification', // ⏳ NOT IMPLEMENTED
@@ -408,6 +420,56 @@ export const QUEUE_CONFIGS: Record<QueueName, QueueConfig> = {
     backoff: 'fixed',
     timeout: 15000,
     isolation: 'shared',
+    ordered: false,
+  },
+
+  // ========== Phase 8: Fleet Management ==========
+
+  [QueueName.FLEET_CHECK_EXPIRY]: {
+    priority: 'low',
+    rateLimit: { max: 10, duration: 60000 },
+    concurrency: 2,
+    attempts: 3,
+    backoff: 'exponential',
+    timeout: 120000, // 2 min - queries all vehicles
+    isolation: 'shared',
+    ordered: false,
+    // Scheduled: Daily at 09:00 local time
+  },
+
+  [QueueName.FLEET_SEND_ALERT]: {
+    priority: 'normal',
+    rateLimit: { max: 50, duration: 60000 },
+    concurrency: 10,
+    attempts: 3,
+    backoff: 'exponential',
+    timeout: 30000,
+    isolation: 'per-org',
+    ordered: false,
+  },
+
+  // ========== Phase 9: Inventory Management ==========
+
+  [QueueName.INVENTORY_CHECK_STOCK]: {
+    priority: 'low',
+    rateLimit: { max: 10, duration: 60000 },
+    concurrency: 2,
+    attempts: 3,
+    backoff: 'exponential',
+    timeout: 120000, // 2 min - queries all inventory
+    isolation: 'shared',
+    ordered: false,
+    // Scheduled: Every 4 hours
+  },
+
+  [QueueName.INVENTORY_SEND_ALERT]: {
+    priority: 'normal',
+    rateLimit: { max: 50, duration: 60000 },
+    concurrency: 10,
+    attempts: 3,
+    backoff: 'exponential',
+    timeout: 30000,
+    isolation: 'per-org',
     ordered: false,
   },
 
@@ -2302,17 +2364,25 @@ DAILY OPS CHECKLIST (5 minutes)
 
 **Document Metadata**
 ```
-Version: 2.2
-Last Updated: 2025-12-10
-Queues Documented: 19
+Version: 2.3
+Last Updated: 2025-12-12
+Queues Documented: 23
 Queues Actually Implemented:
   - BullMQ: 2 (voice-processing, reminder)
   - DB Polling: 6 (AFIP, WhatsApp Out, MP Payment, Webhook, Aggregation, Buffer Cleanup)
-  - Cron/Timer: 4 (Reminder Scheduler, Report Processing, Report Cleanup, MP Reconciliation)
-Phases Covered: Core, 9.6, 9.9, 15
+  - Cron/Timer: 4 implemented, 4 planned
+Phases Covered: Core, 8, 9, 9.6, 9.9, 15
 ```
 
 ## Changelog
+
+### v2.3 (2025-12-12)
+- **ADDED:** Fleet Management queues (fleet:check-document-expiry, fleet:send-expiry-alert)
+- **ADDED:** Inventory Management queues (inventory:check-low-stock, inventory:send-stock-alert)
+- **ADDED:** Fleet & Inventory scheduled jobs to cron table
+- **UPDATED:** Queue count from 19 to 23
+- **UPDATED:** Implementation status table (23 queues, 8 scheduled jobs)
+- **ADDED:** Queue configurations for all 4 new queues
 
 ### v2.2 (2025-12-10)
 - Expanded implementation status warning with comprehensive worker inventory

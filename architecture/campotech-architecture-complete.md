@@ -348,15 +348,59 @@ CLOSED → (failures >= threshold) → OPEN → (timeout) → HALF_OPEN → (pro
 │  │  MERCADO  │  │ WHATSAPP  │  │  VOICE AI │  │  MOBILE   │            │
 │  │   PAGO    │  │   COMMS   │  │ PROCESSING│  │TECHNICIAN │            │
 │  └───────────┘  └───────────┘  └───────────┘  └───────────┘            │
+│                                                                         │
+│  ┌───────────┐  ┌───────────┐  ┌───────────┐  ┌───────────┐            │
+│  │  MODULE 9 │  │ MODULE 10 │  │ MODULE 11 │  │ MODULE 12 │            │
+│  │  EMPLOYEE │  │  CALENDAR │  │   FLEET   │  │ INVENTORY │            │
+│  │  TRACKING │  │   VIEW    │  │ MANAGEMENT│  │ MANAGEMENT│            │
+│  └───────────┘  └───────────┘  └───────────┘  └───────────┘            │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                       INFRASTRUCTURE LAYER                               │
 │  • Panic Mode Controller    • Idempotency Service    • Encryption       │
 │  • Queue System (BullMQ)    • Distributed Locks      • Rate Limiting    │
 │  • Event Bus                • Observability          • Feature Flags    │
+│  • WebSocket Server         • Google Maps APIs       • Real-time Events │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                        GOVERNANCE LAYER                                  │
 │  • Event Ownership Matrix   • User Roles & Permissions  • Audit Logs    │
 │  • Data Retention          • Document Versioning        • Abuse Prevention│
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Extended Architecture Diagram (Phases 8-10)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         CampoTech Platform                              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐   │
+│  │   Mobile    │  │  Dashboard  │  │   Fleet     │  │  Inventory  │   │
+│  │    App      │  │    Web      │  │  Dashboard  │  │  Dashboard  │   │
+│  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘   │
+│         │                │                │                │          │
+│         └────────────────┼────────────────┼────────────────┘          │
+│                          │                │                            │
+│                          ▼                ▼                            │
+│  ┌───────────────────────────────────────────────────────────────┐    │
+│  │                        API Layer                               │    │
+│  │  /tracking/*  /vehicles/*  /inventory/*  /dashboard/alerts    │    │
+│  └───────────────────────────────────────────────────────────────┘    │
+│                          │                                             │
+│         ┌────────────────┼────────────────┐                           │
+│         ▼                ▼                ▼                           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                   │
+│  │  WebSocket  │  │   Queue     │  │  External   │                   │
+│  │   Server    │  │  Workers    │  │    APIs     │                   │
+│  │ (Real-time) │  │ (BullMQ)    │  │ (Google)    │                   │
+│  └─────────────┘  └─────────────┘  └─────────────┘                   │
+│                          │                                             │
+│                          ▼                                             │
+│  ┌───────────────────────────────────────────────────────────────┐    │
+│  │                      PostgreSQL                                │    │
+│  │  technician_locations | vehicles | inventory_* | tracking_*   │    │
+│  └───────────────────────────────────────────────────────────────┘    │
+│                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -378,7 +422,7 @@ CLOSED → (failures >= threshold) → OPEN → (timeout) → HALF_OPEN → (pro
 | Database | Supabase (PostgreSQL), Redis |
 | Queue | BullMQ (Redis-backed) |
 | Storage | Supabase Storage, S3 (archival) |
-| External APIs | AFIP (SOAP), Mercado Pago, WhatsApp Cloud API, OpenAI |
+| External APIs | AFIP (SOAP), Mercado Pago, WhatsApp Cloud API, OpenAI, Google Maps |
 | Monitoring | Sentry, Prometheus, Grafana |
 | Deployment | Vercel (web), Railway/Render (workers), EAS (mobile) |
 
@@ -1226,17 +1270,49 @@ GET    /api/admin/metrics         → Operational metrics                    ⏳
 ```
 > **🔧 Note:** Health endpoint exists at `/api/health` rather than `/api/admin/health`. Other admin monitoring endpoints are not implemented.
 
-### Inventory Endpoints (Implemented - Previously Undocumented)
+### Inventory Endpoints (Phase 9: Inventory Management)
 ```
-GET    /api/inventory/products           → List products                       ✅
-POST   /api/inventory/products           → Create product                      ✅
-GET    /api/inventory/suppliers          → List suppliers                      ✅
-POST   /api/inventory/suppliers          → Create supplier                     ✅
-GET    /api/inventory/stock              → Current stock levels                ✅
-GET    /api/inventory/warehouses         → List warehouses                     ✅
-GET    /api/inventory/job-materials      → Materials used in jobs              ✅
+GET    /api/inventory/items              → List inventory items                ✅
+POST   /api/inventory/items              → Create inventory item               ✅
+GET    /api/inventory/items/:id          → Get item details                    ✅
+PATCH  /api/inventory/items/:id          → Update item                         ✅
+GET    /api/inventory/locations          → List storage locations (hub/vehicle)✅
+POST   /api/inventory/locations          → Create storage location             ✅
+GET    /api/inventory/stock              → Current stock levels by location    ✅
+POST   /api/inventory/transactions       → Record stock movement               ✅
+GET    /api/inventory/transactions       → List transactions                   ✅
+GET    /api/inventory/alerts             → Get low stock alerts                ✅
 GET    /api/inventory/vehicle-stock      → Vehicle inventory                   ✅
-GET    /api/inventory/purchase-orders    → List purchase orders                ✅
+GET    /api/inventory/job-materials      → Materials used in jobs              ✅
+```
+
+### Vehicles/Fleet Endpoints (Phase 8: Fleet Management)
+```
+GET    /api/vehicles                     → List company vehicles               ✅
+POST   /api/vehicles                     → Create vehicle                      ✅
+GET    /api/vehicles/:id                 → Get vehicle details                 ✅
+PATCH  /api/vehicles/:id                 → Update vehicle                      ✅
+DELETE /api/vehicles/:id                 → Deactivate vehicle                  ✅
+GET    /api/vehicles/:id/documents       → List vehicle documents              ✅
+POST   /api/vehicles/:id/documents       → Upload vehicle document             ✅
+DELETE /api/vehicles/:id/documents/:docId → Delete document                    ✅
+POST   /api/vehicles/:id/assign          → Assign workers to vehicle           ✅
+GET    /api/vehicles/:id/assignments     → Get vehicle assignments             ✅
+DELETE /api/vehicles/:id/assign/:userId  → Remove worker assignment            ✅
+```
+
+### Calendar Endpoints (Phase 7: Calendar View)
+```
+GET    /api/jobs/calendar                → Jobs with assignee details          ✅
+```
+> **Note:** Calendar view uses existing `/api/jobs/calendar` endpoint with enhanced response including technician details for calendar display.
+
+### Dashboard Endpoints (Phase 10: Dashboard Enhancements)
+```
+GET    /api/dashboard/alerts             → Aggregate alerts from all systems   ✅
+GET    /api/dashboard/stock-alerts       → Critical stock alerts widget        ✅
+GET    /api/dashboard/fleet-status       → Vehicle compliance status           ✅
+GET    /api/dashboard/today-schedule     → Mini calendar with today's jobs     ✅
 ```
 
 ### Locations Endpoints (Implemented - Previously Undocumented)
@@ -1286,12 +1362,16 @@ GET    /api/notifications/preferences    → User notification preferences      
 PATCH  /api/notifications/preferences    → Update preferences                  ✅
 ```
 
-### GPS Tracking Endpoints (Implemented - Previously Undocumented)
+### GPS Tracking Endpoints (Phases 1-6: Employee Tracking)
 ```
 POST   /api/tracking/token               → Get tracking token                  ✅
-POST   /api/tracking/start               → Start tracking session              ✅
-POST   /api/tracking/update              → Update location                     ✅
+POST   /api/tracking/start               → Start tracking session for job      ✅
+POST   /api/tracking/update              → Accept location updates (15s)       ✅
 GET    /api/tracking/technician/:id      → Get technician location             ✅
+GET    /api/tracking/locations           → Get all active technician locations ✅
+GET    /api/tracking/nearest             → Find nearest technicians to address ✅
+GET    /api/tracking/subscribe           → Subscribe to real-time updates (WS) ✅
+GET    /api/technicians/:id/itinerary    → Get technician's daily schedule     ✅
 ```
 
 ### Mobile API Endpoints (Implemented - Previously Undocumented)
@@ -1751,6 +1831,115 @@ Trigger conditions:
 
 Provider: Twilio or local (e.g., Vonage)
 Rate: ~$0.05 per SMS to Argentina
+```
+
+## Google Maps API Integration (Phase 9: Employee Tracking)
+
+### APIs Used
+
+| API | Purpose | Rate Limit | Cost |
+|-----|---------|------------|------|
+| **Maps JavaScript API** | Display live map with technician markers | None | Free (maps load) |
+| **Distance Matrix API** | Calculate ETAs, find nearest technician | 1000 elements/minute | $5/1000 elements |
+| **Directions API** | Display route polylines on map | 2500 QPM | $5/1000 requests |
+| **Geocoding API** | Convert addresses to coordinates | 3000 QPM | $5/1000 requests |
+
+### Configuration
+
+```typescript
+// Environment variables
+GOOGLE_MAPS_API_KEY=xxx          // Client-side maps
+GOOGLE_MAPS_SERVER_KEY=xxx       // Server-side Distance Matrix, Directions
+GOOGLE_MAPS_ALLOWED_ORIGINS=https://app.campotech.com
+
+// API Restrictions (Security)
+// - Maps JavaScript API: HTTP referrer restriction
+// - Distance Matrix API: IP address restriction (server only)
+// - Directions API: IP address restriction (server only)
+```
+
+### Distance Matrix Integration (Find Nearest Technician)
+
+```typescript
+// POST /api/tracking/nearest
+{
+  jobAddress: string,              // Job location address
+  jobLat?: number,                 // Optional: pre-geocoded
+  jobLng?: number,
+  maxResults?: number,             // Default: 5
+  maxDistanceKm?: number,          // Default: 50km
+  filterAvailable?: boolean        // Only available technicians
+}
+
+// Response
+{
+  results: [
+    {
+      technician: { id, name, avatar },
+      currentLocation: { lat, lng, updatedAt },
+      distance: { text: "15.3 km", value: 15300 },
+      duration: { text: "25 mins", value: 1500 },
+      trafficDuration: { text: "32 mins", value: 1920 }
+    }
+  ]
+}
+
+// Internal: Google Distance Matrix API call
+GET https://maps.googleapis.com/maps/api/distancematrix/json
+  ?origins={tech1Lat,tech1Lng}|{tech2Lat,tech2Lng}|...
+  &destinations={jobLat,jobLng}
+  &mode=driving
+  &departure_time=now
+  &traffic_model=best_guess
+  &key={GOOGLE_MAPS_SERVER_KEY}
+```
+
+### Real-time Location Updates (WebSocket)
+
+```typescript
+// WebSocket message type for live tracking
+{
+  type: 'technician_location_update',
+  payload: {
+    technicianId: string,
+    lat: number,
+    lng: number,
+    heading: number,           // Direction (0-360 degrees)
+    speed: number,             // km/h
+    accuracy: number,          // meters
+    timestamp: string,         // ISO 8601
+    currentJobId?: string      // If en_camino or working
+  }
+}
+
+// Update interval: 15 seconds from mobile app
+// Broadcast to: Dashboard subscribers for that organization
+```
+
+### Map Components (Frontend)
+
+```typescript
+// /dashboard/map/page.tsx - Live technician map
+// Components:
+// - LiveTechnicianMap.tsx - Main map container with Google Maps
+// - TechnicianMarker.tsx - Clickable marker with popup (name, status, current job)
+// - TechnicianPanel.tsx - Side panel with technician details & itinerary
+// - NearestTechnicians.tsx - Ranked list by ETA to selected address
+// - ItineraryTimeline.tsx - Visual timeline of technician's scheduled jobs
+
+// Google Maps JavaScript API usage:
+const map = new google.maps.Map(element, {
+  center: { lat: -34.6037, lng: -58.3816 }, // Buenos Aires
+  zoom: 12,
+  styles: customMapStyles
+});
+
+// Marker clustering for multiple technicians
+const markerCluster = new markerClusterer.MarkerClusterer({ map, markers });
+
+// Route polyline display
+const directionsRenderer = new google.maps.DirectionsRenderer();
+directionsRenderer.setMap(map);
 ```
 
 ---
@@ -2807,6 +2996,10 @@ Deep linking:
 | AFIP config | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Billing | ✅ | ❌ | ❌ | ❌ | ❌ |
 | Danger zone | ✅ | ❌ | ❌ | ❌ | ❌ |
+| **Live Map** | ✅ | ✅ | ✅ | ❌ | ❌ |
+| **Calendar** | ✅ | ✅ | ✅ | Own only | ❌ |
+| **Fleet Management** | ✅ | ✅ | ❌ | ❌ | ❌ |
+| **Inventory** | ✅ | ✅ | View | View | ❌ |
 
 ## Dashboard Components
 
@@ -2872,6 +3065,38 @@ Settings:
   - WhatsApp setup
   - Price book
   - Notification preferences
+
+Live Map (/dashboard/map):
+  - LiveTechnicianMap component with Google Maps
+  - Real-time technician positions (WebSocket)
+  - TechnicianMarker with popup (name, status, current job)
+  - TechnicianPanel with details & itinerary
+  - NearestTechnicians ranked by ETA
+  - Filter by technician status (available, en_camino, working)
+
+Calendar (/dashboard/calendar):
+  - CalendarView with react-big-calendar
+  - Day/Week/Month views
+  - Drag-and-drop job rescheduling
+  - Filter by technician
+  - Color-coded jobs by status/priority/assignee
+  - JobCard popup (customer, address, assigned tech, status, priority, quick actions)
+
+Fleet Management (/dashboard/fleet):
+  - VehicleCard grid with status indicators
+  - Document management (insurance, VTV, registration)
+  - Document expiry warnings (30/15/7 days)
+  - Worker assignment interface
+  - Vehicle inventory link
+  - DocumentUpload for compliance docs
+
+Inventory (/dashboard/inventory):
+  - StockTable with filtering and search
+  - LocationSelector (hub vs vehicle)
+  - Transaction recording interface
+  - Low stock alerts dashboard
+  - Stock transfer between locations
+  - Link inventory usage to jobs
 ```
 
 ## Panic Mode Dashboard
@@ -3872,6 +4097,19 @@ Supersedes:
 ```
 
 ## Changelog
+
+### v1.2 (2025-12-12)
+- **ADDED:** Module 9-12 to Module Overview diagram (Employee Tracking, Calendar View, Fleet Management, Inventory Management)
+- **ADDED:** Extended Architecture Diagram for Phases 8-10
+- **ADDED:** Google Maps API Integration documentation (Distance Matrix, Directions, Maps JavaScript API)
+- **ADDED:** GPS Tracking Endpoints expansion (nearest technicians, WebSocket subscribe, itinerary)
+- **ADDED:** Vehicles/Fleet Endpoints section (Phase 8)
+- **ADDED:** Calendar Endpoints section (Phase 7)
+- **ADDED:** Dashboard Endpoints section (Phase 10: alerts, stock, fleet status)
+- **UPDATED:** Inventory Endpoints to match Phase 9 schema (items, locations, transactions, alerts)
+- **UPDATED:** Role-Based Access table with Live Map, Calendar, Fleet Management, Inventory
+- **ADDED:** New Operational Pages: Live Map, Calendar, Fleet Management, Inventory
+- **UPDATED:** Technology Stack to include Google Maps
 
 ### v1.1 (2025-12-10)
 - Added External Integrations implementation status summary (Section 8)

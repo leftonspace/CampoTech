@@ -155,17 +155,30 @@ DOMAIN CAPABILITIES
 │                             └─► reporting_dashboard (ui)
 ├── payments ─────────────────┴─► reporting_dashboard (ui)
 ├── scheduling ───────────────┬─► job_assignment (domain)
-│                             └─► technician_gps (domain)
+│                             ├─► technician_gps (domain)
+│                             └─► calendar_view (domain)
 ├── job_assignment ───────────┴─► technician_gps (domain)
 ├── offline_sync ─────────────┴─► (mobile-specific)
-├── technician_gps ───────────┴─► customer_portal (domain)
+├── technician_gps ───────────┬─► customer_portal (domain)
+│                             ├─► live_tracking_map (domain)
+│                             └─► nearest_technician (domain)
 ├── consumer_marketplace ─────┬─► review_fraud_detection (services)
 │                             ├─► notification_queue (services)
 │                             └─► marketplace_dashboard (ui)
 ├── customer_portal ──────────┬─► technician_gps (domain)
 │                             ├─► whitelabel_portal (ui)
 │                             └─► notification_queue (services)
-├── inventory_management ─────┴─► (standalone)
+├── inventory_management ─────┬─► inventory_stock_alerts (services)
+│                             └─► inventory_dashboard (ui)
+├── fleet_management ─────────┬─► vehicle_documents (domain)
+│                             ├─► fleet_expiry_alerts (services)
+│                             └─► fleet_dashboard (ui)
+├── calendar_view ────────────┬─► scheduling (domain)
+│                             └─► calendar_dashboard (ui)
+├── live_tracking_map ────────┬─► technician_gps (domain)
+│                             └─► live_map_dashboard (ui)
+├── nearest_technician ───────┴─► technician_gps (domain)
+├── vehicle_documents ────────┴─► fleet_management (domain)
 └── audit_logging ────────────┴─► (standalone)
 
 INTERNAL SERVICES
@@ -178,7 +191,9 @@ INTERNAL SERVICES
 │                             └─► whatsapp (external)
 ├── abuse_detection ──────────┴─► rate_limiting (services)
 ├── rate_limiting ────────────┴─► (standalone)
-└── analytics_pipeline ───────┴─► (standalone)
+├── analytics_pipeline ───────┴─► (standalone)
+├── fleet_expiry_alerts ──────┴─► fleet_management (domain)
+└── inventory_stock_alerts ───┴─► inventory_management (domain)
 
 UI CAPABILITIES
 ├── simple_mode ──────────────┴─► (default for all users)
@@ -186,7 +201,11 @@ UI CAPABILITIES
 ├── pricebook ────────────────┴─► invoicing (domain)
 ├── reporting_dashboard ──────┴─► (standalone)
 ├── marketplace_dashboard ────┴─► consumer_marketplace (domain)
-└── whitelabel_portal ────────┴─► customer_portal (domain)
+├── whitelabel_portal ────────┴─► customer_portal (domain)
+├── calendar_dashboard ───────┴─► calendar_view (domain)
+├── fleet_dashboard ──────────┴─► fleet_management (domain)
+├── inventory_dashboard ──────┴─► inventory_management (domain)
+└── live_map_dashboard ───────┴─► live_tracking_map (domain)
 ```
 
 ---
@@ -224,6 +243,12 @@ export const Capabilities = {
     customer_portal: true,        // White-label customer tracking portal
     inventory_management: true,   // Parts/materials inventory tracking
     audit_logging: true,          // Comprehensive audit trail logging
+    // Phase 7-10: New Capabilities
+    calendar_view: true,          // Interactive calendar with job scheduling
+    fleet_management: true,       // Vehicle fleet management & compliance
+    vehicle_documents: true,      // Vehicle document upload & expiry tracking
+    live_tracking_map: true,      // Real-time technician location map
+    nearest_technician: true,     // Find nearest technician to job address
   },
 
   // ═══════════════════════════════════════════════════════════════
@@ -240,6 +265,9 @@ export const Capabilities = {
     analytics_pipeline: true,     // Metrics collection
     review_fraud_detection: true, // Consumer review fraud analysis
     notification_queue: true,     // Unified notification dispatch queue
+    // Phase 8-9: Fleet & Inventory Services
+    fleet_expiry_alerts: true,    // Vehicle document expiry checking & alerts
+    inventory_stock_alerts: true, // Low stock checking & alerts
   },
 
   // ═══════════════════════════════════════════════════════════════
@@ -253,6 +281,11 @@ export const Capabilities = {
     reporting_dashboard: true,   // Analytics dashboard
     marketplace_dashboard: true, // Consumer marketplace admin UI
     whitelabel_portal: true,     // Customer portal white-label config
+    // Phase 7-10: New UI Capabilities
+    calendar_dashboard: true,    // Interactive calendar view page
+    fleet_dashboard: true,       // Fleet management dashboard
+    inventory_dashboard: true,   // Inventory management dashboard
+    live_map_dashboard: true,    // Real-time technician map view
   },
 } as const;
 ```
@@ -274,8 +307,13 @@ export const Capabilities = {
 | `technician_gps` | domain | `true` | - | No location tracking |
 | `consumer_marketplace` | domain | `true` | whatsapp, push_notifications | Consumer search/booking disabled |
 | `customer_portal` | domain | `true` | technician_gps | Customer tracking disabled |
-| `inventory_management` | domain | `true` | - | Manual inventory only |
+| `inventory_management` | domain | `true` | inventory_stock_alerts | Manual inventory only |
 | `audit_logging` | domain | `true` | - | No audit trail |
+| `calendar_view` | domain | `true` | scheduling | Basic job list only |
+| `fleet_management` | domain | `true` | vehicle_documents, fleet_expiry_alerts | No vehicle tracking |
+| `vehicle_documents` | domain | `true` | fleet_management | No document storage |
+| `live_tracking_map` | domain | `true` | technician_gps | No live map view |
+| `nearest_technician` | domain | `true` | technician_gps | Manual technician selection |
 | `cae_queue` | services | `true` | afip | Direct AFIP calls (risky) |
 | `whatsapp_queue` | services | `true` | whatsapp | Direct WA calls (risky) |
 | `whatsapp_aggregation` | services | `true` | whatsapp | Single number only |
@@ -285,12 +323,18 @@ export const Capabilities = {
 | `analytics_pipeline` | services | `true` | - | No metrics collection |
 | `review_fraud_detection` | services | `true` | consumer_marketplace | No fraud checks on reviews |
 | `notification_queue` | services | `true` | push_notifications, whatsapp | Direct notification calls |
+| `fleet_expiry_alerts` | services | `true` | fleet_management | No document expiry alerts |
+| `inventory_stock_alerts` | services | `true` | inventory_management | No low stock alerts |
 | `simple_mode` | ui | `true` | - | Complex UI by default |
 | `advanced_mode` | ui | `true` | - | No advanced features |
 | `pricebook` | ui | `true` | invoicing | Manual pricing only |
 | `reporting_dashboard` | ui | `true` | - | No analytics view |
 | `marketplace_dashboard` | ui | `true` | consumer_marketplace | No marketplace admin UI |
 | `whitelabel_portal` | ui | `true` | customer_portal | No portal customization |
+| `calendar_dashboard` | ui | `true` | calendar_view | No calendar UI |
+| `fleet_dashboard` | ui | `true` | fleet_management | No fleet UI |
+| `inventory_dashboard` | ui | `true` | inventory_management | No inventory UI |
+| `live_map_dashboard` | ui | `true` | live_tracking_map | No map view |
 
 ---
 
@@ -1319,20 +1363,113 @@ After re-enabling any capability:
 
 ---
 
+# 11. SUBSCRIPTION TIER MAPPING
+
+## Tier Definitions
+
+CampoTech capabilities are gated by subscription tier. The following tiers control feature access:
+
+| Tier | Monthly Price (ARS) | Description |
+|------|---------------------|-------------|
+| **GRATIS** | $0 | Free tier with basic job management |
+| **BASICO** | $5,000 | Small business essentials |
+| **PROFESIONAL** | $15,000 | Full feature access for growing businesses |
+| **EMPRESA** | $40,000+ | Enterprise features + custom integrations |
+
+## Capability-to-Tier Matrix
+
+| Capability | GRATIS | BASICO | PROFESIONAL | EMPRESA |
+|------------|--------|--------|-------------|---------|
+| **Core Features** | | | | |
+| `invoicing` | ✅ | ✅ | ✅ | ✅ |
+| `payments` | - | ✅ | ✅ | ✅ |
+| `scheduling` | ✅ | ✅ | ✅ | ✅ |
+| `job_assignment` | - | ✅ | ✅ | ✅ |
+| **Communication** | | | | |
+| `whatsapp` | - | ✅ | ✅ | ✅ |
+| `whatsapp_voice_ai` | - | - | ✅ | ✅ |
+| `push_notifications` | - | ✅ | ✅ | ✅ |
+| **Phase 7-10 Features** | | | | |
+| `calendar_view` | ✅ | ✅ | ✅ | ✅ |
+| `fleet_management` | - | - | ✅ | ✅ |
+| `vehicle_documents` | - | - | ✅ | ✅ |
+| `inventory_management` | - | - | ✅ | ✅ |
+| `live_tracking_map` | - | - | ✅ | ✅ |
+| `nearest_technician` | - | - | ✅ | ✅ |
+| **Advanced Features** | | | | |
+| `technician_gps` | - | ✅ | ✅ | ✅ |
+| `offline_sync` | - | - | ✅ | ✅ |
+| `consumer_marketplace` | - | - | - | ✅ |
+| `customer_portal` | - | - | ✅ | ✅ |
+| `audit_logging` | - | - | ✅ | ✅ |
+| **UI Features** | | | | |
+| `calendar_dashboard` | ✅ | ✅ | ✅ | ✅ |
+| `fleet_dashboard` | - | - | ✅ | ✅ |
+| `inventory_dashboard` | - | - | ✅ | ✅ |
+| `live_map_dashboard` | - | - | ✅ | ✅ |
+| `reporting_dashboard` | - | ✅ | ✅ | ✅ |
+| `marketplace_dashboard` | - | - | - | ✅ |
+| `whitelabel_portal` | - | - | - | ✅ |
+
+## Tier Feature Summary
+
+### GRATIS (Free Tier)
+- Basic job management
+- Simple invoicing (no AFIP integration)
+- Calendar view for job scheduling
+- 1 user limit
+
+### BASICO (Basic Tier)
+- Full invoicing with AFIP CAE
+- WhatsApp notifications
+- GPS tracking (view only)
+- Reporting dashboard
+- Up to 3 users
+
+### PROFESIONAL (Professional Tier)
+- **Fleet Management** (vehicles, documents, VTV tracking)
+- **Inventory Management** (stock, transfers, usage tracking)
+- **Live Tracking Map** (real-time technician locations)
+- **Nearest Technician** (find closest available tech)
+- Offline sync for mobile
+- Customer portal
+- Audit logging
+- Up to 10 users
+
+### EMPRESA (Enterprise Tier)
+- Consumer marketplace access
+- White-label customer portal
+- Marketplace dashboard
+- Voice AI processing
+- Custom integrations
+- Unlimited users
+- Priority support
+
+---
+
 # DOCUMENT METADATA
 
 | Field | Value |
 |-------|-------|
 | **Document ID** | capabilities-001 |
-| **Version** | 1.2 |
+| **Version** | 1.3 |
 | **Status** | Active |
 | **Author** | CampoTech Architecture Team |
-| **Last Updated** | 2025-12-10 |
+| **Last Updated** | 2025-12-12 |
 | **Related Documents** | campotech-architecture-complete.md, campotech-queue-worker-architecture.md |
 | **Runtime File** | core/config/capabilities.ts |
 | **Additional Files** | core/services/capability-guards.ts, core/repositories/capability-override.repository.ts, scripts/capability-status.ts |
 
 ## Changelog
+
+### v1.3 (2025-12-12)
+- **ADDED:** Phase 7-10 domain capabilities (calendar_view, fleet_management, vehicle_documents, live_tracking_map, nearest_technician)
+- **ADDED:** Phase 8-9 service capabilities (fleet_expiry_alerts, inventory_stock_alerts)
+- **ADDED:** Phase 7-10 UI capabilities (calendar_dashboard, fleet_dashboard, inventory_dashboard, live_map_dashboard)
+- **ADDED:** Section 11: Subscription Tier Mapping with tier-to-capability matrix
+- **UPDATED:** Dependency graph with new Fleet, Inventory, Calendar, and Map capabilities
+- **UPDATED:** Capability Status Reference table with 11 new capabilities
+- **UPDATED:** inventory_management dependency to include inventory_stock_alerts
 
 ### v1.2 (2025-12-10)
 - Added critical implementation warnings (worker integration gap, Admin UI issues)
