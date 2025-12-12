@@ -7,6 +7,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
+
+// Helper to check if error is "table doesn't exist"
+function isTableNotFoundError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2021'
+  );
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -39,33 +48,56 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const vehicles = await prisma.vehicle.findMany({
-      where,
-      include: {
-        assignments: {
-          where: {
-            OR: [
-              { assignedUntil: null },
-              { assignedUntil: { gt: new Date() } },
-            ],
+    let vehicles: any[] = [];
+    try {
+      vehicles = await prisma.vehicle.findMany({
+        where,
+        include: {
+          assignments: {
+            where: {
+              OR: [
+                { assignedUntil: null },
+                { assignedUntil: { gt: new Date() } },
+              ],
+            },
+            include: {
+              user: true,
+            },
           },
-          include: {
-            user: true,
+          documents: {
+            orderBy: { uploadedAt: 'desc' },
+            take: 5,
+          },
+          _count: {
+            select: {
+              documents: true,
+              maintenanceLogs: true,
+            },
           },
         },
-        documents: {
-          orderBy: { uploadedAt: 'desc' },
-          take: 5,
-        },
-        _count: {
-          select: {
-            documents: true,
-            maintenanceLogs: true,
+        orderBy: { plateNumber: 'asc' },
+      });
+    } catch (queryError) {
+      // Handle missing table gracefully - return empty data
+      if (isTableNotFoundError(queryError)) {
+        console.warn('Vehicles table not found - returning empty data. Run database migrations to create tables.');
+        return NextResponse.json({
+          success: true,
+          data: {
+            vehicles: [],
+            stats: {
+              total: 0,
+              active: 0,
+              maintenance: 0,
+              inactive: 0,
+              withAlerts: 0,
+            },
           },
-        },
-      },
-      orderBy: { plateNumber: 'asc' },
-    });
+          _notice: 'Fleet management tables not yet created. Run database migrations.',
+        });
+      }
+      throw queryError;
+    }
 
     // Calculate compliance status
     const now = new Date();
@@ -220,6 +252,18 @@ export async function POST(request: NextRequest) {
       data: vehicle,
     });
   } catch (error) {
+    // Handle missing table gracefully
+    if (isTableNotFoundError(error)) {
+      console.warn('Vehicles table not found - cannot create vehicle. Run database migrations to create tables.');
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'La gestión de flota no está disponible todavía. Contacte al administrador.',
+          _notice: 'Fleet management tables not yet created. Run database migrations.'
+        },
+        { status: 503 }
+      );
+    }
     console.error('Create vehicle error:', error);
     return NextResponse.json(
       { success: false, error: 'Error creando vehículo' },
