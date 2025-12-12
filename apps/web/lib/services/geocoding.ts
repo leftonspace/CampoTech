@@ -587,19 +587,18 @@ async function updateCustomerCoordinates(customerId: string, lat: number, lng: n
 
 /**
  * Update job with geocoded coordinates
- * Jobs typically inherit coordinates from customers, but we store them directly too
+ * Jobs inherit coordinates from their associated customer, so we update the customer instead
  */
 async function updateJobCoordinates(jobId: string, lat: number, lng: number): Promise<void> {
-  // Jobs don't have direct lat/lng fields, but we can store in metadata
-  await prisma.job.update({
+  // Jobs get coordinates from their customer - update the customer's address
+  const job = await prisma.job.findUnique({
     where: { id: jobId },
-    data: {
-      metadata: {
-        coordinates: { lat, lng },
-        geocodedAt: new Date().toISOString(),
-      },
-    },
+    select: { customerId: true },
   });
+
+  if (job?.customerId) {
+    await updateCustomerCoordinates(job.customerId, lat, lng);
+  }
 }
 
 /**
