@@ -1,6 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
+
+// Check if error is related to missing table
+function isTableNotFoundError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2021'
+  );
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,36 +35,59 @@ export async function GET(request: NextRequest) {
       where.status = status.toUpperCase();
     }
 
-    // If technician, only show their jobs (either via legacy field or assignments)
+    // If technician, only show their jobs
     if (session.role === 'TECHNICIAN') {
-      where.OR = [
-        { technicianId: session.userId },
-        { assignments: { some: { technicianId: session.userId } } },
-      ];
+      where.technicianId = session.userId;
     }
 
-    const [jobs, total] = await Promise.all([
-      prisma.job.findMany({
-        where,
-        include: {
-          customer: true,
-          technician: {
-            select: { id: true, name: true },
+    // Try to include assignments, fall back to basic query if table doesn't exist
+    let jobs;
+    let total;
+    try {
+      [jobs, total] = await Promise.all([
+        prisma.job.findMany({
+          where,
+          include: {
+            customer: true,
+            technician: {
+              select: { id: true, name: true },
+            },
+            assignments: {
+              include: {
+                technician: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
           },
-          assignments: {
+          orderBy: { scheduledDate: 'asc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
+        prisma.job.count({ where }),
+      ]);
+    } catch (includeError) {
+      // If assignments table doesn't exist, query without it
+      if (isTableNotFoundError(includeError)) {
+        [jobs, total] = await Promise.all([
+          prisma.job.findMany({
+            where,
             include: {
+              customer: true,
               technician: {
                 select: { id: true, name: true },
               },
             },
-          },
-        },
-        orderBy: { scheduledDate: 'asc' },
-        skip: (page - 1) * limit,
-        take: limit,
-      }),
-      prisma.job.count({ where }),
-    ]);
+            orderBy: { scheduledDate: 'asc' },
+            skip: (page - 1) * limit,
+            take: limit,
+          }),
+          prisma.job.count({ where }),
+        ]);
+      } else {
+        throw includeError;
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -107,40 +139,70 @@ export async function POST(request: NextRequest) {
         ? [body.technicianId]
         : [];
 
-    const job = await prisma.job.create({
-      data: {
-        jobNumber,
-        serviceType: body.serviceType,
-        description: body.description,
-        urgency: body.urgency || 'NORMAL',
-        scheduledDate: body.scheduledDate ? new Date(body.scheduledDate) : null,
-        scheduledTimeSlot: body.scheduledTimeSlot,
-        customerId: body.customerId,
-        // Keep legacy technicianId for backwards compatibility (first technician)
-        technicianId: technicianIds[0] || null,
-        createdById: session.userId,
-        organizationId: session.organizationId,
-        // Create job assignments for all technicians
-        assignments: {
-          create: technicianIds.map((techId: string) => ({
-            technicianId: techId,
-          })),
+    // Try to create job with assignments, fall back to basic create if table doesn't exist
+    let job;
+    try {
+      job = await prisma.job.create({
+        data: {
+          jobNumber,
+          serviceType: body.serviceType,
+          description: body.description,
+          urgency: body.urgency || 'NORMAL',
+          scheduledDate: body.scheduledDate ? new Date(body.scheduledDate) : null,
+          scheduledTimeSlot: body.scheduledTimeSlot,
+          customerId: body.customerId,
+          // Keep legacy technicianId for backwards compatibility (first technician)
+          technicianId: technicianIds[0] || null,
+          createdById: session.userId,
+          organizationId: session.organizationId,
+          // Create job assignments for all technicians
+          assignments: {
+            create: technicianIds.map((techId: string) => ({
+              technicianId: techId,
+            })),
+          },
         },
-      },
-      include: {
-        customer: true,
-        technician: {
-          select: { id: true, name: true },
+        include: {
+          customer: true,
+          technician: {
+            select: { id: true, name: true },
+          },
+          assignments: {
+            include: {
+              technician: {
+                select: { id: true, name: true },
+              },
+            },
+          },
         },
-        assignments: {
+      });
+    } catch (createError) {
+      // If assignments table doesn't exist, create without assignments
+      if (isTableNotFoundError(createError)) {
+        job = await prisma.job.create({
+          data: {
+            jobNumber,
+            serviceType: body.serviceType,
+            description: body.description,
+            urgency: body.urgency || 'NORMAL',
+            scheduledDate: body.scheduledDate ? new Date(body.scheduledDate) : null,
+            scheduledTimeSlot: body.scheduledTimeSlot,
+            customerId: body.customerId,
+            technicianId: technicianIds[0] || null,
+            createdById: session.userId,
+            organizationId: session.organizationId,
+          },
           include: {
+            customer: true,
             technician: {
               select: { id: true, name: true },
             },
           },
-        },
-      },
-    });
+        });
+      } else {
+        throw createError;
+      }
+    }
 
     return NextResponse.json({
       success: true,
