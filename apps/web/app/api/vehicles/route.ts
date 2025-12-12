@@ -50,14 +50,7 @@ export async function GET(request: NextRequest) {
             ],
           },
           include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                avatar: true,
-                phone: true,
-              },
-            },
+            user: true,
           },
         },
         documents: {
@@ -99,8 +92,20 @@ export async function GET(request: NextRequest) {
         alerts.push('registration_expiring');
       }
 
+      // Sanitize user data in assignments
+      const sanitizedAssignments = vehicle.assignments.map((assignment) => ({
+        ...assignment,
+        user: assignment.user ? {
+          id: assignment.user.id,
+          name: assignment.user.name,
+          avatar: assignment.user.avatar,
+          phone: assignment.user.phone,
+        } : null,
+      }));
+
       return {
         ...vehicle,
+        assignments: sanitizedAssignments,
         complianceAlerts: alerts,
         isCompliant: alerts.filter((a) => a.includes('expired')).length === 0,
       };
