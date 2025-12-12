@@ -256,7 +256,7 @@ export async function DELETE(
     }
 
     // Delete line items first
-    await prisma.invoiceLineItem.deleteMany({
+    await prisma.invoiceItem.deleteMany({
       where: { invoiceId: id },
     });
 
