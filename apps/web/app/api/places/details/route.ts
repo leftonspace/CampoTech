@@ -1,6 +1,7 @@
 /**
  * Places Details API Route
- * Proxies requests to Google Places Details API
+ * Proxies requests to Google Places API (New)
+ * https://developers.google.com/maps/documentation/places/web-service/place-details
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -37,26 +38,47 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const url = new URL('https://maps.googleapis.com/maps/api/place/details/json');
-    url.searchParams.set('place_id', placeId);
-    url.searchParams.set('key', apiKey);
-    url.searchParams.set('fields', 'formatted_address,geometry,address_components');
-    url.searchParams.set('language', 'es');
+    // Use Places API (New) - GET request with field mask header
+    const response = await fetch(
+      `https://places.googleapis.com/v1/places/${placeId}?languageCode=es`,
+      {
+        method: 'GET',
+        headers: {
+          'X-Goog-Api-Key': apiKey,
+          'X-Goog-FieldMask': 'id,displayName,formattedAddress,location,addressComponents',
+        },
+      }
+    );
 
-    const response = await fetch(url.toString());
     const data = await response.json();
 
-    if (data.status === 'OK' && data.result) {
+    if (response.ok) {
+      // Transform new API response to match legacy format for compatibility
+      const result = {
+        formatted_address: data.formattedAddress || '',
+        geometry: {
+          location: {
+            lat: data.location?.latitude || 0,
+            lng: data.location?.longitude || 0,
+          },
+        },
+        address_components: (data.addressComponents || []).map((component: any) => ({
+          long_name: component.longText || '',
+          short_name: component.shortText || '',
+          types: component.types || [],
+        })),
+      };
+
       return NextResponse.json({
         success: true,
-        result: data.result,
+        result,
       });
     }
 
-    console.error('Google Places Details API error:', data.status, data.error_message);
+    console.error('Google Places API (New) error:', data.error?.message || data);
     return NextResponse.json({
       success: false,
-      error: data.error_message || 'Failed to fetch place details',
+      error: data.error?.message || 'Failed to fetch place details',
     });
   } catch (error) {
     console.error('Places details error:', error);

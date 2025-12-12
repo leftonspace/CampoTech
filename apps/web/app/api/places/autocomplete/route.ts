@@ -1,6 +1,7 @@
 /**
  * Places Autocomplete API Route
- * Proxies requests to Google Places Autocomplete API
+ * Proxies requests to Google Places API (New)
+ * https://developers.google.com/maps/documentation/places/web-service/place-autocomplete
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -39,27 +40,47 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const url = new URL('https://maps.googleapis.com/maps/api/place/autocomplete/json');
-    url.searchParams.set('input', input);
-    url.searchParams.set('key', apiKey);
-    url.searchParams.set('types', 'address');
-    url.searchParams.set('components', `country:${country.toLowerCase()}`);
-    url.searchParams.set('language', 'es');
+    // Use Places API (New) - POST request with JSON body
+    const response = await fetch(
+      'https://places.googleapis.com/v1/places:autocomplete',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': apiKey,
+        },
+        body: JSON.stringify({
+          input: input,
+          includedRegionCodes: [country.toLowerCase()],
+          includedPrimaryTypes: ['street_address', 'subpremise', 'premise', 'route'],
+          languageCode: 'es',
+        }),
+      }
+    );
 
-    const response = await fetch(url.toString());
     const data = await response.json();
 
-    if (data.status === 'OK' || data.status === 'ZERO_RESULTS') {
+    if (response.ok) {
+      // Transform new API response to match legacy format for compatibility
+      const predictions = (data.suggestions || []).map((suggestion: any) => ({
+        place_id: suggestion.placePrediction?.placeId || '',
+        description: suggestion.placePrediction?.text?.text || '',
+        structured_formatting: {
+          main_text: suggestion.placePrediction?.structuredFormat?.mainText?.text || '',
+          secondary_text: suggestion.placePrediction?.structuredFormat?.secondaryText?.text || '',
+        },
+      }));
+
       return NextResponse.json({
         success: true,
-        predictions: data.predictions || [],
+        predictions,
       });
     }
 
-    console.error('Google Places API error:', data.status, data.error_message);
+    console.error('Google Places API (New) error:', data.error?.message || data);
     return NextResponse.json({
       success: false,
-      error: data.error_message || 'Failed to fetch suggestions',
+      error: data.error?.message || 'Failed to fetch suggestions',
       predictions: [],
     });
   } catch (error) {
