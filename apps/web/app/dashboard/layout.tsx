@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useAuth, ProtectedRoute } from '@/lib/auth-context';
 import { cn, getInitials } from '@/lib/utils';
 import { MODULE_ACCESS, type UserRole } from '@/lib/config/field-permissions';
+import { hasFeatureAccess, FEATURES, type FeatureId } from '@/lib/config/feature-flags';
+import { type SubscriptionTier } from '@/lib/config/tier-limits';
 import {
   LayoutDashboard,
   Briefcase,
@@ -24,23 +26,32 @@ import {
   Truck,
   Package,
   UsersRound,
+  Lock,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo } from 'react';
 
-// Navigation items with module mapping for access control
-const allNavigation = [
+// Navigation items with module mapping for access control and feature gating
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  module: string;
+  feature?: FeatureId; // Optional feature ID for tier-locked features
+}
+
+const allNavigation: NavItem[] = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, module: 'dashboard' },
-  { name: 'Mapa', href: '/dashboard/map', icon: MapPin, module: 'map' },
-  { name: 'Calendario', href: '/dashboard/calendar', icon: Calendar, module: 'calendar' },
+  { name: 'Mapa', href: '/dashboard/map', icon: MapPin, module: 'map', feature: 'live_tracking' },
+  { name: 'Calendario', href: '/dashboard/calendar', icon: Calendar, module: 'calendar', feature: 'calendar_view' },
   { name: 'Trabajos', href: '/dashboard/jobs', icon: Briefcase, module: 'jobs' },
   { name: 'Clientes', href: '/dashboard/customers', icon: Users, module: 'customers' },
-  { name: 'Flota', href: '/dashboard/fleet', icon: Truck, module: 'fleet' },
-  { name: 'Inventario', href: '/dashboard/inventory', icon: Package, module: 'inventory' },
-  { name: 'Equipo', href: '/dashboard/settings/team', icon: UsersRound, module: 'team' },
+  { name: 'Flota', href: '/dashboard/fleet', icon: Truck, module: 'fleet', feature: 'fleet_management' },
+  { name: 'Inventario', href: '/dashboard/inventory', icon: Package, module: 'inventory', feature: 'inventory_management' },
+  { name: 'Equipo', href: '/dashboard/settings/team', icon: UsersRound, module: 'team', feature: 'multi_user' },
   { name: 'Facturas', href: '/dashboard/invoices', icon: FileText, module: 'invoices' },
-  { name: 'Pagos', href: '/dashboard/payments', icon: CreditCard, module: 'payments' },
-  { name: 'Analytics', href: '/dashboard/analytics/overview', icon: BarChart3, module: 'analytics' },
-  { name: 'Sucursales', href: '/dashboard/locations', icon: Building2, module: 'locations' },
+  { name: 'Pagos', href: '/dashboard/payments', icon: CreditCard, module: 'payments', feature: 'mercado_pago' },
+  { name: 'Analytics', href: '/dashboard/analytics/overview', icon: BarChart3, module: 'analytics', feature: 'advanced_analytics' },
+  { name: 'Sucursales', href: '/dashboard/locations', icon: Building2, module: 'locations', feature: 'multi_location' },
   { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle, module: 'whatsapp' },
   { name: 'Configuracion', href: '/dashboard/settings', icon: Settings, module: 'settings' },
 ];
@@ -49,6 +60,27 @@ const allNavigation = [
 function canAccessModule(module: string, role: UserRole): boolean {
   const access = MODULE_ACCESS[module]?.[role];
   return access !== undefined && access !== 'hidden';
+}
+
+// Helper to check if feature is locked for a tier
+function isFeatureLocked(feature: FeatureId | undefined, tier: SubscriptionTier): boolean {
+  if (!feature) return false;
+  return !hasFeatureAccess(tier, feature);
+}
+
+// Helper to get the required tier name for a feature
+function getRequiredTierName(feature: FeatureId): string {
+  const featureConfig = FEATURES[feature];
+  if (!featureConfig) return '';
+
+  const tierNames: Record<SubscriptionTier, string> = {
+    FREE: 'Gratis',
+    BASICO: 'Basico',
+    PROFESIONAL: 'Profesional',
+    EMPRESARIAL: 'Empresarial',
+  };
+
+  return tierNames[featureConfig.minTier];
 }
 
 export default function DashboardLayout({
@@ -67,10 +99,21 @@ export default function DashboardLayout({
     return (user?.role?.toUpperCase() || 'VIEWER') as UserRole;
   }, [user?.role]);
 
-  // Filter navigation based on user role
+  // Get organization's subscription tier, defaulting to FREE
+  const subscriptionTier = useMemo(() => {
+    return (user?.organization?.subscriptionTier || 'FREE') as SubscriptionTier;
+  }, [user?.organization?.subscriptionTier]);
+
+  // Filter navigation based on user role, and add feature lock status
   const navigation = useMemo(() => {
-    return allNavigation.filter((item) => canAccessModule(item.module, userRole));
-  }, [userRole]);
+    return allNavigation
+      .filter((item) => canAccessModule(item.module, userRole))
+      .map((item) => ({
+        ...item,
+        isLocked: isFeatureLocked(item.feature, subscriptionTier),
+        requiredTier: item.feature ? getRequiredTierName(item.feature) : undefined,
+      }));
+  }, [userRole, subscriptionTier]);
 
   // Close notifications dropdown when clicking outside
   useEffect(() => {
@@ -122,6 +165,28 @@ export default function DashboardLayout({
                   const isActive =
                     pathname === item.href ||
                     (item.href !== '/dashboard' && pathname.startsWith(item.href));
+
+                  // If feature is locked, render a non-clickable item with lock icon
+                  if (item.isLocked) {
+                    return (
+                      <li key={item.name}>
+                        <div
+                          className="group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-400 cursor-not-allowed"
+                          title={`Disponible desde ${item.requiredTier}`}
+                        >
+                          <item.icon className="h-5 w-5" />
+                          <span className="flex-1">{item.name}</span>
+                          <Lock className="h-4 w-4 text-gray-400" />
+                          {/* Tooltip */}
+                          <div className="absolute left-full ml-2 hidden group-hover:block z-50">
+                            <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                              Disponible desde {item.requiredTier}
+                            </div>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  }
 
                   return (
                     <li key={item.name}>

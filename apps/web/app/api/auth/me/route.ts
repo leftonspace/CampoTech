@@ -38,6 +38,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Extract subscription tier from organization settings
+    const settings = user.organization.settings as Record<string, unknown> | null;
+    const subscriptionTier = (settings?.subscriptionTier as string) || 'FREE';
+
     return NextResponse.json({
       success: true,
       data: {
@@ -49,6 +53,7 @@ export async function GET(request: NextRequest) {
         organization: {
           id: user.organization.id,
           name: user.organization.name,
+          subscriptionTier,
         },
       },
     });
