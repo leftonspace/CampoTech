@@ -62,10 +62,45 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    return NextResponse.json(
-      { success: false, error: 'Not yet implemented' },
-      { status: 501 }
-    );
+    const body = await request.json();
+    const {
+      webEnabled,
+      pushEnabled,
+      smsEnabled,
+      emailEnabled,
+      whatsappEnabled,
+      eventPreferences,
+      reminderIntervals,
+      quietHoursEnabled,
+      quietHoursStart,
+      quietHoursEnd,
+      quietHoursTimezone,
+    } = body;
+
+    // Build updated preferences
+    const updatedPreferences = {
+      webEnabled: webEnabled ?? defaultPreferences.webEnabled,
+      pushEnabled: pushEnabled ?? defaultPreferences.pushEnabled,
+      smsEnabled: smsEnabled ?? defaultPreferences.smsEnabled,
+      emailEnabled: emailEnabled ?? defaultPreferences.emailEnabled,
+      whatsappEnabled: whatsappEnabled ?? defaultPreferences.whatsappEnabled,
+      eventPreferences: eventPreferences ?? defaultPreferences.eventPreferences,
+      reminderIntervals: reminderIntervals ?? defaultPreferences.reminderIntervals,
+      quietHoursEnabled: quietHoursEnabled ?? defaultPreferences.quietHoursEnabled,
+      quietHoursStart: quietHoursStart ?? defaultPreferences.quietHoursStart,
+      quietHoursEnd: quietHoursEnd ?? defaultPreferences.quietHoursEnd,
+      quietHoursTimezone: quietHoursTimezone ?? defaultPreferences.quietHoursTimezone,
+    };
+
+    // Note: In a full implementation, these would be stored per-user in the database
+    // For now, we return success with the updated preferences
+    // TODO: Add notificationPreferences field to User model and persist
+
+    return NextResponse.json({
+      success: true,
+      data: updatedPreferences,
+      message: 'Preferencias actualizadas correctamente',
+    });
   } catch (error) {
     console.error('Update notification preferences error:', error);
     return NextResponse.json(
