@@ -192,7 +192,10 @@ export async function GET(request: NextRequest) {
       const org = await prisma.organization.findUnique({
         where: { id: session.organizationId },
         select: {
-          headquarters: {
+          settings: true,
+          locations: {
+            where: { isActive: true, isHeadquarters: true },
+            take: 1,
             select: {
               coordinates: true,
             },
@@ -200,14 +203,20 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      if (org?.headquarters?.coordinates) {
-        const coords = org.headquarters.coordinates as { lat?: number; lng?: number };
+      // Try to get office location from settings first
+      const settings = org?.settings as { officeLocation?: { lat?: number; lng?: number } } | null;
+      if (settings?.officeLocation?.lat && settings?.officeLocation?.lng) {
+        officeLocation = { lat: settings.officeLocation.lat, lng: settings.officeLocation.lng };
+      }
+      // Fallback to headquarters location's coordinates
+      else if (org?.locations?.[0]?.coordinates) {
+        const coords = org.locations[0].coordinates as { lat?: number; lng?: number };
         if (coords.lat && coords.lng) {
           officeLocation = { lat: coords.lat, lng: coords.lng };
         }
       }
     } catch {
-      // Headquarters relation might not exist
+      // Settings or locations might not have coordinates
     }
 
     let customers: CustomerLocation[] = [];
