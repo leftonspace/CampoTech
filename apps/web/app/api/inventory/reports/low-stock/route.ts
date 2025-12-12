@@ -56,9 +56,9 @@ export async function GET(request: NextRequest) {
       warehouseName: string;
       quantityOnHand: number;
       quantityAvailable: number;
-      reorderPoint: number;
+      reorderPoint: number;  // Uses minStockLevel as reorder point
       minStockLevel: number;
-      reorderQuantity: number;
+      reorderQty: number;
       severity: 'critical' | 'warning';
       deficit: number;
       estimatedCost: number;
@@ -69,8 +69,8 @@ export async function GET(request: NextRequest) {
       const totalOnHand = product.inventoryLevels.reduce((sum, l) => sum + l.quantityOnHand, 0);
       const totalAvailable = product.inventoryLevels.reduce((sum, l) => sum + l.quantityAvailable, 0);
 
-      // Check for low stock at product level
-      const isAtOrBelowReorder = totalAvailable <= product.reorderPoint;
+      // Check for low stock at product level (minStockLevel serves as reorder point)
+      const isAtOrBelowReorder = totalAvailable <= product.minStockLevel;
       const isBelowMin = totalAvailable < product.minStockLevel;
       const isCritical = isBelowMin || totalAvailable === 0;
 
@@ -87,12 +87,12 @@ export async function GET(request: NextRequest) {
             warehouseName: 'Sin stock',
             quantityOnHand: 0,
             quantityAvailable: 0,
-            reorderPoint: product.reorderPoint,
+            reorderPoint: product.minStockLevel,
             minStockLevel: product.minStockLevel,
-            reorderQuantity: product.reorderQuantity,
+            reorderQty: product.reorderQty || 0,
             severity: 'critical',
-            deficit: product.reorderPoint,
-            estimatedCost: product.reorderQuantity * Number(product.costPrice),
+            deficit: product.minStockLevel,
+            estimatedCost: (product.reorderQty || 0) * Number(product.costPrice),
           });
         } else {
           for (const level of product.inventoryLevels) {
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
             if (severity === 'critical' && warehouseSeverity !== 'critical') continue;
             if (severity === 'warning' && warehouseSeverity !== 'warning') continue;
 
-            const deficit = Math.max(0, product.reorderPoint - level.quantityAvailable);
+            const deficit = Math.max(0, product.minStockLevel - level.quantityAvailable);
 
             alerts.push({
               productId: product.id,
@@ -112,12 +112,12 @@ export async function GET(request: NextRequest) {
               warehouseName: level.warehouse?.name || 'Sin almacén',
               quantityOnHand: level.quantityOnHand,
               quantityAvailable: level.quantityAvailable,
-              reorderPoint: product.reorderPoint,
+              reorderPoint: product.minStockLevel,
               minStockLevel: product.minStockLevel,
-              reorderQuantity: product.reorderQuantity,
+              reorderQty: product.reorderQty || 0,
               severity: warehouseSeverity,
               deficit,
-              estimatedCost: product.reorderQuantity * Number(product.costPrice),
+              estimatedCost: (product.reorderQty || 0) * Number(product.costPrice),
             });
           }
         }
@@ -172,14 +172,15 @@ export async function GET(request: NextRequest) {
       .reduce((acc, alert) => {
         const existing = acc.find((item) => item.productId === alert.productId);
         if (existing) {
-          existing.quantity = Math.max(existing.quantity, alert.reorderQuantity);
+          existing.quantity = Math.max(existing.quantity, alert.reorderQty || alert.deficit);
         } else {
+          const qty = alert.reorderQty || alert.deficit;
           acc.push({
             productId: alert.productId,
             sku: alert.sku,
             name: alert.name,
-            quantity: alert.reorderQuantity,
-            unitCost: alert.estimatedCost / alert.reorderQuantity,
+            quantity: qty,
+            unitCost: qty > 0 ? alert.estimatedCost / qty : 0,
             totalCost: alert.estimatedCost,
           });
         }
