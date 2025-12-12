@@ -293,9 +293,8 @@ export function useLocationReporter(options: UseLocationReporterOptions = {}) {
     if (!includeBatteryLevel) return {};
 
     try {
-      // @ts-expect-error - Battery API may not be available in all browsers
       if ('getBattery' in navigator) {
-        // @ts-expect-error - Battery API
+        // @ts-expect-error - Battery API not in standard TypeScript DOM types
         const battery = await navigator.getBattery();
         return {
           level: Math.round(battery.level * 100),
