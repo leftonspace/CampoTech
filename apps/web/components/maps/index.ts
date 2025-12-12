@@ -35,3 +35,8 @@ export type { Position, AnimationOptions } from './marker-animation';
 
 // Components
 export { default as TrackingMap } from './TrackingMap';
+export { MapLayerControls } from './MapLayerControls';
+export type { MapLayerState } from './MapLayerControls';
+export { MapFiltersPanel } from './MapFiltersPanel';
+export type { MapFilters } from './MapFiltersPanel';
+export { ItineraryPanel } from './ItineraryPanel';
