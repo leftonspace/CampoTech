@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { cn, formatAddress } from '@/lib/utils';
 import {
   ArrowLeft,
   Building2,
@@ -239,7 +239,7 @@ export default function LocationDetailPage() {
                 <MapPin className="mt-0.5 h-5 w-5 text-gray-400" />
                 <div>
                   <p className="text-sm text-gray-500">Dirección</p>
-                  <p className="text-gray-900">{location.address}</p>
+                  <p className="text-gray-900">{formatAddress(location.address)}</p>
                 </div>
               </div>
             )}
@@ -261,7 +261,7 @@ export default function LocationDetailPage() {
                 </div>
               </div>
             )}
-            {location.coordinates && (
+            {location.coordinates && typeof location.coordinates.lat === 'number' && typeof location.coordinates.lng === 'number' && (
               <div className="flex items-start gap-3">
                 <Globe className="mt-0.5 h-5 w-5 text-gray-400" />
                 <div>
