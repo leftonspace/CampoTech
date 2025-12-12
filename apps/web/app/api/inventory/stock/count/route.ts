@@ -102,7 +102,6 @@ export async function POST(request: NextRequest) {
         },
         include: {
           warehouse: { select: { id: true, name: true, code: true } },
-          assignedTo: { select: { id: true, name: true } },
           _count: { select: { items: true } },
         },
       });
@@ -518,13 +517,7 @@ export async function GET(request: NextRequest) {
         },
         include: {
           warehouse: { select: { id: true, name: true, code: true } },
-          assignedTo: { select: { id: true, name: true } },
-          completedBy: { select: { id: true, name: true } },
-          approvedBy: { select: { id: true, name: true } },
           items: {
-            include: {
-              inventoryCount: false,
-            },
             orderBy: { createdAt: 'asc' },
           },
         },
@@ -578,7 +571,6 @@ export async function GET(request: NextRequest) {
         where,
         include: {
           warehouse: { select: { id: true, name: true, code: true } },
-          assignedTo: { select: { id: true, name: true } },
           _count: { select: { items: true } },
         },
         orderBy: { createdAt: 'desc' },
