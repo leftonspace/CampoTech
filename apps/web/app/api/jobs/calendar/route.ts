@@ -73,6 +73,18 @@ export async function GET(request: NextRequest) {
             specialty: true,
           },
         },
+        assignments: {
+          include: {
+            technician: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+                specialty: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { scheduledDate: 'asc' },
     });
@@ -155,6 +167,17 @@ export async function GET(request: NextRequest) {
                 specialty: job.technician.specialty,
               }
             : null,
+          assignments: job.assignments.map((a) => ({
+            id: a.id,
+            technician: a.technician
+              ? {
+                  id: a.technician.id,
+                  name: a.technician.name,
+                  avatar: a.technician.avatar,
+                  specialty: a.technician.specialty,
+                }
+              : null,
+          })),
           estimatedDuration: job.estimatedDuration,
           scheduledTimeSlot: timeSlot,
         },
