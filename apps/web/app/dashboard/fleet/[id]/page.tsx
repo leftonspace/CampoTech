@@ -89,6 +89,53 @@ interface TeamMember {
   role: string;
 }
 
+interface InventoryItem {
+  id: string;
+  item: {
+    id: string;
+    sku: string;
+    name: string;
+    description: string | null;
+    category: string;
+    unit: string;
+    minStockLevel: number;
+    costPrice: number;
+    salePrice: number;
+    imageUrl: string | null;
+  };
+  quantity: number;
+  value: number;
+  status: 'OK' | 'LOW' | 'OUT';
+  lastCountedAt: string | null;
+}
+
+interface VehicleInventory {
+  vehicle: { id: string; plateNumber: string; make: string; model: string };
+  location: { id: string; name: string; isActive: boolean } | null;
+  items: InventoryItem[];
+  summary: {
+    totalItems: number;
+    totalValue: number;
+    lowStockItems: number;
+    outOfStockItems: number;
+  };
+  alerts: Array<{
+    itemId: string;
+    itemName: string;
+    quantity: number;
+    minLevel: number;
+    status: 'LOW' | 'OUT';
+  }>;
+}
+
+interface AvailableItem {
+  id: string;
+  sku: string;
+  name: string;
+  category: string;
+  unit: string;
+}
+
 const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
   ACTIVE: { label: 'Activo', color: 'text-green-700', bgColor: 'bg-green-100' },
   MAINTENANCE: { label: 'Mantenimiento', color: 'text-amber-700', bgColor: 'bg-amber-100' },
@@ -164,6 +211,18 @@ async function fetchTeamMembers(): Promise<{ success: boolean; data: { members: 
   return res.json();
 }
 
+async function fetchVehicleInventory(vehicleId: string): Promise<{ success: boolean; data: VehicleInventory }> {
+  const res = await fetch(`/api/vehicles/${vehicleId}/inventory`);
+  if (!res.ok) throw new Error('Error cargando inventario');
+  return res.json();
+}
+
+async function fetchAvailableItems(): Promise<{ success: boolean; data: { items: AvailableItem[] } }> {
+  const res = await fetch('/api/inventory/items?isActive=true');
+  if (!res.ok) throw new Error('Error cargando artículos');
+  return res.json();
+}
+
 export default function VehicleDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -177,6 +236,7 @@ export default function VehicleDetailPage() {
   const [showDocumentModal, setShowDocumentModal] = useState(false);
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
   const [showDriverModal, setShowDriverModal] = useState(false);
+  const [showInventoryModal, setShowInventoryModal] = useState(false);
 
   // Form states
   const [documentForm, setDocumentForm] = useState({
@@ -201,6 +261,12 @@ export default function VehicleDetailPage() {
   const [selectedDriverId, setSelectedDriverId] = useState('');
   const [isPrimaryDriver, setIsPrimaryDriver] = useState(false);
 
+  const [inventoryForm, setInventoryForm] = useState({
+    itemId: '',
+    quantity: '',
+    action: 'set' as 'set' | 'add' | 'remove',
+  });
+
   const { data, isLoading, error } = useQuery({
     queryKey: ['vehicle', vehicleId],
     queryFn: () => fetchVehicle(vehicleId),
@@ -209,6 +275,18 @@ export default function VehicleDetailPage() {
   const { data: teamData } = useQuery({
     queryKey: ['team'],
     queryFn: fetchTeamMembers,
+  });
+
+  const { data: inventoryData, isLoading: inventoryLoading } = useQuery({
+    queryKey: ['vehicle-inventory', vehicleId],
+    queryFn: () => fetchVehicleInventory(vehicleId),
+    enabled: activeTab === 'inventory',
+  });
+
+  const { data: availableItemsData } = useQuery({
+    queryKey: ['inventory-items'],
+    queryFn: fetchAvailableItems,
+    enabled: showInventoryModal,
   });
 
   const deleteMutation = useMutation({
@@ -297,6 +375,38 @@ export default function VehicleDetailPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicle', vehicleId] });
+    },
+  });
+
+  // Inventory mutation
+  const inventoryMutation = useMutation({
+    mutationFn: async (data: typeof inventoryForm) => {
+      const res = await fetch(`/api/vehicles/${vehicleId}/inventory`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error('Error actualizando inventario');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicle-inventory', vehicleId] });
+      setShowInventoryModal(false);
+      setInventoryForm({ itemId: '', quantity: '', action: 'set' });
+    },
+  });
+
+  // Remove item from inventory mutation
+  const removeInventoryMutation = useMutation({
+    mutationFn: async (stockId: string) => {
+      const res = await fetch(`/api/vehicles/${vehicleId}/inventory?stockId=${stockId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Error eliminando artículo');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['vehicle-inventory', vehicleId] });
     },
   });
 
@@ -510,6 +620,22 @@ export default function VehicleDetailPage() {
             <Users className="h-4 w-4 inline-block mr-2" />
             Conductores ({vehicle.assignments.length})
           </button>
+          <button
+            onClick={() => setActiveTab('inventory')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === 'inventory'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            <Package className="h-4 w-4 inline-block mr-2" />
+            Inventario
+            {inventoryData?.data?.summary?.lowStockItems ? (
+              <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
+                {inventoryData.data.summary.lowStockItems}
+              </span>
+            ) : null}
+          </button>
         </nav>
       </div>
 
@@ -684,6 +810,135 @@ export default function VehicleDetailPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === 'inventory' && (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900">Inventario del Vehículo</h3>
+              <button
+                onClick={() => setShowInventoryModal(true)}
+                className="inline-flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
+              >
+                <Plus className="h-4 w-4" />
+                Agregar Artículo
+              </button>
+            </div>
+
+            {/* Low Stock Alerts */}
+            {inventoryData?.data?.alerts && inventoryData.data.alerts.length > 0 && (
+              <div className="mb-4 rounded-lg bg-amber-50 border border-amber-200 p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-medium text-amber-800">Alertas de Stock Bajo</h4>
+                    <ul className="mt-1 text-sm text-amber-700 list-disc list-inside">
+                      {inventoryData.data.alerts.map((alert) => (
+                        <li key={alert.itemId}>
+                          {alert.itemName}: {alert.quantity} unidades
+                          {alert.status === 'OUT' ? ' (Agotado)' : ` (Mín: ${alert.minLevel})`}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Summary Cards */}
+            {inventoryData?.data?.summary && (
+              <div className="grid grid-cols-4 gap-4 mb-6">
+                <div className="rounded-lg bg-gray-50 p-4">
+                  <p className="text-sm text-gray-500">Total Artículos</p>
+                  <p className="text-2xl font-bold text-gray-900">{inventoryData.data.summary.totalItems}</p>
+                </div>
+                <div className="rounded-lg bg-gray-50 p-4">
+                  <p className="text-sm text-gray-500">Valor Total</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    ${inventoryData.data.summary.totalValue.toLocaleString('es-AR')}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-amber-50 p-4">
+                  <p className="text-sm text-amber-600">Stock Bajo</p>
+                  <p className="text-2xl font-bold text-amber-700">{inventoryData.data.summary.lowStockItems}</p>
+                </div>
+                <div className="rounded-lg bg-red-50 p-4">
+                  <p className="text-sm text-red-600">Agotados</p>
+                  <p className="text-2xl font-bold text-red-700">{inventoryData.data.summary.outOfStockItems}</p>
+                </div>
+              </div>
+            )}
+
+            {inventoryLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+              </div>
+            ) : !inventoryData?.data?.items?.length ? (
+              <div className="text-center py-8 text-gray-500">
+                <Package className="mx-auto h-12 w-12 text-gray-300" />
+                <p className="mt-2">No hay artículos en el inventario del vehículo</p>
+                <p className="text-sm">Agrega artículos para llevar control del stock en este vehículo.</p>
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-lg border">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Artículo</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">SKU</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Cantidad</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Estado</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor</th>
+                      <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {inventoryData.data.items.map((stock) => (
+                      <tr key={stock.id} className={stock.status !== 'OK' ? 'bg-amber-50/50' : ''}>
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-gray-900">{stock.item.name}</p>
+                          <p className="text-xs text-gray-500">{stock.item.category}</p>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-500 font-mono">{stock.item.sku}</td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="font-medium text-gray-900">{stock.quantity}</span>
+                          <span className="text-gray-500 text-sm ml-1">{stock.item.unit}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {stock.status === 'OK' && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded">
+                              OK
+                            </span>
+                          )}
+                          {stock.status === 'LOW' && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded">
+                              Stock Bajo
+                            </span>
+                          )}
+                          {stock.status === 'OUT' && (
+                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-red-100 text-red-700 rounded">
+                              Agotado
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right text-sm text-gray-900">
+                          ${stock.value.toLocaleString('es-AR')}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button
+                            onClick={() => removeInventoryMutation.mutate(stock.id)}
+                            className="text-red-600 hover:text-red-700 text-sm"
+                          >
+                            Eliminar
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -984,6 +1239,78 @@ export default function VehicleDetailPage() {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Inventory Modal */}
+      {showInventoryModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Agregar Artículo al Inventario</h3>
+              <button onClick={() => setShowInventoryModal(false)} className="text-gray-400 hover:text-gray-500">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); inventoryMutation.mutate(inventoryForm); }} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Artículo</label>
+                <select
+                  value={inventoryForm.itemId}
+                  onChange={(e) => setInventoryForm({ ...inventoryForm, itemId: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:ring-primary-500"
+                  required
+                >
+                  <option value="">Seleccione un artículo</option>
+                  {availableItemsData?.data?.items?.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} ({item.sku})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Acción</label>
+                <select
+                  value={inventoryForm.action}
+                  onChange={(e) => setInventoryForm({ ...inventoryForm, action: e.target.value as 'set' | 'add' | 'remove' })}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:ring-primary-500"
+                >
+                  <option value="set">Establecer cantidad</option>
+                  <option value="add">Agregar a existente</option>
+                  <option value="remove">Restar de existente</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Cantidad</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={inventoryForm.quantity}
+                  onChange={(e) => setInventoryForm({ ...inventoryForm, quantity: e.target.value })}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-primary-500 focus:ring-primary-500"
+                  placeholder="0"
+                  required
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowInventoryModal(false)}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={inventoryMutation.isPending || !inventoryForm.itemId}
+                  className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {inventoryMutation.isPending ? 'Guardando...' : 'Guardar'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
