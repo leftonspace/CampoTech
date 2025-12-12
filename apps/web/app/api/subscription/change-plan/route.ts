@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { subscriptionManager } from '@/lib/services/subscription-manager';
 import { SubscriptionTier, getTierOrder } from '@/lib/config/tier-limits';
-import { auditLog } from '@/lib/services/audit-log';
+import { logAuditEntry } from '@/lib/audit/logger';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -81,15 +81,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Log the action
-    await auditLog.log({
-      orgId: session.organizationId,
+    await logAuditEntry({
+      organizationId: session.organizationId,
       userId: session.userId,
-      action: isUpgrade ? 'subscription.upgrade_requested' : 'subscription.downgrade_requested',
+      userRole: session.role || 'OWNER',
+      action: 'UPDATE',
       entityType: 'subscription',
       entityId: session.organizationId,
-      newData: {
-        currentTier,
-        newTier,
+      oldValue: currentTier,
+      newValue: newTier,
+      fieldChanged: 'tier',
+      metadata: {
+        isUpgrade,
+        isDowngrade,
         immediate,
       },
     });
