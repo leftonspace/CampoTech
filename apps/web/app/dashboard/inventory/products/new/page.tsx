@@ -4,12 +4,51 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { ArrowLeft, Package, Tag, Barcode, DollarSign } from 'lucide-react';
+import { ArrowLeft, Package, Tag, Barcode, DollarSign, Boxes } from 'lucide-react';
 
 interface Category {
   id: string;
   name: string;
 }
+
+// Format number with thousand separators for display
+const formatCurrency = (value: string): string => {
+  // Remove all non-numeric except decimal point
+  const numericValue = value.replace(/[^\d.]/g, '');
+  if (!numericValue) return '';
+
+  const parts = numericValue.split('.');
+  const integerPart = parts[0];
+  const decimalPart = parts[1];
+
+  // Add thousand separators
+  const formatted = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+  if (decimalPart !== undefined) {
+    return `${formatted},${decimalPart.slice(0, 2)}`;
+  }
+  return formatted;
+};
+
+// Parse formatted currency back to number string
+const parseCurrency = (formatted: string): string => {
+  // Remove thousand separators (.) and replace decimal comma with point
+  return formatted.replace(/\./g, '').replace(',', '.');
+};
+
+// Format on blur to always show 2 decimals
+const formatOnBlur = (value: string): string => {
+  const parsed = parseCurrency(value);
+  const num = parseFloat(parsed);
+  if (isNaN(num)) return '';
+
+  // Format with 2 decimals
+  const formatted = num.toLocaleString('es-AR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return formatted;
+};
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -24,11 +63,16 @@ export default function NewProductPage() {
     categoryId: '',
     salePrice: '',
     costPrice: '',
-    minStock: '0',
+    minStock: '',
     maxStock: '',
     unitOfMeasure: 'UNIT',
+    unitsPerPackage: '',
     isActive: true,
   });
+
+  // Display values for formatted inputs
+  const [displaySalePrice, setDisplaySalePrice] = useState('');
+  const [displayCostPrice, setDisplayCostPrice] = useState('');
 
   const { data: categoriesData } = useQuery({
     queryKey: ['product-categories'],
@@ -40,11 +84,29 @@ export default function NewProductPage() {
 
   const categories = categoriesData?.data?.categories as Category[] | undefined;
 
+  // Check if unit requires package quantity
+  const showUnitsPerPackage = ['BOX', 'PACK', 'PALLET'].includes(formData.unitOfMeasure);
+
+  const handlePriceChange = (field: 'salePrice' | 'costPrice', value: string, setDisplay: (v: string) => void) => {
+    // Allow only numbers, dots for thousands, comma for decimals
+    const cleaned = value.replace(/[^\d.,]/g, '');
+    setDisplay(formatCurrency(cleaned));
+    setFormData({ ...formData, [field]: parseCurrency(cleaned) });
+  };
+
+  const handlePriceBlur = (field: 'salePrice' | 'costPrice', setDisplay: (v: string) => void) => {
+    const value = formData[field];
+    if (value) {
+      const formatted = formatOnBlur(value);
+      setDisplay(formatted);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.name || !formData.sku || !formData.salePrice || !formData.costPrice) {
-      setError('Completá todos los campos requeridos');
+      setError('Completa todos los campos requeridos');
       return;
     }
 
@@ -63,9 +125,10 @@ export default function NewProductPage() {
           categoryId: formData.categoryId || undefined,
           salePrice: parseFloat(formData.salePrice),
           costPrice: parseFloat(formData.costPrice),
-          minStock: parseInt(formData.minStock) || 0,
+          minStock: formData.minStock ? parseInt(formData.minStock) : 0,
           maxStock: formData.maxStock ? parseInt(formData.maxStock) : undefined,
           unitOfMeasure: formData.unitOfMeasure,
+          unitsPerPackage: formData.unitsPerPackage ? parseInt(formData.unitsPerPackage) : undefined,
           isActive: formData.isActive,
         }),
       });
@@ -78,7 +141,7 @@ export default function NewProductPage() {
         setError(data.error || 'Error al crear el producto');
       }
     } catch (err) {
-      setError('Error de conexión');
+      setError('Error de conexion');
     }
 
     setIsSubmitting(false);
@@ -95,6 +158,11 @@ export default function NewProductPage() {
       .padStart(4, '0');
     setFormData({ ...formData, sku: `${prefix}-${random}` });
   };
+
+  // Calculate margin
+  const margin = formData.salePrice && formData.costPrice
+    ? (((parseFloat(formData.salePrice) - parseFloat(formData.costPrice)) / parseFloat(formData.salePrice)) * 100).toFixed(1)
+    : null;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -228,7 +296,7 @@ export default function NewProductPage() {
                   <select
                     id="unitOfMeasure"
                     value={formData.unitOfMeasure}
-                    onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, unitOfMeasure: e.target.value, unitsPerPackage: '' })}
                     className="input pl-10"
                   >
                     <option value="UNIT">Unidad</option>
@@ -237,10 +305,37 @@ export default function NewProductPage() {
                     <option value="MT">Metro</option>
                     <option value="M2">Metro cuadrado</option>
                     <option value="BOX">Caja</option>
+                    <option value="PACK">Pack</option>
+                    <option value="PALLET">Pallet</option>
                   </select>
                 </div>
               </div>
             </div>
+
+            {/* Units per package - shown when BOX, PACK or PALLET is selected */}
+            {showUnitsPerPackage && (
+              <div className="rounded-lg border border-primary-200 bg-primary-50 p-4">
+                <label htmlFor="unitsPerPackage" className="label mb-1 flex items-center gap-2">
+                  <Boxes className="h-4 w-4 text-primary-600" />
+                  Unidades por {formData.unitOfMeasure === 'BOX' ? 'caja' : formData.unitOfMeasure === 'PACK' ? 'pack' : 'pallet'}
+                </label>
+                <input
+                  id="unitsPerPackage"
+                  type="text"
+                  inputMode="numeric"
+                  value={formData.unitsPerPackage}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setFormData({ ...formData, unitsPerPackage: val });
+                  }}
+                  placeholder="Ej: 20 (unidades dentro de cada caja)"
+                  className="input"
+                />
+                <p className="mt-2 text-xs text-primary-700">
+                  Esto permite calcular el total de unidades. Ej: 10 cajas x 20 unidades = 200 unidades totales
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -253,20 +348,19 @@ export default function NewProductPage() {
                 Precio de venta *
               </label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-500">$</span>
                 <input
                   id="salePrice"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.salePrice}
-                  onChange={(e) => setFormData({ ...formData, salePrice: e.target.value })}
-                  placeholder="0.00"
-                  className="input pl-10"
+                  type="text"
+                  inputMode="decimal"
+                  value={displaySalePrice}
+                  onChange={(e) => handlePriceChange('salePrice', e.target.value, setDisplaySalePrice)}
+                  onBlur={() => handlePriceBlur('salePrice', setDisplaySalePrice)}
+                  placeholder="0,00"
+                  className="input pl-8 pr-14"
                   required
-                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el precio de venta')}
-                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                 />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">ARS</span>
               </div>
             </div>
 
@@ -275,45 +369,48 @@ export default function NewProductPage() {
                 Costo *
               </label>
               <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-500">$</span>
                 <input
                   id="costPrice"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.costPrice}
-                  onChange={(e) => setFormData({ ...formData, costPrice: e.target.value })}
-                  placeholder="0.00"
-                  className="input pl-10"
+                  type="text"
+                  inputMode="decimal"
+                  value={displayCostPrice}
+                  onChange={(e) => handlePriceChange('costPrice', e.target.value, setDisplayCostPrice)}
+                  onBlur={() => handlePriceBlur('costPrice', setDisplayCostPrice)}
+                  placeholder="0,00"
+                  className="input pl-8 pr-14"
                   required
-                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el costo')}
-                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                 />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">ARS</span>
               </div>
             </div>
           </div>
 
-          {formData.salePrice && formData.costPrice && (
+          {margin && parseFloat(margin) > 0 && (
             <div className="mt-2 text-sm text-gray-500">
-              Margen: {(((parseFloat(formData.salePrice) - parseFloat(formData.costPrice)) / parseFloat(formData.salePrice)) * 100).toFixed(1)}%
+              Margen: <span className="font-medium text-green-600">{margin}%</span>
             </div>
           )}
         </div>
 
         {/* Stock settings */}
         <div>
-          <h3 className="mb-4 font-medium text-gray-900">Configuración de stock</h3>
+          <h3 className="mb-4 font-medium text-gray-900">Configuracion de stock</h3>
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="minStock" className="label mb-1 block">
-                Stock mínimo
+                Stock minimo
               </label>
               <input
                 id="minStock"
-                type="number"
-                min="0"
+                type="text"
+                inputMode="numeric"
                 value={formData.minStock}
-                onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  setFormData({ ...formData, minStock: val });
+                }}
+                placeholder="0"
                 className="input"
               />
               <p className="mt-1 text-xs text-gray-500">
@@ -323,18 +420,22 @@ export default function NewProductPage() {
 
             <div>
               <label htmlFor="maxStock" className="label mb-1 block">
-                Stock máximo
+                Stock maximo
               </label>
               <input
                 id="maxStock"
-                type="number"
-                min="0"
+                type="text"
+                inputMode="numeric"
                 value={formData.maxStock}
-                onChange={(e) => setFormData({ ...formData, maxStock: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  setFormData({ ...formData, maxStock: val });
+                }}
+                placeholder="Opcional"
                 className="input"
               />
               <p className="mt-1 text-xs text-gray-500">
-                Nivel óptimo de stock (opcional)
+                Nivel optimo de stock (opcional)
               </p>
             </div>
           </div>
