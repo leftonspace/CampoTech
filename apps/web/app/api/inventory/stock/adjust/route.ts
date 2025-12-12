@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
     if (direction === 'OUT' && inventoryLevel) {
       if (inventoryLevel.quantityOnHand < absQuantity) {
         // Check if warehouse allows negative stock
-        if (!warehouse.allowNegativeStock) {
+        if (!warehouse.allowNegative) {
           return NextResponse.json(
             { success: false, error: `Stock insuficiente. Disponible: ${inventoryLevel.quantityOnHand}` },
             { status: 400 }

@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (sourceLevel.quantityAvailable < quantity) {
-      if (!fromWarehouse.allowNegativeStock) {
+      if (!fromWarehouse.allowNegative) {
         return NextResponse.json(
           { success: false, error: `Stock disponible insuficiente. Disponible: ${sourceLevel.quantityAvailable}` },
           { status: 400 }
