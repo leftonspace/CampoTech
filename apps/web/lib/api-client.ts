@@ -294,6 +294,8 @@ export const api = {
       apiRequest(`/jobs/${id}/status`, { method: 'PATCH', body: { status } }),
     assign: (id: string, userId: string) =>
       apiRequest(`/jobs/${id}/assign`, { method: 'PATCH', body: { userId } }),
+    unassign: (id: string, userId: string) =>
+      apiRequest(`/jobs/${id}/unassign`, { method: 'PATCH', body: { userId } }),
     today: () => apiRequest<unknown[]>('/jobs/today'),
     calendar: (start: string, end: string) =>
       apiRequest<unknown[]>(`/jobs/calendar?start=${start}&end=${end}`),

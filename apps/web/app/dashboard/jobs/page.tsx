@@ -5,11 +5,25 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
-import { cn, formatDate, JOB_STATUS_LABELS, JOB_STATUS_COLORS } from '@/lib/utils';
-import { Plus, Search, Filter, Calendar, List, ChevronRight } from 'lucide-react';
+import { cn, formatDate, JOB_STATUS_LABELS, JOB_STATUS_COLORS, searchMatchesAny } from '@/lib/utils';
+import { Plus, Search, Filter, Calendar, List, ChevronRight, X, Users, Wrench, AlertTriangle } from 'lucide-react';
 import { Job } from '@/types';
 
 type ViewMode = 'list' | 'calendar';
+
+const PRIORITY_LABELS: Record<string, string> = {
+  low: 'Baja',
+  normal: 'Normal',
+  high: 'Alta',
+  urgent: 'Urgente',
+};
+
+const PRIORITY_COLORS: Record<string, string> = {
+  low: 'bg-gray-100 text-gray-800',
+  normal: 'bg-blue-100 text-blue-800',
+  high: 'bg-orange-100 text-orange-800',
+  urgent: 'bg-red-100 text-red-800',
+};
 
 export default function JobsPage() {
   const searchParams = useSearchParams();
@@ -18,18 +32,50 @@ export default function JobsPage() {
   const [statusFilter, setStatusFilter] = useState<string>(
     searchParams.get('status') || ''
   );
+  const [priorityFilter, setPriorityFilter] = useState<string>('');
+  const [showFilters, setShowFilters] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ['jobs', { search, status: statusFilter }],
+    queryKey: ['jobs', { status: statusFilter }],
     queryFn: () => {
       const params: Record<string, string> = {};
-      if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
       return api.jobs.list(params);
     },
   });
 
-  const jobs = data?.data as Job[] | undefined;
+  const allJobs = data?.data as Job[] | undefined;
+
+  // Client-side filtering with accent-insensitive search
+  const jobs = allJobs?.filter((job) => {
+    // Search filter - searches across multiple fields
+    if (search) {
+      const searchFields = [
+        job.jobNumber,
+        job.title,
+        job.description,
+        job.customer?.name,
+        job.customer?.phone,
+        job.address,
+        job.serviceType,
+        ...(job.assignments?.map(a => a.technician?.name) || []),
+      ];
+      if (!searchMatchesAny(searchFields, search)) return false;
+    }
+
+    // Priority filter
+    if (priorityFilter && job.priority !== priorityFilter) return false;
+
+    return true;
+  });
+
+  const hasActiveFilters = search || statusFilter || priorityFilter;
+
+  const clearFilters = () => {
+    setSearch('');
+    setStatusFilter('');
+    setPriorityFilter('');
+  };
 
   return (
     <div className="space-y-6">
@@ -47,61 +93,111 @@ export default function JobsPage() {
 
       {/* Filters */}
       <div className="card p-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-          {/* Search */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar trabajos..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input pl-10"
-            />
-          </div>
+        <div className="flex flex-col gap-4">
+          {/* Main row */}
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar por cliente, técnico, descripción, dirección..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="input pl-10"
+              />
+            </div>
 
-          {/* Status filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="input w-full sm:w-auto"
-          >
-            <option value="">Todos los estados</option>
-            <option value="pending">Pendiente</option>
-            <option value="scheduled">Programado</option>
-            <option value="en_camino">En camino</option>
-            <option value="working">En trabajo</option>
-            <option value="completed">Completado</option>
-            <option value="cancelled">Cancelado</option>
-          </select>
-
-          {/* View mode toggle */}
-          <div className="flex rounded-md border">
+            {/* Filter toggle */}
             <button
-              onClick={() => setViewMode('list')}
+              onClick={() => setShowFilters(!showFilters)}
               className={cn(
-                'flex items-center gap-1 px-3 py-2 text-sm',
-                viewMode === 'list'
-                  ? 'bg-primary-50 text-primary-600'
-                  : 'text-gray-600 hover:bg-gray-50'
+                'btn-outline',
+                hasActiveFilters && 'border-primary-500 text-primary-600'
               )}
             >
-              <List className="h-4 w-4" />
-              Lista
-            </button>
-            <button
-              onClick={() => setViewMode('calendar')}
-              className={cn(
-                'flex items-center gap-1 px-3 py-2 text-sm',
-                viewMode === 'calendar'
-                  ? 'bg-primary-50 text-primary-600'
-                  : 'text-gray-600 hover:bg-gray-50'
+              <Filter className="mr-2 h-4 w-4" />
+              Filtros
+              {hasActiveFilters && (
+                <span className="ml-2 rounded-full bg-primary-500 px-2 py-0.5 text-xs text-white">
+                  {[statusFilter, priorityFilter].filter(Boolean).length + (search ? 1 : 0)}
+                </span>
               )}
-            >
-              <Calendar className="h-4 w-4" />
-              Calendario
             </button>
+
+            {/* View mode toggle */}
+            <div className="flex rounded-md border">
+              <button
+                onClick={() => setViewMode('list')}
+                className={cn(
+                  'flex items-center gap-1 px-3 py-2 text-sm',
+                  viewMode === 'list'
+                    ? 'bg-primary-50 text-primary-600'
+                    : 'text-gray-600 hover:bg-gray-50'
+                )}
+              >
+                <List className="h-4 w-4" />
+                Lista
+              </button>
+              <Link
+                href="/dashboard/calendario"
+                className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                <Calendar className="h-4 w-4" />
+                Calendario
+              </Link>
+            </div>
           </div>
+
+          {/* Expanded filters */}
+          {showFilters && (
+            <div className="flex flex-wrap items-center gap-4 border-t pt-4">
+              {/* Status filter */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">Estado:</label>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="input w-auto py-1.5 text-sm"
+                >
+                  <option value="">Todos</option>
+                  <option value="pending">Pendiente</option>
+                  <option value="scheduled">Programado</option>
+                  <option value="en_camino">En camino</option>
+                  <option value="working">En trabajo</option>
+                  <option value="completed">Completado</option>
+                  <option value="cancelled">Cancelado</option>
+                </select>
+              </div>
+
+              {/* Priority filter */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">Prioridad:</label>
+                <select
+                  value={priorityFilter}
+                  onChange={(e) => setPriorityFilter(e.target.value)}
+                  className="input w-auto py-1.5 text-sm"
+                >
+                  <option value="">Todas</option>
+                  <option value="low">Baja</option>
+                  <option value="normal">Normal</option>
+                  <option value="high">Alta</option>
+                  <option value="urgent">Urgente</option>
+                </select>
+              </div>
+
+              {/* Clear filters */}
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+                >
+                  <X className="h-4 w-4" />
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -128,12 +224,16 @@ export default function JobsPage() {
                   href={`/dashboard/jobs/${job.id}`}
                   className="flex items-center gap-4 p-4 transition-colors hover:bg-gray-50"
                 >
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100 text-gray-500">
-                    #{job.id.slice(0, 4)}
+                  <div className="flex h-12 w-16 flex-col items-center justify-center rounded-lg bg-gray-100 text-xs font-medium text-gray-600">
+                    <span className="text-sm">#{job.jobNumber}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="truncate font-medium text-gray-900">{job.title}</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="truncate font-medium text-gray-900">
+                        {job.customer?.name || 'Sin cliente'}
+                      </p>
+                      <span className="text-gray-400">•</span>
+                      <span className="text-sm text-gray-500">{formatDate(job.scheduledDate || job.createdAt)}</span>
                       <span
                         className={cn(
                           'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
@@ -142,11 +242,22 @@ export default function JobsPage() {
                       >
                         {JOB_STATUS_LABELS[job.status]}
                       </span>
+                      {job.priority !== 'normal' && (
+                        <span
+                          className={cn(
+                            'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
+                            PRIORITY_COLORS[job.priority]
+                          )}
+                        >
+                          {PRIORITY_LABELS[job.priority]}
+                        </span>
+                      )}
                     </div>
-                    <p className="truncate text-sm text-gray-500">
-                      {job.customer?.name}
-                      {job.scheduledDate && ` • ${formatDate(job.scheduledDate)}`}
-                    </p>
+                    {job.address && (
+                      <p className="truncate text-sm text-gray-500 mt-0.5">
+                        📍 {job.address}
+                      </p>
+                    )}
                     {/* Show assigned technicians */}
                     {job.assignments && job.assignments.length > 0 && (
                       <div className="mt-1 flex flex-wrap gap-1">
