@@ -185,8 +185,37 @@ export function JobCard({ event, onClose }: JobCardProps) {
             </div>
           )}
 
-          {/* Technician */}
-          {job.technician ? (
+          {/* Technicians (multiple support) */}
+          {job.assignments && job.assignments.length > 0 ? (
+            <div>
+              <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+                Técnico{job.assignments.length > 1 ? 's' : ''}:
+              </h4>
+              <div className="space-y-2">
+                {job.assignments.map((assignment: { id: string; technician?: { name: string; avatar?: string; specialty?: string } }) => (
+                  <div key={assignment.id} className="flex items-center gap-3">
+                    {assignment.technician?.avatar ? (
+                      <img
+                        src={assignment.technician.avatar}
+                        alt={assignment.technician.name}
+                        className="h-8 w-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-primary-600 text-sm font-medium">
+                        {getInitials(assignment.technician?.name || '')}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{assignment.technician?.name}</p>
+                      {assignment.technician?.specialty && (
+                        <p className="text-xs text-gray-500">{assignment.technician.specialty}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : job.technician ? (
             <div className="flex items-center gap-3">
               <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                 Técnico:
@@ -226,7 +255,7 @@ export function JobCard({ event, onClose }: JobCardProps) {
             Cerrar
           </button>
           <Link
-            href={`/dashboard/jobs/${event.id}/edit`}
+            href={`/dashboard/jobs/${event.id}?edit=true`}
             className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
           >
             <Edit className="h-4 w-4" />
