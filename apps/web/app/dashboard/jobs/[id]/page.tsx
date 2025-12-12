@@ -36,6 +36,25 @@ import {
 } from 'lucide-react';
 import { Job, User as UserType, Customer } from '@/types';
 
+// Helper to format address object to string
+function formatAddress(address: unknown): string {
+  if (!address) return 'Sin dirección';
+  if (typeof address === 'string') return address;
+  if (typeof address === 'object') {
+    const addr = address as Record<string, unknown>;
+    const parts = [
+      addr.street,
+      addr.number,
+      addr.floor && `Piso ${addr.floor}`,
+      addr.apartment && `Depto ${addr.apartment}`,
+      addr.city,
+      addr.postalCode,
+    ].filter(Boolean);
+    return parts.join(', ') || 'Sin dirección';
+  }
+  return 'Sin dirección';
+}
+
 const PRIORITY_LABELS: Record<string, string> = {
   low: 'Baja',
   normal: 'Normal',
@@ -130,7 +149,7 @@ export default function JobDetailPage() {
       setEditData({
         title: job.title,
         description: job.description || '',
-        address: job.address || job.customer?.address || '',
+        address: formatAddress(job.address || job.customer?.address),
         priority: job.priority,
         serviceType: job.serviceType || '',
         customerId: job.customerId,
@@ -441,7 +460,7 @@ export default function JobDetailPage() {
                 )}
                 <div className="flex items-start gap-3">
                   <MapPin className="mt-0.5 h-5 w-5 text-gray-400" />
-                  <span className="text-gray-700">{job.address || job.customer?.address || 'Sin dirección'}</span>
+                  <span className="text-gray-700">{formatAddress(job.address || job.customer?.address)}</span>
                 </div>
                 {job.scheduledDate && (
                   <div className="flex items-center gap-3">
