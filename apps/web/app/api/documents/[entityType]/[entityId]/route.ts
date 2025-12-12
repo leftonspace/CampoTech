@@ -5,11 +5,22 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { documentVersioning } from '@/lib/services/document-versioning';
+import {
+  documentVersioning,
+  AllDocumentType,
+  DocumentEntityType,
+} from '@/lib/services/document-versioning';
 
 interface RouteParams {
   params: Promise<{ entityType: string; entityId: string }>;
 }
+
+// Valid document types for validation
+const VALID_DOCUMENT_TYPES: AllDocumentType[] = [
+  'vtv', 'insurance', 'cedula_verde', 'titulo', 'registration',
+  'afip_certificate', 'afip_key', 'constancia_cuit', 'habilitacion',
+  'dni', 'cuil_constancia', 'carnet', 'titulo_profesional',
+];
 
 export async function GET(
   request: NextRequest,
@@ -26,7 +37,7 @@ export async function GET(
 
     const { entityType, entityId } = await params;
     const { searchParams } = new URL(request.url);
-    const documentType = searchParams.get('documentType');
+    const documentTypeParam = searchParams.get('documentType');
 
     // Validate entity type
     if (!['vehicle', 'organization', 'user'].includes(entityType)) {
@@ -36,26 +47,54 @@ export async function GET(
       );
     }
 
-    // Get version history
-    const versions = await documentVersioning.getVersionHistory(
-      entityType as 'vehicle' | 'organization' | 'user',
-      entityId,
-      documentType || undefined
-    );
+    const validEntityType = entityType as DocumentEntityType;
 
-    // Get current version
-    const current = await documentVersioning.getCurrentVersion(
-      entityType as 'vehicle' | 'organization' | 'user',
-      entityId,
-      documentType || undefined
+    // If documentType is provided, validate and get specific document history
+    if (documentTypeParam) {
+      if (!VALID_DOCUMENT_TYPES.includes(documentTypeParam as AllDocumentType)) {
+        return NextResponse.json(
+          { success: false, error: 'Tipo de documento invalido' },
+          { status: 400 }
+        );
+      }
+
+      const documentType = documentTypeParam as AllDocumentType;
+
+      // Get version history for specific document type
+      const versions = await documentVersioning.getVersionHistory(
+        validEntityType,
+        entityId,
+        documentType
+      );
+
+      // Get current version
+      const current = await documentVersioning.getCurrentVersion(
+        validEntityType,
+        entityId,
+        documentType
+      );
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          current,
+          versions,
+          totalVersions: versions.length,
+        },
+      });
+    }
+
+    // No documentType - get all current documents for entity
+    const allDocuments = await documentVersioning.getAllCurrentDocuments(
+      validEntityType,
+      entityId
     );
 
     return NextResponse.json({
       success: true,
       data: {
-        current,
-        versions,
-        totalVersions: versions.length,
+        documents: allDocuments,
+        totalDocuments: allDocuments.length,
       },
     });
   } catch (error) {
