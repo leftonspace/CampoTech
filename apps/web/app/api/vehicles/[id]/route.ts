@@ -139,7 +139,7 @@ export async function GET(
     }
 
     // Add expiry status to documents
-    const documentsWithStatus = vehicle.documents.map((doc) => {
+    const documentsWithStatus = vehicle.documents.map((doc: { expiryDate?: Date | null; [key: string]: unknown }) => {
       let expiryStatus: 'valid' | 'expiring_soon' | 'expired' | 'no_expiry' = 'no_expiry';
 
       if (doc.expiryDate) {
