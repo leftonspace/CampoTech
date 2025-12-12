@@ -1419,9 +1419,16 @@ export default function LiveMapPage() {
     }
   }, []);
 
-  // Get technicians list for filter dropdown
+  // Get technicians list for filter dropdown and dialogs
   const techniciansList = useMemo(() => {
-    return data?.data?.technicians.map((t) => ({ id: t.id, name: t.name })) || [];
+    return data?.data?.technicians.map((t) => ({
+      id: t.id,
+      name: t.name,
+      status: t.status,
+      currentJobCount: t.currentJobId ? 1 : 0,
+      specialty: t.specialty,
+      avatarUrl: t.avatarUrl,
+    })) || [];
   }, [data]);
 
   // Quick filter handlers
@@ -2000,10 +2007,14 @@ export default function LiveMapPage() {
             id: jobToReassign.id,
             jobNumber: jobToReassign.jobNumber,
             customerName: jobToReassign.customerName,
-            currentTechnicianId: jobToReassign.technicianId,
-            currentTechnicianName: jobToReassign.technicianName,
+            address: jobToReassign.address,
+            technicianId: jobToReassign.technicianId,
+            technicianName: jobToReassign.technicianName,
+            scheduledTime: jobToReassign.scheduledTime,
+            status: jobToReassign.status,
           }}
-          onReassigned={() => {
+          technicians={techniciansList}
+          onReassignSuccess={() => {
             refetch();
             setShowReassignDialog(false);
             setJobToReassign(null);
