@@ -1,12 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import {
   filterEntityByRole,
   getEntityFieldMetadata,
   validateEntityUpdate,
   UserRole,
 } from '@/lib/middleware/field-filter';
+
+// Check if error is related to missing table
+function isTableNotFoundError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2021'
+  );
+}
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -24,25 +33,51 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const job = await prisma.job.findFirst({
-      where: {
-        id,
-        organizationId: session.organizationId,
-      },
-      include: {
-        customer: true,
-        technician: {
-          select: { id: true, name: true, role: true },
+    // Try to fetch job with assignments, fall back without if table doesn't exist
+    let job: any;
+    try {
+      job = await prisma.job.findFirst({
+        where: {
+          id,
+          organizationId: session.organizationId,
         },
-        assignments: {
-          include: {
-            technician: {
-              select: { id: true, name: true },
+        include: {
+          customer: true,
+          technician: {
+            select: { id: true, name: true, role: true },
+          },
+          assignments: {
+            include: {
+              technician: {
+                select: { id: true, name: true },
+              },
             },
           },
         },
-      },
-    });
+      });
+    } catch (includeError) {
+      // If assignments table doesn't exist, query without it
+      if (isTableNotFoundError(includeError)) {
+        job = await prisma.job.findFirst({
+          where: {
+            id,
+            organizationId: session.organizationId,
+          },
+          include: {
+            customer: true,
+            technician: {
+              select: { id: true, name: true, role: true },
+            },
+          },
+        });
+        // Add empty assignments array for consistency
+        if (job) {
+          job.assignments = [];
+        }
+      } else {
+        throw includeError;
+      }
+    }
 
     if (!job) {
       return NextResponse.json(
@@ -129,30 +164,59 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const job = await prisma.job.update({
-      where: { id },
-      data: {
-        description: body.description,
-        urgency: body.urgency || body.priority?.toUpperCase(),
-        scheduledDate: body.scheduledDate ? new Date(body.scheduledDate) : undefined,
-        scheduledTimeSlot: body.scheduledTimeStart && body.scheduledTimeEnd
-          ? { start: body.scheduledTimeStart, end: body.scheduledTimeEnd }
-          : undefined,
-      },
-      include: {
-        customer: true,
-        technician: {
-          select: { id: true, name: true, role: true },
+    // Try to update job with assignments, fall back without if table doesn't exist
+    let job: any;
+    try {
+      job = await prisma.job.update({
+        where: { id },
+        data: {
+          description: body.description,
+          urgency: body.urgency || body.priority?.toUpperCase(),
+          scheduledDate: body.scheduledDate ? new Date(body.scheduledDate) : undefined,
+          scheduledTimeSlot: body.scheduledTimeStart && body.scheduledTimeEnd
+            ? { start: body.scheduledTimeStart, end: body.scheduledTimeEnd }
+            : undefined,
         },
-        assignments: {
-          include: {
-            technician: {
-              select: { id: true, name: true },
+        include: {
+          customer: true,
+          technician: {
+            select: { id: true, name: true, role: true },
+          },
+          assignments: {
+            include: {
+              technician: {
+                select: { id: true, name: true },
+              },
             },
           },
         },
-      },
-    });
+      });
+    } catch (updateError) {
+      // If assignments table doesn't exist, update without it
+      if (isTableNotFoundError(updateError)) {
+        job = await prisma.job.update({
+          where: { id },
+          data: {
+            description: body.description,
+            urgency: body.urgency || body.priority?.toUpperCase(),
+            scheduledDate: body.scheduledDate ? new Date(body.scheduledDate) : undefined,
+            scheduledTimeSlot: body.scheduledTimeStart && body.scheduledTimeEnd
+              ? { start: body.scheduledTimeStart, end: body.scheduledTimeEnd }
+              : undefined,
+          },
+          include: {
+            customer: true,
+            technician: {
+              select: { id: true, name: true, role: true },
+            },
+          },
+        });
+        // Add empty assignments array for consistency
+        job.assignments = [];
+      } else {
+        throw updateError;
+      }
+    }
 
     return NextResponse.json({
       success: true,

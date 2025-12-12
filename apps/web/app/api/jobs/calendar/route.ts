@@ -8,6 +8,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
+
+// Check if error is related to missing table
+function isTableNotFoundError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2021'
+  );
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -53,28 +62,57 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
-    // Get jobs
-    const jobs = await prisma.job.findMany({
-      where,
-      include: {
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            address: true,
+    // Get jobs - try with assignments, fall back without if table doesn't exist
+    let jobs: any[];
+    try {
+      jobs = await prisma.job.findMany({
+        where,
+        include: {
+          customer: {
+            select: {
+              id: true,
+              name: true,
+              phone: true,
+              address: true,
+            },
+          },
+          technician: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              specialty: true,
+            },
+          },
+          assignments: {
+            include: {
+              technician: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatar: true,
+                  specialty: true,
+                },
+              },
+            },
           },
         },
-        technician: {
-          select: {
-            id: true,
-            name: true,
-            avatar: true,
-            specialty: true,
-          },
-        },
-        assignments: {
+        orderBy: { scheduledDate: 'asc' },
+      });
+    } catch (includeError) {
+      // If assignments table doesn't exist, query without it
+      if (isTableNotFoundError(includeError)) {
+        jobs = await prisma.job.findMany({
+          where,
           include: {
+            customer: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+                address: true,
+              },
+            },
             technician: {
               select: {
                 id: true,
@@ -84,10 +122,14 @@ export async function GET(request: NextRequest) {
               },
             },
           },
-        },
-      },
-      orderBy: { scheduledDate: 'asc' },
-    });
+          orderBy: { scheduledDate: 'asc' },
+        });
+        // Add empty assignments array to each job for consistency
+        jobs = jobs.map((job: any) => ({ ...job, assignments: [] }));
+      } else {
+        throw includeError;
+      }
+    }
 
     // Get technicians for filter
     const technicians = await prisma.user.findMany({
