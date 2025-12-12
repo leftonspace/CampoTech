@@ -354,7 +354,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           toLocationId: action === 'remove' ? null : location.id,
           fromLocationId: action === 'remove' ? location.id : null,
           quantity: Math.abs(quantity || 0),
-          transactionType: action === 'remove' ? 'ADJUSTMENT_OUT' : 'ADJUSTMENT_IN',
+          transactionType: 'ADJUSTMENT',
           performedById: session.userId,
           notes: notes || `Ajuste de inventario en vehículo ${vehicle.plateNumber}`,
         },
