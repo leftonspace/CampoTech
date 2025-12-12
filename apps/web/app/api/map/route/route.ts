@@ -14,20 +14,24 @@ interface RoutePoint {
   lng: number;
 }
 
+interface RouteLeg {
+  durationMinutes: number;
+  distanceMeters: number;
+  startAddress?: string;
+  endAddress?: string;
+}
+
+interface RouteData {
+  polyline: [number, number][];
+  durationMinutes: number;
+  distanceMeters: number;
+  legs?: RouteLeg[];
+  source: 'osrm' | 'google' | 'haversine';
+}
+
 interface RouteResponse {
   success: boolean;
-  data?: {
-    polyline: [number, number][];
-    durationMinutes: number;
-    distanceMeters: number;
-    legs?: {
-      durationMinutes: number;
-      distanceMeters: number;
-      startAddress?: string;
-      endAddress?: string;
-    }[];
-    source: 'osrm' | 'google' | 'haversine';
-  };
+  data?: RouteData;
   error?: string;
 }
 
@@ -113,7 +117,7 @@ async function getOSRMRoute(
   origin: RoutePoint,
   destination: RoutePoint,
   waypoints?: RoutePoint[]
-): Promise<RouteResponse['data'] | null> {
+): Promise<RouteData | null> {
   try {
     // Build coordinates string
     let coords = `${origin.lng},${origin.lat}`;
@@ -166,7 +170,7 @@ async function getGoogleRoute(
   destination: RoutePoint,
   waypoints?: RoutePoint[],
   apiKey?: string
-): Promise<RouteResponse['data'] | null> {
+): Promise<RouteData | null> {
   if (!apiKey) return null;
 
   try {
@@ -226,11 +230,11 @@ function getHaversineRoute(
   origin: RoutePoint,
   destination: RoutePoint,
   waypoints?: RoutePoint[]
-): RouteResponse['data'] {
+): RouteData {
   const polyline = generateStraightLine(origin, destination, waypoints);
 
   let totalDistance = 0;
-  const legs: RouteResponse['data']['legs'] = [];
+  const legs: RouteLeg[] = [];
 
   for (let i = 0; i < polyline.length - 1; i++) {
     const distance = haversineDistance(
@@ -262,7 +266,7 @@ function getHaversineRoute(
 async function getCachedRoute(
   origin: RoutePoint,
   destination: RoutePoint
-): Promise<RouteResponse['data'] | null> {
+): Promise<RouteData | null> {
   try {
     // Round coordinates to 4 decimal places for cache key
     const cached = await prisma.etaCache.findFirst({
@@ -296,7 +300,7 @@ async function getCachedRoute(
 async function cacheRoute(
   origin: RoutePoint,
   destination: RoutePoint,
-  data: RouteResponse['data']
+  data: RouteData
 ): Promise<void> {
   try {
     await prisma.etaCache.create({
