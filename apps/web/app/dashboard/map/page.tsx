@@ -127,7 +127,8 @@ type LeafletType = typeof import('leaflet');
 type MapType = import('leaflet').Map;
 type LayerGroupType = import('leaflet').LayerGroup;
 type PolylineType = import('leaflet').Polyline;
-type MarkerClusterGroupType = import('leaflet.markercluster').MarkerClusterGroup;
+// MarkerClusterGroup is augmented into leaflet namespace by @types/leaflet.markercluster
+type MarkerClusterGroupType = import('leaflet').MarkerClusterGroup;
 
 // Buenos Aires default center
 const BUENOS_AIRES_CENTER = { lat: -34.6037, lng: -58.3816 };
