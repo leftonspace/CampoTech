@@ -24,20 +24,27 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const view = searchParams.get('view') || 'levels';
 
-    // Stock levels for a product
+    // Stock levels for a product (or all products if no productId)
     if (view === 'levels') {
       const productId = searchParams.get('productId');
+      const warehouseId = searchParams.get('warehouseId');
+
+      // If no productId specified, return empty state (UI shows "select a product")
       if (!productId) {
-        return NextResponse.json(
-          { success: false, error: 'productId is required' },
-          { status: 400 }
-        );
+        return NextResponse.json({
+          success: true,
+          data: {
+            levels: [],
+            message: 'Select a product to view stock levels',
+          },
+        });
       }
 
       return NextResponse.json({
         success: true,
         data: {
           productId,
+          warehouseId: warehouseId || null,
           totalAvailable: 0,
           totalReserved: 0,
           warehouses: [],
