@@ -34,7 +34,7 @@ import {
   Pause,
   XCircle,
 } from 'lucide-react';
-import { Job, User as UserType } from '@/types';
+import { Job, User as UserType, Customer } from '@/types';
 
 const PRIORITY_LABELS: Record<string, string> = {
   low: 'Baja',
@@ -87,6 +87,11 @@ export default function JobDetailPage() {
     queryFn: () => api.users.list(),
   });
 
+  const { data: customersData } = useQuery({
+    queryKey: ['customers-all'],
+    queryFn: () => api.customers.list(),
+  });
+
   const updateMutation = useMutation({
     mutationFn: (data: Partial<Job>) => api.jobs.update(jobId, data),
     onSuccess: () => {
@@ -109,16 +114,26 @@ export default function JobDetailPage() {
     },
   });
 
+  const unassignMutation = useMutation({
+    mutationFn: (userId: string) => api.jobs.unassign(jobId, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+    },
+  });
+
   const job = data?.data as Job | undefined;
   const teamMembers = usersData?.data as UserType[] | undefined;
+  const customers = customersData?.data as Customer[] | undefined;
 
   const handleEdit = () => {
     if (job) {
       setEditData({
         title: job.title,
         description: job.description || '',
-        address: job.address,
+        address: job.address || job.customer?.address || '',
         priority: job.priority,
+        serviceType: job.serviceType || '',
+        customerId: job.customerId,
         scheduledDate: job.scheduledDate?.split('T')[0] || '',
         scheduledTimeStart: job.scheduledTimeStart || '',
         scheduledTimeEnd: job.scheduledTimeEnd || '',
@@ -139,6 +154,12 @@ export default function JobDetailPage() {
 
   const handleAssign = (userId: string) => {
     assignMutation.mutate(userId);
+  };
+
+  const handleUnassign = (userId: string, technicianName: string) => {
+    if (confirm(`¿Desasignar a ${technicianName} de este trabajo?`)) {
+      unassignMutation.mutate(userId);
+    }
   };
 
   const getNextActions = (status: string) => {
@@ -249,7 +270,7 @@ export default function JobDetailPage() {
               {PRIORITY_LABELS[job.priority]}
             </span>
           </div>
-          <p className="text-gray-500">#{job.id.slice(0, 8)}</p>
+          <p className="text-gray-500">#{job.jobNumber}</p>
         </div>
         <div className="flex gap-2">
           {isEditing ? (
@@ -311,6 +332,7 @@ export default function JobDetailPage() {
                     type="text"
                     value={editData.title || ''}
                     onChange={(e) => setEditData({ ...editData, title: e.target.value })}
+                    placeholder="Ej: Instalación de aire acondicionado"
                     className="input"
                   />
                 </div>
@@ -320,8 +342,36 @@ export default function JobDetailPage() {
                     value={editData.description || ''}
                     onChange={(e) => setEditData({ ...editData, description: e.target.value })}
                     rows={3}
+                    placeholder="Detalles del trabajo a realizar..."
                     className="input"
                   />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="label mb-1 block">Cliente</label>
+                    <select
+                      value={editData.customerId || ''}
+                      onChange={(e) => setEditData({ ...editData, customerId: e.target.value })}
+                      className="input"
+                    >
+                      <option value="">Seleccionar cliente...</option>
+                      {customers?.map((customer) => (
+                        <option key={customer.id} value={customer.id}>
+                          {customer.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="label mb-1 block">Tipo de servicio</label>
+                    <input
+                      type="text"
+                      value={editData.serviceType || ''}
+                      onChange={(e) => setEditData({ ...editData, serviceType: e.target.value })}
+                      placeholder="Ej: Instalación, Mantenimiento, Reparación"
+                      className="input"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label className="label mb-1 block">Dirección</label>
@@ -329,6 +379,7 @@ export default function JobDetailPage() {
                     type="text"
                     value={editData.address || ''}
                     onChange={(e) => setEditData({ ...editData, address: e.target.value })}
+                    placeholder="Dirección donde se realizará el trabajo"
                     className="input"
                   />
                 </div>
@@ -377,6 +428,12 @@ export default function JobDetailPage() {
               </div>
             ) : (
               <div className="space-y-4">
+                {job.serviceType && (
+                  <div className="flex items-center gap-2">
+                    <Wrench className="h-5 w-5 text-gray-400" />
+                    <span className="font-medium text-gray-700">{job.serviceType}</span>
+                  </div>
+                )}
                 {job.description && (
                   <div>
                     <p className="text-gray-700">{job.description}</p>
@@ -384,7 +441,7 @@ export default function JobDetailPage() {
                 )}
                 <div className="flex items-start gap-3">
                   <MapPin className="mt-0.5 h-5 w-5 text-gray-400" />
-                  <span className="text-gray-700">{job.address}</span>
+                  <span className="text-gray-700">{job.address || job.customer?.address || 'Sin dirección'}</span>
                 </div>
                 {job.scheduledDate && (
                   <div className="flex items-center gap-3">
@@ -533,12 +590,22 @@ export default function JobDetailPage() {
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-primary-600">
                       <User className="h-5 w-5" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <p className="font-medium text-gray-900">{assignment.technician?.name}</p>
                       <p className="text-xs text-gray-500">
                         Asignado: {formatDate(assignment.assignedAt)}
                       </p>
                     </div>
+                    {job.status !== 'completed' && job.status !== 'cancelled' && (
+                      <button
+                        onClick={() => handleUnassign(assignment.technicianId, assignment.technician?.name || 'técnico')}
+                        disabled={unassignMutation.isPending}
+                        className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500"
+                        title="Desasignar técnico"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

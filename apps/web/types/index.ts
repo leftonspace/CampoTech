@@ -119,6 +119,8 @@ export interface JobAssignment {
 export interface Job {
   id: string;
   orgId: string;
+  jobNumber: string;
+  serviceType: string;
   customerId: string;
   customer?: Customer;
   assignedToId?: string;
