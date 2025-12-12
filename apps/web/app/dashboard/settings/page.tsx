@@ -13,6 +13,7 @@ import {
   AlertCircle,
   MessageCircle,
   Bell,
+  Wrench,
 } from 'lucide-react';
 
 interface SettingCard {
@@ -67,6 +68,13 @@ export default function SettingsPage() {
       description: 'Gestión de usuarios y roles',
       href: '/dashboard/settings/team',
       icon: Users,
+      adminOnly: true,
+    },
+    {
+      title: 'Tipos de servicio',
+      description: 'Configura los servicios que ofrece tu empresa',
+      href: '/dashboard/settings/service-types',
+      icon: Wrench,
       adminOnly: true,
     },
     {
