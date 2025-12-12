@@ -66,7 +66,6 @@ export async function GET(request: NextRequest) {
         fromWarehouse: { select: { id: true, name: true, code: true } },
         toWarehouse: { select: { id: true, name: true, code: true } },
         job: { select: { id: true, jobNumber: true } },
-        performedBy: { select: { id: true, name: true } },
       },
       orderBy: { performedAt: 'desc' },
     });
@@ -223,7 +222,6 @@ export async function GET(request: NextRequest) {
           fromWarehouse: m.fromWarehouse?.name,
           toWarehouse: m.toWarehouse?.name,
           jobNumber: (m.job as any)?.jobNumber,
-          performedBy: (m.performedBy as any)?.name,
           performedAt: m.performedAt,
         })),
         generatedAt: new Date().toISOString(),

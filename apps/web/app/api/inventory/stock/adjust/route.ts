@@ -268,7 +268,6 @@ export async function GET(request: NextRequest) {
           product: { select: { id: true, sku: true, name: true } },
           fromWarehouse: { select: { id: true, name: true, code: true } },
           toWarehouse: { select: { id: true, name: true, code: true } },
-          performedBy: { select: { id: true, name: true } },
         },
         orderBy: { performedAt: 'desc' },
         skip: (page - 1) * pageSize,
