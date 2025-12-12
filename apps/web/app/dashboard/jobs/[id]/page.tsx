@@ -22,6 +22,7 @@ import {
   Calendar,
   Clock,
   User,
+  Users,
   Phone,
   FileText,
   Camera,
@@ -511,10 +512,30 @@ export default function JobDetailPage() {
             )}
           </div>
 
-          {/* Assignment */}
+          {/* Assignment - Multiple Technicians */}
           <div className="card p-6">
-            <h2 className="mb-4 font-medium text-gray-900">Asignación</h2>
-            {job.assignedTo ? (
+            <h2 className="mb-4 flex items-center gap-2 font-medium text-gray-900">
+              <Users className="h-5 w-5" />
+              Técnicos asignados
+            </h2>
+            {job.assignments && job.assignments.length > 0 ? (
+              <div className="space-y-3">
+                {job.assignments.map((assignment) => (
+                  <div key={assignment.id} className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-primary-600">
+                      <User className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">{assignment.technician?.name}</p>
+                      <p className="text-xs text-gray-500">
+                        Asignado: {formatDate(assignment.assignedAt)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : job.assignedTo ? (
+              // Fallback to legacy single assignment
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-primary-600">
                   <User className="h-5 w-5" />
@@ -529,19 +550,23 @@ export default function JobDetailPage() {
             )}
             {!isEditing && job.status !== 'completed' && job.status !== 'cancelled' && (
               <div className="mt-4">
-                <label className="label mb-1 block text-sm">Reasignar a:</label>
+                <label className="label mb-1 block text-sm">Agregar/cambiar asignación:</label>
                 <select
-                  value={job.assignedToId || ''}
-                  onChange={(e) => handleAssign(e.target.value)}
+                  value=""
+                  onChange={(e) => e.target.value && handleAssign(e.target.value)}
                   disabled={assignMutation.isPending}
                   className="input"
                 >
-                  <option value="">Sin asignar</option>
-                  {teamMembers?.map((member) => (
-                    <option key={member.id} value={member.id}>
-                      {member.name} ({member.role})
-                    </option>
-                  ))}
+                  <option value="">Seleccionar técnico...</option>
+                  {teamMembers
+                    ?.filter((member) =>
+                      !job.assignments?.some((a) => a.technicianId === member.id)
+                    )
+                    .map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name} ({member.role})
+                      </option>
+                    ))}
                 </select>
               </div>
             )}

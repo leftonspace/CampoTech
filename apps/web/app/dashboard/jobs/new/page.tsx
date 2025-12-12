@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowLeft, Search, Calendar, Clock, User, MapPin } from 'lucide-react';
+import { ArrowLeft, Search, Calendar, Clock, Users, MapPin, X, Check } from 'lucide-react';
 import Link from 'next/link';
 import AddressAutocomplete, { ParsedAddress } from '@/components/ui/AddressAutocomplete';
 
@@ -42,8 +42,9 @@ export default function NewJobPage() {
     scheduledDate: '',
     scheduledTimeStart: '',
     scheduledTimeEnd: '',
-    assignedToId: '',
+    assignedToIds: [] as string[],
   });
+  const [showTeamDropdown, setShowTeamDropdown] = useState(false);
 
   // Auto-fill address when customer is selected
   useEffect(() => {
@@ -94,6 +95,7 @@ export default function NewJobPage() {
     const response = await api.jobs.create({
       ...formData,
       customerId: selectedCustomer.id,
+      technicianIds: formData.assignedToIds,
     });
 
     if (response.success) {
@@ -326,36 +328,148 @@ export default function NewJobPage() {
           </div>
         </div>
 
-        {/* Team member assignment */}
+        {/* Team member assignment - Multi-select */}
         <div>
-          <label htmlFor="assignedToId" className="label mb-1 block">
-            Asignar a
+          <label className="label mb-1 block">
+            Asignar a (múltiples técnicos)
           </label>
+
+          {/* Selected technicians display */}
+          {formData.assignedToIds.length > 0 && (
+            <div className="mb-2 flex flex-wrap gap-2">
+              {formData.assignedToIds.map((id) => {
+                const member = teamMembers?.find((m) => m.id === id) ||
+                  (currentUser?.id === id ? { id: currentUser.id, name: currentUser.name, role: 'CURRENT' } : null);
+                if (!member) return null;
+                return (
+                  <span
+                    key={id}
+                    className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-3 py-1 text-sm text-primary-700"
+                  >
+                    {member.name}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setFormData({
+                          ...formData,
+                          assignedToIds: formData.assignedToIds.filter((tid) => tid !== id),
+                        })
+                      }
+                      className="ml-1 rounded-full p-0.5 hover:bg-primary-200"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Dropdown trigger */}
           <div className="relative">
-            <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <select
-              id="assignedToId"
-              value={formData.assignedToId}
-              onChange={(e) =>
-                setFormData({ ...formData, assignedToId: e.target.value })
-              }
-              className="input pl-10"
+            <button
+              type="button"
+              onClick={() => setShowTeamDropdown(!showTeamDropdown)}
+              className="input flex w-full items-center justify-between pl-10 text-left"
             >
-              <option value="">Sin asignar</option>
-              {currentUser && (
-                <option value={currentUser.id}>
-                  Yo ({currentUser.name})
-                </option>
-              )}
-              {teamMembers
-                ?.filter((member) => member.id !== currentUser?.id)
-                .map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.name} {member.role === 'TECHNICIAN' ? '(Técnico)' : member.role === 'ADMIN' ? '(Admin)' : ''}
-                  </option>
-                ))}
-            </select>
+              <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <span className={formData.assignedToIds.length === 0 ? 'text-gray-400' : ''}>
+                {formData.assignedToIds.length === 0
+                  ? 'Seleccionar técnicos...'
+                  : `${formData.assignedToIds.length} técnico(s) seleccionado(s)`}
+              </span>
+              <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Dropdown menu */}
+            {showTeamDropdown && (
+              <div className="absolute z-20 mt-1 w-full rounded-md border bg-white shadow-lg">
+                <div className="max-h-60 overflow-auto py-1">
+                  {/* Current user option */}
+                  {currentUser && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const isSelected = formData.assignedToIds.includes(currentUser.id);
+                        setFormData({
+                          ...formData,
+                          assignedToIds: isSelected
+                            ? formData.assignedToIds.filter((id) => id !== currentUser.id)
+                            : [...formData.assignedToIds, currentUser.id],
+                        });
+                      }}
+                      className="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-gray-50"
+                    >
+                      <span className={`flex h-4 w-4 items-center justify-center rounded border ${
+                        formData.assignedToIds.includes(currentUser.id)
+                          ? 'border-primary-600 bg-primary-600 text-white'
+                          : 'border-gray-300'
+                      }`}>
+                        {formData.assignedToIds.includes(currentUser.id) && (
+                          <Check className="h-3 w-3" />
+                        )}
+                      </span>
+                      <span className="font-medium">Yo ({currentUser.name})</span>
+                    </button>
+                  )}
+
+                  {/* Team members */}
+                  {teamMembers
+                    ?.filter((member) => member.id !== currentUser?.id)
+                    .map((member) => (
+                      <button
+                        key={member.id}
+                        type="button"
+                        onClick={() => {
+                          const isSelected = formData.assignedToIds.includes(member.id);
+                          setFormData({
+                            ...formData,
+                            assignedToIds: isSelected
+                              ? formData.assignedToIds.filter((id) => id !== member.id)
+                              : [...formData.assignedToIds, member.id],
+                          });
+                        }}
+                        className="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-gray-50"
+                      >
+                        <span className={`flex h-4 w-4 items-center justify-center rounded border ${
+                          formData.assignedToIds.includes(member.id)
+                            ? 'border-primary-600 bg-primary-600 text-white'
+                            : 'border-gray-300'
+                        }`}>
+                          {formData.assignedToIds.includes(member.id) && (
+                            <Check className="h-3 w-3" />
+                          )}
+                        </span>
+                        <span className="font-medium">{member.name}</span>
+                        <span className="text-sm text-gray-500">
+                          {member.role === 'TECHNICIAN' ? '(Técnico)' : member.role === 'ADMIN' ? '(Admin)' : ''}
+                        </span>
+                      </button>
+                    ))}
+
+                  {(!teamMembers || teamMembers.length === 0) && !currentUser && (
+                    <div className="px-4 py-2 text-sm text-gray-500">
+                      No hay miembros del equipo disponibles
+                    </div>
+                  )}
+                </div>
+
+                {/* Close dropdown button */}
+                <div className="border-t px-4 py-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowTeamDropdown(false)}
+                    className="w-full text-center text-sm text-primary-600 hover:underline"
+                  >
+                    Cerrar
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+
           <Link
             href="/dashboard/settings/team"
             className="mt-2 inline-block text-sm text-primary-600 hover:underline"
