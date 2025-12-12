@@ -192,7 +192,7 @@ export function JobCard({ event, onClose }: JobCardProps) {
                 Técnico{job.assignments.length > 1 ? 's' : ''}:
               </h4>
               <div className="space-y-2">
-                {job.assignments.map((assignment: { id: string; technician?: { name: string; avatar?: string; specialty?: string } }) => (
+                {job.assignments.map((assignment) => (
                   <div key={assignment.id} className="flex items-center gap-3">
                     {assignment.technician?.avatar ? (
                       <img
