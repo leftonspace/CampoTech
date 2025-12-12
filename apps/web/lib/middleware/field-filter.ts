@@ -202,10 +202,11 @@ export function createFilteredArrayResponse<T extends Record<string, unknown>>(
   };
 }
 
-// Re-export types and utilities for convenience
+// Re-export types for convenience
+export type { UserRole, FieldPermission } from '@/lib/config/field-permissions';
+
+// Re-export utilities for convenience
 export {
-  UserRole,
-  FieldPermission,
   ORGANIZATION_FIELDS,
   USER_FIELDS,
   CUSTOMER_FIELDS,
