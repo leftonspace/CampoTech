@@ -35,6 +35,13 @@ interface TechnicianLocation {
   phone: string;
   currentCustomerName: string | null;
   etaMinutes: number | null;
+  heading: number | null;
+  nextJob: {
+    id: string;
+    jobNumber: string;
+    customerName: string;
+    scheduledTime: string | null;
+  } | null;
 }
 
 interface TodayJob {
@@ -49,6 +56,7 @@ interface TodayJob {
   technicianId: string | null;
   technicianName: string | null;
   scheduledTime: string | null;
+  arrivedAt: string | null;
   address: string;
   description: string;
   serviceType: string;
@@ -73,6 +81,7 @@ interface MapDataResponse {
       todayJobsInProgress: number;
       todayJobsCompleted: number;
     };
+    zones: { id: string; name: string }[];
     updatedAt: string;
   };
   error?: string;
@@ -223,13 +232,18 @@ export async function GET(request: NextRequest) {
               status: {
                 in: ['ASSIGNED', 'EN_ROUTE', 'IN_PROGRESS'],
               },
+              scheduledDate: {
+                gte: startOfDay,
+                lte: endOfDay,
+              },
             },
             orderBy: { scheduledDate: 'asc' },
-            take: 1,
+            take: 2, // Get current + next
             select: {
               id: true,
               jobNumber: true,
               status: true,
+              scheduledTimeSlot: true,
               customer: {
                 select: {
                   name: true,
@@ -244,6 +258,7 @@ export async function GET(request: NextRequest) {
             take: 1,
             select: {
               etaMinutes: true,
+              currentHeading: true,
             },
           },
         },
@@ -271,7 +286,13 @@ export async function GET(request: NextRequest) {
 
           if (lat === null || lng === null) return null;
 
-          const currentJob = tech.assignedJobs[0] || null;
+          // Current job is one that's IN_PROGRESS or EN_ROUTE
+          const currentJob = tech.assignedJobs.find(j =>
+            ['IN_PROGRESS', 'EN_ROUTE'].includes(j.status)
+          ) || null;
+
+          // Next job is the first ASSIGNED job
+          const nextJob = tech.assignedJobs.find(j => j.status === 'ASSIGNED') || null;
           const activeSession = tech.trackingSessions[0] || null;
 
           // Determine status
@@ -285,6 +306,9 @@ export async function GET(request: NextRequest) {
               status = 'en_linea';
             }
           }
+
+          // Get scheduled time from next job
+          const nextJobTimeSlot = nextJob?.scheduledTimeSlot as { start?: string } | null;
 
           return {
             id: tech.id,
@@ -300,6 +324,13 @@ export async function GET(request: NextRequest) {
             phone: tech.phone,
             currentCustomerName: currentJob?.customer?.name || null,
             etaMinutes: activeSession?.etaMinutes || null,
+            heading: activeSession?.currentHeading ? Number(activeSession.currentHeading) : null,
+            nextJob: nextJob ? {
+              id: nextJob.id,
+              jobNumber: nextJob.jobNumber,
+              customerName: nextJob.customer?.name || '',
+              scheduledTime: nextJobTimeSlot?.start || null,
+            } : null,
           };
         })
         .filter((t): t is TechnicianLocation => t !== null);
@@ -338,6 +369,15 @@ export async function GET(request: NextRequest) {
               address: true,
             },
           },
+          trackingSessions: {
+            where: {
+              status: 'ARRIVED',
+            },
+            take: 1,
+            select: {
+              arrivedAt: true,
+            },
+          },
         },
         orderBy: { scheduledDate: 'asc' },
       });
@@ -349,6 +389,7 @@ export async function GET(request: NextRequest) {
           if (lat === null || lng === null) return null;
 
           const timeSlot = job.scheduledTimeSlot as { start?: string } | null;
+          const arrivedSession = job.trackingSessions[0];
 
           return {
             id: job.id,
@@ -362,6 +403,7 @@ export async function GET(request: NextRequest) {
             technicianId: job.technicianId,
             technicianName: job.technician?.name || null,
             scheduledTime: timeSlot?.start || null,
+            arrivedAt: arrivedSession?.arrivedAt?.toISOString() || null,
             address: formatted,
             description: job.description,
             serviceType: job.serviceType,
@@ -389,6 +431,19 @@ export async function GET(request: NextRequest) {
       todayJobsCompleted: todayJobs.filter((j) => j.status === 'COMPLETED').length,
     };
 
+    // Fetch zones for filter dropdown
+    let zones: { id: string; name: string }[] = [];
+    try {
+      const zonesData = await prisma.zone.findMany({
+        where: { organizationId: session.organizationId },
+        select: { id: true, name: true },
+        orderBy: { name: 'asc' },
+      });
+      zones = zonesData;
+    } catch {
+      // Zone table might not exist
+    }
+
     const response: MapDataResponse = {
       success: true,
       data: {
@@ -396,6 +451,7 @@ export async function GET(request: NextRequest) {
         technicians,
         todayJobs,
         stats,
+        zones,
         updatedAt: new Date().toISOString(),
       },
     };

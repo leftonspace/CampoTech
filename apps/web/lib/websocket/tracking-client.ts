@@ -92,8 +92,14 @@ export function useTrackingClient(options: UseTrackingClientOptions = {}) {
       eventSource.onerror = () => {
         setIsConnected(false);
         eventSource.close();
-        // Fall back to polling
-        startPolling();
+        eventSourceRef.current = null;
+        // Attempt to reconnect after 5 seconds
+        setTimeout(() => {
+          if (enabled && organizationId) {
+            console.log('Attempting SSE reconnect...');
+            connect();
+          }
+        }, 5000);
       };
 
       eventSourceRef.current = eventSource;
