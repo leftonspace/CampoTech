@@ -83,7 +83,7 @@ interface MapDataResponse {
       todayJobsInProgress: number;
       todayJobsCompleted: number;
     };
-    zones: { id: string; name: string }[];
+    zones: { id: string; name: string; code: string }[];
     updatedAt: string;
   };
   error?: string;
@@ -580,7 +580,7 @@ export async function GET(request: NextRequest) {
     };
 
     // Fetch zones for filter dropdown
-    let zones: { id: string; name: string }[] = [];
+    let zones: { id: string; name: string; code: string }[] = [];
     try {
       const zonesData = await prisma.zone.findMany({
         where: {
@@ -588,7 +588,7 @@ export async function GET(request: NextRequest) {
             organizationId: session.organizationId,
           },
         },
-        select: { id: true, name: true },
+        select: { id: true, name: true, code: true },
         orderBy: { name: 'asc' },
       });
       zones = zonesData;

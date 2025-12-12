@@ -112,7 +112,7 @@ interface MapDataResponse {
       todayJobsInProgress: number;
       todayJobsCompleted: number;
     };
-    zones: { id: string; name: string }[];
+    zones: { id: string; name: string; code: string }[];
     updatedAt: string;
   };
 }
