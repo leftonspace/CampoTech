@@ -159,22 +159,12 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Log status change for audit
-    await prisma.activityLog.create({
-      data: {
-        userId: session.userId,
-        organizationId: session.organizationId,
-        type: 'STATUS_CHANGE',
-        action: `Technician status changed to ${body.status}`,
-        entityType: 'USER',
-        entityId: session.userId,
-        metadata: {
-          previousStatus: null, // Could fetch previous status if needed
-          newStatus: body.status,
-          jobId: body.jobId,
-          reason: body.reason,
-        },
-      },
+    // TODO: Add activity logging when ActivityLog model is created
+    // For now, log to console for debugging
+    console.log('Status change:', {
+      userId: session.userId,
+      newStatus: body.status,
+      jobId: body.jobId,
     });
 
     return NextResponse.json({
