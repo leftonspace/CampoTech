@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import {
+  filterEntityByRole,
+  getEntityFieldMetadata,
+  validateEntityUpdate,
+  UserRole,
+} from '@/lib/middleware/field-filter';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -45,9 +51,25 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // Normalize user role for permission checking
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
+    // For technicians, only show their own jobs
+    if (userRole === 'TECHNICIAN' && job.technicianId !== session.userId) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permiso para ver este trabajo' },
+        { status: 403 }
+      );
+    }
+
+    // Filter data based on user role
+    const filteredData = filterEntityByRole(job, 'job', userRole);
+    const fieldMeta = getEntityFieldMetadata('job', userRole);
+
     return NextResponse.json({
       success: true,
-      data: job,
+      data: filteredData,
+      _fieldMeta: fieldMeta,
     });
   } catch (error) {
     console.error('Get job error:', error);
@@ -84,6 +106,26 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         { success: false, error: 'Job not found' },
         { status: 404 }
+      );
+    }
+
+    // Normalize user role
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
+    // Validate that user can edit the fields they're trying to update
+    const validation = validateEntityUpdate(body, 'job', userRole);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { success: false, error: validation.errors.join(' ') },
+        { status: 403 }
+      );
+    }
+
+    // For technicians, only allow editing their own jobs and limited fields
+    if (userRole === 'TECHNICIAN' && existing.technicianId !== session.userId) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permiso para editar este trabajo' },
+        { status: 403 }
       );
     }
 

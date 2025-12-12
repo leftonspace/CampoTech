@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import {
+  filterEntityByRole,
+  getEntityFieldMetadata,
+  validateEntityUpdate,
+  UserRole,
+} from '@/lib/middleware/field-filter';
 
 export async function GET(
   request: NextRequest,
@@ -40,9 +46,17 @@ export async function GET(
       );
     }
 
+    // Normalize user role for permission checking
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
+    // Filter data based on user role
+    const filteredData = filterEntityByRole(customer, 'customer', userRole);
+    const fieldMeta = getEntityFieldMetadata('customer', userRole);
+
     return NextResponse.json({
       success: true,
-      data: customer,
+      data: filteredData,
+      _fieldMeta: fieldMeta,
     });
   } catch (error) {
     console.error('Get customer error:', error);
@@ -81,6 +95,18 @@ export async function PUT(
       return NextResponse.json(
         { success: false, error: 'Customer not found' },
         { status: 404 }
+      );
+    }
+
+    // Normalize user role for permission checking
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
+    // Validate that user can edit the fields they're trying to update
+    const validation = validateEntityUpdate(body, 'customer', userRole);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { success: false, error: validation.errors.join(' ') },
+        { status: 403 }
       );
     }
 

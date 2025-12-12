@@ -8,6 +8,11 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { sendWelcomeEmail } from '@/lib/email';
 import { requestOTP } from '@/lib/otp';
+import {
+  filterEntitiesByRole,
+  getEntityFieldMetadata,
+  UserRole,
+} from '@/lib/middleware/field-filter';
 
 export async function GET(request: NextRequest) {
   try {
@@ -63,9 +68,17 @@ export async function GET(request: NextRequest) {
       prisma.user.count({ where }),
     ]);
 
+    // Normalize user role for permission checking
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
+    // Filter data based on user role
+    const filteredUsers = filterEntitiesByRole(users, 'user', userRole);
+    const fieldMeta = getEntityFieldMetadata('user', userRole);
+
     return NextResponse.json({
       success: true,
-      data: users,
+      data: filteredUsers,
+      _fieldMeta: fieldMeta,
       pagination: {
         page,
         limit,

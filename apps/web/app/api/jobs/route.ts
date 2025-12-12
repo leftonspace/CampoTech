@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import {
+  filterEntitiesByRole,
+  getEntityFieldMetadata,
+  UserRole,
+} from '@/lib/middleware/field-filter';
 
 // Check if error is related to missing table
 function isTableNotFoundError(error: unknown): boolean {
@@ -89,9 +94,17 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Normalize user role for permission checking
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
+    // Filter data based on user role
+    const filteredJobs = filterEntitiesByRole(jobs, 'job', userRole);
+    const fieldMeta = getEntityFieldMetadata('job', userRole);
+
     return NextResponse.json({
       success: true,
-      data: jobs,
+      data: filteredJobs,
+      _fieldMeta: fieldMeta,
       pagination: {
         page,
         limit,
