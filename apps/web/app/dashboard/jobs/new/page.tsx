@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowLeft, Search, Calendar, Clock, Users, MapPin, X, Check } from 'lucide-react';
+import { ArrowLeft, Search, Calendar, Clock, Users, MapPin, X, Check, Wrench } from 'lucide-react';
 import Link from 'next/link';
 import AddressAutocomplete, { ParsedAddress } from '@/components/ui/AddressAutocomplete';
 
@@ -38,6 +38,7 @@ export default function NewJobPage() {
     title: '',
     description: '',
     address: '',
+    serviceType: 'OTRO',
     priority: 'normal',
     scheduledDate: '',
     scheduledTimeStart: '',
@@ -45,6 +46,29 @@ export default function NewJobPage() {
     assignedToIds: [] as string[],
   });
   const [showTeamDropdown, setShowTeamDropdown] = useState(false);
+  const [startPeriod, setStartPeriod] = useState<'AM' | 'PM'>('AM');
+  const [endPeriod, setEndPeriod] = useState<'AM' | 'PM'>('PM');
+
+  // Service type options
+  const SERVICE_TYPES = [
+    { value: 'INSTALACION_SPLIT', label: 'Instalación Split' },
+    { value: 'REPARACION_SPLIT', label: 'Reparación Split' },
+    { value: 'MANTENIMIENTO_SPLIT', label: 'Mantenimiento Split' },
+    { value: 'INSTALACION_CALEFACTOR', label: 'Instalación Calefactor' },
+    { value: 'REPARACION_CALEFACTOR', label: 'Reparación Calefactor' },
+    { value: 'MANTENIMIENTO_CALEFACTOR', label: 'Mantenimiento Calefactor' },
+    { value: 'OTRO', label: 'Otro' },
+  ];
+
+  // Convert 12h to 24h format for API
+  const convertTo24h = (time12h: string, period: 'AM' | 'PM'): string => {
+    if (!time12h) return '';
+    const [hours, minutes] = time12h.split(':').map(Number);
+    let h = hours;
+    if (period === 'PM' && hours !== 12) h += 12;
+    if (period === 'AM' && hours === 12) h = 0;
+    return `${String(h).padStart(2, '0')}:${String(minutes || 0).padStart(2, '0')}`;
+  };
 
   // Auto-fill address when customer is selected
   useEffect(() => {
@@ -96,6 +120,9 @@ export default function NewJobPage() {
       ...formData,
       customerId: selectedCustomer.id,
       technicianIds: formData.assignedToIds,
+      serviceType: formData.serviceType,
+      scheduledTimeStart: convertTo24h(formData.scheduledTimeStart, startPeriod),
+      scheduledTimeEnd: convertTo24h(formData.scheduledTimeEnd, endPeriod),
     });
 
     if (response.success) {
@@ -210,6 +237,29 @@ export default function NewJobPage() {
           />
         </div>
 
+        {/* Service Type */}
+        <div>
+          <label htmlFor="serviceType" className="label mb-1 block">
+            Tipo de servicio *
+          </label>
+          <div className="relative">
+            <Wrench className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <select
+              id="serviceType"
+              value={formData.serviceType}
+              onChange={(e) => setFormData({ ...formData, serviceType: e.target.value })}
+              className="input pl-10"
+              required
+            >
+              {SERVICE_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
         {/* Address with Google Places Autocomplete */}
         <div>
           <label htmlFor="address" className="label mb-1 block">
@@ -274,56 +324,88 @@ export default function NewJobPage() {
         </div>
 
         {/* Schedule */}
-        <div className="grid gap-4 sm:grid-cols-3">
-          <div>
-            <label htmlFor="scheduledDate" className="label mb-1 block">
-              Fecha
-            </label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                id="scheduledDate"
-                type="date"
-                value={formData.scheduledDate}
-                onChange={(e) =>
-                  setFormData({ ...formData, scheduledDate: e.target.value })
-                }
-                className="input pl-10"
-              />
-            </div>
+        <div>
+          <label htmlFor="scheduledDate" className="label mb-1 block">
+            Fecha
+          </label>
+          <div className="relative">
+            <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              id="scheduledDate"
+              type="date"
+              value={formData.scheduledDate}
+              onChange={(e) =>
+                setFormData({ ...formData, scheduledDate: e.target.value })
+              }
+              className="input pl-10"
+            />
           </div>
+        </div>
+
+        {/* Time inputs with AM/PM toggle */}
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="scheduledTimeStart" className="label mb-1 block">
               Hora inicio
             </label>
-            <div className="relative">
-              <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                id="scheduledTimeStart"
-                type="time"
-                value={formData.scheduledTimeStart}
-                onChange={(e) =>
-                  setFormData({ ...formData, scheduledTimeStart: e.target.value })
-                }
-                className="input pl-10"
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  id="scheduledTimeStart"
+                  type="text"
+                  placeholder="09:00"
+                  value={formData.scheduledTimeStart}
+                  onChange={(e) => {
+                    // Allow only numbers and colon, format as HH:MM
+                    let val = e.target.value.replace(/[^0-9:]/g, '');
+                    if (val.length === 2 && !val.includes(':')) val += ':';
+                    if (val.length > 5) val = val.slice(0, 5);
+                    setFormData({ ...formData, scheduledTimeStart: val });
+                  }}
+                  className="input pl-10"
+                  maxLength={5}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setStartPeriod(startPeriod === 'AM' ? 'PM' : 'AM')}
+                className="flex h-[42px] w-16 items-center justify-center rounded-lg border-2 border-primary-500 bg-primary-50 font-semibold text-primary-700 transition-all hover:bg-primary-100 active:scale-95"
+              >
+                {startPeriod}
+              </button>
             </div>
           </div>
           <div>
             <label htmlFor="scheduledTimeEnd" className="label mb-1 block">
               Hora fin
             </label>
-            <div className="relative">
-              <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                id="scheduledTimeEnd"
-                type="time"
-                value={formData.scheduledTimeEnd}
-                onChange={(e) =>
-                  setFormData({ ...formData, scheduledTimeEnd: e.target.value })
-                }
-                className="input pl-10"
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <input
+                  id="scheduledTimeEnd"
+                  type="text"
+                  placeholder="05:00"
+                  value={formData.scheduledTimeEnd}
+                  onChange={(e) => {
+                    // Allow only numbers and colon, format as HH:MM
+                    let val = e.target.value.replace(/[^0-9:]/g, '');
+                    if (val.length === 2 && !val.includes(':')) val += ':';
+                    if (val.length > 5) val = val.slice(0, 5);
+                    setFormData({ ...formData, scheduledTimeEnd: val });
+                  }}
+                  className="input pl-10"
+                  maxLength={5}
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => setEndPeriod(endPeriod === 'AM' ? 'PM' : 'AM')}
+                className="flex h-[42px] w-16 items-center justify-center rounded-lg border-2 border-primary-500 bg-primary-50 font-semibold text-primary-700 transition-all hover:bg-primary-100 active:scale-95"
+              >
+                {endPeriod}
+              </button>
             </div>
           </div>
         </div>
