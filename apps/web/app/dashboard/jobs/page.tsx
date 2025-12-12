@@ -140,7 +140,7 @@ export default function JobsPage() {
                 Lista
               </button>
               <Link
-                href="/dashboard/calendario"
+                href="/dashboard/calendar"
                 className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50"
               >
                 <Calendar className="h-4 w-4" />
@@ -225,7 +225,7 @@ export default function JobsPage() {
                   className="flex items-center gap-4 p-4 transition-colors hover:bg-gray-50"
                 >
                   <div className="flex h-12 w-16 flex-col items-center justify-center rounded-lg bg-gray-100 text-xs font-medium text-gray-600">
-                    <span className="text-sm">#{job.jobNumber}</span>
+                    <span className="text-sm">#{job.jobNumber || job.id.slice(0, 4)}</span>
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
@@ -293,7 +293,7 @@ export default function JobsPage() {
         <div className="card p-8 text-center">
           <Calendar className="mx-auto h-12 w-12 text-gray-400" />
           <p className="mt-4 text-gray-500">Ver trabajos en calendario</p>
-          <Link href="/dashboard/jobs/calendar" className="btn-primary mt-4 inline-flex">
+          <Link href="/dashboard/calendar" className="btn-primary mt-4 inline-flex">
             <Calendar className="mr-2 h-4 w-4" />
             Abrir calendario
           </Link>
