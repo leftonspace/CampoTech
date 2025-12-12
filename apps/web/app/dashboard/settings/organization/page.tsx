@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
 import { formatCUIT } from '@/lib/utils';
-import { ArrowLeft, Save, Building, MapPin, Phone, Mail, FileText } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
+import { ArrowLeft, Save, Building, MapPin, Phone, Mail, FileText, AlertTriangle } from 'lucide-react';
+import { LockedField, LockedFieldGroup } from '@/components/ui/locked-field';
+import { PermissionField, PermissionSelect } from '@/components/ui/permission-field';
+import { ORGANIZATION_FIELDS, getFieldMetadata, type UserRole } from '@/lib/config/field-permissions';
 
 interface Organization {
   id: string;
@@ -59,9 +63,20 @@ const PROVINCES = [
 
 export default function OrganizationSettingsPage() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const [hasChanges, setHasChanges] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Get user role for field permissions
+  const userRole = useMemo(() => {
+    return (user?.role?.toUpperCase() || 'VIEWER') as UserRole;
+  }, [user?.role]);
+
+  // Get field metadata based on user role
+  const fieldMeta = useMemo(() => {
+    return getFieldMetadata(ORGANIZATION_FIELDS, userRole);
+  }, [userRole]);
 
   const [formData, setFormData] = useState<Partial<Organization>>({
     name: '',
@@ -175,146 +190,120 @@ export default function OrganizationSettingsPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Business info */}
+        {/* Locked fiscal fields - cannot be changed */}
+        <LockedFieldGroup
+          title="Datos fiscales registrados"
+          description="Estos datos estan vinculados a AFIP y no pueden ser modificados desde aqui. Para solicitar un cambio, contacte a soporte@campotech.com con la documentacion correspondiente."
+        >
+          <div className="space-y-4">
+            <LockedField
+              label="Razon Social"
+              value={formData.name}
+              message={fieldMeta.razonSocial?.message || 'Este campo no puede ser modificado'}
+            />
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <LockedField
+                label="CUIT"
+                value={formatCuit(formData.cuit || '')}
+                message={fieldMeta.cuit?.message || 'CUIT no puede ser modificado'}
+              />
+              <LockedField
+                label="Condicion IVA"
+                value={IVA_CONDITIONS.find(c => c.value === formData.ivaCondition)?.label || formData.ivaCondition || '-'}
+                message={fieldMeta.ivaCondition?.message || 'Condicion IVA no puede ser modificada'}
+              />
+            </div>
+
+            {formData.activityStartDate && (
+              <LockedField
+                label="Inicio de actividades"
+                value={formData.activityStartDate}
+                message="Fecha registrada en AFIP"
+              />
+            )}
+          </div>
+
+          {/* Request change link */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <Link
+              href="/dashboard/support/change-request?entity=organization&field=fiscal"
+              className="text-sm text-primary-600 hover:underline flex items-center gap-1"
+            >
+              <AlertTriangle className="h-4 w-4" />
+              Solicitar cambio de datos fiscales
+            </Link>
+          </div>
+        </LockedFieldGroup>
+
+        {/* Editable commercial name */}
         <div className="card p-6">
           <div className="mb-4 flex items-center gap-2">
             <Building className="h-5 w-5 text-gray-400" />
-            <h2 className="font-medium text-gray-900">Datos fiscales</h2>
+            <h2 className="font-medium text-gray-900">Datos comerciales</h2>
           </div>
 
           <div className="space-y-4">
-            <div>
-              <label htmlFor="name" className="label mb-1 block">
-                Razón social *
-              </label>
-              <input
-                id="name"
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleChange('name', e.target.value)}
-                className="input"
-                required
-                onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá la razón social')}
-                onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="cuit" className="label mb-1 block">
-                  CUIT *
-                </label>
-                <input
-                  id="cuit"
-                  type="text"
-                  value={formatCuit(formData.cuit || '')}
-                  onChange={(e) => handleChange('cuit', e.target.value)}
-                  placeholder="XX-XXXXXXXX-X"
-                  className="input"
-                  required
-                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el CUIT')}
-                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
-                />
-              </div>
-              <div>
-                <label htmlFor="ivaCondition" className="label mb-1 block">
-                  Condición IVA
-                </label>
-                <select
-                  id="ivaCondition"
-                  value={formData.ivaCondition}
-                  onChange={(e) => handleChange('ivaCondition', e.target.value)}
-                  className="input"
-                >
-                  {IVA_CONDITIONS.map((condition) => (
-                    <option key={condition.value} value={condition.value}>
-                      {condition.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label htmlFor="activityStartDate" className="label mb-1 block">
-                Inicio de actividades
-              </label>
-              <input
-                id="activityStartDate"
-                type="date"
-                value={formData.activityStartDate}
-                onChange={(e) => handleChange('activityStartDate', e.target.value)}
-                className="input"
-              />
-            </div>
+            <PermissionField
+              name="nombreComercial"
+              label="Nombre comercial"
+              value={formData.name}
+              meta={fieldMeta.nombreComercial || { visible: true, editable: true, locked: false }}
+              onChange={(value) => handleChange('name', value)}
+              placeholder="Nombre que usan tus clientes"
+            />
           </div>
         </div>
 
-        {/* Address */}
+        {/* Address - requires approval for fiscal address */}
         <div className="card p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <MapPin className="h-5 w-5 text-gray-400" />
-            <h2 className="font-medium text-gray-900">Dirección fiscal</h2>
+          <div className="mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-gray-400" />
+              <h2 className="font-medium text-gray-900">Domicilio fiscal</h2>
+            </div>
+            {fieldMeta.domicilioFiscal?.requiresApproval && (
+              <span className="text-xs text-amber-600 flex items-center gap-1">
+                <AlertTriangle className="h-3 w-3" />
+                Cambios requieren verificacion
+              </span>
+            )}
           </div>
 
           <div className="space-y-4">
-            <div>
-              <label htmlFor="street" className="label mb-1 block">
-                Calle y número
-              </label>
-              <input
-                id="street"
-                type="text"
-                value={formData.address?.street}
-                onChange={(e) => handleAddressChange('street', e.target.value)}
-                placeholder="Av. Corrientes 1234"
-                className="input"
-              />
-            </div>
+            <PermissionField
+              name="street"
+              label="Calle y numero"
+              value={formData.address?.street}
+              meta={fieldMeta.domicilioFiscal || { visible: true, editable: true, locked: false, requiresApproval: true }}
+              onChange={(value) => handleAddressChange('street', value)}
+              placeholder="Av. Corrientes 1234"
+            />
 
             <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <label htmlFor="city" className="label mb-1 block">
-                  Ciudad
-                </label>
-                <input
-                  id="city"
-                  type="text"
-                  value={formData.address?.city}
-                  onChange={(e) => handleAddressChange('city', e.target.value)}
-                  className="input"
-                />
-              </div>
-              <div>
-                <label htmlFor="province" className="label mb-1 block">
-                  Provincia
-                </label>
-                <select
-                  id="province"
-                  value={formData.address?.province}
-                  onChange={(e) => handleAddressChange('province', e.target.value)}
-                  className="input"
-                >
-                  <option value="">Seleccionar...</option>
-                  {PROVINCES.map((province) => (
-                    <option key={province} value={province}>
-                      {province}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="postalCode" className="label mb-1 block">
-                  Código postal
-                </label>
-                <input
-                  id="postalCode"
-                  type="text"
-                  value={formData.address?.postalCode}
-                  onChange={(e) => handleAddressChange('postalCode', e.target.value)}
-                  className="input"
-                />
-              </div>
+              <PermissionField
+                name="city"
+                label="Ciudad"
+                value={formData.address?.city}
+                meta={fieldMeta.domicilioFiscal || { visible: true, editable: true, locked: false, requiresApproval: true }}
+                onChange={(value) => handleAddressChange('city', value)}
+              />
+              <PermissionSelect
+                name="province"
+                label="Provincia"
+                value={formData.address?.province}
+                meta={fieldMeta.domicilioFiscal || { visible: true, editable: true, locked: false, requiresApproval: true }}
+                onChange={(value) => handleAddressChange('province', value)}
+                options={PROVINCES.map(p => ({ value: p, label: p }))}
+                placeholder="Seleccionar..."
+              />
+              <PermissionField
+                name="postalCode"
+                label="Codigo postal"
+                value={formData.address?.postalCode}
+                meta={fieldMeta.domicilioFiscal || { visible: true, editable: true, locked: false, requiresApproval: true }}
+                onChange={(value) => handleAddressChange('postalCode', value)}
+              />
             </div>
           </div>
         </div>
@@ -327,32 +316,24 @@ export default function OrganizationSettingsPage() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label htmlFor="phone" className="label mb-1 block">
-                Teléfono
-              </label>
-              <input
-                id="phone"
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => handleChange('phone', e.target.value)}
-                placeholder="+54 11 1234-5678"
-                className="input"
-              />
-            </div>
-            <div>
-              <label htmlFor="email" className="label mb-1 block">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleChange('email', e.target.value)}
-                placeholder="contacto@empresa.com"
-                className="input"
-              />
-            </div>
+            <PermissionField
+              name="phone"
+              label="Telefono"
+              value={formData.phone}
+              meta={fieldMeta.phone || { visible: true, editable: true, locked: false }}
+              onChange={(value) => handleChange('phone', value)}
+              type="tel"
+              placeholder="+54 11 1234-5678"
+            />
+            <PermissionField
+              name="email"
+              label="Email"
+              value={formData.email}
+              meta={fieldMeta.email || { visible: true, editable: true, locked: false }}
+              onChange={(value) => handleChange('email', value)}
+              type="email"
+              placeholder="contacto@empresa.com"
+            />
           </div>
         </div>
 

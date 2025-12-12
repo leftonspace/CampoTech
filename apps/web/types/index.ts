@@ -10,6 +10,13 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export type UserRole = 'owner' | 'admin' | 'dispatcher' | 'technician' | 'accountant';
+export type SubscriptionTier = 'FREE' | 'BASICO' | 'PROFESIONAL' | 'EMPRESARIAL';
+
+export interface UserOrganization {
+  id: string;
+  name: string;
+  subscriptionTier: SubscriptionTier;
+}
 
 export interface User {
   id: string;
@@ -18,9 +25,10 @@ export interface User {
   phone: string;
   name: string;
   role: UserRole;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+  organization?: UserOrganization;
 }
 
 export interface Session {
