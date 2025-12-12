@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
     }> = [];
 
     for (const item of items) {
-      const totalStock = item.stocks.reduce((sum, s) => sum + s.quantity, 0);
+      const totalStock = item.stocks.reduce((sum: number, s: { quantity: number }) => sum + s.quantity, 0);
 
       // Out of stock alert
       if (totalStock === 0) {
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
           details: {
             currentStock: 0,
             minStockLevel: item.minStockLevel,
-            locationBreakdown: item.stocks.map((s) => ({
+            locationBreakdown: item.stocks.map((s: { locationId: string; location?: { name: string }; quantity: number }) => ({
               locationId: s.locationId,
               locationName: s.location?.name ?? 'Ubicación desconocida',
               quantity: s.quantity,
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
           details: {
             currentStock: totalStock,
             minStockLevel: item.minStockLevel,
-            locationBreakdown: item.stocks.map((s) => ({
+            locationBreakdown: item.stocks.map((s: { locationId: string; location?: { name: string }; quantity: number }) => ({
               locationId: s.locationId,
               locationName: s.location?.name ?? 'Ubicación desconocida',
               quantity: s.quantity,
