@@ -49,8 +49,20 @@ export default function NewJobPage() {
   const [startPeriod, setStartPeriod] = useState<'AM' | 'PM'>('AM');
   const [endPeriod, setEndPeriod] = useState<'AM' | 'PM'>('PM');
 
-  // Service type options
-  const SERVICE_TYPES = [
+  // Fetch service types from API (configurable by admin)
+  const { data: serviceTypesData } = useQuery({
+    queryKey: ['service-types'],
+    queryFn: async () => {
+      const res = await fetch('/api/settings/service-types');
+      return res.json();
+    },
+  });
+
+  // Use fetched service types or fallback to defaults
+  const SERVICE_TYPES = serviceTypesData?.data?.map((st: { code: string; name: string }) => ({
+    value: st.code,
+    label: st.name,
+  })) || [
     { value: 'INSTALACION_SPLIT', label: 'Instalación Split' },
     { value: 'REPARACION_SPLIT', label: 'Reparación Split' },
     { value: 'MANTENIMIENTO_SPLIT', label: 'Mantenimiento Split' },

@@ -52,6 +52,7 @@ model Organization {
   inventoryTransactions InventoryTransaction[] @relation("OrgInventoryTransactions")
   dashboardAlerts      DashboardAlert[]       @relation("OrgDashboardAlerts")
   priceItems           PriceItem[]            @relation("OrgPriceItems")
+  serviceTypeConfigs   ServiceTypeConfig[]
 
   @@map("organizations")
 }
@@ -199,6 +200,31 @@ model Job {
   @@map("jobs")
 }
 
+// ────────────────────────────────────────────────────────────────────────────────
+// SERVICE TYPE CONFIGURATION - Configurable service types per organization
+// ────────────────────────────────────────────────────────────────────────────────
+
+model ServiceTypeConfig {
+  id             String   @id @default(cuid())
+  code           String   // Internal code (e.g., "INSTALACION_SPLIT")
+  name           String   // Display name (e.g., "Instalación Split")
+  description    String?  // Optional description
+  color          String?  // Optional color for UI (hex code)
+  icon           String?  // Optional icon name
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, code])
+  @@index([organizationId])
+  @@map("service_type_configs")
+}
+
+// Legacy enum kept for backward compatibility - will be deprecated
 enum ServiceType {
   INSTALACION_SPLIT
   REPARACION_SPLIT
