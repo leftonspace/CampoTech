@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import {
+  filterEntitiesByRole,
+  getEntityFieldMetadata,
+  UserRole,
+} from '@/lib/middleware/field-filter';
 
 export async function GET(request: NextRequest) {
   try {
@@ -40,9 +45,17 @@ export async function GET(request: NextRequest) {
       prisma.customer.count({ where }),
     ]);
 
+    // Normalize user role for permission checking
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
+    // Filter data based on user role
+    const filteredCustomers = filterEntitiesByRole(customers, 'customer', userRole);
+    const fieldMeta = getEntityFieldMetadata('customer', userRole);
+
     return NextResponse.json({
       success: true,
-      data: customers,
+      data: filteredCustomers,
+      _fieldMeta: fieldMeta,
       pagination: {
         page,
         limit,

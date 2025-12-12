@@ -9,6 +9,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import {
+  filterEntityByRole,
+  getEntityFieldMetadata,
+  validateEntityUpdate,
+  UserRole,
+} from '@/lib/middleware/field-filter';
 
 // Check if error is related to missing table
 function isTableNotFoundError(error: unknown): boolean {
@@ -158,14 +164,25 @@ export async function GET(
       };
     });
 
+    // Normalize user role for permission checking
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
+    // Build vehicle data with compliance info
+    const vehicleData = {
+      ...vehicle,
+      documents: documentsWithStatus,
+      complianceAlerts,
+      isCompliant: complianceAlerts.length === 0,
+    };
+
+    // Filter data based on user role
+    const filteredData = filterEntityByRole(vehicleData, 'vehicle', userRole);
+    const fieldMeta = getEntityFieldMetadata('vehicle', userRole);
+
     return NextResponse.json({
       success: true,
-      data: {
-        ...vehicle,
-        documents: documentsWithStatus,
-        complianceAlerts,
-        isCompliant: complianceAlerts.length === 0,
-      },
+      data: filteredData,
+      _fieldMeta: fieldMeta,
     });
   } catch (error) {
     console.error('Get vehicle error:', error);
@@ -190,15 +207,27 @@ export async function PUT(
       );
     }
 
-    if (!['ADMIN', 'OWNER'].includes(session.role.toUpperCase())) {
+    // Normalize user role
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
+    if (!['ADMIN', 'OWNER'].includes(userRole)) {
       return NextResponse.json(
-        { success: false, error: 'No tienes permiso para editar vehículos' },
+        { success: false, error: 'No tienes permiso para editar vehiculos' },
         { status: 403 }
       );
     }
 
     const { id } = await params;
     const body = await request.json();
+
+    // Validate that user can edit the fields they're trying to update
+    const validation = validateEntityUpdate(body, 'vehicle', userRole);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { success: false, error: validation.errors.join(' ') },
+        { status: 403 }
+      );
+    }
 
     // Verify vehicle exists and belongs to organization
     const existing = await prisma.vehicle.findFirst({

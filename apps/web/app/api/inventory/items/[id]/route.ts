@@ -8,6 +8,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import {
+  filterEntityByRole,
+  getEntityFieldMetadata,
+  validateEntityUpdate,
+  UserRole,
+} from '@/lib/middleware/field-filter';
 
 export async function GET(
   request: NextRequest,
@@ -80,14 +86,25 @@ export async function GET(
     const totalStock = item.stocks.reduce((sum: number, s: { quantity: number }) => sum + s.quantity, 0);
     const isLowStock = totalStock <= (item.minStockLevel || 0);
 
+    // Normalize user role for permission checking
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
+    // Build item data
+    const itemData = {
+      ...item,
+      totalStock,
+      availableStock: totalStock,
+      isLowStock,
+    };
+
+    // Filter data based on user role (costPrice is restricted)
+    const filteredData = filterEntityByRole(itemData, 'product', userRole);
+    const fieldMeta = getEntityFieldMetadata('product', userRole);
+
     return NextResponse.json({
       success: true,
-      data: {
-        ...item,
-        totalStock,
-        availableStock: totalStock,
-        isLowStock,
-      },
+      data: filteredData,
+      _fieldMeta: fieldMeta,
     });
   } catch (error) {
     console.error('Get inventory item error:', error);
@@ -112,9 +129,12 @@ export async function PUT(
       );
     }
 
-    if (!['ADMIN', 'OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
+    // Normalize user role
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
+    if (!['ADMIN', 'OWNER', 'DISPATCHER'].includes(userRole)) {
       return NextResponse.json(
-        { success: false, error: 'No tienes permiso para esta operación' },
+        { success: false, error: 'No tienes permiso para esta operacion' },
         { status: 403 }
       );
     }
@@ -137,6 +157,16 @@ export async function PUT(
     }
 
     const body = await request.json();
+
+    // Validate that user can edit the fields they're trying to update
+    const validation = validateEntityUpdate(body, 'product', userRole);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { success: false, error: validation.errors.join(' ') },
+        { status: 403 }
+      );
+    }
+
     const {
       name,
       sku,

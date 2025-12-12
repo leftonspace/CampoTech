@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import {
+  filterEntityByRole,
+  getEntityFieldMetadata,
+  validateEntityUpdate,
+  UserRole,
+} from '@/lib/middleware/field-filter';
 
 export async function GET(
   request: NextRequest,
@@ -41,9 +47,18 @@ export async function GET(
       );
     }
 
+    // Normalize user role and check if viewing self
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const isSelf = session.userId === params.id;
+
+    // Filter data based on user role
+    const filteredData = filterEntityByRole(user, 'user', userRole, isSelf);
+    const fieldMeta = getEntityFieldMetadata('user', userRole, isSelf);
+
     return NextResponse.json({
       success: true,
-      data: user,
+      data: filteredData,
+      _fieldMeta: fieldMeta,
     });
   } catch (error) {
     console.error('Get user error:', error);
@@ -93,11 +108,23 @@ export async function PUT(
       );
     }
 
+    // Normalize user role
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
     // Only OWNER, ADMIN, and DISPATCHER can update other users
     const isEditingSelf = session.userId === params.id;
-    if (!isEditingSelf && !['OWNER', 'ADMIN', 'DISPATCHER'].includes(session.role)) {
+    if (!isEditingSelf && !['OWNER', 'ADMIN', 'DISPATCHER'].includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'Forbidden: insufficient permissions' },
+        { status: 403 }
+      );
+    }
+
+    // Validate that user can edit the fields they're trying to update
+    const validation = validateEntityUpdate(body, 'user', userRole, isEditingSelf);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { success: false, error: validation.errors.join(' ') },
         { status: 403 }
       );
     }

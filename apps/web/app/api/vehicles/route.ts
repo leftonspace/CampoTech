@@ -8,6 +8,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import {
+  filterEntitiesByRole,
+  getEntityFieldMetadata,
+  UserRole,
+} from '@/lib/middleware/field-filter';
 
 // Helper to check if error is "table doesn't exist"
 function isTableNotFoundError(error: unknown): boolean {
@@ -152,12 +157,20 @@ export async function GET(request: NextRequest) {
       withAlerts: vehiclesWithCompliance.filter((v) => v.complianceAlerts.length > 0).length,
     };
 
+    // Normalize user role for permission checking
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
+    // Filter data based on user role
+    const filteredVehicles = filterEntitiesByRole(vehiclesWithCompliance, 'vehicle', userRole);
+    const fieldMeta = getEntityFieldMetadata('vehicle', userRole);
+
     return NextResponse.json({
       success: true,
       data: {
-        vehicles: vehiclesWithCompliance,
+        vehicles: filteredVehicles,
         stats,
       },
+      _fieldMeta: fieldMeta,
     });
   } catch (error) {
     console.error('Get vehicles error:', error);

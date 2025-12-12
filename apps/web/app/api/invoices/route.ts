@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import {
+  filterEntitiesByRole,
+  getEntityFieldMetadata,
+  UserRole,
+  canAccessModule,
+} from '@/lib/middleware/field-filter';
 
 /**
  * Invoices API
@@ -51,6 +57,17 @@ export async function GET(request: NextRequest) {
       where.customerId = customerId;
     }
 
+    // Normalize user role for permission checking
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
+    // Check module access - invoices are hidden from TECHNICIAN
+    if (!canAccessModule('invoices', userRole)) {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permiso para ver facturas' },
+        { status: 403 }
+      );
+    }
+
     const [invoices, total] = await Promise.all([
       prisma.invoice.findMany({
         where,
@@ -72,9 +89,14 @@ export async function GET(request: NextRequest) {
       prisma.invoice.count({ where }),
     ]);
 
+    // Filter data based on user role
+    const filteredInvoices = filterEntitiesByRole(invoices, 'invoice', userRole);
+    const fieldMeta = getEntityFieldMetadata('invoice', userRole);
+
     return NextResponse.json({
       success: true,
-      data: invoices,
+      data: filteredInvoices,
+      _fieldMeta: fieldMeta,
       pagination: {
         page,
         limit,

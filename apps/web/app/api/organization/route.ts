@@ -7,6 +7,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import {
+  filterEntityByRole,
+  getEntityFieldMetadata,
+  validateEntityUpdate,
+  UserRole,
+} from '@/lib/middleware/field-filter';
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,24 +41,44 @@ export async function GET(request: NextRequest) {
       ? JSON.parse(organization.settings)
       : organization.settings || {};
 
+    // Normalize user role to uppercase for permission checking
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
+    // Build organization data object
+    const orgData = {
+      id: organization.id,
+      name: organization.name,
+      cuit: settings.cuit || '',
+      razonSocial: settings.razonSocial || '',
+      tipoSociedad: settings.tipoSociedad || '',
+      ivaCondition: settings.ivaCondition || 'RESPONSABLE_INSCRIPTO',
+      puntoVentaAfip: settings.puntoVentaAfip || '',
+      fechaInscripcionAfip: settings.fechaInscripcionAfip || '',
+      ingresosBrutos: settings.ingresosBrutos || '',
+      domicilioFiscal: settings.domicilioFiscal || settings.address || {},
+      direccionComercial: settings.direccionComercial || settings.address || {},
+      nombreComercial: settings.nombreComercial || organization.name,
+      phone: organization.phone || '',
+      email: organization.email || '',
+      logo: organization.logo || '',
+      horariosAtencion: settings.horariosAtencion || '',
+      activityStartDate: settings.activityStartDate || '',
+      // Restricted fields (only visible to OWNER)
+      cbu: settings.cbu || '',
+      cbuAlias: settings.cbuAlias || '',
+      mpAccessToken: settings.mpAccessToken || '',
+      afipCertificate: settings.afipCertificate || '',
+      afipPrivateKey: settings.afipPrivateKey || '',
+    };
+
+    // Filter data based on user role
+    const filteredData = filterEntityByRole(orgData, 'organization', userRole);
+    const fieldMeta = getEntityFieldMetadata('organization', userRole);
+
     return NextResponse.json({
       success: true,
-      data: {
-        id: organization.id,
-        name: organization.name,
-        cuit: settings.cuit || '',
-        address: {
-          street: settings.address?.street || '',
-          city: settings.address?.city || '',
-          province: settings.address?.province || '',
-          postalCode: settings.address?.postalCode || '',
-        },
-        phone: organization.phone || '',
-        email: organization.email || '',
-        ivaCondition: settings.ivaCondition || 'RESPONSABLE_INSCRIPTO',
-        activityStartDate: settings.activityStartDate || '',
-        logoUrl: organization.logo || '',
-      },
+      data: filteredData,
+      _fieldMeta: fieldMeta,
     });
   } catch (error) {
     console.error('Get organization error:', error);
@@ -74,15 +100,28 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Only admins can update organization
-    if (!['ADMIN', 'OWNER'].includes(session.role.toUpperCase())) {
+    // Normalize user role
+    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+
+    // Only admins and owners can update organization
+    if (!['ADMIN', 'OWNER'].includes(userRole)) {
       return NextResponse.json(
-        { success: false, error: 'No tienes permiso para editar la organización' },
+        { success: false, error: 'No tienes permiso para editar la organizacion' },
         { status: 403 }
       );
     }
 
     const body = await request.json();
+
+    // Validate that user can edit the fields they're trying to update
+    const validation = validateEntityUpdate(body, 'organization', userRole);
+    if (!validation.valid) {
+      return NextResponse.json(
+        { success: false, error: validation.errors.join(' ') },
+        { status: 403 }
+      );
+    }
+
     const { name, cuit, address, phone, email, ivaCondition, activityStartDate, logoUrl } = body;
 
     // Get current organization to merge settings

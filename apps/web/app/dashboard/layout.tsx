@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth, ProtectedRoute } from '@/lib/auth-context';
 import { cn, getInitials } from '@/lib/utils';
+import { MODULE_ACCESS, type UserRole } from '@/lib/config/field-permissions';
 import {
   LayoutDashboard,
   Briefcase,
@@ -22,24 +23,33 @@ import {
   Calendar,
   Truck,
   Package,
+  UsersRound,
 } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Mapa', href: '/dashboard/map', icon: MapPin },
-  { name: 'Calendario', href: '/dashboard/calendar', icon: Calendar },
-  { name: 'Trabajos', href: '/dashboard/jobs', icon: Briefcase },
-  { name: 'Clientes', href: '/dashboard/customers', icon: Users },
-  { name: 'Flota', href: '/dashboard/fleet', icon: Truck },
-  { name: 'Inventario', href: '/dashboard/inventory', icon: Package },
-  { name: 'Facturas', href: '/dashboard/invoices', icon: FileText },
-  { name: 'Pagos', href: '/dashboard/payments', icon: CreditCard },
-  { name: 'Analytics', href: '/dashboard/analytics/overview', icon: BarChart3 },
-  { name: 'Sucursales', href: '/dashboard/locations', icon: Building2 },
-  { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle },
-  { name: 'Configuración', href: '/dashboard/settings', icon: Settings },
+// Navigation items with module mapping for access control
+const allNavigation = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, module: 'dashboard' },
+  { name: 'Mapa', href: '/dashboard/map', icon: MapPin, module: 'map' },
+  { name: 'Calendario', href: '/dashboard/calendar', icon: Calendar, module: 'calendar' },
+  { name: 'Trabajos', href: '/dashboard/jobs', icon: Briefcase, module: 'jobs' },
+  { name: 'Clientes', href: '/dashboard/customers', icon: Users, module: 'customers' },
+  { name: 'Flota', href: '/dashboard/fleet', icon: Truck, module: 'fleet' },
+  { name: 'Inventario', href: '/dashboard/inventory', icon: Package, module: 'inventory' },
+  { name: 'Equipo', href: '/dashboard/team', icon: UsersRound, module: 'team' },
+  { name: 'Facturas', href: '/dashboard/invoices', icon: FileText, module: 'invoices' },
+  { name: 'Pagos', href: '/dashboard/payments', icon: CreditCard, module: 'payments' },
+  { name: 'Analytics', href: '/dashboard/analytics/overview', icon: BarChart3, module: 'analytics' },
+  { name: 'Sucursales', href: '/dashboard/locations', icon: Building2, module: 'locations' },
+  { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle, module: 'whatsapp' },
+  { name: 'Configuracion', href: '/dashboard/settings', icon: Settings, module: 'settings' },
 ];
+
+// Helper to check if module is accessible for a role
+function canAccessModule(module: string, role: UserRole): boolean {
+  const access = MODULE_ACCESS[module]?.[role];
+  return access !== undefined && access !== 'hidden';
+}
 
 export default function DashboardLayout({
   children,
@@ -51,6 +61,16 @@ export default function DashboardLayout({
   const notificationRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { user, logout } = useAuth();
+
+  // Get user role, defaulting to VIEWER if not set
+  const userRole = useMemo(() => {
+    return (user?.role?.toUpperCase() || 'VIEWER') as UserRole;
+  }, [user?.role]);
+
+  // Filter navigation based on user role
+  const navigation = useMemo(() => {
+    return allNavigation.filter((item) => canAccessModule(item.module, userRole));
+  }, [userRole]);
 
   // Close notifications dropdown when clicking outside
   useEffect(() => {
