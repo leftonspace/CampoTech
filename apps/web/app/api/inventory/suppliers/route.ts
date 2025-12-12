@@ -157,8 +157,8 @@ export async function GET(request: NextRequest) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
         { code: { contains: search, mode: 'insensitive' } },
-        { contactEmail: { contains: search, mode: 'insensitive' } },
-        { taxId: { contains: search, mode: 'insensitive' } },
+        { email: { contains: search, mode: 'insensitive' } },
+        { cuit: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -247,7 +247,7 @@ export async function POST(request: NextRequest) {
           supplierId,
           productId,
           supplierSku: supplierSku || null,
-          supplierPrice: supplierPrice || 0,
+          purchasePrice: supplierPrice || 0,
           leadTimeDays: leadTimeDays || null,
           isPreferred: body.isPreferred || false,
         },
@@ -288,21 +288,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Build address JSON from separate fields if provided
+    const addressData = body.address || (body.city || body.state || body.postalCode || body.country ? {
+      street: body.street || null,
+      city: body.city || null,
+      province: body.state || null,
+      postalCode: body.postalCode || null,
+      country: body.country || 'AR',
+    } : null);
+
     const supplier = await prisma.supplier.create({
       data: {
         organizationId: session.organizationId,
         code: body.code.toUpperCase(),
         name: body.name,
-        taxId: body.taxId || null,
+        cuit: body.cuit || body.taxId || null,
         contactName: body.contactName || null,
-        contactEmail: body.contactEmail || null,
-        contactPhone: body.contactPhone || null,
-        address: body.address || null,
-        city: body.city || null,
-        state: body.state || null,
-        postalCode: body.postalCode || null,
-        country: body.country || 'AR',
-        paymentTerms: body.paymentTerms || null,
+        email: body.email || body.contactEmail || null,
+        phone: body.phone || body.contactPhone || null,
+        address: addressData,
+        paymentTermDays: body.paymentTermDays || body.paymentTerms || 30,
         notes: body.notes || null,
         isActive: body.isActive !== false,
       },
@@ -383,16 +388,23 @@ export async function PUT(request: NextRequest) {
 
     if (body.code !== undefined) updateData.code = body.code.toUpperCase();
     if (body.name !== undefined) updateData.name = body.name;
-    if (body.taxId !== undefined) updateData.taxId = body.taxId;
+    if (body.cuit !== undefined || body.taxId !== undefined) updateData.cuit = body.cuit || body.taxId;
     if (body.contactName !== undefined) updateData.contactName = body.contactName;
-    if (body.contactEmail !== undefined) updateData.contactEmail = body.contactEmail;
-    if (body.contactPhone !== undefined) updateData.contactPhone = body.contactPhone;
+    if (body.email !== undefined || body.contactEmail !== undefined) updateData.email = body.email || body.contactEmail;
+    if (body.phone !== undefined || body.contactPhone !== undefined) updateData.phone = body.phone || body.contactPhone;
     if (body.address !== undefined) updateData.address = body.address;
-    if (body.city !== undefined) updateData.city = body.city;
-    if (body.state !== undefined) updateData.state = body.state;
-    if (body.postalCode !== undefined) updateData.postalCode = body.postalCode;
-    if (body.country !== undefined) updateData.country = body.country;
-    if (body.paymentTerms !== undefined) updateData.paymentTerms = body.paymentTerms;
+    // Handle separate address fields by building JSON
+    if (body.city !== undefined || body.state !== undefined || body.postalCode !== undefined || body.country !== undefined) {
+      const currentAddress = existingSupplier.address as Record<string, any> || {};
+      updateData.address = {
+        ...currentAddress,
+        city: body.city ?? currentAddress.city,
+        province: body.state ?? currentAddress.province,
+        postalCode: body.postalCode ?? currentAddress.postalCode,
+        country: body.country ?? currentAddress.country ?? 'AR',
+      };
+    }
+    if (body.paymentTermDays !== undefined || body.paymentTerms !== undefined) updateData.paymentTermDays = body.paymentTermDays || body.paymentTerms;
     if (body.notes !== undefined) updateData.notes = body.notes;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
 

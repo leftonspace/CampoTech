@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
         },
         include: {
           supplier: {
-            select: { id: true, code: true, name: true, contactEmail: true },
+            select: { id: true, code: true, name: true, email: true },
           },
           warehouse: {
             select: { id: true, code: true, name: true },
