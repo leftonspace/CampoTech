@@ -338,7 +338,7 @@ export async function POST(request: NextRequest) {
               organizationId: session.organizationId,
               productId: orderItem.productId,
               movementNumber,
-              movementType: 'PURCHASE_RECEIVE',
+              movementType: 'PURCHASE_RECEIPT',
               quantity: receivedQty,
               direction: 'IN',
               toWarehouseId: order.warehouseId,
