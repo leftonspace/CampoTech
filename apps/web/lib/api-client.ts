@@ -232,6 +232,32 @@ export const api = {
       apiRequest(`/users/${id}`, { method: 'PUT', body: data }),
     delete: (id: string) =>
       apiRequest(`/users/${id}`, { method: 'DELETE' }),
+    // Profile (self-service)
+    profile: {
+      get: () => apiRequest<unknown>('/users/me/profile'),
+      update: (data: unknown) =>
+        apiRequest('/users/me/profile', { method: 'PUT', body: data }),
+    },
+    // Privacy preferences
+    privacy: {
+      get: () => apiRequest<unknown>('/users/me/privacy'),
+      update: (data: unknown) =>
+        apiRequest('/users/me/privacy', { method: 'PUT', body: data }),
+    },
+    // Data export
+    export: {
+      request: () =>
+        apiRequest('/users/me/export', { method: 'POST' }),
+      status: () => apiRequest<unknown>('/users/me/export'),
+    },
+    // Account deletion
+    deleteRequest: {
+      create: (reason?: string) =>
+        apiRequest('/users/me/delete-request', { method: 'POST', body: { reason } }),
+      cancel: () =>
+        apiRequest('/users/me/delete-request', { method: 'DELETE' }),
+      status: () => apiRequest<unknown>('/users/me/delete-request'),
+    },
   },
 
   // Customers
