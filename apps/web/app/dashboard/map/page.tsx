@@ -674,7 +674,6 @@ export default function LiveMapPage() {
     leafletMapRef.current = map;
 
     // Create layer groups
-    // @ts-expect-error MarkerClusterGroup is dynamically loaded
     customerLayerRef.current = L.markerClusterGroup({
       maxClusterRadius: 50,
       spiderfyOnMaxZoom: true,
