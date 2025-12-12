@@ -231,7 +231,7 @@ function WeekView({
     return days;
   }, [currentDate]);
 
-  const hours = Array.from({ length: 14 }, (_, i) => i + 7); // 7 AM to 8 PM
+  const hours = Array.from({ length: 24 }, (_, i) => i); // 0-23 (full 24 hours)
 
   const getEventsForDateAndHour = (date: Date, hour: number) => {
     const dateStr = date.toISOString().split('T')[0];
@@ -325,7 +325,7 @@ function DayView({
   currentDate: Date;
   onEventClick: (event: CalendarEvent) => void;
 }) {
-  const hours = Array.from({ length: 14 }, (_, i) => i + 7); // 7 AM to 8 PM
+  const hours = Array.from({ length: 24 }, (_, i) => i); // 0-23 (full 24 hours)
   const dateStr = currentDate.toISOString().split('T')[0];
 
   const getEventsForHour = (hour: number) => {
