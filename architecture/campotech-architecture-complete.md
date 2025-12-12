@@ -404,6 +404,390 @@ CLOSED → (failures >= threshold) → OPEN → (timeout) → HALF_OPEN → (pro
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
+### Comprehensive System Interaction Map
+
+The following Mermaid diagram shows the complete web of interactions between all user types, interfaces, APIs, external systems, and background processes.
+
+```mermaid
+flowchart TB
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% USER ACTORS
+    %% ═══════════════════════════════════════════════════════════════════════
+    subgraph USERS["👥 USER ACTORS"]
+        direction TB
+        OWNER["🏢 OWNER/ADMIN<br/>Business owner<br/>Full platform access"]
+        DISPATCHER["📋 DISPATCHER<br/>Office staff<br/>Job management"]
+        TECH["🔧 TECHNICIAN<br/>Field worker<br/>Mobile-focused"]
+        ACCOUNTANT["💼 ACCOUNTANT<br/>Finance only<br/>Invoices & payments"]
+        CUSTOMER["👤 B2B CUSTOMER<br/>Business client<br/>Receives services"]
+        CONSUMER["🛒 CONSUMER<br/>Marketplace user<br/>Finds service providers"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% FRONTEND INTERFACES
+    %% ═══════════════════════════════════════════════════════════════════════
+    subgraph FRONTENDS["🖥️ FRONTEND INTERFACES"]
+        direction TB
+        subgraph WEB_DASHBOARD["Web Dashboard (Next.js)"]
+            DASH_HOME["📊 Dashboard Home<br/>KPIs, alerts, today's jobs"]
+            DASH_JOBS["📝 Jobs Management<br/>Create, assign, track"]
+            DASH_CUSTOMERS["👥 Customers CRM<br/>Contacts, history"]
+            DASH_INVOICES["🧾 Invoicing<br/>Create, AFIP submit"]
+            DASH_CALENDAR["📅 Calendar View<br/>Drag-drop scheduling"]
+            DASH_MAP["🗺️ Live Map<br/>Real-time technicians"]
+            DASH_FLEET["🚗 Fleet Management<br/>Vehicles, VTV, documents"]
+            DASH_INVENTORY["📦 Inventory<br/>Stock, transfers"]
+            DASH_REPORTS["📈 Reports<br/>Analytics dashboard"]
+            DASH_TEAM["👔 Team Management<br/>Users, roles, invites"]
+            DASH_SETTINGS["⚙️ Settings<br/>AFIP, MP, WhatsApp config"]
+        end
+
+        subgraph MOBILE_APP["Mobile App (React Native)"]
+            MOB_JOBS["📱 My Jobs<br/>Today's schedule"]
+            MOB_JOB_DETAIL["🔍 Job Detail<br/>Customer, address, notes"]
+            MOB_PHOTOS["📸 Photos<br/>Before/during/after"]
+            MOB_SIGNATURE["✍️ Signature Capture<br/>Job completion"]
+            MOB_GPS["📍 GPS Tracking<br/>Background location"]
+            MOB_OFFLINE["💾 Offline Mode<br/>WatermelonDB sync"]
+            MOB_INVENTORY["📦 Vehicle Stock<br/>Materials used"]
+        end
+
+        subgraph CUSTOMER_PORTAL["Customer Portal (White-label)"]
+            CP_TRACK["📍 Track Technician<br/>Live ETA map"]
+            CP_HISTORY["📋 Job History<br/>Past services"]
+            CP_INVOICES["🧾 My Invoices<br/>Download, pay"]
+            CP_BOOK["📅 Book Service<br/>Schedule appointment"]
+            CP_SUPPORT["💬 Support Chat<br/>Contact business"]
+        end
+
+        subgraph MARKETPLACE["Consumer Marketplace"]
+            MKT_SEARCH["🔍 Search Services<br/>By category, location"]
+            MKT_PROFILES["⭐ Business Profiles<br/>Reviews, portfolio"]
+            MKT_QUOTES["💬 Request Quotes<br/>Get estimates"]
+            MKT_BOOK["📅 Book & Pay<br/>Instant booking"]
+            MKT_TRACK["📍 Track Service<br/>Real-time updates"]
+            MKT_REVIEW["⭐ Leave Review<br/>Rate experience"]
+        end
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% API LAYER
+    %% ═══════════════════════════════════════════════════════════════════════
+    subgraph API_LAYER["🔌 API LAYER (Next.js API Routes)"]
+        direction TB
+        API_AUTH["🔐 /api/auth/*<br/>Login, signup, invite"]
+        API_JOBS["📝 /api/jobs/*<br/>CRUD, assign, status"]
+        API_CUSTOMERS["👥 /api/customers/*<br/>CRM operations"]
+        API_INVOICES["🧾 /api/invoices/*<br/>Create, submit to AFIP"]
+        API_PAYMENTS["💳 /api/payments/*<br/>MP links, webhooks"]
+        API_TRACKING["📍 /api/tracking/*<br/>GPS updates, nearest"]
+        API_VEHICLES["🚗 /api/vehicles/*<br/>Fleet CRUD, docs"]
+        API_INVENTORY["📦 /api/inventory/*<br/>Stock, transactions"]
+        API_WHATSAPP["💬 /api/whatsapp/*<br/>Send, receive, voice"]
+        API_CALENDAR["📅 /api/jobs/calendar<br/>Calendar data"]
+        API_DASHBOARD["📊 /api/dashboard/*<br/>Alerts, stats"]
+        API_CONSUMER["🛒 /api/consumer/*<br/>Marketplace APIs"]
+        API_PORTAL["🚪 /api/portal/*<br/>Customer portal"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% REAL-TIME LAYER
+    %% ═══════════════════════════════════════════════════════════════════════
+    subgraph REALTIME["⚡ REAL-TIME (WebSocket)"]
+        WS_LOCATIONS["📍 technician_location_update<br/>15-second GPS broadcast"]
+        WS_JOB_STATUS["📋 job_status_changed<br/>Status transitions"]
+        WS_NOTIFICATIONS["🔔 notification<br/>Push to dashboard"]
+        WS_CHAT["💬 chat_message<br/>Support conversations"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% BACKGROUND WORKERS
+    %% ═══════════════════════════════════════════════════════════════════════
+    subgraph WORKERS["⚙️ BACKGROUND WORKERS (BullMQ)"]
+        direction TB
+        W_VOICE["🎤 Voice Processing<br/>Transcribe + extract job"]
+        W_AFIP["🏛️ AFIP Invoice<br/>Submit CAE requests"]
+        W_WHATSAPP["💬 WhatsApp Outbound<br/>Send messages"]
+        W_REMINDER["⏰ Reminders<br/>Job notifications"]
+        W_FLEET["🚗 Fleet Expiry<br/>Document alerts"]
+        W_INVENTORY["📦 Stock Alerts<br/>Low stock warnings"]
+        W_RECONCILIATION["💰 MP Reconciliation<br/>Payment sync"]
+        W_AGGREGATION["📱 Message Aggregation<br/>Multi-number buffer"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% EXTERNAL INTEGRATIONS
+    %% ═══════════════════════════════════════════════════════════════════════
+    subgraph EXTERNAL["🌐 EXTERNAL SYSTEMS"]
+        direction TB
+        EXT_AFIP["🏛️ AFIP<br/>Electronic invoicing<br/>CAE authorization"]
+        EXT_MP["💳 Mercado Pago<br/>Payment processing<br/>Cuotas, QR, links"]
+        EXT_WA["💬 WhatsApp Cloud<br/>Business messaging<br/>Voice notes"]
+        EXT_OPENAI["🤖 OpenAI<br/>Whisper transcription<br/>GPT extraction"]
+        EXT_GOOGLE["🗺️ Google Maps<br/>Distance Matrix<br/>Directions, Geocoding"]
+        EXT_EXPO["📱 Expo Push<br/>Mobile notifications"]
+        EXT_TWILIO["📞 Twilio/SMS<br/>Fallback messaging"]
+        EXT_SUPABASE["☁️ Supabase<br/>Auth, Storage, Realtime"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% DATABASE
+    %% ═══════════════════════════════════════════════════════════════════════
+    subgraph DATABASE["🗄️ DATA STORES"]
+        direction TB
+        DB_PG["🐘 PostgreSQL<br/>Organizations, users, jobs<br/>Invoices, payments, inventory"]
+        DB_REDIS["🔴 Redis<br/>Queues, sessions<br/>Rate limiting, cache"]
+        DB_STORAGE["📁 Supabase Storage<br/>Photos, documents<br/>Voice recordings"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% USER -> FRONTEND CONNECTIONS
+    %% ═══════════════════════════════════════════════════════════════════════
+    OWNER --> WEB_DASHBOARD
+    OWNER --> MOBILE_APP
+    DISPATCHER --> WEB_DASHBOARD
+    ACCOUNTANT --> DASH_INVOICES
+    ACCOUNTANT --> DASH_REPORTS
+    TECH --> MOBILE_APP
+    CUSTOMER --> CUSTOMER_PORTAL
+    CUSTOMER -.->|"WhatsApp"| EXT_WA
+    CONSUMER --> MARKETPLACE
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% FRONTEND -> API CONNECTIONS
+    %% ═══════════════════════════════════════════════════════════════════════
+    WEB_DASHBOARD --> API_LAYER
+    MOBILE_APP --> API_LAYER
+    CUSTOMER_PORTAL --> API_PORTAL
+    MARKETPLACE --> API_CONSUMER
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% API -> REALTIME CONNECTIONS
+    %% ═══════════════════════════════════════════════════════════════════════
+    API_TRACKING --> WS_LOCATIONS
+    API_JOBS --> WS_JOB_STATUS
+    API_DASHBOARD --> WS_NOTIFICATIONS
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% API -> DATABASE CONNECTIONS
+    %% ═══════════════════════════════════════════════════════════════════════
+    API_LAYER --> DB_PG
+    API_LAYER --> DB_REDIS
+    API_LAYER --> DB_STORAGE
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% API -> EXTERNAL CONNECTIONS
+    %% ═══════════════════════════════════════════════════════════════════════
+    API_INVOICES --> EXT_AFIP
+    API_PAYMENTS --> EXT_MP
+    API_WHATSAPP --> EXT_WA
+    API_TRACKING --> EXT_GOOGLE
+    API_AUTH --> EXT_SUPABASE
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% WORKER CONNECTIONS
+    %% ═══════════════════════════════════════════════════════════════════════
+    W_VOICE --> EXT_OPENAI
+    W_VOICE --> EXT_WA
+    W_AFIP --> EXT_AFIP
+    W_WHATSAPP --> EXT_WA
+    W_REMINDER --> EXT_EXPO
+    W_REMINDER --> EXT_WA
+    W_RECONCILIATION --> EXT_MP
+
+    WORKERS --> DB_PG
+    WORKERS --> DB_REDIS
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% WEBHOOK INBOUND
+    %% ═══════════════════════════════════════════════════════════════════════
+    EXT_MP -->|"payment.approved"| API_PAYMENTS
+    EXT_WA -->|"message received"| API_WHATSAPP
+    EXT_WA -->|"voice note"| W_VOICE
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% REALTIME TO FRONTENDS
+    %% ═══════════════════════════════════════════════════════════════════════
+    REALTIME --> WEB_DASHBOARD
+    REALTIME --> MOBILE_APP
+    REALTIME --> CUSTOMER_PORTAL
+```
+
+### User Journey Flow Diagram
+
+This diagram shows the complete user journeys from signup to daily operations:
+
+```mermaid
+flowchart LR
+    subgraph OWNER_JOURNEY["🏢 OWNER JOURNEY"]
+        direction TB
+        O1["1. Sign Up<br/>Email + CUIT"] --> O2["2. Onboarding<br/>Connect AFIP cert"]
+        O2 --> O3["3. Setup WhatsApp<br/>Business number"]
+        O3 --> O4["4. Connect Mercado Pago<br/>OAuth flow"]
+        O4 --> O5["5. Invite Team<br/>Technicians, dispatcher"]
+        O5 --> O6["6. Add Vehicles<br/>Fleet setup"]
+        O6 --> O7["7. Setup Inventory<br/>Parts & materials"]
+        O7 --> O8["8. Daily Operations<br/>Dashboard monitoring"]
+    end
+
+    subgraph TECH_JOURNEY["🔧 TECHNICIAN JOURNEY"]
+        direction TB
+        T1["1. Accept Invite<br/>Magic link email"] --> T2["2. Download App<br/>iOS/Android"]
+        T2 --> T3["3. Login<br/>Phone + OTP"]
+        T3 --> T4["4. View Today's Jobs<br/>Schedule list"]
+        T4 --> T5["5. Start Job<br/>GPS tracking begins"]
+        T5 --> T6["6. Take Photos<br/>Before work"]
+        T6 --> T7["7. Complete Work<br/>Use inventory items"]
+        T7 --> T8["8. Capture Signature<br/>Customer signs"]
+        T8 --> T9["9. Job Complete<br/>Auto-invoice option"]
+    end
+
+    subgraph CUSTOMER_JOURNEY["👤 B2B CUSTOMER JOURNEY"]
+        direction TB
+        C1["1. Receive WhatsApp<br/>Job confirmation"] --> C2["2. Track Technician<br/>Portal link in msg"]
+        C2 --> C3["3. View Live ETA<br/>Map with location"]
+        C3 --> C4["4. Sign on Completion<br/>Digital signature"]
+        C4 --> C5["5. Receive Invoice<br/>WhatsApp + email"]
+        C5 --> C6["6. Pay Invoice<br/>MP link with cuotas"]
+        C6 --> C7["7. View History<br/>Customer portal"]
+    end
+
+    subgraph CONSUMER_JOURNEY["🛒 MARKETPLACE CONSUMER"]
+        direction TB
+        M1["1. Search Service<br/>Plumber near me"] --> M2["2. View Profiles<br/>Reviews, portfolio"]
+        M2 --> M3["3. Request Quote<br/>Describe problem"]
+        M3 --> M4["4. Receive Quotes<br/>Multiple providers"]
+        M4 --> M5["5. Book Service<br/>Select & pay"]
+        M5 --> M6["6. Track Arrival<br/>Real-time ETA"]
+        M6 --> M7["7. Service Complete<br/>Sign & review"]
+        M7 --> M8["8. Leave Review<br/>Rate experience"]
+    end
+
+    subgraph WHATSAPP_AI_FLOW["🤖 WHATSAPP AI FLOW"]
+        direction TB
+        W1["1. Customer sends<br/>voice note"] --> W2["2. Webhook received<br/>WhatsApp Cloud API"]
+        W2 --> W3["3. Queue voice job<br/>BullMQ"]
+        W3 --> W4["4. Transcribe<br/>OpenAI Whisper"]
+        W4 --> W5["5. Extract intent<br/>GPT-4 parsing"]
+        W5 --> W6{Intent clear?}
+        W6 -->|Yes| W7["6a. Auto-create job<br/>Draft status"]
+        W6 -->|No| W8["6b. Request clarification<br/>Human handoff"]
+        W7 --> W9["7. Confirm with customer<br/>WhatsApp template"]
+        W8 --> W10["7. Alert dispatcher<br/>Dashboard notification"]
+    end
+```
+
+### External System Integration Map
+
+```mermaid
+flowchart TB
+    subgraph CAMPOTECH["CampoTech Platform"]
+        API["API Layer"]
+        WORKERS["Background Workers"]
+    end
+
+    subgraph AFIP_INTEGRATION["🏛️ AFIP Integration"]
+        direction TB
+        AFIP_CERT["Certificate Auth<br/>.p12 + passphrase"]
+        AFIP_WSAA["WSAA<br/>Token service"]
+        AFIP_WSFEV1["WSFEv1<br/>Invoice service"]
+
+        AFIP_CERT --> AFIP_WSAA
+        AFIP_WSAA -->|"Token (12hr)"| AFIP_WSFEV1
+    end
+
+    subgraph MP_INTEGRATION["💳 Mercado Pago"]
+        direction TB
+        MP_OAUTH["OAuth 2.0<br/>Connect account"]
+        MP_PREFERENCE["Preferences API<br/>Create payment link"]
+        MP_WEBHOOK["Webhooks<br/>Payment notifications"]
+        MP_REFUND["Refunds API<br/>Process refunds"]
+    end
+
+    subgraph WA_INTEGRATION["💬 WhatsApp Cloud"]
+        direction TB
+        WA_SEND["Send Message API<br/>Text, templates, media"]
+        WA_WEBHOOK["Webhook<br/>Incoming messages"]
+        WA_MEDIA["Media API<br/>Download voice notes"]
+        WA_TEMPLATES["Message Templates<br/>Approved notifications"]
+    end
+
+    subgraph GOOGLE_INTEGRATION["🗺️ Google Maps Platform"]
+        direction TB
+        GOOGLE_MATRIX["Distance Matrix<br/>Find nearest tech"]
+        GOOGLE_DIRECTIONS["Directions API<br/>Route polylines"]
+        GOOGLE_GEOCODE["Geocoding<br/>Address to coords"]
+        GOOGLE_MAPS_JS["Maps JS API<br/>Live map display"]
+    end
+
+    subgraph AI_INTEGRATION["🤖 OpenAI"]
+        direction TB
+        OPENAI_WHISPER["Whisper API<br/>Voice transcription"]
+        OPENAI_GPT["GPT-4 API<br/>Intent extraction"]
+    end
+
+    API --> AFIP_WSFEV1
+    API --> MP_PREFERENCE
+    API --> WA_SEND
+    API --> GOOGLE_MATRIX
+    API --> GOOGLE_DIRECTIONS
+
+    WORKERS --> AFIP_WSFEV1
+    WORKERS --> WA_SEND
+    WORKERS --> OPENAI_WHISPER
+    WORKERS --> OPENAI_GPT
+
+    MP_WEBHOOK --> API
+    WA_WEBHOOK --> API
+    WA_WEBHOOK --> WORKERS
+```
+
+### Role-Based Access Control Map
+
+```mermaid
+flowchart TB
+    subgraph ROLES["User Roles"]
+        R_OWNER["👔 OWNER"]
+        R_ADMIN["🔧 ADMIN"]
+        R_DISPATCHER["📋 DISPATCHER"]
+        R_TECH["🔨 TECHNICIAN"]
+        R_ACCOUNTANT["💼 ACCOUNTANT"]
+    end
+
+    subgraph FEATURES["Platform Features"]
+        F_DASHBOARD["📊 Dashboard"]
+        F_JOBS["📝 Jobs (All)"]
+        F_MY_JOBS["📱 My Jobs"]
+        F_CUSTOMERS["👥 Customers"]
+        F_INVOICES["🧾 Invoices"]
+        F_PAYMENTS["💳 Payments"]
+        F_FLEET["🚗 Fleet"]
+        F_INVENTORY["📦 Inventory"]
+        F_TEAM["👔 Team Mgmt"]
+        F_REPORTS["📈 Reports"]
+        F_SETTINGS["⚙️ Settings"]
+        F_AFIP["🏛️ AFIP Config"]
+        F_BILLING["💰 Billing"]
+        F_MAP["🗺️ Live Map"]
+        F_CALENDAR["📅 Calendar"]
+    end
+
+    R_OWNER --> F_DASHBOARD & F_JOBS & F_CUSTOMERS & F_INVOICES & F_PAYMENTS
+    R_OWNER --> F_FLEET & F_INVENTORY & F_TEAM & F_REPORTS & F_SETTINGS
+    R_OWNER --> F_AFIP & F_BILLING & F_MAP & F_CALENDAR
+
+    R_ADMIN --> F_DASHBOARD & F_JOBS & F_CUSTOMERS & F_INVOICES & F_PAYMENTS
+    R_ADMIN --> F_FLEET & F_INVENTORY & F_REPORTS & F_MAP & F_CALENDAR
+
+    R_DISPATCHER --> F_DASHBOARD & F_JOBS & F_CUSTOMERS & F_MAP & F_CALENDAR
+
+    R_TECH --> F_MY_JOBS
+    R_TECH -.->|"View only"| F_INVENTORY
+    R_TECH -.->|"Own schedule"| F_CALENDAR
+
+    R_ACCOUNTANT --> F_INVOICES & F_PAYMENTS & F_REPORTS
+```
+
 > **❌ CRITICAL GAP:** "Distributed Locks" is shown in the Infrastructure Layer above but is **NOT IMPLEMENTED**.
 > This creates race condition risks in multi-instance deployments for:
 > - AFIP invoice number reservation
@@ -4097,6 +4481,12 @@ Supersedes:
 ```
 
 ## Changelog
+
+### v1.3 (2025-12-12)
+- **ADDED:** Comprehensive System Interaction Map (Mermaid flowchart showing all user types, interfaces, APIs, workers, external systems)
+- **ADDED:** User Journey Flow Diagram (Owner, Technician, B2B Customer, Consumer, WhatsApp AI flows)
+- **ADDED:** External System Integration Map (AFIP, Mercado Pago, WhatsApp, Google Maps, OpenAI details)
+- **ADDED:** Role-Based Access Control Map (visual RBAC diagram)
 
 ### v1.2 (2025-12-12)
 - **ADDED:** Module 9-12 to Module Overview diagram (Employee Tracking, Calendar View, Fleet Management, Inventory Management)
