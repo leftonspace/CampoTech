@@ -263,7 +263,7 @@ export default function NewJobPage() {
               className="input pl-10"
               required
             >
-              {SERVICE_TYPES.map((type) => (
+              {SERVICE_TYPES.map((type: { value: string; label: string }) => (
                 <option key={type.value} value={type.value}>
                   {type.label}
                 </option>
