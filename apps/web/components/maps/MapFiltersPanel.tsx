@@ -14,6 +14,7 @@ export interface MapFilters {
   technicianId: string | null;
   zone: string | null;
   customerHasActiveJob: boolean;
+  customerNoRecentJob: boolean;
   showCustomersOnly: boolean;
   showTechniciansOnly: boolean;
   showJobsOnly: boolean;
@@ -59,6 +60,7 @@ export function MapFiltersPanel({
     filters.technicianId ||
     filters.zone ||
     filters.customerHasActiveJob ||
+    filters.customerNoRecentJob ||
     filters.showCustomersOnly ||
     filters.showTechniciansOnly ||
     filters.showJobsOnly;
@@ -170,6 +172,19 @@ export function MapFiltersPanel({
                 />
                 <span className="text-sm text-gray-700">
                   Clientes con trabajo hoy
+                </span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={filters.customerNoRecentJob}
+                  onChange={(e) =>
+                    updateFilter('customerNoRecentJob', e.target.checked)
+                  }
+                  className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                />
+                <span className="text-sm text-gray-700">
+                  Sin trabajo reciente (&gt;30 días)
                 </span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">

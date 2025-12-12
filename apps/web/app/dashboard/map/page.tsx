@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   MapPin,
   Users,
@@ -18,6 +19,17 @@ import {
   Calendar,
   Phone,
   ExternalLink,
+  Maximize2,
+  Minimize2,
+  Navigation2,
+  Car,
+  Zap,
+  XCircle,
+  MapPinOff,
+  UserPlus,
+  Plus,
+  Route,
+  History,
 } from 'lucide-react';
 import { MapLayerControls, MapLayerState } from '@/components/maps/MapLayerControls';
 import { MapFiltersPanel, MapFilters } from '@/components/maps/MapFiltersPanel';
@@ -50,6 +62,13 @@ interface TechnicianLocation {
   phone: string;
   currentCustomerName: string | null;
   etaMinutes: number | null;
+  heading: number | null;
+  nextJob?: {
+    id: string;
+    jobNumber: string;
+    customerName: string;
+    scheduledTime: string | null;
+  } | null;
 }
 
 interface TodayJob {
@@ -64,6 +83,7 @@ interface TodayJob {
   technicianId: string | null;
   technicianName: string | null;
   scheduledTime: string | null;
+  arrivedAt: string | null;
   address: string;
   description: string;
   serviceType: string;
@@ -88,24 +108,50 @@ interface MapDataResponse {
       todayJobsInProgress: number;
       todayJobsCompleted: number;
     };
+    zones: { id: string; name: string }[];
     updatedAt: string;
   };
 }
 
+interface RouteData {
+  polyline: [number, number][];
+  durationMinutes: number;
+  distanceMeters: number;
+}
+
 type LeafletType = typeof import('leaflet');
 type MapType = import('leaflet').Map;
-type MarkerType = import('leaflet').Marker;
 type LayerGroupType = import('leaflet').LayerGroup;
+type PolylineType = import('leaflet').Polyline;
 type MarkerClusterGroupType = import('leaflet.markercluster').MarkerClusterGroup;
 
 // Buenos Aires default center
 const BUENOS_AIRES_CENTER = { lat: -34.6037, lng: -58.3816 };
 
 // Fetch map data
-async function fetchMapData(): Promise<MapDataResponse> {
-  const res = await fetch('/api/map/data');
+async function fetchMapData(params: URLSearchParams): Promise<MapDataResponse> {
+  const res = await fetch(`/api/map/data?${params.toString()}`);
   if (!res.ok) throw new Error('Error cargando datos del mapa');
   return res.json();
+}
+
+// Fetch route data
+async function fetchRoute(
+  originLat: number,
+  originLng: number,
+  destLat: number,
+  destLng: number
+): Promise<RouteData | null> {
+  try {
+    const res = await fetch(
+      `/api/map/route?originLat=${originLat}&originLng=${originLng}&destLat=${destLat}&destLng=${destLng}`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.success ? data.data : null;
+  } catch {
+    return null;
+  }
 }
 
 // Get status color for technicians
@@ -132,8 +178,12 @@ function getJobColor(status: string): string {
       return '#F59E0B'; // amber
     case 'EN_ROUTE':
       return '#3B82F6'; // blue
+    case 'ARRIVED':
+      return '#EAB308'; // yellow
     case 'ASSIGNED':
       return '#6366F1'; // indigo
+    case 'CANCELLED':
+      return '#EF4444'; // red
     case 'PENDING':
     default:
       return '#9CA3AF'; // gray
@@ -149,6 +199,8 @@ function getJobStatusLabel(status: string): string {
       return 'En progreso';
     case 'EN_ROUTE':
       return 'En camino';
+    case 'ARRIVED':
+      return 'Llegó';
     case 'ASSIGNED':
       return 'Asignado';
     case 'PENDING':
@@ -158,6 +210,44 @@ function getJobStatusLabel(status: string): string {
     default:
       return status;
   }
+}
+
+// Get job status icon SVG
+function getJobStatusIcon(status: string): string {
+  switch (status) {
+    case 'COMPLETED':
+      return '<path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>'; // checkmark
+    case 'IN_PROGRESS':
+      return '<path d="M7 2v11h3v9l7-12h-4l4-8z"/>'; // lightning
+    case 'EN_ROUTE':
+      return '<path d="M18.92 6.01C18.72 5.42 18.16 5 17.5 5h-11c-.66 0-1.21.42-1.42 1.01L3 12v8c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-1h12v1c0 .55.45 1 1 1h1c.55 0 1-.45 1-1v-8l-2.08-5.99zM6.5 16c-.83 0-1.5-.67-1.5-1.5S5.67 13 6.5 13s1.5.67 1.5 1.5S7.33 16 6.5 16zm11 0c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zM5 11l1.5-4.5h11L19 11H5z"/>'; // car
+    case 'ARRIVED':
+      return '<path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>'; // pin
+    case 'CANCELLED':
+      return '<path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>'; // x
+    case 'ASSIGNED':
+      return '<path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z"/>'; // clipboard
+    default:
+      return '<path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1z"/>'; // clipboard
+  }
+}
+
+// Format relative time
+function formatRelativeTime(dateString: string | null): string {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return 'Hace un momento';
+  if (diffMins < 60) return `Hace ${diffMins} min`;
+  if (diffHours < 24) return `Hace ${diffHours}h`;
+  if (diffDays === 1) return 'Ayer';
+  if (diffDays < 7) return `Hace ${diffDays} días`;
+  return date.toLocaleDateString('es-AR');
 }
 
 // Default layer state
@@ -181,15 +271,32 @@ const defaultFilters: MapFilters = {
   technicianId: null,
   zone: null,
   customerHasActiveJob: false,
+  customerNoRecentJob: false,
   showCustomersOnly: false,
   showTechniciansOnly: false,
   showJobsOnly: false,
 };
 
+// Store marker positions for smooth animation
+const markerPositions = new Map<string, { lat: number; lng: number }>();
+
 export default function LiveMapPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Initialize state from URL params
+  const getInitialFilters = (): MapFilters => {
+    const search = searchParams.get('search') || '';
+    const technicianId = searchParams.get('technicianId') || null;
+    const zone = searchParams.get('zone') || null;
+    const customerHasActiveJob = searchParams.get('customerHasActiveJob') === 'true';
+    const customerNoRecentJob = searchParams.get('customerNoRecentJob') === 'true';
+    return { ...defaultFilters, search, technicianId, zone, customerHasActiveJob, customerNoRecentJob };
+  };
+
   // State
   const [layers, setLayers] = useState<MapLayerState>(defaultLayers);
-  const [filters, setFilters] = useState<MapFilters>(defaultFilters);
+  const [filters, setFilters] = useState<MapFilters>(getInitialFilters);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [showLayerControls, setShowLayerControls] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
@@ -197,6 +304,9 @@ export default function LiveMapPage() {
   const [showItinerary, setShowItinerary] = useState(false);
   const [selectedJob, setSelectedJob] = useState<TodayJob | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerLocation | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showBreadcrumbs, setShowBreadcrumbs] = useState(false);
+  const [routeData, setRouteData] = useState<RouteData | null>(null);
 
   // Refs
   const mapRef = useRef<HTMLDivElement>(null);
@@ -204,13 +314,23 @@ export default function LiveMapPage() {
   const customerLayerRef = useRef<LayerGroupType | MarkerClusterGroupType | null>(null);
   const technicianLayerRef = useRef<LayerGroupType | null>(null);
   const jobLayerRef = useRef<LayerGroupType | null>(null);
+  const routeLayerRef = useRef<PolylineType | null>(null);
+  const technicianMarkersRef = useRef<Map<string, import('leaflet').Marker>>(new Map());
   const [isLoaded, setIsLoaded] = useState(false);
   const [L, setL] = useState<LeafletType | null>(null);
 
+  // Build query params
+  const queryParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (filters.technicianId) params.set('technicianId', filters.technicianId);
+    if (filters.zone) params.set('zone', filters.zone);
+    return params;
+  }, [filters.technicianId, filters.zone]);
+
   // Query
   const { data, isLoading, error, refetch, isFetching } = useQuery({
-    queryKey: ['map-data'],
-    queryFn: fetchMapData,
+    queryKey: ['map-data', queryParams.toString()],
+    queryFn: () => fetchMapData(queryParams),
     refetchInterval: autoRefresh ? 15000 : false,
     staleTime: 10000,
   });
@@ -228,6 +348,21 @@ export default function LiveMapPage() {
     todayJobsInProgress: 0,
     todayJobsCompleted: 0,
   };
+
+  const zones = data?.data?.zones || [];
+
+  // Update URL when filters change
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (filters.search) params.set('search', filters.search);
+    if (filters.technicianId) params.set('technicianId', filters.technicianId);
+    if (filters.zone) params.set('zone', filters.zone);
+    if (filters.customerHasActiveJob) params.set('customerHasActiveJob', 'true');
+    if (filters.customerNoRecentJob) params.set('customerNoRecentJob', 'true');
+
+    const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname;
+    window.history.replaceState({}, '', newUrl);
+  }, [filters]);
 
   // Filter data based on layers and filters
   const filteredData = useMemo(() => {
@@ -271,6 +406,16 @@ export default function LiveMapPage() {
       customers = customers.filter((c) => c.hasActiveJob);
     }
 
+    // Apply customer no recent job filter (>30 days)
+    if (filters.customerNoRecentJob) {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      customers = customers.filter((c) => {
+        if (!c.lastJobDate) return true;
+        return new Date(c.lastJobDate) < thirtyDaysAgo;
+      });
+    }
+
     // Apply show only filters
     if (filters.showCustomersOnly) {
       technicians = [];
@@ -307,8 +452,9 @@ export default function LiveMapPage() {
     } else {
       jobs = jobs.filter((j) => {
         if (['PENDING', 'ASSIGNED'].includes(j.status) && !layers.jobsPending) return false;
-        if (['EN_ROUTE', 'IN_PROGRESS'].includes(j.status) && !layers.jobsInProgress) return false;
+        if (['EN_ROUTE', 'IN_PROGRESS', 'ARRIVED'].includes(j.status) && !layers.jobsInProgress) return false;
         if (j.status === 'COMPLETED' && !layers.jobsCompleted) return false;
+        if (j.status === 'CANCELLED') return false; // Always hide cancelled
         return true;
       });
     }
@@ -323,7 +469,6 @@ export default function LiveMapPage() {
         const leaflet = await import('leaflet');
         // @ts-expect-error CSS imports are handled by bundler
         await import('leaflet/dist/leaflet.css');
-        // Load marker cluster plugin
         await import('leaflet.markercluster');
         // @ts-expect-error CSS imports are handled by bundler
         await import('leaflet.markercluster/dist/MarkerCluster.css');
@@ -341,15 +486,16 @@ export default function LiveMapPage() {
   useEffect(() => {
     if (!L || !mapRef.current || leafletMapRef.current) return;
 
-    const map = L.map(mapRef.current).setView(
-      [BUENOS_AIRES_CENTER.lat, BUENOS_AIRES_CENTER.lng],
-      12
-    );
+    const map = L.map(mapRef.current, {
+      zoomControl: false, // We'll add custom controls
+    }).setView([BUENOS_AIRES_CENTER.lat, BUENOS_AIRES_CENTER.lng], 12);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
     }).addTo(map);
+
+    // Add zoom control to bottom right
+    L.control.zoom({ position: 'bottomright' }).addTo(map);
 
     leafletMapRef.current = map;
 
@@ -418,7 +564,8 @@ export default function LiveMapPage() {
             display: flex;
             align-items: center;
             justify-content: center;
-          ">
+            cursor: pointer;
+          " title="${customer.name}">
             <svg width="12" height="12" fill="white" viewBox="0 0 24 24">
               <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
             </svg>
@@ -431,8 +578,15 @@ export default function LiveMapPage() {
 
       const marker = L.marker([customer.lat, customer.lng], { icon });
 
+      // Add tooltip on hover
+      marker.bindTooltip(customer.name, {
+        permanent: false,
+        direction: 'top',
+        offset: [0, -20],
+      });
+
       marker.bindPopup(`
-        <div style="min-width: 180px;">
+        <div style="min-width: 200px;">
           <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">
             📍 ${customer.name}
           </div>
@@ -444,18 +598,19 @@ export default function LiveMapPage() {
           </div>
           <div style="font-size: 12px; color: #6B7280; margin-bottom: 8px;">
             Trabajos: ${customer.jobCount}
-            ${customer.lastJobDate ? ` | Último: ${new Date(customer.lastJobDate).toLocaleDateString('es-AR')}` : ''}
+            ${customer.lastJobDate ? ` | Último: ${formatRelativeTime(customer.lastJobDate)}` : ''}
           </div>
+          ${customer.hasActiveJob ? '<div style="font-size: 11px; color: #F59E0B; margin-bottom: 8px;">⚡ Tiene trabajo activo</div>' : ''}
           <div style="display: flex; gap: 8px; margin-top: 8px;">
             <a href="/dashboard/customers/${customer.id}"
-               style="font-size: 12px; color: #3B82F6; text-decoration: none;"
+               style="font-size: 12px; color: #3B82F6; text-decoration: none; display: flex; align-items: center; gap: 4px;"
                target="_blank">
-              Ver cliente
+              Ver cliente →
             </a>
             <a href="/dashboard/jobs/new?customerId=${customer.id}"
-               style="font-size: 12px; color: #10B981; text-decoration: none;"
+               style="font-size: 12px; color: #10B981; text-decoration: none; display: flex; align-items: center; gap: 4px;"
                target="_blank">
-              Nuevo trabajo
+              + Nuevo trabajo
             </a>
           </div>
         </div>
@@ -465,49 +620,84 @@ export default function LiveMapPage() {
         setSelectedCustomer(customer);
         setSelectedTechnician(null);
         setSelectedJob(null);
+        setShowItinerary(false);
       });
 
       customerLayerRef.current?.addLayer(marker);
     }
   }, [L, isLoaded, filteredData.customers]);
 
-  // Update technician markers
+  // Update technician markers with smooth animation
   useEffect(() => {
     if (!L || !isLoaded || !technicianLayerRef.current) return;
 
-    technicianLayerRef.current.clearLayers();
+    const existingMarkers = technicianMarkersRef.current;
+    const currentTechIds = new Set(filteredData.technicians.map((t) => t.id));
+
+    // Remove markers for technicians no longer in view
+    existingMarkers.forEach((marker, id) => {
+      if (!currentTechIds.has(id)) {
+        technicianLayerRef.current?.removeLayer(marker);
+        existingMarkers.delete(id);
+        markerPositions.delete(id);
+      }
+    });
 
     for (const tech of filteredData.technicians) {
       const color = getTechnicianColor(tech.status);
       const isSelected = selectedTechnician?.id === tech.id;
-      const size = isSelected ? 32 : 28;
+      const size = isSelected ? 36 : 30;
+      const heading = tech.heading || 0;
+
+      // Create direction arrow for en_camino status
+      const directionArrow =
+        tech.status === 'en_camino' && tech.heading !== null
+          ? `<div style="
+              position: absolute;
+              top: -8px;
+              left: 50%;
+              transform: translateX(-50%) rotate(${heading}deg);
+              width: 0;
+              height: 0;
+              border-left: 6px solid transparent;
+              border-right: 6px solid transparent;
+              border-bottom: 10px solid ${color};
+            "></div>`
+          : '';
 
       const icon = L.divIcon({
         className: 'technician-marker',
         html: `
-          <div style="
-            width: ${size}px;
-            height: ${size}px;
-            background-color: ${color};
-            border: ${isSelected ? '3px' : '2px'} solid ${isSelected ? '#1F2937' : 'white'};
-            border-radius: 50%;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            ${tech.status === 'en_linea' ? 'animation: pulse 2s infinite;' : ''}
-          ">
-            <svg width="${size * 0.5}" height="${size * 0.5}" fill="white" viewBox="0 0 24 24">
-              <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-            </svg>
+          <div style="position: relative;">
+            ${directionArrow}
+            <div style="
+              width: ${size}px;
+              height: ${size}px;
+              background-color: ${color};
+              border: ${isSelected ? '3px' : '2px'} solid ${isSelected ? '#1F2937' : 'white'};
+              border-radius: 50%;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              cursor: pointer;
+              transition: transform 0.3s ease;
+              ${tech.status === 'en_linea' ? 'animation: pulse 2s infinite;' : ''}
+            " title="${tech.name}">
+              ${
+                tech.avatarUrl
+                  ? `<img src="${tech.avatarUrl}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" />`
+                  : `<svg width="${size * 0.5}" height="${size * 0.5}" fill="white" viewBox="0 0 24 24">
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                </svg>`
+              }
+            </div>
           </div>
         `,
-        iconSize: [size, size],
-        iconAnchor: [size / 2, size / 2],
+        iconSize: [size, size + (tech.status === 'en_camino' ? 10 : 0)],
+        iconAnchor: [size / 2, size / 2 + (tech.status === 'en_camino' ? 5 : 0)],
         popupAnchor: [0, -size / 2],
       });
-
-      const marker = L.marker([tech.lat, tech.lng], { icon });
 
       const statusLabel = {
         en_linea: 'En línea',
@@ -516,44 +706,126 @@ export default function LiveMapPage() {
         sin_conexion: 'Sin conexión',
       }[tech.status];
 
-      marker.bindPopup(`
-        <div style="min-width: 180px;">
-          <div style="font-weight: 600; font-size: 14px; margin-bottom: 4px;">
-            👤 ${tech.name}
-          </div>
-          <div style="font-size: 12px; color: ${color}; font-weight: 500; margin-bottom: 8px;">
-            ${statusLabel}
-          </div>
-          ${tech.specialty ? `<div style="font-size: 12px; color: #6B7280; margin-bottom: 4px;">${tech.specialty}</div>` : ''}
-          ${
-            tech.currentJobNumber
-              ? `
-            <div style="font-size: 12px; margin-top: 8px; padding: 8px; background: #F3F4F6; border-radius: 4px;">
-              <div style="font-weight: 500;">Trabajo actual:</div>
-              <div>#${tech.currentJobNumber}</div>
-              <div>${tech.currentCustomerName || ''}</div>
-              ${tech.etaMinutes ? `<div style="color: #3B82F6; margin-top: 4px;">ETA: ${tech.etaMinutes} min</div>` : ''}
+      // Check if marker exists - animate if so
+      const existingMarker = existingMarkers.get(tech.id);
+      const prevPos = markerPositions.get(tech.id);
+
+      if (existingMarker && prevPos) {
+        // Animate to new position
+        const startLat = prevPos.lat;
+        const startLng = prevPos.lng;
+        const endLat = tech.lat;
+        const endLng = tech.lng;
+
+        // Only animate if position changed significantly
+        if (Math.abs(startLat - endLat) > 0.00001 || Math.abs(startLng - endLng) > 0.00001) {
+          const duration = 1000; // 1 second animation
+          const startTime = Date.now();
+
+          const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            // Ease out cubic
+            const eased = 1 - Math.pow(1 - progress, 3);
+
+            const currentLat = startLat + (endLat - startLat) * eased;
+            const currentLng = startLng + (endLng - startLng) * eased;
+
+            existingMarker.setLatLng([currentLat, currentLng]);
+
+            if (progress < 1) {
+              requestAnimationFrame(animate);
+            }
+          };
+
+          requestAnimationFrame(animate);
+        }
+
+        // Update icon
+        existingMarker.setIcon(icon);
+        markerPositions.set(tech.id, { lat: tech.lat, lng: tech.lng });
+      } else {
+        // Create new marker
+        const marker = L.marker([tech.lat, tech.lng], { icon });
+
+        // Add tooltip on hover
+        marker.bindTooltip(tech.name, {
+          permanent: false,
+          direction: 'top',
+          offset: [0, -20],
+        });
+
+        marker.bindPopup(`
+          <div style="min-width: 220px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              ${
+                tech.avatarUrl
+                  ? `<img src="${tech.avatarUrl}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" />`
+                  : `<div style="width: 40px; height: 40px; border-radius: 50%; background: ${color}; display: flex; align-items: center; justify-content: center;">
+                  <svg width="20" height="20" fill="white" viewBox="0 0 24 24">
+                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                  </svg>
+                </div>`
+              }
+              <div>
+                <div style="font-weight: 600; font-size: 14px;">${tech.name}</div>
+                <div style="font-size: 12px; color: ${color}; font-weight: 500;">${statusLabel}</div>
+              </div>
             </div>
-          `
-              : '<div style="font-size: 12px; color: #10B981; margin-top: 8px;">Disponible</div>'
-          }
-          ${
-            tech.lastUpdated
-              ? `<div style="font-size: 11px; color: #9CA3AF; margin-top: 8px;">
-              Última actualización: ${new Date(tech.lastUpdated).toLocaleTimeString('es-AR')}
-            </div>`
-              : ''
-          }
-        </div>
-      `);
+            ${tech.specialty ? `<div style="font-size: 12px; color: #6B7280; margin-bottom: 4px;">🔧 ${tech.specialty}</div>` : ''}
+            ${
+              tech.currentJobNumber
+                ? `
+              <div style="font-size: 12px; margin-top: 8px; padding: 8px; background: #F3F4F6; border-radius: 4px;">
+                <div style="font-weight: 500;">Trabajo actual:</div>
+                <div>#${tech.currentJobNumber}</div>
+                <div>${tech.currentCustomerName || ''}</div>
+                ${tech.etaMinutes ? `<div style="color: #3B82F6; margin-top: 4px;">ETA: ${tech.etaMinutes} min</div>` : ''}
+              </div>
+            `
+                : '<div style="font-size: 12px; color: #10B981; margin-top: 8px;">✓ Disponible</div>'
+            }
+            ${
+              tech.nextJob
+                ? `
+              <div style="font-size: 12px; margin-top: 8px; padding: 8px; background: #EEF2FF; border-radius: 4px;">
+                <div style="font-weight: 500; color: #6366F1;">Próximo trabajo:</div>
+                <div>#${tech.nextJob.jobNumber} - ${tech.nextJob.customerName}</div>
+                ${tech.nextJob.scheduledTime ? `<div>🕐 ${tech.nextJob.scheduledTime}</div>` : ''}
+              </div>
+            `
+                : ''
+            }
+            ${
+              tech.lastUpdated
+                ? `<div style="font-size: 11px; color: #9CA3AF; margin-top: 8px;">
+                Última vez: ${formatRelativeTime(tech.lastUpdated)}
+              </div>`
+                : ''
+            }
+            <div style="display: flex; gap: 8px; margin-top: 12px; padding-top: 8px; border-top: 1px solid #E5E7EB;">
+              <button onclick="window.open('/dashboard/technicians/${tech.id}/itinerary', '_blank')"
+                style="flex: 1; font-size: 12px; padding: 6px 8px; background: #3B82F6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                Ver itinerario
+              </button>
+              <a href="tel:${tech.phone}"
+                style="flex: 1; font-size: 12px; padding: 6px 8px; background: #10B981; color: white; text-decoration: none; border-radius: 4px; text-align: center;">
+                📞 Llamar
+              </a>
+            </div>
+          </div>
+        `);
 
-      marker.on('click', () => {
-        setSelectedTechnician(tech);
-        setSelectedCustomer(null);
-        setSelectedJob(null);
-      });
+        marker.on('click', () => {
+          setSelectedTechnician(tech);
+          setSelectedCustomer(null);
+          setSelectedJob(null);
+        });
 
-      technicianLayerRef.current?.addLayer(marker);
+        technicianLayerRef.current?.addLayer(marker);
+        existingMarkers.set(tech.id, marker);
+        markerPositions.set(tech.id, { lat: tech.lat, lng: tech.lng });
+      }
     }
   }, [L, isLoaded, filteredData.technicians, selectedTechnician]);
 
@@ -566,7 +838,11 @@ export default function LiveMapPage() {
     for (const job of filteredData.jobs) {
       const color = getJobColor(job.status);
       const isSelected = selectedJob?.id === job.id;
-      const size = isSelected ? 28 : 24;
+      const size = isSelected ? 32 : 26;
+      const statusIcon = getJobStatusIcon(job.status);
+
+      // Animation for EN_ROUTE status
+      const isAnimated = job.status === 'EN_ROUTE';
 
       const icon = L.divIcon({
         className: 'job-marker',
@@ -581,9 +857,11 @@ export default function LiveMapPage() {
             display: flex;
             align-items: center;
             justify-content: center;
-          ">
-            <svg width="${size * 0.5}" height="${size * 0.5}" fill="white" viewBox="0 0 24 24">
-              <path d="M22.7 19l-9.1-9.1c.9-2.3.4-5-1.5-6.9-2-2-5-2.4-7.4-1.3L9 6 6 9 1.6 4.7C.4 7.1.9 10.1 2.9 12.1c1.9 1.9 4.6 2.4 6.9 1.5l9.1 9.1c.4.4 1 .4 1.4 0l2.3-2.3c.5-.4.5-1.1.1-1.4z"/>
+            cursor: pointer;
+            ${isAnimated ? 'animation: job-pulse 1.5s infinite;' : ''}
+          " title="Trabajo #${job.jobNumber}">
+            <svg width="${size * 0.55}" height="${size * 0.55}" fill="white" viewBox="0 0 24 24">
+              ${statusIcon}
             </svg>
           </div>
         `,
@@ -594,18 +872,25 @@ export default function LiveMapPage() {
 
       const marker = L.marker([job.lat, job.lng], { icon });
 
+      // Add tooltip on hover
+      marker.bindTooltip(`#${job.jobNumber} - ${job.customerName}`, {
+        permanent: false,
+        direction: 'top',
+        offset: [0, -20],
+      });
+
       marker.bindPopup(`
-        <div style="min-width: 200px;">
+        <div style="min-width: 220px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <span style="font-weight: 600; font-size: 14px;">
-              Trabajo #${job.jobNumber}
+              #${job.jobNumber}
             </span>
-            <span style="font-size: 11px; padding: 2px 6px; background: ${color}20; color: ${color}; border-radius: 4px; font-weight: 500;">
+            <span style="font-size: 11px; padding: 2px 8px; background: ${color}20; color: ${color}; border-radius: 4px; font-weight: 500;">
               ${getJobStatusLabel(job.status)}
             </span>
           </div>
           <div style="font-size: 12px; color: #374151; margin-bottom: 8px;">
-            ${job.description}
+            ${job.description || job.serviceType}
           </div>
           <div style="font-size: 12px; color: #6B7280; margin-bottom: 4px;">
             📍 ${job.address}
@@ -613,17 +898,18 @@ export default function LiveMapPage() {
           <div style="font-size: 12px; color: #6B7280; margin-bottom: 4px;">
             👤 ${job.customerName}
           </div>
-          ${job.technicianName ? `<div style="font-size: 12px; color: #6B7280; margin-bottom: 4px;">🔧 ${job.technicianName}</div>` : ''}
-          ${job.scheduledTime ? `<div style="font-size: 12px; color: #6B7280; margin-bottom: 8px;">🕐 ${job.scheduledTime}</div>` : ''}
-          <div style="display: flex; gap: 8px; margin-top: 8px;">
+          ${job.technicianName ? `<div style="font-size: 12px; color: #6B7280; margin-bottom: 4px;">🔧 ${job.technicianName}</div>` : '<div style="font-size: 12px; color: #EF4444; margin-bottom: 4px;">⚠️ Sin asignar</div>'}
+          ${job.scheduledTime ? `<div style="font-size: 12px; color: #6B7280; margin-bottom: 4px;">🕐 Programado: ${job.scheduledTime}</div>` : ''}
+          ${job.arrivedAt ? `<div style="font-size: 12px; color: #10B981; margin-bottom: 4px;">✓ Llegó: ${new Date(job.arrivedAt).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}</div>` : ''}
+          <div style="display: flex; gap: 8px; margin-top: 12px; padding-top: 8px; border-top: 1px solid #E5E7EB;">
             <a href="/dashboard/jobs/${job.id}"
-               style="font-size: 12px; color: #3B82F6; text-decoration: none;"
+               style="flex: 1; font-size: 12px; padding: 6px 8px; background: #3B82F6; color: white; text-decoration: none; border-radius: 4px; text-align: center;"
                target="_blank">
               Ver trabajo
             </a>
             <a href="tel:${job.customerPhone}"
-               style="font-size: 12px; color: #10B981; text-decoration: none;">
-              Llamar
+               style="flex: 1; font-size: 12px; padding: 6px 8px; background: #10B981; color: white; text-decoration: none; border-radius: 4px; text-align: center;">
+              📞 Contactar
             </a>
           </div>
         </div>
@@ -633,11 +919,53 @@ export default function LiveMapPage() {
         setSelectedJob(job);
         setSelectedTechnician(null);
         setSelectedCustomer(null);
+        setShowItinerary(false);
       });
 
       jobLayerRef.current?.addLayer(marker);
     }
   }, [L, isLoaded, filteredData.jobs, selectedJob]);
+
+  // Fetch and draw route when technician with active job is selected
+  useEffect(() => {
+    if (!L || !isLoaded || !leafletMapRef.current) return;
+
+    // Clear existing route
+    if (routeLayerRef.current) {
+      leafletMapRef.current.removeLayer(routeLayerRef.current);
+      routeLayerRef.current = null;
+    }
+
+    // Draw route if technician is en_camino and has a current job
+    if (selectedTechnician?.status === 'en_camino' && selectedTechnician.currentJobId) {
+      const job = filteredData.jobs.find((j) => j.id === selectedTechnician.currentJobId);
+      if (job) {
+        fetchRoute(selectedTechnician.lat, selectedTechnician.lng, job.lat, job.lng).then(
+          (route) => {
+            if (route && leafletMapRef.current) {
+              setRouteData(route);
+              routeLayerRef.current = L.polyline(route.polyline, {
+                color: '#3B82F6',
+                weight: 4,
+                opacity: 0.8,
+                dashArray: '10, 10',
+              }).addTo(leafletMapRef.current);
+
+              // Add ETA popup at midpoint
+              const midIndex = Math.floor(route.polyline.length / 2);
+              const midPoint = route.polyline[midIndex];
+              L.popup({ closeButton: false, autoClose: false, closeOnClick: false })
+                .setLatLng(midPoint)
+                .setContent(
+                  `<div style="font-size: 12px; font-weight: 500; color: #3B82F6;">${route.durationMinutes} min</div>`
+                )
+                .openOn(leafletMapRef.current);
+            }
+          }
+        );
+      }
+    }
+  }, [L, isLoaded, selectedTechnician, filteredData.jobs]);
 
   // Fit bounds when data changes
   useEffect(() => {
@@ -664,36 +992,171 @@ export default function LiveMapPage() {
   }, []);
 
   // Handle itinerary job click
-  const handleItineraryJobClick = useCallback((job: { id: string; location: { lat: number | null; lng: number | null } }) => {
-    if (job.location.lat && job.location.lng && leafletMapRef.current) {
-      leafletMapRef.current.setView([job.location.lat, job.location.lng], 16, { animate: true });
+  const handleItineraryJobClick = useCallback(
+    (job: { id: string; location: { lat: number | null; lng: number | null } }) => {
+      if (job.location.lat && job.location.lng && leafletMapRef.current) {
+        leafletMapRef.current.setView([job.location.lat, job.location.lng], 16, { animate: true });
+
+        // Find and open popup for this job
+        jobLayerRef.current?.eachLayer((layer) => {
+          const marker = layer as import('leaflet').Marker;
+          const latLng = marker.getLatLng();
+          if (
+            Math.abs(latLng.lat - job.location.lat!) < 0.0001 &&
+            Math.abs(latLng.lng - job.location.lng!) < 0.0001
+          ) {
+            marker.openPopup();
+          }
+        });
+      }
+    },
+    []
+  );
+
+  // Handle fullscreen toggle
+  const toggleFullscreen = useCallback(() => {
+    if (!document.fullscreenElement) {
+      mapRef.current?.parentElement?.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullscreen(false);
+    }
+  }, []);
+
+  // Handle current location
+  const goToCurrentLocation = useCallback(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          if (leafletMapRef.current) {
+            leafletMapRef.current.setView(
+              [position.coords.latitude, position.coords.longitude],
+              15,
+              { animate: true }
+            );
+          }
+        },
+        (error) => {
+          console.error('Geolocation error:', error);
+        }
+      );
     }
   }, []);
 
   // Get technicians list for filter dropdown
   const techniciansList = useMemo(() => {
-    return (
-      data?.data?.technicians.map((t) => ({ id: t.id, name: t.name })) || []
-    );
+    return data?.data?.technicians.map((t) => ({ id: t.id, name: t.name })) || [];
   }, [data]);
 
+  // Quick filter handlers
+  const handleQuickFilterActive = useCallback(() => {
+    setLayers((prev) => ({
+      ...prev,
+      techniciansOnline: true,
+      techniciansEnRoute: true,
+      techniciansWorking: true,
+      techniciansOffline: false,
+    }));
+  }, []);
+
+  const handleQuickFilterJobs = useCallback(() => {
+    setFilters((prev) => ({ ...prev, showJobsOnly: !prev.showJobsOnly }));
+  }, []);
+
+  // Empty state messages
+  const getEmptyStateMessage = () => {
+    const total =
+      filteredData.customers.length +
+      filteredData.technicians.length +
+      filteredData.jobs.length;
+
+    if (total === 0) {
+      if (filters.search) {
+        return {
+          icon: <MapPinOff className="h-12 w-12 text-gray-300" />,
+          title: 'Sin resultados',
+          message: `No se encontraron resultados para "${filters.search}"`,
+          action: (
+            <button
+              onClick={() => setFilters((prev) => ({ ...prev, search: '' }))}
+              className="text-primary-600 hover:underline"
+            >
+              Limpiar búsqueda
+            </button>
+          ),
+        };
+      }
+      if (!layers.customers && !layers.technicians && !layers.jobs) {
+        return {
+          icon: <Layers className="h-12 w-12 text-gray-300" />,
+          title: 'Capas ocultas',
+          message: 'Todas las capas están desactivadas',
+          action: (
+            <button
+              onClick={() => setLayers(defaultLayers)}
+              className="text-primary-600 hover:underline"
+            >
+              Mostrar todas las capas
+            </button>
+          ),
+        };
+      }
+      return {
+        icon: <MapPin className="h-12 w-12 text-gray-300" />,
+        title: 'Sin datos',
+        message: 'No hay ubicaciones para mostrar',
+        action: (
+          <div className="flex gap-2">
+            <a
+              href="/dashboard/customers/new"
+              className="flex items-center gap-1 rounded bg-primary-600 px-3 py-1.5 text-sm text-white hover:bg-primary-700"
+            >
+              <UserPlus className="h-4 w-4" />
+              Agregar cliente
+            </a>
+          </div>
+        ),
+      };
+    }
+    return null;
+  };
+
+  const emptyState = getEmptyStateMessage();
+
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col">
+    <div className={`flex flex-col ${isFullscreen ? 'h-screen' : 'h-[calc(100vh-8rem)]'}`}>
       {/* Header */}
       <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Mapa en Vivo</h1>
-          <p className="text-sm text-gray-500">
-            Seguimiento en tiempo real de técnicos
-          </p>
+          <p className="text-sm text-gray-500">Seguimiento en tiempo real de técnicos</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Quick Filters */}
+          <button
+            onClick={handleQuickFilterActive}
+            className="flex items-center gap-1 rounded-lg bg-green-100 px-3 py-2 text-sm font-medium text-green-700 hover:bg-green-200"
+          >
+            <Users className="h-4 w-4" />
+            Solo activos
+          </button>
+          <button
+            onClick={handleQuickFilterJobs}
+            className={`flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+              filters.showJobsOnly
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            <Wrench className="h-4 w-4" />
+            Trabajos de hoy
+          </button>
+          <div className="h-6 w-px bg-gray-300" />
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              showFilters
-                ? 'bg-primary-100 text-primary-700'
-                : 'bg-gray-100 text-gray-600'
+              showFilters ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'
             }`}
           >
             <Filter className="h-4 w-4" />
@@ -702,13 +1165,11 @@ export default function LiveMapPage() {
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}
             className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-              autoRefresh
-                ? 'bg-green-100 text-green-700'
-                : 'bg-gray-100 text-gray-600'
+              autoRefresh ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'
             }`}
           >
             <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
-            {autoRefresh ? 'Auto-actualización' : 'Pausado'}
+            {autoRefresh ? 'Auto' : 'Pausado'}
           </button>
           <button
             onClick={() => refetch()}
@@ -728,36 +1189,28 @@ export default function LiveMapPage() {
             <Users className="h-5 w-5 text-gray-400" />
             <span className="text-sm text-gray-500">Total</span>
           </div>
-          <p className="mt-1 text-2xl font-bold text-gray-900">
-            {stats.totalTechnicians}
-          </p>
+          <p className="mt-1 text-2xl font-bold text-gray-900">{stats.totalTechnicians}</p>
         </div>
         <div className="rounded-lg bg-white p-3 shadow-sm">
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-green-500" />
             <span className="text-sm text-gray-500">En línea</span>
           </div>
-          <p className="mt-1 text-2xl font-bold text-green-600">
-            {stats.techniciansOnline}
-          </p>
+          <p className="mt-1 text-2xl font-bold text-green-600">{stats.techniciansOnline}</p>
         </div>
         <div className="rounded-lg bg-white p-3 shadow-sm">
           <div className="flex items-center gap-2">
             <Truck className="h-5 w-5 text-blue-500" />
             <span className="text-sm text-gray-500">En camino</span>
           </div>
-          <p className="mt-1 text-2xl font-bold text-blue-600">
-            {stats.techniciansEnRoute}
-          </p>
+          <p className="mt-1 text-2xl font-bold text-blue-600">{stats.techniciansEnRoute}</p>
         </div>
         <div className="rounded-lg bg-white p-3 shadow-sm">
           <div className="flex items-center gap-2">
             <CheckCircle className="h-5 w-5 text-amber-500" />
             <span className="text-sm text-gray-500">Trabajando</span>
           </div>
-          <p className="mt-1 text-2xl font-bold text-amber-600">
-            {stats.techniciansWorking}
-          </p>
+          <p className="mt-1 text-2xl font-bold text-amber-600">{stats.techniciansWorking}</p>
         </div>
         <div className="rounded-lg bg-white p-3 shadow-sm">
           <div className="flex items-center gap-2">
@@ -765,7 +1218,7 @@ export default function LiveMapPage() {
             <span className="text-sm text-gray-500">Disponibles</span>
           </div>
           <p className="mt-1 text-2xl font-bold text-emerald-600">
-            {stats.techniciansOnline - stats.techniciansEnRoute - stats.techniciansWorking}
+            {Math.max(0, stats.techniciansOnline - stats.techniciansEnRoute - stats.techniciansWorking)}
           </p>
         </div>
       </div>
@@ -783,9 +1236,7 @@ export default function LiveMapPage() {
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
               <AlertCircle className="mx-auto h-8 w-8 text-red-500" />
-              <p className="mt-2 text-sm text-gray-500">
-                Error cargando ubicaciones
-              </p>
+              <p className="mt-2 text-sm text-gray-500">Error cargando ubicaciones</p>
               <button
                 onClick={() => refetch()}
                 className="mt-2 text-sm text-primary-600 hover:underline"
@@ -798,7 +1249,19 @@ export default function LiveMapPage() {
           <>
             <div ref={mapRef} className="h-full w-full" />
 
-            {/* Map Controls Overlay */}
+            {/* Empty state overlay */}
+            {emptyState && (
+              <div className="absolute inset-0 z-[500] flex items-center justify-center bg-white/80">
+                <div className="text-center">
+                  {emptyState.icon}
+                  <h3 className="mt-2 text-lg font-medium text-gray-900">{emptyState.title}</h3>
+                  <p className="mt-1 text-sm text-gray-500">{emptyState.message}</p>
+                  <div className="mt-4">{emptyState.action}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Map Controls - Top Left */}
             <div className="absolute left-4 top-4 z-[1000] flex flex-col gap-3">
               {/* Layer Controls */}
               <MapLayerControls
@@ -815,15 +1278,65 @@ export default function LiveMapPage() {
                   filters={filters}
                   onFiltersChange={setFilters}
                   technicians={techniciansList}
-                  zones={[]}
+                  zones={zones}
                   onClearFilters={() => setFilters(defaultFilters)}
                 />
               )}
             </div>
 
+            {/* Map Controls - Top Right */}
+            <div className="absolute right-4 top-4 z-[1000] flex flex-col gap-2">
+              <button
+                onClick={toggleFullscreen}
+                className="flex h-10 w-10 items-center justify-center rounded-lg bg-white shadow-md hover:bg-gray-50"
+                title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="h-5 w-5 text-gray-600" />
+                ) : (
+                  <Maximize2 className="h-5 w-5 text-gray-600" />
+                )}
+              </button>
+              <button
+                onClick={goToCurrentLocation}
+                className="flex h-10 w-10 items-center justify-center rounded-lg bg-white shadow-md hover:bg-gray-50"
+                title="Mi ubicación"
+              >
+                <Navigation2 className="h-5 w-5 text-gray-600" />
+              </button>
+              <button
+                onClick={() => setShowBreadcrumbs(!showBreadcrumbs)}
+                className={`flex h-10 w-10 items-center justify-center rounded-lg shadow-md ${
+                  showBreadcrumbs ? 'bg-blue-100' : 'bg-white'
+                } hover:bg-gray-50`}
+                title="Mostrar recorrido"
+              >
+                <History className="h-5 w-5 text-gray-600" />
+              </button>
+            </div>
+
+            {/* Route Info - Bottom Center */}
+            {routeData && selectedTechnician?.status === 'en_camino' && (
+              <div className="absolute bottom-4 left-1/2 z-[1000] -translate-x-1/2 transform">
+                <div className="flex items-center gap-4 rounded-lg bg-white px-4 py-2 shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <Route className="h-5 w-5 text-blue-600" />
+                    <span className="text-sm font-medium">
+                      {(routeData.distanceMeters / 1000).toFixed(1)} km
+                    </span>
+                  </div>
+                  <div className="h-4 w-px bg-gray-300" />
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-blue-600" />
+                    <span className="text-sm font-medium">{routeData.durationMinutes} min</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Itinerary Panel */}
             {showItinerary && selectedTechnician && (
-              <div className="absolute right-0 top-0 h-full w-full sm:w-96 z-[1000]">
+              <div className="absolute right-0 top-0 z-[1000] h-full w-full sm:w-96">
                 <ItineraryPanel
                   technicianId={selectedTechnician.id}
                   technicianName={selectedTechnician.name}
@@ -867,13 +1380,12 @@ export default function LiveMapPage() {
         </div>
         {data?.data?.updatedAt && (
           <span className="ml-auto">
-            Última actualización:{' '}
-            {new Date(data.data.updatedAt).toLocaleTimeString()}
+            Última actualización: {new Date(data.data.updatedAt).toLocaleTimeString()}
           </span>
         )}
       </div>
 
-      {/* Add pulse animation CSS */}
+      {/* Add CSS animations */}
       <style jsx global>{`
         @keyframes pulse {
           0% {
@@ -885,6 +1397,29 @@ export default function LiveMapPage() {
           100% {
             box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
           }
+        }
+        @keyframes job-pulse {
+          0% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.1);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+        .leaflet-popup-content-wrapper {
+          border-radius: 8px;
+        }
+        .leaflet-popup-content {
+          margin: 12px;
+        }
+        .leaflet-tooltip {
+          font-family: inherit;
+          font-size: 12px;
+          padding: 4px 8px;
+          border-radius: 4px;
         }
       `}</style>
     </div>
