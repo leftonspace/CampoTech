@@ -10,6 +10,7 @@ import {
   formatCurrency,
   formatDate,
   formatCUIT,
+  formatAddress,
   INVOICE_STATUS_LABELS,
   INVOICE_STATUS_COLORS,
   IVA_CONDITION_LABELS,
@@ -231,7 +232,7 @@ export default function InvoiceDetailPage() {
                         {IVA_CONDITION_LABELS[invoice.customer.ivaCondition] || invoice.customer.ivaCondition}
                       </p>
                       {invoice.customer.address && (
-                        <p className="text-sm text-gray-600">{invoice.customer.address}</p>
+                        <p className="text-sm text-gray-600">{formatAddress(invoice.customer.address)}</p>
                       )}
                     </div>
                   ) : (

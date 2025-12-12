@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
+import { cn, formatAddress } from '@/lib/utils';
 import {
   Plus,
   Search,
@@ -189,7 +189,7 @@ export default function LocationsPage() {
                     {location.address && (
                       <span className="flex items-center gap-1 truncate">
                         <MapPin className="h-3 w-3 flex-shrink-0" />
-                        {location.address}
+                        {formatAddress(location.address)}
                       </span>
                     )}
                   </div>
