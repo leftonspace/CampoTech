@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
           movementNumber,
           movementType: 'TRANSFER',
           quantity,
-          direction: 'INTERNAL',
+          direction: 'OUT',  // Transfer is OUT from source warehouse
           fromWarehouseId,
           toWarehouseId,
           unitCost,
