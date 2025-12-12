@@ -78,10 +78,10 @@ export async function GET(request: NextRequest) {
         },
         select: {
           status: true,
-          totalAmount: true,
+          total: true,
           createdAt: true,
-          receivedAt: true,
-          expectedDeliveryDate: true,
+          receivedDate: true,
+          expectedDate: true,
         },
       });
 
@@ -90,9 +90,9 @@ export async function GET(request: NextRequest) {
       const onTimeOrders = orders.filter(
         (o) =>
           o.status === 'RECEIVED' &&
-          o.receivedAt &&
-          o.expectedDeliveryDate &&
-          o.receivedAt <= o.expectedDeliveryDate
+          o.receivedDate &&
+          o.expectedDate &&
+          o.receivedDate <= o.expectedDate
       ).length;
 
       return NextResponse.json({
@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
           totalOrders,
           completedOrders,
           onTimeDeliveryRate: completedOrders > 0 ? (onTimeOrders / completedOrders) * 100 : 0,
-          totalSpent: orders.reduce((sum, o) => sum + Number(o.totalAmount), 0),
+          totalSpent: orders.reduce((sum, o) => sum + Number(o.total), 0),
         },
       });
     }
