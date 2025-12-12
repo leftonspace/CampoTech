@@ -28,6 +28,15 @@ export interface CalendarEvent {
       avatar?: string | null;
       specialty?: string | null;
     } | null;
+    assignments?: Array<{
+      id: string;
+      technician?: {
+        id: string;
+        name: string;
+        avatar?: string | null;
+        specialty?: string | null;
+      };
+    }>;
     estimatedDuration?: number | null;
     scheduledTimeSlot?: { start?: string; end?: string } | null;
   };
