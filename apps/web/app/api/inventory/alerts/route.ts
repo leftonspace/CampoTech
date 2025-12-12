@@ -6,6 +6,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
+
+// Helper to check if error is "table doesn't exist"
+function isTableNotFoundError(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === 'P2021'
+  );
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -19,25 +28,49 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all items with stock information
-    const items = await prisma.inventoryItem.findMany({
-      where: {
-        organizationId: session.organizationId,
-        isActive: true,
-      },
-      include: {
-        stocks: {
-          include: {
-            location: {
-              select: {
-                id: true,
-                name: true,
-                locationType: true,
+    let items: any[] = [];
+    try {
+      items = await prisma.inventoryItem.findMany({
+        where: {
+          organizationId: session.organizationId,
+          isActive: true,
+        },
+        include: {
+          stocks: {
+            include: {
+              location: {
+                select: {
+                  id: true,
+                  name: true,
+                  locationType: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      });
+    } catch (queryError) {
+      // Handle missing table gracefully - return empty data
+      if (isTableNotFoundError(queryError)) {
+        console.warn('Inventory tables not found - returning empty data. Run database migrations to create tables.');
+        return NextResponse.json({
+          success: true,
+          data: {
+            alerts: [],
+            summary: {
+              total: 0,
+              critical: 0,
+              warning: 0,
+              info: 0,
+              outOfStock: 0,
+              lowStock: 0,
+            },
+          },
+          _notice: 'Inventory management tables not yet created. Run database migrations.',
+        });
+      }
+      throw queryError;
+    }
 
     const alerts: Array<{
       type: 'LOW_STOCK' | 'OUT_OF_STOCK';
