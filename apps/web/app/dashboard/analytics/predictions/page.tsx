@@ -98,10 +98,8 @@ interface AnomalyData {
     metric: string;
     expectedValue: number;
     actualValue: number;
-    deviation: number;
     detectedAt: string;
     description: string;
-    possibleCauses: string[];
   }[];
   summary: {
     totalAnomalies: number;
@@ -111,10 +109,7 @@ interface AnomalyData {
   };
   baselines: {
     metric: string;
-    mean: number;
-    stdDev: number;
-    upperThreshold: number;
-    lowerThreshold: number;
+    value: number;
   }[];
 }
 
