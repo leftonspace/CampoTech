@@ -268,6 +268,9 @@ Legend:
 
 ```mermaid
 erDiagram
+    %% ═══════════════════════════════════════════════════════════════
+    %% CORE ENTITIES - Organization Relationships
+    %% ═══════════════════════════════════════════════════════════════
     organizations ||--o{ users : "has"
     organizations ||--o{ customers : "has"
     organizations ||--o{ jobs : "has"
@@ -278,12 +281,22 @@ erDiagram
     organizations ||--o{ vehicles : "has"
     organizations ||--o{ inventory_items : "has"
     organizations ||--o{ inventory_locations : "has"
+    organizations ||--o{ inventory_transactions : "has"
 
+    %% ═══════════════════════════════════════════════════════════════
+    %% USER RELATIONSHIPS
+    %% ═══════════════════════════════════════════════════════════════
     users ||--o{ jobs : "assigned_to"
     users ||--o{ job_status_history : "changed_by"
     users ||--o{ vehicle_assignments : "assigned_to"
     users ||--o{ inventory_transactions : "performed_by"
+    users ||--o{ vehicle_documents : "uploaded_by"
+    users ||--o| technician_locations : "has_location"
+    users ||--o{ technician_location_history : "has_history"
 
+    %% ═══════════════════════════════════════════════════════════════
+    %% CUSTOMER & JOB RELATIONSHIPS
+    %% ═══════════════════════════════════════════════════════════════
     customers ||--o{ jobs : "has"
     customers ||--o{ invoices : "has"
     customers ||--o{ whatsapp_messages : "has"
@@ -292,7 +305,11 @@ erDiagram
     jobs ||--o{ job_photos : "has"
     jobs ||--o| invoices : "generates"
     jobs ||--o{ inventory_transactions : "uses_materials"
+    jobs ||--o{ tracking_sessions : "tracked_by"
 
+    %% ═══════════════════════════════════════════════════════════════
+    %% INVOICE & PAYMENT RELATIONSHIPS
+    %% ═══════════════════════════════════════════════════════════════
     invoices ||--o{ invoice_items : "has"
     invoices ||--o{ payments : "has"
 
@@ -300,18 +317,38 @@ erDiagram
 
     price_book ||--o{ invoice_items : "used_in"
 
+    %% ═══════════════════════════════════════════════════════════════
+    %% WHATSAPP & VOICE
+    %% ═══════════════════════════════════════════════════════════════
     whatsapp_messages ||--o| voice_transcripts : "has"
 
+    %% ═══════════════════════════════════════════════════════════════
+    %% FLEET MANAGEMENT (Phase 8)
+    %% ═══════════════════════════════════════════════════════════════
     vehicles ||--o{ vehicle_documents : "has"
     vehicles ||--o{ vehicle_assignments : "has"
     vehicles ||--o| inventory_locations : "storage_for"
 
+    %% ═══════════════════════════════════════════════════════════════
+    %% INVENTORY MANAGEMENT (Phase 9)
+    %% ═══════════════════════════════════════════════════════════════
     inventory_items ||--o{ inventory_stock : "has"
     inventory_locations ||--o{ inventory_stock : "stores"
     inventory_items ||--o{ inventory_transactions : "tracks"
+    inventory_locations ||--o{ inventory_transactions : "from_location"
+    inventory_locations ||--o{ inventory_transactions : "to_location"
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% EMPLOYEE TRACKING (Phases 1-6)
+    %% ═══════════════════════════════════════════════════════════════
+    tracking_sessions }o--|| users : "technician"
+
+    %% ═══════════════════════════════════════════════════════════════
+    %% ENTITY DEFINITIONS
+    %% ═══════════════════════════════════════════════════════════════
 
     organizations {
-        uuid id PK
+        text id PK
         text name
         text cuit UK
         enum iva_condition
@@ -319,16 +356,16 @@ erDiagram
     }
 
     users {
-        uuid id PK
-        uuid org_id FK
+        text id PK
+        text org_id FK
         enum role
         text full_name
         text phone
     }
 
     customers {
-        uuid id PK
-        uuid org_id FK
+        text id PK
+        text org_id FK
         text name
         text phone
         enum doc_type
@@ -336,19 +373,19 @@ erDiagram
     }
 
     jobs {
-        uuid id PK
-        uuid org_id FK
-        uuid customer_id FK
-        uuid assigned_to FK
+        text id PK
+        text org_id FK
+        text customer_id FK
+        text assigned_to FK
         text title
         enum status
         date scheduled_date
     }
 
     invoices {
-        uuid id PK
-        uuid org_id FK
-        uuid customer_id FK
+        text id PK
+        text org_id FK
+        text customer_id FK
         integer invoice_number
         enum invoice_type
         text cae
@@ -357,9 +394,9 @@ erDiagram
     }
 
     payments {
-        uuid id PK
-        uuid org_id FK
-        uuid invoice_id FK
+        text id PK
+        text org_id FK
+        text invoice_id FK
         text mp_payment_id UK
         decimal amount
         enum status
@@ -372,8 +409,10 @@ erDiagram
         text make
         text model
         enum status
+        enum fuel_type
         date vtv_expiry
         date insurance_expiry
+        date registration_expiry
     }
 
     vehicle_documents {
@@ -381,13 +420,17 @@ erDiagram
         text vehicle_id FK
         enum document_type
         text file_url
+        text file_name
         date expiry_date
+        text uploaded_by FK
     }
 
     vehicle_assignments {
         text id PK
         text vehicle_id FK
         text user_id FK
+        timestamp assigned_from
+        timestamp assigned_until
         boolean is_primary_driver
     }
 
@@ -396,8 +439,13 @@ erDiagram
         text org_id FK
         text sku UK
         text name
+        text description
         enum category
+        enum unit
         integer min_stock_level
+        decimal cost_price
+        decimal sale_price
+        boolean is_active
     }
 
     inventory_locations {
@@ -406,6 +454,8 @@ erDiagram
         enum location_type
         text name
         text vehicle_id FK
+        text address
+        boolean is_active
     }
 
     inventory_stock {
@@ -413,15 +463,51 @@ erDiagram
         text item_id FK
         text location_id FK
         integer quantity
+        timestamp last_counted_at
     }
 
     inventory_transactions {
         text id PK
         text org_id FK
         text item_id FK
+        text from_location_id FK
+        text to_location_id FK
         enum transaction_type
         integer quantity
+        decimal unit_cost
         text job_id FK
+        text notes
+        text performed_by FK
+        timestamp performed_at
+    }
+
+    technician_locations {
+        text id PK
+        text user_id FK
+        decimal lat
+        decimal lng
+        decimal heading
+        decimal speed
+        decimal accuracy
+        enum status
+        timestamp updated_at
+    }
+
+    technician_location_history {
+        text id PK
+        text user_id FK
+        decimal lat
+        decimal lng
+        timestamp recorded_at
+    }
+
+    tracking_sessions {
+        text id PK
+        text job_id FK
+        text technician_id FK
+        timestamp started_at
+        timestamp ended_at
+        enum status
     }
 ```
 
