@@ -270,7 +270,7 @@ export default function JobDetailPage() {
               {PRIORITY_LABELS[job.priority]}
             </span>
           </div>
-          <p className="text-gray-500">#{job.jobNumber}</p>
+          <p className="text-gray-500">#{job.jobNumber || job.id.slice(0, 8)}</p>
         </div>
         <div className="flex gap-2">
           {isEditing ? (
