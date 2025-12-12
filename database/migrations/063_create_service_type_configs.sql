@@ -6,9 +6,9 @@
 -- SERVICE TYPE CONFIGURATION
 -- ═══════════════════════════════════════════════════════════════════════════════
 
-CREATE TABLE service_type_configs (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+CREATE TABLE IF NOT EXISTS service_type_configs (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    organization_id TEXT NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
 
     -- Service Type Info
     code VARCHAR(100) NOT NULL,           -- Internal code (e.g., "INSTALACION_SPLIT")
@@ -29,12 +29,13 @@ CREATE TABLE service_type_configs (
     CONSTRAINT unique_org_service_type_code UNIQUE (organization_id, code)
 );
 
--- Indexes
-CREATE INDEX idx_service_type_configs_org ON service_type_configs(organization_id);
-CREATE INDEX idx_service_type_configs_active ON service_type_configs(organization_id, is_active);
-CREATE INDEX idx_service_type_configs_sort ON service_type_configs(organization_id, sort_order);
+-- Indexes (use IF NOT EXISTS for idempotency)
+CREATE INDEX IF NOT EXISTS idx_service_type_configs_org ON service_type_configs(organization_id);
+CREATE INDEX IF NOT EXISTS idx_service_type_configs_active ON service_type_configs(organization_id, is_active);
+CREATE INDEX IF NOT EXISTS idx_service_type_configs_sort ON service_type_configs(organization_id, sort_order);
 
--- Trigger for updated_at
+-- Trigger for updated_at (drop first if exists for idempotency)
+DROP TRIGGER IF EXISTS update_service_type_configs_updated_at ON service_type_configs;
 CREATE TRIGGER update_service_type_configs_updated_at
     BEFORE UPDATE ON service_type_configs
     FOR EACH ROW
@@ -43,9 +44,10 @@ CREATE TRIGGER update_service_type_configs_updated_at
 -- Row Level Security
 ALTER TABLE service_type_configs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS service_type_configs_org_isolation ON service_type_configs;
 CREATE POLICY service_type_configs_org_isolation ON service_type_configs
     FOR ALL
-    USING (organization_id = current_setting('app.current_org_id', true)::uuid);
+    USING (organization_id = current_setting('app.current_org_id', true)::text);
 
 -- Comments
 COMMENT ON TABLE service_type_configs IS 'Configurable service types per organization';
