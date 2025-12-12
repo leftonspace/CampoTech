@@ -109,10 +109,10 @@ export async function POST(request: NextRequest) {
       country: 'Argentina',
     };
 
-    // Build coordinates if provided
+    // Build coordinates if provided (use undefined for optional Json fields, not null)
     const coordinatesJson = body.coordinates?.lat && body.coordinates?.lng
       ? { lat: body.coordinates.lat, lng: body.coordinates.lng }
-      : null;
+      : undefined;
 
     const location = await prisma.location.create({
       data: {
