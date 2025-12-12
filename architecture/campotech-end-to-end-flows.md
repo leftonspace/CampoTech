@@ -2592,9 +2592,456 @@ sequenceDiagram
 
 ---
 
+## Flow L: Technician Location Update (Phases 1-6)
+
+### L.1 Real-time Location Tracking
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant Mobile as Technician Mobile
+    participant API as CampoTech API
+    participant DB as Database
+    participant WS as WebSocket Server
+    participant Dashboard as Dashboard Web
+
+    Note over Mobile,Dashboard: REAL-TIME LOCATION UPDATE FLOW (15-second interval)
+
+    %% Mobile sends location
+    rect rgb(240, 248, 255)
+        Note over Mobile,API: Phase 1: Location Capture
+
+        Mobile->>Mobile: Get GPS location (background)
+        Mobile->>API: POST /api/tracking/update
+        Note right of Mobile: {lat, lng, heading, speed, accuracy, timestamp}
+
+        API->>API: Validate session & permissions
+        API->>DB: Update technician_locations
+        API->>DB: Insert technician_location_history
+    end
+
+    %% Broadcast to dashboard
+    rect rgb(240, 255, 240)
+        Note over API,Dashboard: Phase 2: Real-time Broadcast
+
+        API->>WS: Publish: technician_location_update
+        WS->>Dashboard: WebSocket message
+        Note right of WS: {type: 'technician_location_update', payload: {...}}
+
+        Dashboard->>Dashboard: Update map marker position
+        Dashboard->>Dashboard: Update panel if technician selected
+    end
+```
+
+### L.2 Location Update Message Format
+
+```typescript
+// WebSocket message sent every 15 seconds
+{
+  type: 'technician_location_update',
+  payload: {
+    technicianId: string,
+    lat: number,
+    lng: number,
+    heading: number,       // 0-360 degrees
+    speed: number,         // km/h
+    accuracy: number,      // meters
+    timestamp: string,     // ISO 8601
+    currentJobId?: string, // If en_camino or working
+    status: 'available' | 'en_camino' | 'working' | 'offline'
+  }
+}
+```
+
+---
+
+## Flow M: Find Nearest Technician (Phases 1-6)
+
+### M.1 Nearest Technician Lookup
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant User as Dispatcher
+    participant API as CampoTech API
+    participant DB as Database
+    participant Google as Google Distance Matrix API
+
+    Note over User,Google: FIND NEAREST AVAILABLE TECHNICIAN
+
+    %% User initiates search
+    rect rgb(240, 248, 255)
+        Note over User,API: Phase 1: Request
+
+        User->>API: GET /api/tracking/nearest
+        Note right of User: {jobAddress, maxResults: 5, filterAvailable: true}
+
+        API->>API: Geocode address if needed
+    end
+
+    %% Get technician locations
+    rect rgb(255, 250, 240)
+        Note over API,DB: Phase 2: Get Active Technicians
+
+        API->>DB: Query technician_locations
+        Note right of API: WHERE status IN ('available', 'working')<br/>AND updated_at > NOW() - 5min
+
+        DB-->>API: Active technicians with positions
+    end
+
+    %% Call Distance Matrix
+    rect rgb(240, 255, 240)
+        Note over API,Google: Phase 3: Calculate ETAs
+
+        API->>Google: Distance Matrix API
+        Note right of API: origins: tech1|tech2|tech3|...<br/>destinations: jobAddress<br/>mode: driving<br/>departure_time: now
+
+        Google-->>API: Distances & durations with traffic
+    end
+
+    %% Rank and return
+    rect rgb(248, 248, 255)
+        Note over API,User: Phase 4: Rank Results
+
+        API->>API: Sort by trafficDuration ASC
+        API->>API: Apply max distance filter
+        API-->>User: Ranked technician list
+        Note right of API: [{technician, distance, duration, trafficDuration}, ...]
+    end
+```
+
+### M.2 Response Format
+
+```typescript
+// GET /api/tracking/nearest response
+{
+  results: [
+    {
+      technician: {
+        id: string,
+        name: string,
+        avatar: string,
+        currentStatus: 'available' | 'working',
+        currentJob?: { id, title, customer }
+      },
+      currentLocation: {
+        lat: number,
+        lng: number,
+        updatedAt: string
+      },
+      distance: {
+        text: "15.3 km",
+        value: 15300  // meters
+      },
+      duration: {
+        text: "25 mins",
+        value: 1500   // seconds
+      },
+      trafficDuration: {
+        text: "32 mins",
+        value: 1920   // seconds with traffic
+      }
+    }
+  ]
+}
+```
+
+---
+
+## Flow N: Vehicle Document Upload (Phase 8)
+
+### N.1 Document Upload Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant User as Admin
+    participant Web as Dashboard
+    participant API as CampoTech API
+    participant Storage as Supabase Storage
+    participant DB as Database
+    participant Queue as BullMQ
+
+    Note over User,Queue: VEHICLE DOCUMENT UPLOAD & EXPIRY TRACKING
+
+    %% Upload document
+    rect rgb(240, 248, 255)
+        Note over User,Storage: Phase 1: Upload Document
+
+        User->>Web: Select document file
+        User->>Web: Set document type & expiry date
+        Web->>API: POST /api/vehicles/{id}/documents
+        Note right of Web: FormData: file, documentType, expiryDate
+
+        API->>Storage: Upload file
+        Storage-->>API: file_url
+
+        API->>DB: INSERT vehicle_documents
+        Note right of API: {vehicle_id, document_type, file_url, expiry_date}
+    end
+
+    %% Update vehicle expiry fields
+    rect rgb(240, 255, 240)
+        Note over API,DB: Phase 2: Update Vehicle Record
+
+        alt Document is Insurance
+            API->>DB: UPDATE vehicles SET insurance_expiry
+        else Document is VTV
+            API->>DB: UPDATE vehicles SET vtv_expiry
+        else Document is Registration
+            API->>DB: UPDATE vehicles SET registration_expiry
+        end
+    end
+
+    %% Queue expiry check
+    rect rgb(255, 250, 240)
+        Note over API,Queue: Phase 3: Schedule Alerts
+
+        API->>Queue: Schedule: fleet:check-document-expiry
+        Note right of API: Check daily at 09:00
+    end
+```
+
+### N.2 Document Types (Buenos Aires Compliance)
+
+```
+Document Types:
+├── insurance      - Seguro (mandatory)
+├── vtv            - Verificación Técnica Vehicular (Buenos Aires annual inspection)
+├── registration   - Cédula de identificación (vehicle registration card)
+├── title          - Título de propiedad (ownership title)
+└── green_card     - Tarjeta Verde (ownership card for transit outside city)
+
+Alert Schedule:
+├── 30 days before expiry: Warning notification
+├── 15 days before expiry: Urgent reminder
+├── 7 days before expiry:  Critical alert
+└── Expired:               Compliance violation alert
+```
+
+---
+
+## Flow O: Stock Transfer (Hub to Vehicle) (Phase 9)
+
+### O.1 Transfer Flow
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant User as Admin/Dispatcher
+    participant Web as Dashboard
+    participant API as CampoTech API
+    participant DB as Database
+
+    Note over User,DB: STOCK TRANSFER: HUB TO VEHICLE
+
+    %% Select items
+    rect rgb(240, 248, 255)
+        Note over User,Web: Phase 1: Select Transfer Items
+
+        User->>Web: Open Inventory page
+        User->>Web: Select source location (Hub)
+        Web->>API: GET /api/inventory/stock?locationId={hubId}
+        API-->>Web: Available stock at hub
+
+        User->>Web: Select items & quantities
+        User->>Web: Select destination (Vehicle)
+    end
+
+    %% Create transaction
+    rect rgb(240, 255, 240)
+        Note over Web,DB: Phase 2: Record Transfer
+
+        Web->>API: POST /api/inventory/transactions
+        Note right of Web: {type: 'transfer', items: [{itemId, qty}],<br/>fromLocationId, toLocationId}
+
+        API->>DB: BEGIN TRANSACTION
+
+        loop For each item
+            API->>DB: UPDATE inventory_stock (from) SET quantity = quantity - N
+            API->>DB: UPSERT inventory_stock (to) SET quantity = quantity + N
+            API->>DB: INSERT inventory_transactions
+        end
+
+        API->>DB: COMMIT
+        API-->>Web: Transfer confirmed
+    end
+```
+
+### O.2 Transaction Record
+
+```sql
+-- Example transfer transaction
+INSERT INTO inventory_transactions (
+    organization_id,
+    item_id,
+    from_location_id,      -- Hub location
+    to_location_id,        -- Vehicle location
+    transaction_type,      -- 'transfer'
+    quantity,              -- Positive
+    notes,
+    performed_by,
+    performed_at
+) VALUES (...);
+```
+
+---
+
+## Flow P: Job Inventory Usage (Phase 9)
+
+### P.1 Record Materials Used on Job
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant Tech as Technician Mobile
+    participant API as CampoTech API
+    participant DB as Database
+
+    Note over Tech,DB: RECORD MATERIALS USED DURING JOB
+
+    %% Complete job with materials
+    rect rgb(240, 248, 255)
+        Note over Tech,API: Phase 1: Job Completion
+
+        Tech->>Tech: Complete work on site
+        Tech->>Tech: Select materials used from vehicle stock
+        Tech->>API: POST /api/jobs/{id}/complete
+        Note right of Tech: {photos, signature, notes,<br/>materialsUsed: [{itemId, quantity}]}
+    end
+
+    %% Deduct from vehicle stock
+    rect rgb(240, 255, 240)
+        Note over API,DB: Phase 2: Deduct Stock
+
+        API->>DB: Get technician's assigned vehicle
+        API->>DB: Get vehicle's inventory_location
+
+        loop For each material
+            API->>DB: UPDATE inventory_stock SET quantity = quantity - N
+            API->>DB: INSERT inventory_transactions
+            Note right of API: type: 'usage', job_id: {jobId}
+        end
+    end
+
+    %% Check low stock
+    rect rgb(255, 250, 240)
+        Note over API,DB: Phase 3: Check Stock Levels
+
+        API->>DB: Query items below min_stock_level
+
+        alt Low stock detected
+            API->>API: Queue: inventory:send-stock-alert
+        end
+    end
+```
+
+### P.2 Usage Transaction Example
+
+```sql
+-- Material used on job
+INSERT INTO inventory_transactions (
+    organization_id,
+    item_id,
+    from_location_id,      -- Vehicle's inventory location
+    to_location_id,        -- NULL (consumed)
+    transaction_type,      -- 'usage'
+    quantity,              -- Negative (deduction)
+    job_id,                -- Link to completed job
+    notes,
+    performed_by,          -- Technician user ID
+    performed_at
+) VALUES (...);
+```
+
+---
+
+## Flow Q: Document Expiry Alert (Phase 8)
+
+### Q.1 Daily Expiry Check
+
+```mermaid
+sequenceDiagram
+    autonumber
+
+    participant Cron as Scheduler
+    participant Queue as BullMQ
+    participant Worker as Worker
+    participant DB as Database
+    participant Notif as Notification System
+
+    Note over Cron,Notif: DAILY DOCUMENT EXPIRY CHECK
+
+    %% Cron triggers check
+    rect rgb(240, 248, 255)
+        Note over Cron,Queue: Phase 1: Scheduled Check (09:00 daily)
+
+        Cron->>Queue: Enqueue: fleet:check-document-expiry
+    end
+
+    %% Worker processes
+    rect rgb(240, 255, 240)
+        Note over Worker,DB: Phase 2: Find Expiring Documents
+
+        Worker->>DB: Query vehicle_documents
+        Note right of Worker: WHERE expiry_date <= NOW() + 30 days
+
+        DB-->>Worker: Documents expiring soon
+
+        Worker->>DB: Query vehicles
+        Note right of Worker: WHERE insurance_expiry/vtv_expiry <= NOW() + 30 days
+
+        DB-->>Worker: Vehicles with expiring compliance
+    end
+
+    %% Send alerts
+    rect rgb(255, 250, 240)
+        Note over Worker,Notif: Phase 3: Send Notifications
+
+        loop For each expiring item
+            Worker->>Worker: Determine alert level
+            Note right of Worker: 30d=Warning, 15d=Urgent, 7d=Critical, 0d=Expired
+
+            Worker->>Queue: Enqueue: fleet:send-expiry-alert
+            Queue->>Notif: Send notification
+            Note right of Notif: To: Owner, Admin<br/>Channel: Push, Email
+        end
+    end
+```
+
+### Q.2 Alert Levels
+
+```
+Alert Configuration:
++------------------+------------+--------+----------------------+
+|  Days to Expiry  |  Level     |  Icon  |  Notification Type   |
++------------------+------------+--------+----------------------+
+|  30 days         |  Warning   |  Warn  |  Dashboard widget    |
+|  15 days         |  Urgent    |  Warn  |  Push + Email        |
+|  7 days          |  Critical  |  Crit  |  Push + Email + SMS  |
+|  0 days (expired)|  Violation |  Crit  |  All channels        |
++------------------+------------+--------+----------------------+
+
+Dashboard Alert Widget:
++-------------------------------------------------------------+
+|  Fleet Compliance Status                                    |
++-------------------------------------------------------------+
+|  [!] 2 documents expired                                    |
+|  [!] 3 documents expiring within 30 days                    |
+|  [OK] 8 vehicles fully compliant                            |
++-------------------------------------------------------------+
+```
+
+---
+
 ## Document Summary
 
-This document now covers **11 major flows** across all phases:
+This document now covers **17 major flows** across all phases:
 
 | Flow | Description | Phase |
 |------|-------------|-------|
@@ -2609,20 +3056,35 @@ This document now covers **11 major flows** across all phases:
 | **I** | **GPS Live Tracking** | **Phase 9.9** |
 | **J** | **Notification Queue System** | **Phase 9.6** |
 | **K** | **Business Mode Switch** | **Phase 15** |
+| **L** | **Technician Location Update** | **Phase 1-6** |
+| **M** | **Find Nearest Technician** | **Phase 1-6** |
+| **N** | **Vehicle Document Upload** | **Phase 8** |
+| **O** | **Stock Transfer (Hub to Vehicle)** | **Phase 9** |
+| **P** | **Job Inventory Usage** | **Phase 9** |
+| **Q** | **Document Expiry Alert** | **Phase 8** |
 
 ---
 
 **Document Metadata**
 ```
-Version: 2.2
-Last Updated: 2025-12-10
-Flows Documented: 11 + B.5 (Panic Mode) + F.5 (Chargeback)
-Phases Covered: Core, 7, 8, 9.3, 9.4, 9.6, 9.9, 13, 15
+Version: 2.3
+Last Updated: 2025-12-12
+Flows Documented: 17 + B.5 (Panic Mode) + F.5 (Chargeback)
+Phases Covered: Core, 1-6, 7, 8, 9, 9.3, 9.4, 9.6, 9.9, 13, 15
 Format: Mermaid sequence diagrams, ASCII flow charts
 State Machines Fixed: Payment (aligned with domain types)
 ```
 
 ## Changelog
+
+### v2.3 (2025-12-12)
+- **ADDED:** Flow L - Technician Location Update (real-time WebSocket broadcast)
+- **ADDED:** Flow M - Find Nearest Technician (Google Distance Matrix integration)
+- **ADDED:** Flow N - Vehicle Document Upload (Buenos Aires compliance tracking)
+- **ADDED:** Flow O - Stock Transfer Hub to Vehicle (inventory management)
+- **ADDED:** Flow P - Job Inventory Usage (material consumption tracking)
+- **ADDED:** Flow Q - Document Expiry Alert (daily cron-based alerts)
+- **UPDATED:** Document Summary to include 17 flows
 
 ### v2.2 (2025-12-10)
 - **FIXED:** Payment state machine type mismatch - aligned domain types with state machine
