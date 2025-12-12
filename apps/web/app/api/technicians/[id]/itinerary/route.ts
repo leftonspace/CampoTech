@@ -2,12 +2,72 @@
  * Technician Itinerary API Route
  * GET /api/technicians/[id]/itinerary
  *
- * Returns the technician's scheduled jobs for a given date
+ * Returns the technician's scheduled jobs for a given date with route information
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+
+// Parse address to extract coordinates and formatted string
+function parseAddress(address: unknown): { formatted: string; lat: number | null; lng: number | null } {
+  if (!address || typeof address !== 'object') {
+    return { formatted: '', lat: null, lng: null };
+  }
+
+  const addr = address as {
+    street?: string;
+    number?: string;
+    floor?: string;
+    apartment?: string;
+    city?: string;
+    coordinates?: { lat?: number; lng?: number };
+  };
+
+  const parts = [];
+  if (addr.street) {
+    let streetLine = addr.street;
+    if (addr.number) streetLine += ` ${addr.number}`;
+    if (addr.floor) streetLine += `, Piso ${addr.floor}`;
+    if (addr.apartment) streetLine += `, Depto ${addr.apartment}`;
+    parts.push(streetLine);
+  }
+  if (addr.city) parts.push(addr.city);
+
+  return {
+    formatted: parts.join(', ') || '',
+    lat: addr.coordinates?.lat ?? null,
+    lng: addr.coordinates?.lng ?? null,
+  };
+}
+
+// Calculate travel time using Haversine distance and average city speed
+function estimateTravelTime(
+  lat1: number | null,
+  lng1: number | null,
+  lat2: number | null,
+  lng2: number | null
+): number | null {
+  if (lat1 === null || lng1 === null || lat2 === null || lng2 === null) {
+    return null;
+  }
+
+  const R = 6371; // Earth radius in km
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c;
+
+  // Assume average speed of 25 km/h in city traffic
+  const travelTimeMinutes = Math.round((distance / 25) * 60);
+  return travelTimeMinutes;
+}
 
 export async function GET(
   request: NextRequest,
@@ -100,14 +160,33 @@ export async function GET(
       ],
     });
 
-    // Transform jobs into itinerary items
-    const itinerary = jobs.map((job) => {
+    // Get technician's current position for travel time calculation
+    let prevLat: number | null = technician.currentLocation
+      ? Number(technician.currentLocation.latitude)
+      : null;
+    let prevLng: number | null = technician.currentLocation
+      ? Number(technician.currentLocation.longitude)
+      : null;
+
+    // Transform jobs into itinerary items with coordinates and travel times
+    const itinerary = jobs.map((job, index) => {
       const timeSlot = job.scheduledTimeSlot as { start?: string; end?: string } | null;
       const trackingSession = job.trackingSessions[0];
+      const { formatted, lat, lng } = parseAddress(job.customer.address);
+
+      // Calculate travel time from previous location
+      const travelTimeFromPrevious = estimateTravelTime(prevLat, prevLng, lat, lng);
+
+      // Update previous location for next iteration
+      if (lat !== null && lng !== null) {
+        prevLat = lat;
+        prevLng = lng;
+      }
 
       return {
         id: job.id,
         jobNumber: job.jobNumber,
+        order: index + 1,
         status: job.status,
         serviceType: job.serviceType,
         description: job.description,
@@ -121,11 +200,16 @@ export async function GET(
         completedAt: job.completedAt?.toISOString() || null,
         estimatedDuration: job.estimatedDuration,
         actualDuration: job.actualDuration,
+        travelTimeFromPrevious,
+        location: {
+          lat,
+          lng,
+          address: formatted,
+        },
         customer: {
           id: job.customer.id,
           name: job.customer.name,
           phone: job.customer.phone,
-          address: job.customer.address,
         },
         tracking: trackingSession
           ? {
@@ -139,6 +223,11 @@ export async function GET(
     });
 
     // Calculate summary stats
+    const totalTravelMinutes = itinerary.reduce(
+      (sum, item) => sum + (item.travelTimeFromPrevious || 0),
+      0
+    );
+
     const stats = {
       total: jobs.length,
       completed: jobs.filter((j) => j.status === 'COMPLETED').length,
@@ -149,6 +238,7 @@ export async function GET(
       totalActualMinutes: jobs
         .filter((j) => j.actualDuration)
         .reduce((sum, j) => sum + (j.actualDuration || 0), 0),
+      totalTravelMinutes,
     };
 
     return NextResponse.json({
