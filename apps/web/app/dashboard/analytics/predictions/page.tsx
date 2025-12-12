@@ -127,10 +127,10 @@ export default function PredictionsPage() {
 
   // Fetch all predictions
   const { data: allPredictions, isLoading: isLoadingAll, refetch, isFetching } = useQuery<{
-    demand: { forecasts: { date: string; predictedDemand: number }[]; accuracy: { mape: number } };
-    revenue: { currentMRR: number; growthRate: number; scenarios: { name: string; nextMonth: number; sixMonths: number }[] };
-    churn: { summary: ChurnAnalysis['summary']; topRisks: { customerId: string; customerName: string; riskScore: number; riskLevel: string }[] };
-    anomalies: { summary: AnomalyData['summary']; recent: { type: string; severity: string; description: string; detectedAt: string }[] };
+    demand: { forecasts: { date: string; predictedDemand: number }[]; accuracy: { mape: number | null }; hasData: boolean };
+    revenue: { currentMRR: number; growthRate: number; scenarios: { name: string; nextMonth: number; sixMonths: number }[]; hasData: boolean };
+    churn: { summary: ChurnAnalysis['summary']; topRisks: { customerId: string; customerName: string; riskScore: number; riskLevel: string }[]; hasData: boolean };
+    anomalies: { summary: AnomalyData['summary']; recent: { type: string; severity: string; description: string; detectedAt: string }[]; hasData: boolean };
   }>({
     queryKey: ['predictions-all'],
     queryFn: async () => {
@@ -142,7 +142,7 @@ export default function PredictionsPage() {
   });
 
   // Fetch detailed demand forecast
-  const { data: demandData, isLoading: isLoadingDemand } = useQuery<{ forecast: DemandForecast; peakPeriods: { dayOfWeek: number; hour: number; avgDemand: number }[] }>({
+  const { data: demandData, isLoading: isLoadingDemand } = useQuery<{ forecast: DemandForecast; peakPeriods: { dayOfWeek: number; hour: number; avgDemand: number }[]; hasData: boolean }>({
     queryKey: ['predictions-demand'],
     queryFn: async () => {
       const response = await fetch('/api/analytics/predictions?type=demand&days=30');
@@ -154,7 +154,7 @@ export default function PredictionsPage() {
   });
 
   // Fetch detailed revenue projections
-  const { data: revenueData, isLoading: isLoadingRevenue } = useQuery<{ projections: RevenueProjection; milestones: { targetRevenue: number; estimatedDate: string | null; probability: number }[] }>({
+  const { data: revenueData, isLoading: isLoadingRevenue } = useQuery<{ projections: RevenueProjection; milestones: { targetRevenue: number; estimatedDate: string | null; probability: number }[]; hasData: boolean }>({
     queryKey: ['predictions-revenue'],
     queryFn: async () => {
       const response = await fetch('/api/analytics/predictions?type=revenue&months=12');
@@ -166,7 +166,7 @@ export default function PredictionsPage() {
   });
 
   // Fetch detailed churn analysis
-  const { data: churnData, isLoading: isLoadingChurn } = useQuery<{ summary: ChurnAnalysis['summary']; trends: ChurnAnalysis['trends']; highRiskCustomers: ChurnAnalysis['highRiskCustomers'] }>({
+  const { data: churnData, isLoading: isLoadingChurn } = useQuery<{ summary: ChurnAnalysis['summary']; trends: ChurnAnalysis['trends']; highRiskCustomers: ChurnAnalysis['highRiskCustomers']; hasData: boolean }>({
     queryKey: ['predictions-churn'],
     queryFn: async () => {
       const response = await fetch('/api/analytics/predictions?type=churn&limit=20');
@@ -178,7 +178,7 @@ export default function PredictionsPage() {
   });
 
   // Fetch detailed anomalies
-  const { data: anomalyData, isLoading: isLoadingAnomalies } = useQuery<AnomalyData>({
+  const { data: anomalyData, isLoading: isLoadingAnomalies } = useQuery<AnomalyData & { hasData: boolean }>({
     queryKey: ['predictions-anomalies'],
     queryFn: async () => {
       const response = await fetch('/api/analytics/predictions?type=anomalies');
@@ -427,81 +427,92 @@ export default function PredictionsPage() {
         isLoadingDemand ? (
           <LoadingSpinner />
         ) : demandData ? (
-          <div className="space-y-6">
-            {/* Accuracy metrics */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <Target size={24} className="text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Precisión del Modelo</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {(100 - demandData.forecast.accuracy.mape).toFixed(1)}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <Calendar size={24} className="text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Pronóstico 7 días</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {demandData.forecast.forecasts.slice(0, 7).reduce((s, f) => s + f.predictedDemand, 0)} trabajos
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-purple-100 rounded-lg">
-                    <TrendingUp size={24} className="text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Pronóstico 30 días</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {demandData.forecast.forecasts.reduce((s, f) => s + f.predictedDemand, 0)} trabajos
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Forecast chart */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Pronóstico de Demanda</h3>
-              <AreaChart
-                data={demandData.forecast.forecasts.map((f) => ({
-                  label: new Date(f.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }),
-                  value: f.predictedDemand,
-                }))}
-                height={300}
-                color="#3b82f6"
-              />
-            </div>
-
-            {/* Peak periods */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Períodos de Mayor Demanda</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {demandData.peakPeriods.slice(0, 8).map((peak, i) => {
-                  const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-                  return (
-                    <div key={i} className="p-4 bg-gray-50 rounded-lg text-center">
-                      <p className="font-medium text-gray-900">{days[peak.dayOfWeek]}</p>
-                      <p className="text-sm text-gray-500">{peak.hour}:00 hrs</p>
-                      <p className="text-lg font-bold text-blue-600">{peak.avgDemand.toFixed(1)}</p>
-                      <p className="text-xs text-gray-500">promedio</p>
+          demandData.hasData ? (
+            <div className="space-y-6">
+              {/* Accuracy metrics */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-blue-100 rounded-lg">
+                      <Target size={24} className="text-blue-600" />
                     </div>
-                  );
-                })}
+                    <div>
+                      <p className="text-sm text-gray-500">Precisión del Modelo</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {demandData.forecast.accuracy.mape !== null
+                          ? `${(100 - demandData.forecast.accuracy.mape).toFixed(1)}%`
+                          : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-green-100 rounded-lg">
+                      <Calendar size={24} className="text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Pronóstico 7 días</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {demandData.forecast.forecasts.slice(0, 7).reduce((s, f) => s + f.predictedDemand, 0)} trabajos
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-purple-100 rounded-lg">
+                      <TrendingUp size={24} className="text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Pronóstico 30 días</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {demandData.forecast.forecasts.reduce((s, f) => s + f.predictedDemand, 0)} trabajos
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              {/* Forecast chart */}
+              <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Pronóstico de Demanda</h3>
+                <AreaChart
+                  data={demandData.forecast.forecasts.map((f) => ({
+                    label: new Date(f.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }),
+                    value: f.predictedDemand,
+                  }))}
+                  height={300}
+                  color="#3b82f6"
+                />
+              </div>
+
+              {/* Peak periods */}
+              {demandData.peakPeriods.length > 0 && (
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Períodos de Mayor Demanda</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    {demandData.peakPeriods.slice(0, 8).map((peak, i) => {
+                      const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+                      return (
+                        <div key={i} className="p-4 bg-gray-50 rounded-lg text-center">
+                          <p className="font-medium text-gray-900">{days[peak.dayOfWeek]}</p>
+                          <p className="text-sm text-gray-500">{peak.hour}:00 hrs</p>
+                          <p className="text-lg font-bold text-blue-600">{peak.avgDemand.toFixed(1)}</p>
+                          <p className="text-xs text-gray-500">promedio</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            <NoDataMessage
+              title="Sin datos de demanda"
+              description="Registra trabajos para generar pronósticos de demanda basados en tu historial."
+            />
+          )
         ) : (
           <ErrorMessage />
         )
@@ -511,98 +522,107 @@ export default function PredictionsPage() {
         isLoadingRevenue ? (
           <LoadingSpinner />
         ) : revenueData ? (
-          <div className="space-y-6">
-            {/* Revenue KPIs */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-green-100 rounded-lg">
-                    <DollarSign size={24} className="text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">MRR Actual</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {formatCurrency(revenueData.projections.currentMRR)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <TrendingUp size={24} className="text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Crecimiento Histórico</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {revenueData.projections.historicalGrowthRate.toFixed(1)}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-purple-100 rounded-lg">
-                    <Target size={24} className="text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Meta $1M</p>
-                    <p className="text-2xl font-bold text-gray-900">
-                      {revenueData.milestones[0]?.estimatedDate
-                        ? new Date(revenueData.milestones[0].estimatedDate).toLocaleDateString('es-AR', { month: 'short', year: 'numeric' })
-                        : 'N/A'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Scenarios chart */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Escenarios de Proyección (12 meses)</h3>
-              <div className="space-y-6">
-                {revenueData.projections.scenarios.map((scenario) => (
-                  <div key={scenario.name}>
-                    <p className="text-sm font-medium text-gray-700 mb-2">{scenario.name}</p>
-                    <BarChart
-                      data={scenario.projections.map((p) => ({
-                        label: new Date(p.month).toLocaleDateString('es-AR', { month: 'short' }),
-                        value: p.projectedRevenue,
-                      }))}
-                      height={100}
-                      orientation="vertical"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Projection factors */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Factores de Proyección</h3>
-              <div className="space-y-3">
-                {revenueData.projections.projectionFactors.map((factor, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+          revenueData.hasData ? (
+            <div className="space-y-6">
+              {/* Revenue KPIs */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-green-100 rounded-lg">
+                      <DollarSign size={24} className="text-green-600" />
+                    </div>
                     <div>
-                      <p className="font-medium text-gray-900">{factor.factor}</p>
-                      <p className="text-sm text-gray-500">{factor.impact}</p>
-                    </div>
-                    <div className="w-24">
-                      <div className="flex items-center gap-2">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-green-500 h-2 rounded-full"
-                            style={{ width: `${factor.confidence * 100}%` }}
-                          />
-                        </div>
-                        <span className="text-xs text-gray-500">{Math.round(factor.confidence * 100)}%</span>
-                      </div>
+                      <p className="text-sm text-gray-500">MRR Actual</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {formatCurrency(revenueData.projections.currentMRR)}
+                      </p>
                     </div>
                   </div>
-                ))}
+                </div>
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-blue-100 rounded-lg">
+                      <TrendingUp size={24} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Crecimiento Histórico</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {revenueData.projections.historicalGrowthRate.toFixed(1)}%
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-purple-100 rounded-lg">
+                      <Target size={24} className="text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Meta $1M</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {revenueData.milestones[0]?.estimatedDate
+                          ? new Date(revenueData.milestones[0].estimatedDate).toLocaleDateString('es-AR', { month: 'short', year: 'numeric' })
+                          : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
+
+              {/* Scenarios chart */}
+              <div className="bg-white rounded-xl border border-gray-200 p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Escenarios de Proyección (12 meses)</h3>
+                <div className="space-y-6">
+                  {revenueData.projections.scenarios.map((scenario) => (
+                    <div key={scenario.name}>
+                      <p className="text-sm font-medium text-gray-700 mb-2">{scenario.name}</p>
+                      <BarChart
+                        data={scenario.projections.map((p) => ({
+                          label: new Date(p.month).toLocaleDateString('es-AR', { month: 'short' }),
+                          value: p.projectedRevenue,
+                        }))}
+                        height={100}
+                        orientation="vertical"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Projection factors */}
+              {revenueData.projections.projectionFactors.length > 0 && (
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Factores de Proyección</h3>
+                  <div className="space-y-3">
+                    {revenueData.projections.projectionFactors.map((factor, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">{factor.factor}</p>
+                          <p className="text-sm text-gray-500">{factor.impact}</p>
+                        </div>
+                        <div className="w-24">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-green-500 h-2 rounded-full"
+                                style={{ width: `${factor.confidence * 100}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-gray-500">{Math.round(factor.confidence * 100)}%</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            <NoDataMessage
+              title="Sin datos de ingresos"
+              description="Registra facturas pagadas para generar proyecciones de ingresos."
+            />
+          )
         ) : (
           <ErrorMessage />
         )
@@ -612,117 +632,126 @@ export default function PredictionsPage() {
         isLoadingChurn ? (
           <LoadingSpinner />
         ) : churnData ? (
-          <div className="space-y-6">
-            {/* Churn KPIs */}
-            <KPIGrid columns={4}>
-              <KPICard
-                title="Clientes en Riesgo"
-                value={churnData.summary.totalAtRisk}
-                unit="number"
-                trend={churnData.summary.totalAtRisk > 5 ? 'down' : 'stable'}
-                icon={<Users size={24} />}
-                color="amber"
-              />
-              <KPICard
-                title="Alto Riesgo"
-                value={churnData.summary.highRiskCount}
-                unit="number"
-                trend={churnData.summary.highRiskCount > 3 ? 'down' : 'stable'}
-                icon={<AlertTriangle size={24} />}
-                color="red"
-              />
-              <KPICard
-                title="Pérdida Potencial"
-                value={churnData.summary.potentialRevenueLoss}
-                unit="currency"
-                trend="down"
-                icon={<DollarSign size={24} />}
-                color="red"
-              />
-              <KPICard
-                title="Tasa de Churn"
-                value={churnData.summary.churnRate}
-                unit="percentage"
-                trend={churnData.summary.churnRate > 10 ? 'down' : 'up'}
-                icon={<TrendingDown size={24} />}
-                color={churnData.summary.churnRate > 10 ? 'red' : 'green'}
-              />
-            </KPIGrid>
+          churnData.hasData ? (
+            <div className="space-y-6">
+              {/* Churn KPIs */}
+              <KPIGrid columns={4}>
+                <KPICard
+                  title="Clientes en Riesgo"
+                  value={churnData.summary.totalAtRisk}
+                  unit="number"
+                  trend={churnData.summary.totalAtRisk > 5 ? 'down' : 'stable'}
+                  icon={<Users size={24} />}
+                  color="amber"
+                />
+                <KPICard
+                  title="Alto Riesgo"
+                  value={churnData.summary.highRiskCount}
+                  unit="number"
+                  trend={churnData.summary.highRiskCount > 3 ? 'down' : 'stable'}
+                  icon={<AlertTriangle size={24} />}
+                  color="red"
+                />
+                <KPICard
+                  title="Pérdida Potencial"
+                  value={churnData.summary.potentialRevenueLoss}
+                  unit="currency"
+                  trend="down"
+                  icon={<DollarSign size={24} />}
+                  color="red"
+                />
+                <KPICard
+                  title="Tasa de Churn"
+                  value={churnData.summary.churnRate * 100}
+                  unit="percentage"
+                  trend={churnData.summary.churnRate > 0.1 ? 'down' : 'up'}
+                  icon={<TrendingDown size={24} />}
+                  color={churnData.summary.churnRate > 0.1 ? 'red' : 'green'}
+                />
+              </KPIGrid>
 
-            {/* Churn trends */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Tendencia de Churn</h3>
-              <AreaChart
-                data={churnData.trends.map((t) => ({
-                  label: t.period,
-                  value: t.churned,
-                }))}
-                height={200}
-                color="#ef4444"
-              />
-            </div>
-
-            {/* High risk customers table */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Clientes en Riesgo de Churn</h3>
-              </div>
-              {churnData.highRiskCustomers.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  <CheckCircle size={32} className="mx-auto mb-2 text-green-500" />
-                  <p>No hay clientes en alto riesgo</p>
+              {/* Churn trends */}
+              {churnData.trends.length > 0 && (
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Tendencia de Churn</h3>
+                  <AreaChart
+                    data={churnData.trends.map((t) => ({
+                      label: t.period,
+                      value: t.churned,
+                    }))}
+                    height={200}
+                    color="#ef4444"
+                  />
                 </div>
-              ) : (
-                <table className="w-full">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Cliente</th>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Riesgo</th>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Score</th>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Pérdida Potencial</th>
-                      <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Acciones Recomendadas</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {churnData.highRiskCustomers.map((customer) => (
-                      <tr key={customer.customerId} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 font-medium text-gray-900">{customer.customerName}</td>
-                        <td className="px-6 py-4">
-                          <span className={`px-2 py-1 rounded text-xs font-medium uppercase ${getRiskColor(customer.riskLevel)}`}>
-                            {customer.riskLevel}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <div className="w-16 bg-gray-200 rounded-full h-2">
-                              <div
-                                className={`h-2 rounded-full ${customer.riskScore >= 70 ? 'bg-red-500' : customer.riskScore >= 50 ? 'bg-orange-500' : 'bg-amber-500'}`}
-                                style={{ width: `${customer.riskScore}%` }}
-                              />
-                            </div>
-                            <span className="text-sm text-gray-600">{customer.riskScore}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-gray-700">
-                          {formatCurrency(customer.potentialRevenueLoss)}
-                        </td>
-                        <td className="px-6 py-4">
-                          <ul className="text-sm text-gray-600 space-y-1">
-                            {customer.recommendedActions.slice(0, 2).map((action, i) => (
-                              <li key={i} className="flex items-center gap-1">
-                                <ChevronRight size={12} className="text-gray-400" />
-                                {action}
-                              </li>
-                            ))}
-                          </ul>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
               )}
+
+              {/* High risk customers table */}
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="p-6 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900">Clientes en Riesgo de Churn</h3>
+                </div>
+                {churnData.highRiskCustomers.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    <CheckCircle size={32} className="mx-auto mb-2 text-green-500" />
+                    <p>No hay clientes en alto riesgo</p>
+                  </div>
+                ) : (
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Cliente</th>
+                        <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Riesgo</th>
+                        <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Score</th>
+                        <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Pérdida Potencial</th>
+                        <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Acciones Recomendadas</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {churnData.highRiskCustomers.map((customer) => (
+                        <tr key={customer.customerId} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 font-medium text-gray-900">{customer.customerName}</td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2 py-1 rounded text-xs font-medium uppercase ${getRiskColor(customer.riskLevel)}`}>
+                              {customer.riskLevel}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <div className="w-16 bg-gray-200 rounded-full h-2">
+                                <div
+                                  className={`h-2 rounded-full ${customer.riskScore >= 0.7 ? 'bg-red-500' : customer.riskScore >= 0.5 ? 'bg-orange-500' : 'bg-amber-500'}`}
+                                  style={{ width: `${customer.riskScore * 100}%` }}
+                                />
+                              </div>
+                              <span className="text-sm text-gray-600">{Math.round(customer.riskScore * 100)}%</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-gray-700">
+                            {formatCurrency(customer.potentialRevenueLoss)}
+                          </td>
+                          <td className="px-6 py-4">
+                            <ul className="text-sm text-gray-600 space-y-1">
+                              {customer.recommendedActions.slice(0, 2).map((action, i) => (
+                                <li key={i} className="flex items-center gap-1">
+                                  <ChevronRight size={12} className="text-gray-400" />
+                                  {action}
+                                </li>
+                              ))}
+                            </ul>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <NoDataMessage
+              title="Sin datos de clientes"
+              description="Registra clientes y trabajos para analizar el riesgo de abandono."
+            />
+          )
         ) : (
           <ErrorMessage />
         )
@@ -732,135 +761,122 @@ export default function PredictionsPage() {
         isLoadingAnomalies ? (
           <LoadingSpinner />
         ) : anomalyData ? (
-          <div className="space-y-6">
-            {/* Anomaly summary */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-gray-100 rounded-lg">
-                    <AlertCircle size={24} className="text-gray-600" />
+          anomalyData.hasData ? (
+            <div className="space-y-6">
+              {/* Anomaly summary */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-gray-100 rounded-lg">
+                      <AlertCircle size={24} className="text-gray-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Total Anomalías</p>
+                      <p className="text-2xl font-bold text-gray-900">{anomalyData.summary.totalAnomalies}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Total Anomalías</p>
-                    <p className="text-2xl font-bold text-gray-900">{anomalyData.summary.totalAnomalies}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-red-200 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-red-100 rounded-lg">
+                      <AlertTriangle size={24} className="text-red-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Críticas</p>
+                      <p className="text-2xl font-bold text-red-600">{anomalyData.summary.criticalCount}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl border border-amber-200 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-amber-100 rounded-lg">
+                      <AlertCircle size={24} className="text-amber-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Advertencias</p>
+                      <p className="text-2xl font-bold text-amber-600">{anomalyData.summary.warningCount}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-white rounded-xl border border-blue-200 p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-blue-100 rounded-lg">
+                      <AlertCircle size={24} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Informativas</p>
+                      <p className="text-2xl font-bold text-blue-600">{anomalyData.summary.infoCount}</p>
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="bg-white rounded-xl border border-red-200 p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-red-100 rounded-lg">
-                    <AlertTriangle size={24} className="text-red-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Críticas</p>
-                    <p className="text-2xl font-bold text-red-600">{anomalyData.summary.criticalCount}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-amber-200 p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-amber-100 rounded-lg">
-                    <AlertCircle size={24} className="text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Advertencias</p>
-                    <p className="text-2xl font-bold text-amber-600">{anomalyData.summary.warningCount}</p>
-                  </div>
-                </div>
-              </div>
-              <div className="bg-white rounded-xl border border-blue-200 p-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 bg-blue-100 rounded-lg">
-                    <AlertCircle size={24} className="text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Informativas</p>
-                    <p className="text-2xl font-bold text-blue-600">{anomalyData.summary.infoCount}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
 
-            {/* Anomalies list */}
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-              <div className="p-6 border-b border-gray-200">
-                <h3 className="text-lg font-semibold text-gray-900">Anomalías Detectadas</h3>
-              </div>
-              {anomalyData.anomalies.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">
-                  <CheckCircle size={32} className="mx-auto mb-2 text-green-500" />
-                  <p>No se detectaron anomalías</p>
+              {/* Anomalies list */}
+              <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+                <div className="p-6 border-b border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900">Anomalías Detectadas</h3>
                 </div>
-              ) : (
-                <div className="divide-y divide-gray-200">
-                  {anomalyData.anomalies.map((anomaly) => (
-                    <div key={anomaly.id} className="p-6">
-                      <div className="flex items-start gap-4">
-                        <div className={`p-2 rounded-lg ${getSeverityColor(anomaly.severity)}`}>
-                          <AlertCircle size={20} />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-medium text-gray-900">{anomaly.description}</h4>
-                            <span className={`px-2 py-0.5 rounded text-xs font-medium uppercase ${getSeverityColor(anomaly.severity)}`}>
-                              {anomaly.severity}
-                            </span>
+                {anomalyData.anomalies.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    <CheckCircle size={32} className="mx-auto mb-2 text-green-500" />
+                    <p>No se detectaron anomalías - todo funciona normalmente</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-gray-200">
+                    {anomalyData.anomalies.map((anomaly: { id: string; description: string; severity: string; detectedAt: string; expectedValue: number; actualValue: number; metric: string }) => (
+                      <div key={anomaly.id} className="p-6">
+                        <div className="flex items-start gap-4">
+                          <div className={`p-2 rounded-lg ${getSeverityColor(anomaly.severity)}`}>
+                            <AlertCircle size={20} />
                           </div>
-                          <p className="text-sm text-gray-500 mb-2">
-                            <Clock size={14} className="inline mr-1" />
-                            {new Date(anomaly.detectedAt).toLocaleDateString('es-AR', {
-                              day: '2-digit',
-                              month: 'short',
-                              year: 'numeric',
-                            })}
-                            {' · '}
-                            Esperado: {anomaly.expectedValue.toLocaleString('es-AR')} · Actual: {anomaly.actualValue.toLocaleString('es-AR')}
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {anomaly.possibleCauses.map((cause, i) => (
-                              <span key={i} className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
-                                {cause}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h4 className="font-medium text-gray-900">{anomaly.description}</h4>
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium uppercase ${getSeverityColor(anomaly.severity)}`}>
+                                {anomaly.severity}
                               </span>
-                            ))}
+                            </div>
+                            <p className="text-sm text-gray-500">
+                              <Clock size={14} className="inline mr-1" />
+                              {new Date(anomaly.detectedAt).toLocaleDateString('es-AR', {
+                                day: '2-digit',
+                                month: 'short',
+                                year: 'numeric',
+                              })}
+                              {' · '}
+                              {anomaly.metric}: Esperado {anomaly.expectedValue.toLocaleString('es-AR')} · Actual {anomaly.actualValue.toLocaleString('es-AR')}
+                            </p>
                           </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Metric baselines */}
+              {anomalyData.baselines.length > 0 && (
+                <div className="bg-white rounded-xl border border-gray-200 p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Métricas Base</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {anomalyData.baselines.map((baseline: { metric: string; value: number }) => (
+                      <div key={baseline.metric} className="p-4 bg-gray-50 rounded-lg">
+                        <p className="text-sm text-gray-500">{baseline.metric}</p>
+                        <p className="text-xl font-bold text-gray-900">
+                          {baseline.value.toLocaleString('es-AR', { maximumFractionDigits: 1 })}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
-
-            {/* Metric baselines */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Líneas Base de Métricas</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {anomalyData.baselines.map((baseline) => (
-                  <div key={baseline.metric} className="p-4 bg-gray-50 rounded-lg">
-                    <p className="font-medium text-gray-900 mb-2">{baseline.metric.replace(/_/g, ' ')}</p>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <p className="text-gray-500">Media</p>
-                        <p className="font-medium">{baseline.mean.toLocaleString('es-AR', { maximumFractionDigits: 2 })}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Desv. Est.</p>
-                        <p className="font-medium">{baseline.stdDev.toLocaleString('es-AR', { maximumFractionDigits: 2 })}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Umbral Superior</p>
-                        <p className="font-medium text-red-600">{baseline.upperThreshold.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-500">Umbral Inferior</p>
-                        <p className="font-medium text-blue-600">{baseline.lowerThreshold.toLocaleString('es-AR', { maximumFractionDigits: 0 })}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
+          ) : (
+            <NoDataMessage
+              title="Sin datos para análisis"
+              description="Registra trabajos e ingresos para detectar anomalías en tu negocio."
+            />
+          )
         ) : (
           <ErrorMessage />
         )
@@ -885,6 +901,20 @@ function ErrorMessage() {
   return (
     <div className="flex items-center justify-center h-64 text-gray-500">
       No se pudieron cargar los datos
+    </div>
+  );
+}
+
+function NoDataMessage({ title, description }: { title?: string; description?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-64 text-center">
+      <div className="p-4 bg-gray-100 rounded-full mb-4">
+        <AlertCircle size={32} className="text-gray-400" />
+      </div>
+      <h3 className="text-lg font-medium text-gray-700">{title || 'Sin datos suficientes'}</h3>
+      <p className="text-gray-500 mt-1 max-w-md">
+        {description || 'Necesitamos más datos históricos para generar predicciones precisas. Continúa registrando trabajos, clientes e ingresos.'}
+      </p>
     </div>
   );
 }

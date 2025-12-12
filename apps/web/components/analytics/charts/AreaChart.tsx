@@ -6,6 +6,7 @@
  *
  * Phase 10.4: Analytics Dashboard UI
  * Reusable area chart for trend visualization.
+ * Fixed: SVG path now uses viewBox coordinates instead of invalid percentages.
  */
 
 import { useMemo } from 'react';
@@ -36,6 +37,16 @@ export default function AreaChart({
   showGrid = true,
   formatValue = (v) => v.toLocaleString('es-AR'),
 }: AreaChartProps) {
+  // Use a fixed viewBox for consistent coordinate system
+  const viewBoxWidth = 1000;
+  const viewBoxHeight = height;
+  const paddingLeft = 50;
+  const paddingRight = 50;
+  const paddingTop = 20;
+  const paddingBottom = 20;
+  const chartWidth = viewBoxWidth - paddingLeft - paddingRight;
+  const chartHeight = viewBoxHeight - paddingTop - paddingBottom;
+
   const chartData = useMemo(() => {
     if (data.length === 0) return null;
 
@@ -44,22 +55,18 @@ export default function AreaChart({
     const minValue = Math.min(...values, 0);
     const range = maxValue - minValue || 1;
 
-    const padding = 40;
-    const chartWidth = 100; // Percentage
-    const chartHeight = height - padding;
-
     const points = data.map((d, i) => {
-      const x = (i / (data.length - 1 || 1)) * (chartWidth - 10) + 5;
-      const y = chartHeight - ((d.value - minValue) / range) * chartHeight + padding / 2;
+      const x = paddingLeft + (i / (data.length - 1 || 1)) * chartWidth;
+      const y = paddingTop + chartHeight - ((d.value - minValue) / range) * chartHeight;
       return { x, y, ...d };
     });
 
-    // Create SVG path for area
-    const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x}% ${p.y}`).join(' ');
-    const areaPath = `${linePath} L ${points[points.length - 1].x}% ${height} L ${points[0].x}% ${height} Z`;
+    // Create SVG path for area (using numeric coordinates, not percentages)
+    const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+    const areaPath = `${linePath} L ${points[points.length - 1].x} ${viewBoxHeight - paddingBottom} L ${points[0].x} ${viewBoxHeight - paddingBottom} Z`;
 
     return { points, linePath, areaPath, maxValue, minValue };
-  }, [data, height]);
+  }, [data, chartWidth, chartHeight, paddingLeft, paddingTop, paddingBottom, viewBoxHeight]);
 
   if (!chartData) {
     return (
@@ -74,9 +81,20 @@ export default function AreaChart({
 
   const gradientId = useMemo(() => `gradient-${Math.random().toString(36).substr(2, 9)}`, []);
 
+  // Calculate grid line positions
+  const gridLines = [0, 25, 50, 75, 100].map((percent) =>
+    paddingTop + (percent / 100) * chartHeight
+  );
+
   return (
     <div className="relative w-full" style={{ height }}>
-      <svg width="100%" height={height} className="overflow-visible">
+      <svg
+        width="100%"
+        height={height}
+        viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+        preserveAspectRatio="none"
+        className="overflow-visible"
+      >
         {/* Gradient definition */}
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
@@ -88,15 +106,16 @@ export default function AreaChart({
         {/* Grid lines */}
         {showGrid && (
           <g className="text-gray-200">
-            {[0, 25, 50, 75, 100].map((percent) => (
+            {gridLines.map((y, index) => (
               <line
-                key={percent}
-                x1="5%"
-                y1={`${20 + (percent / 100) * (height - 40)}px`}
-                x2="95%"
-                y2={`${20 + (percent / 100) * (height - 40)}px`}
+                key={index}
+                x1={paddingLeft}
+                y1={y}
+                x2={viewBoxWidth - paddingRight}
+                y2={y}
                 stroke="currentColor"
                 strokeDasharray="4 4"
+                strokeWidth="1"
               />
             ))}
           </g>
@@ -110,7 +129,7 @@ export default function AreaChart({
           d={chartData.linePath}
           fill="none"
           stroke={color}
-          strokeWidth="2"
+          strokeWidth="3"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -119,29 +138,38 @@ export default function AreaChart({
         {chartData.points.map((point, i) => (
           <g key={i}>
             <circle
-              cx={`${point.x}%`}
+              cx={point.x}
               cy={point.y}
-              r="4"
+              r="6"
               fill="white"
               stroke={color}
-              strokeWidth="2"
+              strokeWidth="3"
             />
           </g>
         ))}
       </svg>
 
       {/* Labels */}
-      {showLabels && (
+      {showLabels && data.length > 0 && (
         <div className="absolute bottom-0 left-0 right-0 flex justify-between px-[5%] text-xs text-gray-500">
-          {data.map((d, i) => (
-            <span
-              key={i}
-              className="truncate"
-              style={{ maxWidth: `${100 / data.length}%` }}
-            >
-              {d.label}
-            </span>
-          ))}
+          {data.length <= 10 ? (
+            data.map((d, i) => (
+              <span
+                key={i}
+                className="truncate text-center"
+                style={{ maxWidth: `${100 / data.length}%` }}
+              >
+                {d.label}
+              </span>
+            ))
+          ) : (
+            // Show fewer labels for large datasets
+            [0, Math.floor(data.length / 2), data.length - 1].map((i) => (
+              <span key={i} className="truncate">
+                {data[i]?.label}
+              </span>
+            ))
+          )}
         </div>
       )}
 
