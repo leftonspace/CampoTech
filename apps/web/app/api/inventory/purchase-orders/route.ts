@@ -254,6 +254,19 @@ export async function POST(request: NextRequest) {
       // Create receiving record
       const receivingNumber = `RCV-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
+      // Build items JSON for receiving record
+      const receivingItems = items.map((item: any) => {
+        const orderItem = order.items.find((i) => i.id === item.itemId);
+        return {
+          productId: orderItem?.productId,
+          quantityExpected: orderItem?.quantity || 0,
+          quantityReceived: parseInt(item.quantity, 10) || 0,
+          notes: item.notes || null,
+        };
+      }).filter((item: any) => item.productId);
+
+      const hasVariance = receivingItems.some((item: any) => item.quantityExpected !== item.quantityReceived);
+
       await prisma.$transaction(async (tx) => {
         // Create receiving record
         await tx.purchaseReceiving.create({
@@ -262,6 +275,8 @@ export async function POST(request: NextRequest) {
             receivingNumber,
             notes,
             receivedById: session.userId,
+            items: receivingItems,
+            hasVariance,
           },
         });
 
