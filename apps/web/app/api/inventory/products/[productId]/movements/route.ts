@@ -89,7 +89,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           toWarehouse: { select: { id: true, name: true, code: true } },
           job: { select: { id: true, jobNumber: true } },
           purchaseOrder: { select: { id: true, orderNumber: true } },
-          performedBy: { select: { id: true, name: true } },
         },
         orderBy: { performedAt: 'desc' },
         skip: (page - 1) * pageSize,
