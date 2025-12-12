@@ -219,3 +219,38 @@ export const IVA_CONDITION_LABELS: Record<string, string> = {
   consumidor_final: 'Consumidor Final',
   exento: 'Exento',
 };
+
+/**
+ * Normalize text for accent-insensitive search
+ * Removes diacritical marks (accents) and converts to lowercase
+ * e.g., "María" -> "maria", "José" -> "jose"
+ */
+export function normalizeSearchText(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+/**
+ * Check if a text matches a search query (accent-insensitive)
+ * @param text - The text to search in
+ * @param query - The search query
+ * @returns true if the normalized text includes the normalized query
+ */
+export function searchMatches(text: string | null | undefined, query: string): boolean {
+  if (!text || !query) return !query; // If no query, match everything
+  return normalizeSearchText(text).includes(normalizeSearchText(query));
+}
+
+/**
+ * Check if any of the provided texts match the search query (accent-insensitive)
+ * @param texts - Array of texts to search in
+ * @param query - The search query
+ * @returns true if any normalized text includes the normalized query
+ */
+export function searchMatchesAny(texts: (string | null | undefined)[], query: string): boolean {
+  if (!query) return true;
+  const normalizedQuery = normalizeSearchText(query);
+  return texts.some(text => text && normalizeSearchText(text).includes(normalizedQuery));
+}

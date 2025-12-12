@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { apiRequest } from '@/lib/api-client';
-import { cn } from '@/lib/utils';
+import { cn, searchMatchesAny } from '@/lib/utils';
 import {
   Inbox,
   Clock,
@@ -139,15 +139,12 @@ export default function LeadsPage() {
 
   const leads = leadsData?.data?.leads || [];
 
-  // Filter by search
+  // Filter by search (accent-insensitive)
   const filteredLeads = leads.filter((lead) => {
     if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      lead.title.toLowerCase().includes(query) ||
-      lead.description.toLowerCase().includes(query) ||
-      lead.location.city.toLowerCase().includes(query) ||
-      lead.location.neighborhood?.toLowerCase().includes(query)
+    return searchMatchesAny(
+      [lead.title, lead.description, lead.location.city, lead.location.neighborhood],
+      searchQuery
     );
   });
 

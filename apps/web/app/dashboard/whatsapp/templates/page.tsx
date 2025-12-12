@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
+import { searchMatches } from '@/lib/utils';
 import {
   ArrowLeft,
   FileText,
@@ -56,9 +57,7 @@ export default function WhatsAppTemplatesPage() {
   });
 
   const filteredTemplates = templates.filter((t) => {
-    const matchesSearch =
-      !searchQuery ||
-      t.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = !searchQuery || searchMatches(t.name, searchQuery);
     const matchesStatus = statusFilter === 'all' || t.status === statusFilter;
     return matchesSearch && matchesStatus;
   });

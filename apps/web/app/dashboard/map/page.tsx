@@ -37,6 +37,7 @@ import { ItineraryPanel } from '@/components/maps/ItineraryPanel';
 import { ReassignJobDialog } from '@/components/maps/ReassignJobDialog';
 import { CoordinatePickerDialog } from '@/components/maps/CoordinatePickerDialog';
 import { useAuth } from '@/lib/auth-context';
+import { searchMatchesAny } from '@/lib/utils';
 
 // Types
 interface CustomerLocation {
@@ -546,24 +547,17 @@ export default function LiveMapPage() {
     let technicians = data.data.technicians;
     let jobs = data.data.todayJobs;
 
-    // Apply search filter
+    // Apply search filter (accent-insensitive)
     if (filters.search) {
-      const search = filters.search.toLowerCase();
-      customers = customers.filter(
-        (c) =>
-          c.name.toLowerCase().includes(search) ||
-          c.address.toLowerCase().includes(search)
+      const search = filters.search;
+      customers = customers.filter((c) =>
+        searchMatchesAny([c.name, c.address], search)
       );
-      technicians = technicians.filter(
-        (t) =>
-          t.name.toLowerCase().includes(search) ||
-          t.specialty?.toLowerCase().includes(search)
+      technicians = technicians.filter((t) =>
+        searchMatchesAny([t.name, t.specialty], search)
       );
-      jobs = jobs.filter(
-        (j) =>
-          j.jobNumber.toLowerCase().includes(search) ||
-          j.customerName.toLowerCase().includes(search) ||
-          j.address.toLowerCase().includes(search)
+      jobs = jobs.filter((j) =>
+        searchMatchesAny([j.jobNumber, j.customerName, j.address], search)
       );
     }
 

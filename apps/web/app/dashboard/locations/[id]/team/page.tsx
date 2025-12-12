@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { cn } from '@/lib/utils';
+import { cn, searchMatchesAny } from '@/lib/utils';
 import {
   ArrowLeft,
   Users,
@@ -125,10 +125,8 @@ export default function LocationTeamPage() {
     }
   };
 
-  const filteredTechnicians = team?.technicians.filter(
-    (tech) =>
-      tech.userName.toLowerCase().includes(search.toLowerCase()) ||
-      tech.specialty?.toLowerCase().includes(search.toLowerCase())
+  const filteredTechnicians = team?.technicians.filter((tech) =>
+    searchMatchesAny([tech.userName, tech.specialty], search)
   );
 
   if (isLoading) {

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { searchMatchesAny } from '@/lib/utils';
 import {
   Package,
   Search,
@@ -339,9 +340,10 @@ export default function IntegrationsMarketplacePage() {
   const [showInstalled, setShowInstalled] = useState(false);
 
   const filteredIntegrations = integrations.filter((integration) => {
-    const matchesSearch =
-      integration.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      integration.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = searchMatchesAny(
+      [integration.name, integration.description],
+      searchQuery
+    );
     const matchesCategory =
       selectedCategory === 'all' || integration.category === selectedCategory;
     const matchesInstalled = !showInstalled || integration.installed;

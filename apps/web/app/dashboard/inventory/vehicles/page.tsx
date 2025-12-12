@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { cn, formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency, searchMatchesAny } from '@/lib/utils';
 import {
   Search,
   Truck,
@@ -79,10 +79,8 @@ export default function VehicleInventoryPage() {
   const stockItems = detailData?.data?.items as VehicleStockItem[] | undefined;
   const requests = requestsData?.data?.requests as ReplenishmentRequest[] | undefined;
 
-  const filteredVehicles = vehicles?.filter(
-    (v) =>
-      v.vehicleName.toLowerCase().includes(search.toLowerCase()) ||
-      v.technicianName.toLowerCase().includes(search.toLowerCase())
+  const filteredVehicles = vehicles?.filter((v) =>
+    searchMatchesAny([v.vehicleName, v.technicianName], search)
   );
 
   const pendingRequests = requests?.filter((r) => r.status === 'PENDING') || [];

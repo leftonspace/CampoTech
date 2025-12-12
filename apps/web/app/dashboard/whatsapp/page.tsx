@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
-import { formatRelativeTime } from '@/lib/utils';
+import { formatRelativeTime, searchMatchesAny } from '@/lib/utils';
 import {
   MessageCircle,
   Search,
@@ -87,11 +87,7 @@ export default function WhatsAppPage() {
 
   const filteredConversations = conversations.filter((c) => {
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        c.customerName.toLowerCase().includes(query) ||
-        c.customerPhone.includes(query)
-      );
+      return searchMatchesAny([c.customerName, c.customerPhone], searchQuery);
     }
     return true;
   });
