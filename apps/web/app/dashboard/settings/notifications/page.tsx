@@ -149,7 +149,7 @@ export default function NotificationSettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20 sm:pb-0">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -240,7 +240,7 @@ export default function NotificationSettingsPage() {
           Elegí qué canales usar para cada tipo de notificación.
         </p>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto -mx-6 px-6">
           <table className="min-w-full">
             <thead>
               <tr className="border-b">
