@@ -13,11 +13,11 @@ import {
 } from 'lucide-react';
 
 const FUEL_TYPES = [
-  { value: 'NAFTA', label: 'Nafta' },
+  { value: 'GASOLINE', label: 'Nafta' },
   { value: 'DIESEL', label: 'Diesel' },
   { value: 'GNC', label: 'GNC' },
-  { value: 'ELECTRICO', label: 'Electrico' },
-  { value: 'HIBRIDO', label: 'Hibrido' },
+  { value: 'ELECTRIC', label: 'Electrico' },
+  { value: 'HYBRID', label: 'Hibrido' },
 ];
 
 export default function NewVehiclePage() {
@@ -32,7 +32,7 @@ export default function NewVehiclePage() {
     year: new Date().getFullYear().toString(),
     vin: '',
     color: '',
-    fuelType: 'NAFTA',
+    fuelType: 'GASOLINE',
     currentMileage: '',
     insuranceCompany: '',
     insurancePolicyNumber: '',
