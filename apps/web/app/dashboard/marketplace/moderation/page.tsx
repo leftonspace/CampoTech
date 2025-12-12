@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { apiRequest } from '@/lib/api-client';
-import { cn, formatDateTime } from '@/lib/utils';
+import { cn, formatDateTime, searchMatchesAny } from '@/lib/utils';
 import { ProtectedRoute } from '@/lib/auth-context';
 import {
   ArrowLeft,
@@ -110,14 +110,12 @@ function ModerationContent() {
 
   const queueItems = queueData?.data?.items || [];
 
-  // Filter items by search query
+  // Filter items by search query (accent-insensitive)
   const filteredItems = queueItems.filter((item) => {
     if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      item.review.consumerName.toLowerCase().includes(query) ||
-      item.review.businessName.toLowerCase().includes(query) ||
-      item.review.comment?.toLowerCase().includes(query)
+    return searchMatchesAny(
+      [item.review.consumerName, item.review.businessName, item.review.comment],
+      searchQuery
     );
   });
 

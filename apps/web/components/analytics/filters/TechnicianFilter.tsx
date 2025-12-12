@@ -11,6 +11,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { User, ChevronDown, X, Check } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { searchMatches } from '@/lib/utils';
 
 interface Technician {
   id: string;
@@ -59,7 +60,7 @@ export default function TechnicianFilter({
   }, []);
 
   const filteredTechnicians = technicians.filter((tech) =>
-    tech.name.toLowerCase().includes(search.toLowerCase())
+    searchMatches(tech.name, search)
   );
 
   const getDisplayLabel = (): string => {

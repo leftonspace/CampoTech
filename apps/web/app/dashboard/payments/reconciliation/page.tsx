@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
-import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { cn, formatCurrency, formatDate, searchMatches } from '@/lib/utils';
 import {
   ArrowLeft,
   RefreshCw,
@@ -80,7 +80,7 @@ export default function ReconciliationPage() {
 
   const filteredItems = items.filter((item) => {
     if (statusFilter && item.status !== statusFilter) return false;
-    if (search && !item.description.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !searchMatches(item.description, search)) return false;
     return true;
   });
 

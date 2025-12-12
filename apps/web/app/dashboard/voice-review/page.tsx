@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
+import { searchMatchesAny } from '@/lib/utils';
 import {
   Mic,
   Clock,
@@ -64,11 +65,9 @@ export default function VoiceReviewPage() {
 
   const filteredItems = items.filter((item) => {
     if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      item.customerPhone.includes(query) ||
-      item.customerName?.toLowerCase().includes(query) ||
-      item.transcription?.text.toLowerCase().includes(query)
+    return searchMatchesAny(
+      [item.customerPhone, item.customerName, item.transcription?.text],
+      searchQuery
     );
   });
 
