@@ -36,6 +36,25 @@ import {
 } from 'lucide-react';
 import { Invoice, Customer } from '@/types';
 
+// Helper to format address object to string
+function formatAddress(address: unknown): string {
+  if (!address) return '';
+  if (typeof address === 'string') return address;
+  if (typeof address === 'object') {
+    const addr = address as Record<string, unknown>;
+    const parts = [
+      addr.street,
+      addr.number,
+      addr.floor && `Piso ${addr.floor}`,
+      addr.apartment && `Depto ${addr.apartment}`,
+      addr.city,
+      addr.postalCode,
+    ].filter(Boolean);
+    return parts.join(', ') || '';
+  }
+  return '';
+}
+
 export default function InvoiceDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -231,7 +250,7 @@ export default function InvoiceDetailPage() {
                         {IVA_CONDITION_LABELS[invoice.customer.ivaCondition] || invoice.customer.ivaCondition}
                       </p>
                       {invoice.customer.address && (
-                        <p className="text-sm text-gray-600">{invoice.customer.address}</p>
+                        <p className="text-sm text-gray-600">{formatAddress(invoice.customer.address)}</p>
                       )}
                     </div>
                   ) : (
