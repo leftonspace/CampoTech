@@ -13,7 +13,7 @@ import {
   USER_FIELDS,
   CUSTOMER_FIELDS,
   VEHICLE_FIELDS,
-  INVENTORY_FIELDS,
+  PRODUCT_FIELDS,
   INVOICE_FIELDS,
   JOB_FIELDS,
   getFieldMetadata,
@@ -31,7 +31,8 @@ const ENTITY_FIELDS: Record<string, Record<string, FieldPermission>> = {
   user: USER_FIELDS,
   customer: CUSTOMER_FIELDS,
   vehicle: VEHICLE_FIELDS,
-  inventory: INVENTORY_FIELDS,
+  product: PRODUCT_FIELDS,
+  inventory: PRODUCT_FIELDS, // Alias for backwards compatibility
   invoice: INVOICE_FIELDS,
   job: JOB_FIELDS,
 };
