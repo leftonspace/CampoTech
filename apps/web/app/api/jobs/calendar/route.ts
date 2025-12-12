@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
                 specialty: job.technician.specialty,
               }
             : null,
-          assignments: job.assignments.map((a) => ({
+          assignments: job.assignments.map((a: any) => ({
             id: a.id,
             technician: a.technician
               ? {
