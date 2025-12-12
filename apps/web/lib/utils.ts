@@ -26,33 +26,41 @@ export function formatCurrency(amount: number): string {
 /**
  * Format date in Argentine format
  */
-export function formatDate(date: string | Date): string {
+export function formatDate(date: string | Date | null | undefined): string {
+  if (!date) return '-';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '-';
   return new Intl.DateTimeFormat('es-AR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
-  }).format(new Date(date));
+  }).format(d);
 }
 
 /**
  * Format date and time
  */
-export function formatDateTime(date: string | Date): string {
+export function formatDateTime(date: string | Date | null | undefined): string {
+  if (!date) return '-';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '-';
   return new Intl.DateTimeFormat('es-AR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(date));
+  }).format(d);
 }
 
 /**
  * Format relative time (e.g., "hace 5 minutos")
  */
-export function formatRelativeTime(date: string | Date): string {
+export function formatRelativeTime(date: string | Date | null | undefined): string {
+  if (!date) return '-';
   const now = new Date();
   const then = new Date(date);
+  if (isNaN(then.getTime())) return '-';
   const diffMs = now.getTime() - then.getTime();
   const diffSec = Math.floor(diffMs / 1000);
   const diffMin = Math.floor(diffSec / 60);

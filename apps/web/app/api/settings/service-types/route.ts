@@ -20,11 +20,11 @@ const DEFAULT_SERVICE_TYPES = [
   { code: 'OTRO', name: 'Otro', sortOrder: 99 },
 ];
 
-// Helper to check if table doesn't exist
-function isTableNotFoundError(error: unknown): boolean {
+// Helper to check if table or column doesn't exist (schema mismatch)
+function isSchemaError(error: unknown): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === 'P2021'
+    (error.code === 'P2021' || error.code === 'P2022') // Table not found or column not found
   );
 }
 
@@ -69,9 +69,9 @@ export async function GET(request: NextRequest) {
         });
       }
     } catch (queryError) {
-      // If table doesn't exist, return default types
-      if (isTableNotFoundError(queryError)) {
-        console.warn('ServiceTypeConfig table not found - returning defaults. Run database migrations.');
+      // If table or column doesn't exist (schema mismatch), return default types
+      if (isSchemaError(queryError)) {
+        console.warn('ServiceTypeConfig schema mismatch - returning defaults. Run database migrations.');
         return NextResponse.json({
           success: true,
           data: DEFAULT_SERVICE_TYPES.map((st, index) => ({
@@ -176,12 +176,12 @@ export async function POST(request: NextRequest) {
         data: serviceType,
       });
     } catch (createError) {
-      if (isTableNotFoundError(createError)) {
+      if (isSchemaError(createError)) {
         return NextResponse.json(
           {
             success: false,
             error: 'La configuración de tipos de servicio no está disponible. Contacte al administrador.',
-            _notice: 'ServiceTypeConfig table not found. Run database migrations.',
+            _notice: 'ServiceTypeConfig schema mismatch. Run database migrations.',
           },
           { status: 503 }
         );
