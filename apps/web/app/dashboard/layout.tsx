@@ -36,7 +36,7 @@ const allNavigation = [
   { name: 'Clientes', href: '/dashboard/customers', icon: Users, module: 'customers' },
   { name: 'Flota', href: '/dashboard/fleet', icon: Truck, module: 'fleet' },
   { name: 'Inventario', href: '/dashboard/inventory', icon: Package, module: 'inventory' },
-  { name: 'Equipo', href: '/dashboard/team', icon: UsersRound, module: 'team' },
+  { name: 'Equipo', href: '/dashboard/settings/team', icon: UsersRound, module: 'team' },
   { name: 'Facturas', href: '/dashboard/invoices', icon: FileText, module: 'invoices' },
   { name: 'Pagos', href: '/dashboard/payments', icon: CreditCard, module: 'payments' },
   { name: 'Analytics', href: '/dashboard/analytics/overview', icon: BarChart3, module: 'analytics' },

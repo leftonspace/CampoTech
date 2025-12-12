@@ -70,13 +70,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         technician: {
           select: { id: true, name: true, role: true },
         },
-        assignments: {
-          include: {
-            technician: {
-              select: { id: true, name: true },
-            },
-          },
-        },
+        // Note: assignments relation commented out until job_assignments table is migrated
+        // assignments: {
+        //   include: {
+        //     technician: {
+        //       select: { id: true, name: true },
+        //     },
+        //   },
+        // },
       },
     });
 
