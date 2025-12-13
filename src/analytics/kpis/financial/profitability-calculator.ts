@@ -334,6 +334,9 @@ export async function getProfitabilityByTechnician(
       technician: {
         select: { id: true, name: true },
       },
+      invoice: {
+        select: { total: true },
+      },
     },
   });
 
