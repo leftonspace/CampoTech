@@ -1,12 +1,14 @@
 /**
  * WhatsApp Interactive Messages API Route
- * Send button and list messages within a conversation
+ * Send button and list messages via service layer
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { WhatsAppClient } from '@/src/integrations/whatsapp/client';
+import {
+  sendInteractiveButtonMessage,
+  sendInteractiveListMessage,
+} from '@/src/integrations/whatsapp/whatsapp.service';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -48,47 +50,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Get conversation
-    const conversation = await prisma.waConversation.findFirst({
-      where: {
-        id: conversationId,
-        organizationId,
-      },
-    });
-
-    if (!conversation) {
-      return NextResponse.json(
-        { success: false, error: 'Conversation not found' },
-        { status: 404 }
-      );
-    }
-
-    // Get organization's WhatsApp config
-    const org = await prisma.organization.findUnique({
-      where: { id: organizationId },
-      select: {
-        whatsappPhoneNumberId: true,
-        whatsappAccessToken: true,
-        whatsappBusinessAccountId: true,
-      },
-    });
-
-    if (!org?.whatsappAccessToken || !org?.whatsappPhoneNumberId) {
-      return NextResponse.json(
-        { success: false, error: 'WhatsApp not configured' },
-        { status: 400 }
-      );
-    }
-
-    // Create WhatsApp client
-    const client = new WhatsAppClient({
-      accessToken: org.whatsappAccessToken,
-      phoneNumberId: org.whatsappPhoneNumberId,
-      businessAccountId: org.whatsappBusinessAccountId || undefined,
-    });
-
     let result;
-    const phone = conversation.customerPhone;
 
     if (type === 'button') {
       // Validate buttons
@@ -106,18 +68,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         );
       }
 
-      // Send button message
-      result = await client.sendButtonMessage(
-        phone,
+      // Send button message via service layer
+      result = await sendInteractiveButtonMessage(
+        organizationId,
+        conversationId,
         bodyText,
         buttons.map((btn: any) => ({
           id: btn.id,
           title: btn.title.substring(0, 20), // Max 20 chars
         })),
-        {
-          headerText,
-          footerText,
-        }
+        { headerText, footerText }
       );
     } else if (type === 'list') {
       // Validate list
@@ -140,9 +100,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         );
       }
 
-      // Send list message
-      result = await client.sendListMessage(
-        phone,
+      // Send list message via service layer
+      result = await sendInteractiveListMessage(
+        organizationId,
+        conversationId,
         bodyText,
         buttonText,
         sections.map((section: any) => ({
@@ -153,10 +114,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             description: row.description?.substring(0, 72), // Max 72 chars
           })),
         })),
-        {
-          headerText,
-          footerText,
-        }
+        { headerText, footerText }
       );
     } else {
       return NextResponse.json(
@@ -165,41 +123,18 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Store message
-    const messageId = result.messages?.[0]?.id;
-    const message = await prisma.waMessage.create({
-      data: {
-        conversationId: conversation.id,
-        waMessageId: messageId,
-        direction: 'OUTBOUND',
-        messageType: 'INTERACTIVE',
-        content: bodyText,
-        metadata: {
-          interactiveType: type,
-          headerText,
-          footerText,
-          ...(type === 'button' ? { buttons } : { buttonText, sections }),
-        },
-        status: 'SENT',
-      },
-    });
-
-    // Update conversation
-    await prisma.waConversation.update({
-      where: { id: conversation.id },
-      data: {
-        lastMessageAt: new Date(),
-        lastMessagePreview: `[${type === 'button' ? 'Botones' : 'Lista'}] ${bodyText.substring(0, 50)}`,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      },
-    });
+    if (!result.success) {
+      return NextResponse.json(
+        { success: false, error: result.error },
+        { status: 400 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
       data: {
-        messageId: message.id,
-        waMessageId: messageId,
-        conversationId: conversation.id,
+        messageId: result.messageId,
+        conversationId,
         type,
       },
     });

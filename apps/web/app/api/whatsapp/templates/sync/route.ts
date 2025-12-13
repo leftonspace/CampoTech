@@ -1,12 +1,11 @@
 /**
  * WhatsApp Templates Sync API Route
- * Syncs templates from Meta Business API to local database
+ * Syncs templates from Meta Business API via service layer
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { WhatsAppClient } from '@/src/integrations/whatsapp/client';
+import { syncTemplates, listTemplates } from '@/src/integrations/whatsapp/whatsapp.service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,117 +20,21 @@ export async function POST(request: NextRequest) {
 
     const organizationId = session.user.organizationId;
 
-    // Get organization's WhatsApp config
-    const org = await prisma.organization.findUnique({
-      where: { id: organizationId },
-      select: {
-        whatsappPhoneNumberId: true,
-        whatsappAccessToken: true,
-        whatsappBusinessAccountId: true,
-      },
-    });
+    // Sync templates via service layer
+    await syncTemplates(organizationId);
 
-    if (!org?.whatsappAccessToken || !org?.whatsappBusinessAccountId) {
-      return NextResponse.json(
-        { success: false, error: 'WhatsApp Business Account not configured' },
-        { status: 400 }
-      );
-    }
-
-    // Create WhatsApp client
-    const client = new WhatsAppClient({
-      accessToken: org.whatsappAccessToken,
-      phoneNumberId: org.whatsappPhoneNumberId || '',
-      businessAccountId: org.whatsappBusinessAccountId,
-    });
-
-    // Fetch templates from Meta
-    const metaTemplates = await client.getTemplates();
-
-    // Sync each template to database
-    const results = {
-      created: 0,
-      updated: 0,
-      errors: [] as string[],
-    };
-
-    for (const template of metaTemplates) {
-      try {
-        // Parse template components
-        const headerComponent = template.components?.find(
-          (c: any) => c.type === 'HEADER'
-        );
-        const bodyComponent = template.components?.find(
-          (c: any) => c.type === 'BODY'
-        );
-        const footerComponent = template.components?.find(
-          (c: any) => c.type === 'FOOTER'
-        );
-        const buttonComponent = template.components?.find(
-          (c: any) => c.type === 'BUTTONS'
-        );
-
-        // Map Meta status to our enum
-        const statusMap: Record<string, 'PENDING' | 'APPROVED' | 'REJECTED'> = {
-          PENDING: 'PENDING',
-          APPROVED: 'APPROVED',
-          REJECTED: 'REJECTED',
-          PAUSED: 'PENDING',
-          DISABLED: 'REJECTED',
-        };
-
-        const templateData = {
-          waTemplateId: template.id,
-          name: template.name,
-          language: template.language || 'es_AR',
-          category: template.category as 'MARKETING' | 'UTILITY' | 'AUTHENTICATION',
-          components: template.components || [],
-          headerType: headerComponent?.format || null,
-          headerContent: headerComponent?.text || headerComponent?.example?.header_handle?.[0] || null,
-          bodyText: bodyComponent?.text || null,
-          footerText: footerComponent?.text || null,
-          buttons: buttonComponent?.buttons || null,
-          status: statusMap[template.status] || 'PENDING',
-          rejectionReason: template.rejected_reason || null,
-        };
-
-        // Upsert template
-        const existing = await prisma.waTemplate.findFirst({
-          where: {
-            organizationId,
-            name: template.name,
-            language: templateData.language,
-          },
-        });
-
-        if (existing) {
-          await prisma.waTemplate.update({
-            where: { id: existing.id },
-            data: templateData,
-          });
-          results.updated++;
-        } else {
-          await prisma.waTemplate.create({
-            data: {
-              ...templateData,
-              organizationId,
-            },
-          });
-          results.created++;
-        }
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : 'Unknown error';
-        results.errors.push(`${template.name}: ${errorMsg}`);
-      }
-    }
+    // Get updated template list to return count
+    const templates = await listTemplates(organizationId);
 
     return NextResponse.json({
       success: true,
       data: {
-        synced: metaTemplates.length,
-        created: results.created,
-        updated: results.updated,
-        errors: results.errors,
+        synced: templates.length,
+        templates: templates.map(t => ({
+          name: t.name,
+          status: t.status,
+          category: t.category,
+        })),
       },
     });
   } catch (error) {

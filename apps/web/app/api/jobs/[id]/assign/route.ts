@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { onTechnicianAssigned } from '@/src/modules/whatsapp/notification-triggers.service';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -91,6 +92,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         },
       },
     });
+
+    // Trigger WhatsApp notification for technician assignment (non-blocking)
+    if (userId) {
+      onTechnicianAssigned(id, userId).catch((err) => {
+        console.error('WhatsApp notification error:', err);
+      });
+    }
 
     return NextResponse.json({
       success: true,
