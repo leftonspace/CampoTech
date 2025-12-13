@@ -113,14 +113,19 @@ export {
 // KPI Definitions
 export {
   KPI_REGISTRY,
+  KPI_GROUPS,
   getKPIDefinition,
   getKPIsByCategory,
-  getAllKPIs,
-  calculateKPIStatus,
+  getKPIsForGroup,
+  getAllKPIGroups,
+  getAllKPIIds,
+  evaluateKPIStatus,
+  calculateTrend,
   formatKPIValue,
-  type KPIDefinition,
-  type KPICategory,
-  type KPIStatus,
+  getBenchmarkComparison,
+  type KPIConfig,
+  type KPIGroup,
+  type KPICalculationContext,
 } from './models/kpi-definitions';
 
 // Dimension Tables
