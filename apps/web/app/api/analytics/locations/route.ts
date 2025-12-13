@@ -50,11 +50,11 @@ export async function GET(request: NextRequest) {
     });
 
     const jobCountMap = new Map(
-      jobCounts.map((j) => [j.locationId, j._count.id])
+      jobCounts.map((j: typeof jobCounts[number]) => [j.locationId, j._count.id])
     );
 
     // Build comparison data
-    const locationData = locations.map((loc) => ({
+    const locationData = locations.map((loc: typeof locations[number]) => ({
       id: loc.id,
       name: loc.name,
       address: loc.address,

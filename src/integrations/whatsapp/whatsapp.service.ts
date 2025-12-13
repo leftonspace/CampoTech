@@ -231,7 +231,7 @@ export async function listConversations(
     },
   });
 
-  return conversations.map((conv) => ({
+  return conversations.map((conv: typeof conversations[number]) => ({
     id: conv.id,
     customerId: conv.customerId,
     customerName: conv.customer?.name || conv.customerName || 'Desconocido',
@@ -371,7 +371,7 @@ export async function listMessages(
     data: { unreadCount: 0 },
   });
 
-  return messages.reverse().map((msg) => ({
+  return messages.reverse().map((msg: typeof messages[number]) => ({
     id: msg.id,
     waMessageId: msg.waMessageId || '',
     direction: msg.direction as WAMessageDirection,
@@ -579,7 +579,7 @@ export async function sendInteractiveButtonMessage(
       content: bodyText,
       metadata: {
         interactiveType: 'button',
-        buttons: buttons.map((b) => ({ id: b.id, title: b.title })),
+        buttons: buttons.map((b: typeof buttons[number]) => ({ id: b.id, title: b.title })),
       },
       status: 'pending',
     },
@@ -664,7 +664,7 @@ export async function sendInteractiveListMessage(
   }
 
   // Validate sections
-  const totalRows = sections.reduce((sum, s) => sum + s.rows.length, 0);
+  const totalRows = sections.reduce((sum: number, s: typeof sections[number]) => sum + s.rows.length, 0);
   if (totalRows > 10) {
     return { success: false, error: 'Maximum 10 total rows allowed across all sections' };
   }
@@ -683,9 +683,9 @@ export async function sendInteractiveListMessage(
       metadata: {
         interactiveType: 'list',
         buttonText,
-        sections: sections.map((s) => ({
+        sections: sections.map((s: typeof sections[number]) => ({
           title: s.title,
-          rows: s.rows.map((r) => ({ id: r.id, title: r.title, description: r.description })),
+          rows: s.rows.map((r: typeof s.rows[number]) => ({ id: r.id, title: r.title, description: r.description })),
         })),
       },
       status: 'pending',

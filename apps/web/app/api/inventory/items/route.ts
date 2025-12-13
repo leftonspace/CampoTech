@@ -69,15 +69,15 @@ export async function GET(request: NextRequest) {
     });
 
     // Calculate total stock and check for low stock
-    const itemsWithTotals = items.map((item) => {
-      const totalStock = item.stocks.reduce((sum: number, s: { quantity: number }) => sum + s.quantity, 0);
+    const itemsWithTotals = items.map((item: typeof items[number]) => {
+      const totalStock = item.stocks.reduce((sum: number, s: typeof item.stocks[number]) => sum + s.quantity, 0);
       const isLowStock = totalStock <= (item.minStockLevel || 0);
 
       return {
         ...item,
         totalStock,
         isLowStock,
-        stocksByLocation: item.stocks.map((s: { locationId: string; location: { name: string; locationType: string }; quantity: number }) => ({
+        stocksByLocation: item.stocks.map((s: typeof item.stocks[number]) => ({
           locationId: s.locationId,
           locationName: s.location.name,
           locationType: s.location.locationType,
@@ -93,7 +93,7 @@ export async function GET(request: NextRequest) {
       : itemsWithTotals;
 
     // Calculate stats
-    const categories = items.map((item) => item.category).filter(Boolean);
+    const categories = items.map((item: typeof items[number]) => item.category).filter(Boolean);
     const uniqueCategories = Array.from(new Set(categories));
 
     const stats = {

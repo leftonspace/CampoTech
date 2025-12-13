@@ -307,7 +307,7 @@ export class ChargebackHandler {
       },
     });
 
-    const totalAmount = chargebacks.reduce((sum, cb) => sum + cb.amount, 0);
+    const totalAmount = chargebacks.reduce((sum: number, cb: typeof chargebacks[number]) => sum + cb.amount, 0);
 
     return {
       chargebacks,

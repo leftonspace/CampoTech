@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         data: {
-          orders: orders.map((o) => ({
+          orders: orders.map((o: typeof orders[number]) => ({
             ...o,
             itemCount: o._count.items,
             _count: undefined,
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
         }),
       ]);
 
-      const totalSpent = orders.reduce((sum, o) => sum + Number(o.total), 0);
+      const totalSpent = orders.reduce((sum: number, o: typeof orders[number]) => sum + Number(o.total), 0);
       const receivedCount = orders.length;
 
       return NextResponse.json({
@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        orders: orders.map((o) => ({
+        orders: orders.map((o: typeof orders[number]) => ({
           ...o,
           itemCount: o._count.items,
           _count: undefined,
@@ -255,17 +255,17 @@ export async function POST(request: NextRequest) {
       const receivingNumber = `RCV-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
       // Build items JSON for receiving record
-      const receivingItems = items.map((item: any) => {
-        const orderItem = order.items.find((i) => i.id === item.itemId);
+      const receivingItems = items.map((item: typeof items[number]) => {
+        const orderItem = order.items.find((i: typeof order.items[number]) => i.id === item.itemId);
         return {
           productId: orderItem?.productId,
           quantityExpected: orderItem?.quantity || 0,
           quantityReceived: parseInt(item.quantity, 10) || 0,
           notes: item.notes || null,
         };
-      }).filter((item: any) => item.productId);
+      }).filter((item: { productId: string | undefined; quantityExpected: number; quantityReceived: number; notes: string | null }) => item.productId);
 
-      const hasVariance = receivingItems.some((item: any) => item.quantityExpected !== item.quantityReceived);
+      const hasVariance = receivingItems.some((item: typeof receivingItems[number]) => item.quantityExpected !== item.quantityReceived);
 
       await prisma.$transaction(async (tx) => {
         // Create receiving record
@@ -357,8 +357,8 @@ export async function POST(request: NextRequest) {
           include: { items: true },
         });
 
-        const allReceived = updatedOrder?.items.every((i) => i.quantityReceived >= i.quantity);
-        const anyReceived = updatedOrder?.items.some((i) => i.quantityReceived > 0);
+        const allReceived = updatedOrder?.items.every((i: typeof updatedOrder.items[number]) => i.quantityReceived >= i.quantity);
+        const anyReceived = updatedOrder?.items.some((i: typeof updatedOrder.items[number]) => i.quantityReceived > 0);
 
         let newStatus = order.status;
         if (allReceived) {
@@ -468,7 +468,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate totals
     let subtotal = 0;
-    const itemsData = body.items.map((item: any) => {
+    const itemsData = body.items.map((item: typeof body.items[number]) => {
       const itemLineTotal = item.quantity * (item.unitPrice || item.unitCost);
       subtotal += itemLineTotal;
       return {
@@ -593,7 +593,7 @@ export async function PATCH(request: NextRequest) {
       });
 
       let subtotal = 0;
-      const itemsData = body.items.map((item: any) => {
+      const itemsData = body.items.map((item: typeof body.items[number]) => {
         const itemLineTotal = item.quantity * (item.unitPrice || item.unitCost);
         subtotal += itemLineTotal;
         return {

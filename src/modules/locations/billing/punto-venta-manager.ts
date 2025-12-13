@@ -159,9 +159,10 @@ export class PuntoVentaManager {
       where: { id: organizationId },
     });
 
+    type LocationType = typeof locations[number];
     return locations
-      .filter(l => l.afipConfig)
-      .map(location => {
+      .filter((l: LocationType) => l.afipConfig)
+      .map((location: LocationType) => {
         const config = location.afipConfig!;
         return {
           locationId: location.id,
@@ -431,7 +432,7 @@ export class PuntoVentaManager {
     }
 
     // Find the highest punto de venta and suggest next
-    const maxPdv = Math.max(...configs.map(c => c.puntoDeVenta));
+    const maxPdv = Math.max(...configs.map((c: typeof configs[number]) => c.puntoDeVenta));
     return maxPdv + 1;
   }
 

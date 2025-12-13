@@ -323,7 +323,7 @@ export class InterLocationChargesService {
       },
     });
 
-    return transfers.map(t => this.mapTransferToCharge(t));
+    return transfers.map((t: typeof transfers[number]) => this.mapTransferToCharge(t));
   }
 
   /**
@@ -504,11 +504,12 @@ export class InterLocationChargesService {
       );
     }
 
-    const total = transfers.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+    type TransferType = typeof transfers[number];
+    const total = transfers.reduce((sum: number, t: TransferType) => sum + Number(t.amount || 0), 0);
 
     await this.prisma.interLocationTransfer.updateMany({
       where: {
-        id: { in: transfers.map(t => t.id) },
+        id: { in: transfers.map((t: TransferType) => t.id) },
       },
       data: {
         status: 'COMPLETED',
@@ -585,11 +586,12 @@ export class InterLocationChargesService {
       }
     }
 
+    type BalanceData = { name: string; owed: number; due: number };
     return {
       settlementId: `SETTLE-${Date.now()}`,
       organizationId,
       period: { startDate, endDate },
-      locationBalances: Array.from(locationBalances.entries()).map(([locationId, data]) => ({
+      locationBalances: (Array.from(locationBalances.entries()) as [string, BalanceData][]).map(([locationId, data]) => ({
         locationId,
         locationName: data.name,
         totalOwed: data.owed,

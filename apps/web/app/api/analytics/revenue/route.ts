@@ -65,17 +65,17 @@ export async function GET(req: NextRequest) {
     });
 
     // Calculate KPIs
-    const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
+    const totalRevenue = invoices.reduce((sum: number, inv: typeof invoices[number]) => sum + (inv.total ? Number(inv.total) : 0), 0);
     const invoiceCount = invoices.length;
     const avgTicket = invoiceCount > 0 ? totalRevenue / invoiceCount : 0;
 
-    const paidInvoices = invoices.filter((inv) => inv.status === 'PAID');
-    const paidRevenue = paidInvoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
+    const paidInvoices = invoices.filter((inv: typeof invoices[number]) => inv.status === 'PAID');
+    const paidRevenue = paidInvoices.reduce((sum: number, inv: typeof paidInvoices[number]) => sum + (inv.total ? Number(inv.total) : 0), 0);
     const collectionRate = totalRevenue > 0 ? (paidRevenue / totalRevenue) * 100 : 0;
 
     // Top customers
     const customerTotals: Record<string, { name: string; total: number; count: number }> = {};
-    invoices.forEach((inv) => {
+    invoices.forEach((inv: typeof invoices[number]) => {
       if (!inv.customer) return;
       const id = inv.customer.id;
       if (!customerTotals[id]) {
@@ -86,9 +86,9 @@ export async function GET(req: NextRequest) {
     });
 
     const topCustomers = Object.entries(customerTotals)
-      .sort((a, b) => b[1].total - a[1].total)
+      .sort((a: [string, { name: string; total: number; count: number }], b: [string, { name: string; total: number; count: number }]) => b[1].total - a[1].total)
       .slice(0, 10)
-      .map(([id, data]) => ({
+      .map(([id, data]: [string, { name: string; total: number; count: number }]) => ({
         id,
         name: data.name,
         value: data.total,
@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
       }));
 
     // Unique customers count for ARPU calculation
-    const uniqueCustomers = new Set(invoices.map(inv => inv.customer?.id).filter(Boolean));
+    const uniqueCustomers = new Set(invoices.map((inv: typeof invoices[number]) => inv.customer?.id).filter(Boolean));
     const arpu = uniqueCustomers.size > 0 ? totalRevenue / uniqueCustomers.size : 0;
 
     return NextResponse.json({

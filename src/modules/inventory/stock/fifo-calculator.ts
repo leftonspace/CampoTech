@@ -120,7 +120,7 @@ export async function getInventoryLayers(
     orderBy: { receivedAt: 'asc' }, // FIFO: oldest first
   });
 
-  return layers.map(layer => ({
+  return layers.map((layer: typeof layers[number]) => ({
     id: layer.id,
     productId: layer.productId,
     warehouseId: layer.warehouseId,
@@ -143,8 +143,9 @@ export async function calculateFIFOCost(
 ): Promise<FIFOCostResult> {
   const layers = await getInventoryLayers(organizationId, productId, warehouseId);
 
-  const totalQuantity = layers.reduce((sum, l) => sum + l.quantity, 0);
-  const totalCost = layers.reduce((sum, l) => sum + l.totalCost, 0);
+  type LayerType = typeof layers[number];
+  const totalQuantity = layers.reduce((sum: number, l: LayerType) => sum + l.quantity, 0);
+  const totalCost = layers.reduce((sum: number, l: LayerType) => sum + l.totalCost, 0);
   const averageCost = totalQuantity > 0 ? totalCost / totalQuantity : 0;
 
   return {
@@ -175,7 +176,8 @@ export async function calculateConsumptionCost(
   let totalCost = 0;
   const layersUsed: CostingResult['layersUsed'] = [];
 
-  for (const layer of layers) {
+  type LayerType = typeof layers[number];
+  for (const layer of layers as LayerType[]) {
     if (remainingToConsume <= 0) break;
 
     const quantityFromLayer = Math.min(layer.quantity, remainingToConsume);
@@ -274,8 +276,9 @@ export async function getProductValuation(
 
   const layers = await getInventoryLayers(organizationId, productId);
 
-  const totalQuantity = layers.reduce((sum, l) => sum + l.quantity, 0);
-  const totalValue = layers.reduce((sum, l) => sum + l.totalCost, 0);
+  type LayerType = typeof layers[number];
+  const totalQuantity = layers.reduce((sum: number, l: LayerType) => sum + l.quantity, 0);
+  const totalValue = layers.reduce((sum: number, l: LayerType) => sum + l.totalCost, 0);
 
   return {
     productId: product.id,
@@ -353,12 +356,12 @@ export async function getTotalInventoryValuation(
   return {
     totalValue: Math.round(totalValue * 100) / 100,
     totalItems: layers.length,
-    byCategory: Array.from(byCategory.entries()).map(([categoryId, data]) => ({
+    byCategory: (Array.from(byCategory.entries()) as [string | null, { name: string; value: number }][]).map(([categoryId, data]) => ({
       categoryId,
       categoryName: data.name,
       value: Math.round(data.value * 100) / 100,
     })),
-    byWarehouse: Array.from(byWarehouse.entries()).map(([warehouseId, data]) => ({
+    byWarehouse: (Array.from(byWarehouse.entries()) as [string, { name: string; value: number }][]).map(([warehouseId, data]) => ({
       warehouseId,
       warehouseName: data.name,
       value: Math.round(data.value * 100) / 100,
@@ -419,12 +422,14 @@ export async function getInventoryAgingAnalysis(
 
   const oldestByProduct = new Map<string, { product: any; daysOld: number; quantity: number; value: number }>();
 
-  for (const layer of layers) {
+  type LayerType = typeof layers[number];
+  for (const layer of layers as LayerType[]) {
     const daysOld = Math.floor((now.getTime() - layer.receivedAt.getTime()) / (1000 * 60 * 60 * 24));
     const layerValue = layer.remainingQty * Number(layer.unitCost);
 
     // Find matching range
-    for (const range of ranges) {
+    type RangeType = typeof ranges[number];
+    for (const range of ranges as RangeType[]) {
       if (daysOld >= range.dayMin && (range.dayMax === null || daysOld <= range.dayMax)) {
         range.quantity += layer.remainingQty;
         range.value += layerValue;
@@ -446,10 +451,11 @@ export async function getInventoryAgingAnalysis(
   }
 
   // Sort oldest stock by age
+  type OldestItemType = { product: any; daysOld: number; quantity: number; value: number };
   const oldestStock = Array.from(oldestByProduct.values())
-    .sort((a, b) => b.daysOld - a.daysOld)
+    .sort((a: OldestItemType, b: OldestItemType) => b.daysOld - a.daysOld)
     .slice(0, 20)
-    .map(item => ({
+    .map((item: OldestItemType) => ({
       productId: item.product.id,
       productName: item.product.name,
       sku: item.product.sku,
@@ -458,8 +464,9 @@ export async function getInventoryAgingAnalysis(
       value: Math.round(item.value * 100) / 100,
     }));
 
+  type RangeType = typeof ranges[number];
   return {
-    ageRanges: ranges.map(r => ({
+    ageRanges: ranges.map((r: RangeType) => ({
       range: r.range,
       dayMin: r.dayMin,
       dayMax: r.dayMax,

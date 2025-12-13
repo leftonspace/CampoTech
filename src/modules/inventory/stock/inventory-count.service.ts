@@ -68,14 +68,16 @@ export async function createInventoryCount(
       },
       select: { productId: true, quantityOnHand: true },
     });
-    productsToCount = levels.map((l) => ({ id: l.productId, quantity: l.quantityOnHand }));
+    type LevelType = typeof levels[number];
+    productsToCount = levels.map((l: LevelType) => ({ id: l.productId, quantity: l.quantityOnHand }));
   } else {
     // All products in warehouse (for full counts)
     const levels = await prisma.inventoryLevel.findMany({
       where: { organizationId, warehouseId },
       select: { productId: true, quantityOnHand: true },
     });
-    productsToCount = levels.map((l) => ({ id: l.productId, quantity: l.quantityOnHand }));
+    type LevelType = typeof levels[number];
+    productsToCount = levels.map((l: LevelType) => ({ id: l.productId, quantity: l.quantityOnHand }));
   }
 
   // Create count with items
@@ -91,7 +93,7 @@ export async function createInventoryCount(
       notes: notes || null,
       totalItems: productsToCount.length,
       items: {
-        create: productsToCount.map((p) => ({
+        create: productsToCount.map((p: typeof productsToCount[number]) => ({
           productId: p.id,
           expectedQty: p.quantity,
         })),
@@ -328,10 +330,11 @@ export async function completeCountingPhase(
   }
 
   // Calculate summary
-  const matchedItems = count.items.filter((i) => i.variance === 0).length;
-  const varianceItems = count.items.filter((i) => i.variance !== 0).length;
+  type ItemType = typeof count.items[number];
+  const matchedItems = count.items.filter((i: ItemType) => i.variance === 0).length;
+  const varianceItems = count.items.filter((i: ItemType) => i.variance !== 0).length;
   const totalVariance = count.items.reduce(
-    (sum, i) => sum + Number(i.varianceValue || 0),
+    (sum: number, i: ItemType) => sum + Number(i.varianceValue || 0),
     0
   );
 
@@ -500,12 +503,13 @@ export async function getCountSummary(
   if (!count) return null;
 
   const totalItems = count.items.length;
-  const countedItems = count.items.filter((i) => i.countedQty !== null).length;
-  const matchedItems = count.items.filter((i) => i.variance === 0).length;
-  const varianceItems = count.items.filter((i) => i.variance !== null && i.variance !== 0)
+  type ItemType = typeof count.items[number];
+  const countedItems = count.items.filter((i: ItemType) => i.countedQty !== null).length;
+  const matchedItems = count.items.filter((i: ItemType) => i.variance === 0).length;
+  const varianceItems = count.items.filter((i: ItemType) => i.variance !== null && i.variance !== 0)
     .length;
   const totalVarianceValue = count.items.reduce(
-    (sum, i) => sum + Math.abs(Number(i.varianceValue || 0)),
+    (sum: number, i: ItemType) => sum + Math.abs(Number(i.varianceValue || 0)),
     0
   );
   const progress = totalItems > 0 ? Math.round((countedItems / totalItems) * 100) : 0;
@@ -566,7 +570,7 @@ export async function getProductsNeedingCount(
     orderBy: { lastCountedAt: 'asc' },
   });
 
-  return levels.map((l) => ({
+  return levels.map((l: typeof levels[number]) => ({
     productId: l.productId,
     productName: (l.product as any)?.name || 'Unknown',
     lastCounted: l.lastCountedAt,

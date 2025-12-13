@@ -68,7 +68,7 @@ export async function receivePurchaseOrder(
   }
 
   // Validate items
-  const orderItemMap = new Map(order.items.map((i) => [i.productId, i]));
+  const orderItemMap = new Map(order.items.map((i: typeof order.items[number]) => [i.productId, i]));
   const receivingItems: Array<{
     productId: string;
     quantityExpected: number;
@@ -134,9 +134,10 @@ export async function receivePurchaseOrder(
   }
 
   // Update inventory levels
+  type ReceivingItemType = typeof receivingItems[number];
   const inventoryItems = receivingItems
-    .filter((i) => i.quantityReceived > 0)
-    .map((i) => {
+    .filter((i: ReceivingItemType) => i.quantityReceived > 0)
+    .map((i: ReceivingItemType) => {
       const orderItem = orderItemMap.get(i.productId)!;
       return {
         productId: i.productId,
@@ -171,10 +172,11 @@ export async function receivePurchaseOrder(
     where: { purchaseOrderId },
   });
 
+  type UpdatedItemType = typeof updatedItems[number];
   const allReceived = updatedItems.every(
-    (i) => i.quantityReceived >= i.quantity
+    (i: UpdatedItemType) => i.quantityReceived >= i.quantity
   );
-  const anyReceived = updatedItems.some((i) => i.quantityReceived > 0);
+  const anyReceived = updatedItems.some((i: UpdatedItemType) => i.quantityReceived > 0);
 
   let newStatus = order.status;
   if (allReceived) {
@@ -383,7 +385,7 @@ export async function getReceivingSummary(
 
   for (const rec of receivings) {
     const items = rec.items as any[];
-    const itemCount = items.reduce((sum, i) => sum + i.quantityReceived, 0);
+    const itemCount = items.reduce((sum: number, i: any) => sum + i.quantityReceived, 0);
     totalItemsReceived += itemCount;
 
     if (rec.hasVariance) {
@@ -402,7 +404,7 @@ export async function getReceivingSummary(
     supplierStats[supplierId].itemCount += itemCount;
   }
 
-  const bySupplier = Object.entries(supplierStats)
+  const bySupplier = (Object.entries(supplierStats) as [string, { name: string; receivingCount: number; itemCount: number }][])
     .map(([supplierId, data]) => ({
       supplierId,
       supplierName: data.name,

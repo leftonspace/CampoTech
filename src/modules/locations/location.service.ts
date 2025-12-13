@@ -248,7 +248,7 @@ export class LocationService {
     ]);
 
     return {
-      locations: locations.map(l => this.mapToLocationWithRelations(l)),
+      locations: locations.map((l: typeof locations[number]) => this.mapToLocationWithRelations(l)),
       total,
       page,
       limit,
@@ -946,7 +946,7 @@ export class LocationService {
     ]);
 
     return {
-      transfers: transfers.map(t => this.mapToTransferWithRelations(t)),
+      transfers: transfers.map((t: typeof transfers[number]) => this.mapToTransferWithRelations(t)),
       total,
       page,
       limit,

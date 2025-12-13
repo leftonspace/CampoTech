@@ -370,11 +370,12 @@ export async function optimizeReorderSettings(
 
   let avgLeadTimeDays = 7; // Default
   if (completedOrders.length > 0) {
+    type OrderType = typeof completedOrders[number];
     const leadTimes = completedOrders
-      .filter(o => o.receivedAt)
-      .map(o => Math.ceil((o.receivedAt!.getTime() - o.createdAt.getTime()) / (1000 * 60 * 60 * 24)));
+      .filter((o: OrderType) => o.receivedAt)
+      .map((o: OrderType) => Math.ceil((o.receivedAt!.getTime() - o.createdAt.getTime()) / (1000 * 60 * 60 * 24)));
     if (leadTimes.length > 0) {
-      avgLeadTimeDays = Math.ceil(leadTimes.reduce((a, b) => a + b, 0) / leadTimes.length);
+      avgLeadTimeDays = Math.ceil(leadTimes.reduce((a: number, b: number) => a + b, 0) / leadTimes.length);
     }
   }
 

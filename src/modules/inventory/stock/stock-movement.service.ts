@@ -370,10 +370,11 @@ export async function generateMovementReport(
   }
 
   // Get top moved products
-  const topMovedProducts = Object.values(productMovements)
-    .sort((a, b) => (b.in + b.out) - (a.in + a.out))
+  type ProductMovementType = { productId: string; productName: string; in: number; out: number };
+  const topMovedProducts = (Object.values(productMovements) as ProductMovementType[])
+    .sort((a: ProductMovementType, b: ProductMovementType) => (b.in + b.out) - (a.in + a.out))
     .slice(0, 10)
-    .map(p => ({
+    .map((p: ProductMovementType) => ({
       productId: p.productId,
       productName: p.productName,
       totalIn: p.in,
@@ -385,7 +386,7 @@ export async function generateMovementReport(
     totalIn,
     totalOut,
     netChange: totalIn - totalOut,
-    byType: Object.entries(byType).map(([type, data]) => ({
+    byType: (Object.entries(byType) as [string, { in: number; out: number }][]).map(([type, data]) => ({
       type: type as MovementType,
       ...data,
     })),

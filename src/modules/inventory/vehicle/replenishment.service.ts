@@ -57,15 +57,15 @@ export async function createReplenishmentRequest(
   }
 
   // Get product names for items
-  const productIds = items.map((i) => i.productId);
+  const productIds = items.map((i: typeof items[number]) => i.productId);
   const products = await prisma.product.findMany({
     where: { id: { in: productIds } },
     select: { id: true, name: true },
   });
 
-  const productMap = new Map(products.map((p) => [p.id, p.name]));
+  const productMap = new Map(products.map((p: typeof products[number]) => [p.id, p.name]));
 
-  const itemsWithNames: ReplenishmentItem[] = items.map((item) => ({
+  const itemsWithNames: ReplenishmentItem[] = items.map((item: typeof items[number]) => ({
     productId: item.productId,
     productName: productMap.get(item.productId) || 'Unknown',
     quantity: item.quantity,
@@ -170,15 +170,15 @@ export async function getPendingReplenishmentRequests(
   });
 
   // Get technician names
-  const techIds = [...new Set(requests.map((r) => r.technicianId))];
+  const techIds = [...new Set(requests.map((r: typeof requests[number]) => r.technicianId))];
   const technicians = await prisma.user.findMany({
     where: { id: { in: techIds } },
     select: { id: true, name: true },
   });
 
-  const techMap = new Map(technicians.map((t) => [t.id, t.name]));
+  const techMap = new Map(technicians.map((t: typeof technicians[number]) => [t.id, t.name]));
 
-  return requests.map((r) => ({
+  return requests.map((r: typeof requests[number]) => ({
     ...r,
     technicianName: techMap.get(r.technicianId),
   })) as ReplenishmentRequest[];
@@ -302,7 +302,7 @@ export async function completeReplenishment(
     organizationId,
     technicianId: request.technicianId,
     warehouseId: request.warehouseId,
-    items: items.map((i) => ({
+    items: items.map((i: ReplenishmentItem) => ({
       productId: i.productId,
       quantity: i.quantity,
     })),
@@ -321,7 +321,7 @@ export async function completeReplenishment(
     data: {
       status: 'COMPLETED',
       notes: loadResult.errors.length > 0
-        ? `${request.notes || ''}\nItems con error: ${loadResult.errors.map((e) => e.productId).join(', ')}`
+        ? `${request.notes || ''}\nItems con error: ${loadResult.errors.map((e: typeof loadResult.errors[number]) => e.productId).join(', ')}`
         : request.notes,
     },
   });
@@ -423,7 +423,7 @@ export async function createAutoReplenishment(
     organizationId,
     technicianId,
     warehouseId,
-    items: suggestions.map((s) => ({
+    items: suggestions.map((s: typeof suggestions[number]) => ({
       productId: s.productId,
       quantity: s.quantity,
       notes: s.notes,
@@ -510,12 +510,12 @@ export async function getReplenishmentStats(
     select: { id: true, name: true },
   });
 
-  const techMap = new Map(technicians.map((t) => [t.id, t.name]));
+  const techMap = new Map(technicians.map((t: typeof technicians[number]) => [t.id, t.name]));
 
   return {
     ...byStatus,
     averageProcessingTime: processedCount > 0 ? totalProcessingTime / processedCount : 0,
-    byTechnician: Object.entries(techStats)
+    byTechnician: (Object.entries(techStats) as [string, { count: number; completed: number }][])
       .map(([technicianId, stats]) => ({
         technicianId,
         technicianName: techMap.get(technicianId) || 'Unknown',

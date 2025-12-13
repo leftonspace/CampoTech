@@ -575,15 +575,17 @@ export async function getTopSuppliers(
     },
   });
 
-  const supplierStats = suppliers.map((s) => ({
+  type SupplierType = typeof suppliers[number];
+  const supplierStats = suppliers.map((s: SupplierType) => ({
     supplierId: s.id,
     supplierName: s.name,
-    totalValue: s.purchaseOrders.reduce((sum, o) => sum + Number(o.total), 0),
+    totalValue: s.purchaseOrders.reduce((sum: number, o: typeof s.purchaseOrders[number]) => sum + Number(o.total), 0),
     orderCount: s.purchaseOrders.length,
   }));
 
+  type StatType = typeof supplierStats[number];
   return supplierStats
-    .filter((s) => s.orderCount > 0)
+    .filter((s: StatType) => s.orderCount > 0)
     .sort((a, b) => b.totalValue - a.totalValue)
     .slice(0, limit);
 }

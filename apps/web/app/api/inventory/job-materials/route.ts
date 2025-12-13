@@ -127,7 +127,7 @@ export async function GET(request: NextRequest) {
           const levels = await prisma.inventoryLevel.findMany({
             where: { productId: product.id },
           });
-          availableQty = levels.reduce((sum, l) => sum + l.quantityAvailable, 0);
+          availableQty = levels.reduce((sum: number, l: typeof levels[number]) => sum + l.quantityAvailable, 0);
         }
 
         estimates.push({
@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
         data: {
           serviceType,
           estimatedMaterials: estimates,
-          totalEstimate: estimates.reduce((sum, e) => sum + e.totalPrice, 0),
+          totalEstimate: estimates.reduce((sum: number, e: typeof estimates[number]) => sum + e.totalPrice, 0),
         },
       });
     }
@@ -287,7 +287,7 @@ export async function GET(request: NextRequest) {
           totalProfit: totalMaterialsRevenue - totalMaterialsCost,
           averageMaterialsPerJob: jobs.length > 0 ? totalMaterialsRevenue / jobs.length : 0,
           byProduct: Object.entries(byProduct)
-            .map(([productId, data]) => ({
+            .map(([productId, data]: [string, typeof byProduct[string]]) => ({
               productId,
               productName: data.name,
               quantityUsed: data.qty,
@@ -295,9 +295,9 @@ export async function GET(request: NextRequest) {
               totalRevenue: data.revenue,
               jobCount: data.jobs.size,
             }))
-            .sort((a, b) => b.totalRevenue - a.totalRevenue),
+            .sort((a: { productId: string; productName: string; quantityUsed: number; totalCost: number; totalRevenue: number; jobCount: number }, b: { productId: string; productName: string; quantityUsed: number; totalCost: number; totalRevenue: number; jobCount: number }) => b.totalRevenue - a.totalRevenue),
           byTechnician: Object.entries(byTechnician)
-            .map(([technicianId, data]) => ({
+            .map(([technicianId, data]: [string, typeof byTechnician[string]]) => ({
               technicianId,
               technicianName: data.name,
               totalMaterials: data.materials,
@@ -305,7 +305,7 @@ export async function GET(request: NextRequest) {
               totalRevenue: data.revenue,
               jobCount: data.jobs.size,
             }))
-            .sort((a, b) => b.totalRevenue - a.totalRevenue),
+            .sort((a: { technicianId: string; technicianName: string; totalMaterials: number; totalCost: number; totalRevenue: number; jobCount: number }, b: { technicianId: string; technicianName: string; totalMaterials: number; totalCost: number; totalRevenue: number; jobCount: number }) => b.totalRevenue - a.totalRevenue),
         },
       });
     }
@@ -327,7 +327,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         data: {
-          items: materials.map((m) => ({
+          items: materials.map((m: typeof materials[number]) => ({
             id: m.id,
             description: `${(m.product as any)?.name || 'Material'} (${(m.product as any)?.sku})`,
             quantity: m.usedQty,

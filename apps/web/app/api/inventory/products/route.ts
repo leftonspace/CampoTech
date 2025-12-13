@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
 
       for (const product of products) {
         const totalQty = product.inventoryLevels.reduce(
-          (sum, level) => sum + level.quantityOnHand,
+          (sum: number, level: typeof product.inventoryLevels[number]) => sum + level.quantityOnHand,
           0
         );
         const costPrice = Number(product.costPrice);
@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         data: {
-          categories: categories.map((cat) => ({
+          categories: categories.map((cat: typeof categories[number]) => ({
             ...cat,
             productCount: cat._count.products,
             _count: undefined,
@@ -212,17 +212,17 @@ export async function GET(request: NextRequest) {
     });
 
     // Transform products with stock info
-    const productsWithStock = products.map((product) => {
+    const productsWithStock = products.map((product: typeof products[number]) => {
       const totalOnHand = product.inventoryLevels.reduce(
-        (sum, level) => sum + level.quantityOnHand,
+        (sum: number, level: typeof product.inventoryLevels[number]) => sum + level.quantityOnHand,
         0
       );
       const totalReserved = product.inventoryLevels.reduce(
-        (sum, level) => sum + level.quantityReserved,
+        (sum: number, level: typeof product.inventoryLevels[number]) => sum + level.quantityReserved,
         0
       );
       const totalAvailable = product.inventoryLevels.reduce(
-        (sum, level) => sum + level.quantityAvailable,
+        (sum: number, level: typeof product.inventoryLevels[number]) => sum + level.quantityAvailable,
         0
       );
 
@@ -245,7 +245,7 @@ export async function GET(request: NextRequest) {
     let filteredProducts = productsWithStock;
     if (lowStock === 'true') {
       filteredProducts = productsWithStock.filter(
-        (p) => p.stock.isLowStock || p.stock.isOutOfStock
+        (p: typeof productsWithStock[number]) => p.stock.isLowStock || p.stock.isOutOfStock
       );
     }
 

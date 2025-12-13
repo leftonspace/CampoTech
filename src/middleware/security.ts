@@ -220,7 +220,7 @@ function sanitizeObject(obj: Record<string, unknown>): Record<string, unknown> {
       // Remove null bytes
       sanitized[key] = value.replace(/\0/g, '');
     } else if (Array.isArray(value)) {
-      sanitized[key] = value.map((item) =>
+      sanitized[key] = value.map((item: any) =>
         typeof item === 'object' && item !== null
           ? sanitizeObject(item as Record<string, unknown>)
           : item

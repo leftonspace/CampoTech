@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
 
     // Format activity feed
     const activity = [
-      ...recentJobs.map((job) => ({
+      ...recentJobs.map((job: typeof recentJobs[number]) => ({
         id: job.id,
         type: 'job' as const,
         description: `Trabajo ${job.status} - ${job.customer?.name || 'Sin cliente'}`,
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
           assignedTo: job.technician?.name,
         },
       })),
-      ...recentInvoices.map((invoice) => ({
+      ...recentInvoices.map((invoice: typeof recentInvoices[number]) => ({
         id: invoice.id,
         type: 'invoice' as const,
         description: `Factura ${invoice.invoiceNumber} - ${invoice.customer?.name || 'Sin cliente'}`,
@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
           amount: invoice.total ? Number(invoice.total) : 0,
         },
       })),
-    ].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+    ].sort((a: { timestamp: Date }, b: { timestamp: Date }) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
      .slice(0, 15);
 
     return NextResponse.json({

@@ -150,10 +150,10 @@ export async function buildEnhancedContext(
     select: { serviceType: true },
     distinct: ['serviceType'],
   });
-  const serviceTypes = serviceTypesResult.map((j) => j.serviceType);
+  const serviceTypes = serviceTypesResult.map((j: typeof serviceTypesResult[number]) => j.serviceType);
 
   // Build recent messages from context
-  const recentMessages = (result.context?.messages || []).map((m) => ({
+  const recentMessages = (result.context?.messages || []).map((m: any) => ({
     role: m.sender as 'customer' | 'business',
     content: m.content,
     timestamp: new Date(m.timestamp),

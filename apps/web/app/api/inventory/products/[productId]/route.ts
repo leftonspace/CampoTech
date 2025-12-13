@@ -86,19 +86,19 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Calculate stock totals
     const totalOnHand = product.inventoryLevels.reduce(
-      (sum, level) => sum + level.quantityOnHand,
+      (sum: number, level: typeof product.inventoryLevels[number]) => sum + level.quantityOnHand,
       0
     );
     const totalReserved = product.inventoryLevels.reduce(
-      (sum, level) => sum + level.quantityReserved,
+      (sum: number, level: typeof product.inventoryLevels[number]) => sum + level.quantityReserved,
       0
     );
     const totalAvailable = product.inventoryLevels.reduce(
-      (sum, level) => sum + level.quantityAvailable,
+      (sum: number, level: typeof product.inventoryLevels[number]) => sum + level.quantityAvailable,
       0
     );
     const totalOnOrder = product.inventoryLevels.reduce(
-      (sum, level) => sum + level.quantityOnOrder,
+      (sum: number, level: typeof product.inventoryLevels[number]) => sum + level.quantityOnOrder,
       0
     );
 
@@ -298,7 +298,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     // Check if product has inventory
     const totalStock = existingProduct.inventoryLevels.reduce(
-      (sum, level) => sum + level.quantityOnHand,
+      (sum: number, level: typeof existingProduct.inventoryLevels[number]) => sum + level.quantityOnHand,
       0
     );
 

@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         data: {
-          categories: categories.map((cat) => ({
+          categories: categories.map((cat: typeof categories[number]) => ({
             ...cat,
             productCount: cat._count.products,
             childrenCount: cat._count.children,

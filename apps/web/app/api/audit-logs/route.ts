@@ -118,7 +118,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
 
     // Format response
-    const formattedLogs = logs.map((log) => ({
+    const formattedLogs = logs.map((log: typeof logs[number]) => ({
       id: log.id,
       userId: log.user_id,
       userName: log.user_name || 'Sistema',
@@ -158,8 +158,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           totalPages: Math.ceil(total / pageSize),
         },
         filters: {
-          entityTypes: entityTypes.map((e) => e.entity_type),
-          actions: actions.map((a) => a.action),
+          entityTypes: entityTypes.map((e: typeof entityTypes[number]) => e.entity_type),
+          actions: actions.map((a: typeof actions[number]) => a.action),
         },
       },
     });

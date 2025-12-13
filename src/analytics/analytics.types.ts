@@ -141,6 +141,8 @@ export interface KPIValue {
   changePercent: number | null;
   trend: 'up' | 'down' | 'stable';
   updatedAt: Date;
+  name?: string;
+  unit?: 'number' | 'currency' | 'percentage' | 'duration';
 }
 
 export interface KPIResult {
@@ -260,6 +262,8 @@ export interface ReportTemplate {
   sections: ReportSection[];
   defaultFilters: ReportFilter[];
   supportedFormats: ReportFormat[];
+  defaultDateRange?: 'week' | 'month' | 'quarter' | 'year';
+  defaultGranularity?: 'day' | 'week' | 'month';
 }
 
 export interface ReportSection {
