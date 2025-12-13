@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const organizationId = session.user.organizationId;
+    const organizationId = session.organizationId;
     const { searchParams } = new URL(request.url);
     const period = searchParams.get('period') || '7d'; // 7d, 30d, 90d
 

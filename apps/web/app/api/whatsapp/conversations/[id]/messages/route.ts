@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     const before = searchParams.get('before') || undefined;
 
     const messages = await listMessages(
-      session.user.organizationId,
+      session.organizationId,
       id,
       limit,
       before
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const result = await sendMessage(
-      session.user.organizationId,
+      session.organizationId,
       id,
       text
     );

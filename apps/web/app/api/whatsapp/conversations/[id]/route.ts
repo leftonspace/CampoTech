@@ -28,7 +28,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const conversation = await getConversation(session.user.organizationId, id);
+    const conversation = await getConversation(session.organizationId, id);
 
     if (!conversation) {
       return NextResponse.json(
@@ -69,7 +69,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const conversation = await prisma.waConversation.findFirst({
       where: {
         id,
-        organizationId: session.user.organizationId,
+        organizationId: session.organizationId,
       },
     });
 
@@ -132,7 +132,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Get updated conversation
-    const updated = await getConversation(session.user.organizationId, id);
+    const updated = await getConversation(session.organizationId, id);
 
     return NextResponse.json({
       success: true,

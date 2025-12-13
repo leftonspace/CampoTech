@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const organizationId = session.user.organizationId;
+    const organizationId = session.organizationId;
 
     // Get stats from service layer
     const stats = await getStats(organizationId);

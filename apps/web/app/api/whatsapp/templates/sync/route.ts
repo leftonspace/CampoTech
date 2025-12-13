@@ -18,7 +18,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const organizationId = session.user.organizationId;
+    const organizationId = session.organizationId;
 
     // Sync templates via service layer
     await syncTemplates(organizationId);

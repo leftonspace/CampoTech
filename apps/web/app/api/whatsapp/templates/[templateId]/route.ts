@@ -25,7 +25,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     const { templateId } = await params;
-    const organizationId = session.user.organizationId;
+    const organizationId = session.organizationId;
 
     const template = await prisma.waTemplate.findFirst({
       where: {
@@ -67,7 +67,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const { templateId } = await params;
-    const organizationId = session.user.organizationId;
+    const organizationId = session.organizationId;
     const body = await request.json();
 
     // Only allow updating certain fields locally
@@ -122,7 +122,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     const { templateId } = await params;
-    const organizationId = session.user.organizationId;
+    const organizationId = session.organizationId;
 
     const template = await prisma.waTemplate.findFirst({
       where: {

@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     // Search customers with phone numbers
     const customers = await prisma.customer.findMany({
       where: {
-        organizationId: session.user.organizationId,
+        organizationId: session.organizationId,
         phone: { not: null },
         OR: query
           ? [
@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     // Check if conversation exists
     let conversation = await prisma.waConversation.findFirst({
       where: {
-        organizationId: session.user.organizationId,
+        organizationId: session.organizationId,
         customerPhone: normalizedPhone,
       },
     });
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     if (!linkedCustomerId) {
       const customer = await prisma.customer.findFirst({
         where: {
-          organizationId: session.user.organizationId,
+          organizationId: session.organizationId,
           phone: { contains: normalizedPhone.slice(-10) },
         },
       });
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     // Create new conversation
     conversation = await prisma.waConversation.create({
       data: {
-        organizationId: session.user.organizationId,
+        organizationId: session.organizationId,
         customerPhone: normalizedPhone,
         customerName: name || 'Nuevo contacto',
         customerId: linkedCustomerId || null,

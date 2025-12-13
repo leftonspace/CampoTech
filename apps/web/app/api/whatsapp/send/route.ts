@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
           );
         }
 
-        const result = await sendMessage(session.user.organizationId, conversationId, text);
+        const result = await sendMessage(session.organizationId, conversationId, text);
         return NextResponse.json(result);
       }
 
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
         }
 
         const result = await sendTemplate(
-          session.user.organizationId,
+          session.organizationId,
           to,
           templateName,
           templateParams || {}
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Get WhatsApp config for direct send
-        const config = await getWhatsAppConfig(session.user.organizationId);
+        const config = await getWhatsAppConfig(session.organizationId);
         if (!config) {
           return NextResponse.json(
             { success: false, error: 'WhatsApp not configured' },
