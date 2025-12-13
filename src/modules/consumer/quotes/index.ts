@@ -16,9 +16,9 @@ export type {
   QuoteSearchParams,
 } from './quote.repository';
 
-export { QuoteService, NotificationService } from './quote.service';
+export { QuoteService, QuoteError } from './quote.service';
+export type { NotificationService } from './quote.service';
 export type {
-  QuoteError,
   SubmitQuoteInput,
   QuoteWithDetails,
   QuoteComparisonResult,

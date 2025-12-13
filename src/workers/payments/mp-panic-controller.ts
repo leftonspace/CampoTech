@@ -20,7 +20,7 @@ import {
   PanicReason,
   canProcessMessage,
 } from '../whatsapp/panic-mode.service';
-import { MPRetryStrategy, MPCircuitBreaker } from './mp-retry.strategy';
+import { MPCircuitBreaker } from './mp-retry.strategy';
 import { log } from '../../lib/logging/logger';
 
 // ═══════════════════════════════════════════════════════════════════════════════
