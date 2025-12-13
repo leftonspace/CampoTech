@@ -8,7 +8,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { MaintenanceType } from '@prisma/client';
 
 export async function GET(
   request: NextRequest,
@@ -130,7 +129,7 @@ export async function POST(
     }
 
     // Validate maintenance type
-    const validTypes = Object.values(MaintenanceType);
+    const validTypes = ['OIL_CHANGE', 'TIRE_ROTATION', 'BRAKE_SERVICE', 'INSPECTION', 'REPAIR', 'OTHER'];
     if (!validTypes.includes(maintenanceType)) {
       return NextResponse.json(
         { success: false, error: 'Tipo de mantenimiento inválido' },
@@ -142,7 +141,7 @@ export async function POST(
     const maintenance = await prisma.vehicleMaintenance.create({
       data: {
         vehicleId: id,
-        maintenanceType: maintenanceType as MaintenanceType,
+        maintenanceType,
         description,
         mileageAtService: mileageAtService ? parseInt(mileageAtService) : null,
         cost: cost ? parseFloat(cost) : null,

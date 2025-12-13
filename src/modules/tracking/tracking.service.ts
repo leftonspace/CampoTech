@@ -9,7 +9,7 @@
 import { db } from '../../lib/db';
 import { log } from '../../lib/logging/logger';
 import { sendNotification } from '../notifications/notification.service';
-import { sendTemplateMessage } from '../../integrations/whatsapp/messages/template.sender';
+import { sendTemplateMessage, buildTemplateWithParams } from '../../integrations/whatsapp/messages/template.sender';
 import { getWhatsAppConfig } from '../../integrations/whatsapp/whatsapp.service';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -489,11 +489,12 @@ async function sendTrackingNotification(
 
     const trackingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://campotech.com.ar'}/track/${token}`;
 
-    await sendTemplateMessage(config, job.customer.phone, 'technician_en_route_tracking', {
-      '1': technician?.name || 'Nuestro técnico',
-      '2': '15', // Initial ETA estimate
-      '3': token,
-    });
+    const template = buildTemplateWithParams('technician_en_route_tracking', [
+      technician?.name || 'Nuestro técnico',
+      '15', // Initial ETA estimate
+      token,
+    ]);
+    await sendTemplateMessage(config, job.customer.phone, template);
 
     log.info('Tracking notification sent', { jobId: job.id, phone: job.customer.phone });
   } catch (error) {

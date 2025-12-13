@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { InvoiceType } from '@prisma/client';
 import {
   filterEntitiesByRole,
   getEntityFieldMetadata,
@@ -153,15 +152,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Map short invoice type to full enum value
-    const invoiceTypeMap: Record<string, InvoiceType> = {
-      'A': InvoiceType.FACTURA_A,
-      'B': InvoiceType.FACTURA_B,
-      'C': InvoiceType.FACTURA_C,
-      'FACTURA_A': InvoiceType.FACTURA_A,
-      'FACTURA_B': InvoiceType.FACTURA_B,
-      'FACTURA_C': InvoiceType.FACTURA_C,
+    const invoiceTypeMap: Record<string, string> = {
+      'A': 'FACTURA_A',
+      'B': 'FACTURA_B',
+      'C': 'FACTURA_C',
+      'FACTURA_A': 'FACTURA_A',
+      'FACTURA_B': 'FACTURA_B',
+      'FACTURA_C': 'FACTURA_C',
     };
-    const mappedInvoiceType: InvoiceType = invoiceTypeMap[invoiceType?.toUpperCase()] || InvoiceType.FACTURA_C;
+    const mappedInvoiceType = invoiceTypeMap[invoiceType?.toUpperCase()] || 'FACTURA_C';
 
     // Calculate totals
     let subtotal = 0;

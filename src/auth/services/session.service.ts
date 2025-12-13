@@ -229,6 +229,23 @@ export class SessionService {
   async cleanup(): Promise<void> {
     await this.sessionAdapter.cleanupExpiredSessions();
   }
+
+  /**
+   * Logout all sessions for a user
+   */
+  async logoutAllSessions(userId: string): Promise<void> {
+    await this.revokeAllSessions(userId, 'logout_all_sessions');
+    console.log(`[Session] All sessions logged out for user ${userId}`);
+  }
+
+  /**
+   * Get all active sessions for a user
+   */
+  async getActiveSessions(userId: string): Promise<any[]> {
+    // Note: This requires a new method in SessionDatabaseAdapter
+    // For now, this is a placeholder that throws an error
+    throw new Error('getActiveSessions not implemented - requires SessionDatabaseAdapter extension');
+  }
 }
 
 /**

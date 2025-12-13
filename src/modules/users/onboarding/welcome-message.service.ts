@@ -8,7 +8,7 @@
 
 import { db } from '../../../lib/db';
 import { log } from '../../../lib/logging/logger';
-import { sendTemplateMessage } from '../../../integrations/whatsapp/messages/template.sender';
+import { sendTemplateMessage, buildTemplateWithParams } from '../../../integrations/whatsapp/messages/template.sender';
 import { getWhatsAppConfig } from '../../../integrations/whatsapp/whatsapp.service';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -118,12 +118,13 @@ async function sendWhatsAppWelcome(params: {
     }
 
     // Use employee_welcome template with verification code
-    await sendTemplateMessage(config, params.phone, 'employee_welcome', {
-      '1': params.userName,
-      '2': params.orgName,
-      '3': params.roleName,
-      '4': params.verificationCode || '------',
-    });
+    const template = buildTemplateWithParams('employee_welcome', [
+      params.userName,
+      params.orgName,
+      params.roleName,
+      params.verificationCode || '------',
+    ]);
+    await sendTemplateMessage(config, params.phone, template);
 
     return { success: true };
   } catch (error) {

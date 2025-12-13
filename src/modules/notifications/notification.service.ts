@@ -9,7 +9,7 @@
 import { db } from '../../lib/db';
 import { log } from '../../lib/logging/logger';
 import { QueueManager } from '../../lib/queue/queue-manager';
-import { sendTemplateMessage } from '../../integrations/whatsapp/messages/template.sender';
+import { sendTemplateMessage, buildTemplateWithParams } from '../../integrations/whatsapp/messages/template.sender';
 import { getWhatsAppConfig } from '../../integrations/whatsapp/whatsapp.service';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -295,7 +295,12 @@ async function deliverWhatsApp(payload: any): Promise<void> {
   }
 
   if (templateName && templateParams) {
-    await sendTemplateMessage(config, phone, templateName, templateParams);
+    // Convert templateParams object to array of values
+    const paramValues = Object.keys(templateParams)
+      .sort()
+      .map(key => String(templateParams[key]));
+    const template = buildTemplateWithParams(templateName, paramValues, 'es_AR');
+    await sendTemplateMessage(config, phone, template);
   } else {
     // Queue as text message (requires 24h window)
     await QueueManager.getInstance().addToQueue('WHATSAPP', {

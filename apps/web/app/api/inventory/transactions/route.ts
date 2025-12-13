@@ -7,7 +7,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { InventoryTransactionType } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,7 +22,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const itemId = searchParams.get('itemId');
     const locationId = searchParams.get('locationId');
-    const transactionType = searchParams.get('type') as InventoryTransactionType | null;
+    const transactionType = searchParams.get('type');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
@@ -132,7 +131,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate type
-    const validTypes = Object.values(InventoryTransactionType);
+    const validTypes = ['PURCHASE', 'SALE', 'TRANSFER', 'ADJUSTMENT', 'USE', 'RETURN'];
     if (!validTypes.includes(transactionType)) {
       return NextResponse.json(
         { success: false, error: 'Tipo de transacción inválido' },
@@ -207,7 +206,7 @@ export async function POST(request: NextRequest) {
     }
 
     // For outgoing transactions (USE, TRANSFER from), check sufficient stock
-    const outgoingTypes: InventoryTransactionType[] = ['USE', 'TRANSFER'];
+    const outgoingTypes = ['USE', 'TRANSFER'];
     if (outgoingTypes.includes(transactionType) && fromLocationId) {
       const sourceStock = await prisma.inventoryStock.findFirst({
         where: {
@@ -279,7 +278,7 @@ export async function POST(request: NextRequest) {
           itemId,
           fromLocationId: fromLocationId || null,
           toLocationId: toLocationId || null,
-          transactionType: transactionType as InventoryTransactionType,
+          transactionType,
           quantity: qty,
           performedById: session.userId,
           notes,

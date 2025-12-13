@@ -7,7 +7,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { InventoryLocationType } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,7 +20,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const locationType = searchParams.get('type') as InventoryLocationType | null;
+    const locationType = searchParams.get('type');
     const includeVehicles = searchParams.get('includeVehicles') !== 'false';
     const includeStock = searchParams.get('includeStock') === 'true';
 
@@ -163,7 +162,7 @@ export async function POST(request: NextRequest) {
       data: {
         organizationId: session.organizationId,
         name,
-        locationType: locationType as InventoryLocationType,
+        locationType,
         address: address || null,
         vehicleId: locationType === 'VEHICLE' ? vehicleId : null,
         isActive,

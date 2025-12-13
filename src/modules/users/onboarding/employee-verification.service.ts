@@ -8,7 +8,7 @@
 
 import { db } from '../../../lib/db';
 import { log } from '../../../lib/logging/logger';
-import { sendTemplateMessage } from '../../../integrations/whatsapp/messages/template.sender';
+import { sendTemplateMessage, buildTemplateWithParams } from '../../../integrations/whatsapp/messages/template.sender';
 import { getWhatsAppConfig } from '../../../integrations/whatsapp/whatsapp.service';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -26,6 +26,7 @@ export interface SendVerificationResult {
   success: boolean;
   expiresAt?: Date;
   error?: string;
+  cooldownUntil?: Date;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -127,11 +128,12 @@ export async function sendVerificationCode(
       const waConfig = await getWhatsAppConfig(organizationId);
       if (waConfig) {
         try {
-          await sendTemplateMessage(waConfig, phone, 'employee_verification', {
-            '1': user.name || 'Equipo',
-            '2': code,
-            '3': VERIFICATION_CODE_EXPIRY_MINUTES.toString(),
-          });
+          const template = buildTemplateWithParams('employee_verification', [
+            user.name || 'Equipo',
+            code,
+            VERIFICATION_CODE_EXPIRY_MINUTES.toString(),
+          ]);
+          await sendTemplateMessage(waConfig, phone, template);
 
           log.info('Verification code sent via WhatsApp', { userId, phone });
           return { success: true, expiresAt };

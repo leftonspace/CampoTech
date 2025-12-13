@@ -129,12 +129,13 @@ async function handleAfterHoursMessage(
   const message = getAutoResponderMessage(hoursCheck, config);
 
   try {
-    await sendTextMessage({
-      phoneNumberId: context.phoneNumberId,
-      accessToken: context.accessToken,
-      recipientPhone: context.senderPhone,
-      text: message,
-    });
+    // Get WhatsApp config for sending
+    const waConfig = await getWhatsAppConfig(context.organizationId);
+    if (!waConfig) {
+      return { shouldRespond: true, responded: false, responseType: 'after_hours' };
+    }
+
+    await sendTextMessage(waConfig, context.senderPhone, message);
 
     // Mark as responded
     markResponded(context.senderPhone);
@@ -175,12 +176,13 @@ async function handleAudioMessage(
     'Lo estamos procesando y te confirmamos tu pedido en breve.';
 
   try {
-    await sendTextMessage({
-      phoneNumberId: context.phoneNumberId,
-      accessToken: context.accessToken,
-      recipientPhone: context.senderPhone,
-      text: responseText,
-    });
+    // Get WhatsApp config for sending
+    const waConfig = await getWhatsAppConfig(context.organizationId);
+    if (!waConfig) {
+      return { shouldRespond: true, responded: false, responseType: 'audio_confirmation' };
+    }
+
+    await sendTextMessage(waConfig, context.senderPhone, responseText);
 
     // Log audio receipt
     await db.audioMessage.create({
@@ -199,12 +201,7 @@ async function handleAudioMessage(
     // If after hours, also send after-hours message
     if (context.isAfterHours && context.businessHoursCheck) {
       const afterHoursMsg = getAutoResponderMessage(context.businessHoursCheck, config);
-      await sendTextMessage({
-        phoneNumberId: context.phoneNumberId,
-        accessToken: context.accessToken,
-        recipientPhone: context.senderPhone,
-        text: afterHoursMsg,
-      });
+      await sendTextMessage(waConfig, context.senderPhone, afterHoursMsg);
     }
 
     markResponded(context.senderPhone);
@@ -296,12 +293,7 @@ export async function sendMessageReceivedConfirmation(
       `Un representante te va a responder en breve. ` +
       `Tiempo estimado: ~${estimatedWaitMinutes} minutos.`;
 
-    await sendTextMessage({
-      phoneNumberId: waConfig.phoneNumberId,
-      accessToken: waConfig.accessToken,
-      recipientPhone,
-      text: message,
-    });
+    await sendTextMessage(waConfig, recipientPhone, message);
 
     return true;
   } catch (error) {
