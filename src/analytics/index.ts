@@ -46,10 +46,11 @@ export {
   AGGREGATION_JOBS,
   runAggregationJob,
   getAggregationJobStatuses,
-  scheduleAggregationJobs,
-  runDueAggregationJobs,
-  type AggregationJob,
+  runAllAggregationJobs,
+  cleanupOldAggregatedData,
+  type AggregationJobConfig,
   type AggregationJobStatus,
+  type AggregationJobResult,
 } from './infrastructure/aggregation-jobs';
 
 // ═══════════════════════════════════════════════════════════════════════════════
