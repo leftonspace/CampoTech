@@ -244,7 +244,7 @@ export class InvoiceService {
       customerId: data.customerId,
       invoiceType,
       puntoVenta,
-      status: 'draft',
+      status: 'DRAFT',
       dueDate: data.dueDate,
       lineItems,
       subtotal,

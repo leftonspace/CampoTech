@@ -260,10 +260,10 @@ export function startJobNotificationWorker(): Worker<JobNotificationJobData, Job
         }
 
         // Send to technician
-        if (recipients.technician && jobRecord.assignedTo) {
+        if (recipients.technician && jobRecord.technician) {
           const techResult = await sendNotification({
             eventType: type,
-            userId: jobRecord.assignedTo.id,
+            userId: jobRecord.technician.id,
             organizationId: orgId,
             title,
             body,
@@ -403,17 +403,17 @@ function buildNotificationContent(
   data?: Record<string, any>
 ): NotificationContent {
   const customerName = job.customer?.name || 'Cliente';
-  const techName = job.assignedTo?.name || 'Tecnico';
+  const techName = job.technician?.name || 'Tecnico';
   const serviceType = job.serviceType || 'servicio';
-  const scheduledDate = job.scheduledStart
-    ? new Date(job.scheduledStart).toLocaleDateString('es-AR', {
+  const scheduledDateStr = job.scheduledDate
+    ? new Date(job.scheduledDate).toLocaleDateString('es-AR', {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
       })
     : '';
-  const scheduledTime = job.scheduledStart
-    ? new Date(job.scheduledStart).toLocaleTimeString('es-AR', {
+  const scheduledTime = job.scheduledDate
+    ? new Date(job.scheduledDate).toLocaleTimeString('es-AR', {
         hour: '2-digit',
         minute: '2-digit',
       })
@@ -430,7 +430,7 @@ function buildNotificationContent(
     },
     job_scheduled: {
       title: 'Visita programada',
-      body: `Tu visita de ${serviceType} ha sido programada para ${scheduledDate} a las ${scheduledTime}`,
+      body: `Tu visita de ${serviceType} ha sido programada para ${scheduledDateStr} a las ${scheduledTime}`,
     },
     job_started: {
       title: 'Trabajo iniciado',
@@ -462,7 +462,7 @@ function buildNotificationContent(
     },
     job_rescheduled: {
       title: 'Visita reprogramada',
-      body: `Tu visita ha sido reprogramada para ${scheduledDate} a las ${scheduledTime}`,
+      body: `Tu visita ha sido reprogramada para ${scheduledDateStr} a las ${scheduledTime}`,
     },
   };
 

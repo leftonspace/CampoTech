@@ -417,12 +417,12 @@ export class VoiceAIService {
       organizationId,
       customerId,
       serviceType: extraction.serviceType?.value || 'otro',
-      status: 'pendiente',
+      status: 'PENDING',
       priority: extraction.urgency?.value === 'urgente' ? 'high' : 'normal',
       address: extraction.customerAddress?.value,
       notes: extraction.description?.value,
       internalNotes: extraction.notes?.value,
-      scheduledStart: extraction.preferredDate?.value
+      scheduledDate: extraction.preferredDate?.value
         ? this.parseDate(extraction.preferredDate.value)
         : null,
       source: 'voice_ai',

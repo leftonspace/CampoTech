@@ -93,7 +93,7 @@ async function getHistoricalRevenueData(organizationId: string): Promise<{
     where: {
       organizationId,
       createdAt: { gte: oneYearAgo },
-      status: { in: ['paid', 'partial'] },
+      status: 'PAID',
     },
     select: {
       total: true,
