@@ -433,7 +433,10 @@ export const api = {
         return apiRequest<unknown[]>(`/whatsapp/contacts${query}`);
       },
       create: (data: { phone: string; name?: string; customerId?: string }) =>
-        apiRequest('/whatsapp/contacts', { method: 'POST', body: data }),
+        apiRequest<{ conversationId: string; phone: string; name: string; customerId: string | null; isNew: boolean }>(
+          '/whatsapp/contacts',
+          { method: 'POST', body: data }
+        ),
     },
     stats: () => apiRequest<unknown>('/whatsapp/stats'),
   },
