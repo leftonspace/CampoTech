@@ -77,11 +77,13 @@ export {
 // Metrics Aggregator
 export {
   aggregateMetrics,
-  getAggregatedMetric,
-  getAllAggregatedMetrics,
+  getMetricDefinition,
+  getMetricsByCategory,
+  getAllMetricNames,
   METRIC_DEFINITIONS,
   type MetricDefinition,
-  type AggregatedMetricResult,
+  type AggregatedResult,
+  type AggregationOptions,
 } from './collectors/metrics-aggregator';
 
 // Time Series Storage
