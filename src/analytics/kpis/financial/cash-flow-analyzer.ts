@@ -89,7 +89,7 @@ export async function calculateCashFlowMetrics(
   const unpaidInvoices = await db.invoice.findMany({
     where: {
       organizationId,
-      status: { in: ['pending', 'sent', 'partial'] },
+      status: { in: ['PENDING', 'SENT', 'OVERDUE'] },
     },
     select: {
       total: true,
@@ -105,7 +105,7 @@ export async function calculateCashFlowMetrics(
   const paidInvoices = await db.invoice.findMany({
     where: {
       organizationId,
-      status: 'paid',
+      status: 'PAID',
       createdAt: {
         gte: dateRange.start,
         lte: dateRange.end,
@@ -222,7 +222,7 @@ export async function getAccountsReceivableAging(
   const unpaidInvoices = await db.invoice.findMany({
     where: {
       organizationId,
-      status: { in: ['pending', 'sent', 'partial'] },
+      status: { in: ['PENDING', 'SENT', 'OVERDUE'] },
     },
     select: {
       total: true,
@@ -278,7 +278,7 @@ export async function getOverdueInvoices(
   const invoices = await db.invoice.findMany({
     where: {
       organizationId,
-      status: { in: ['pending', 'sent', 'partial'] },
+      status: { in: ['PENDING', 'SENT', 'OVERDUE'] },
       dueDate: { lt: now },
     },
     include: {
@@ -380,7 +380,7 @@ export async function calculateDSO(
   const accountsReceivable = await db.invoice.aggregate({
     where: {
       organizationId,
-      status: { in: ['pending', 'sent', 'partial'] },
+      status: { in: ['PENDING', 'SENT', 'OVERDUE'] },
       createdAt: { lte: dateRange.end },
     },
     _sum: {
