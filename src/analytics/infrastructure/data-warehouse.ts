@@ -252,7 +252,7 @@ export async function getTechnicianDimension(
 
   return technicians.map((tech) => {
     const totalJobs = tech.assignedJobs.length;
-    const completedJobs = tech.assignedJobs.filter((j) => j.status === 'completado').length;
+    const completedJobs = tech.assignedJobs.filter((j) => j.status === 'COMPLETED').length;
 
     // Calculate efficiency (jobs per working day in last 30 days)
     const thirtyDaysAgo = new Date();
