@@ -97,7 +97,7 @@ export async function calculateProfitability(
         gte: dateRange.start,
         lte: dateRange.end,
       },
-      status: { in: ['paid', 'partial'] },
+      status: 'PAID',
     },
     select: {
       total: true,
@@ -197,7 +197,7 @@ async function calculatePreviousPeriodProfitability(
         gte: dateRange.start,
         lte: dateRange.end,
       },
-      status: { in: ['paid', 'partial'] },
+      status: 'PAID',
     },
     select: {
       total: true,
@@ -409,7 +409,7 @@ export async function getProfitabilityByCustomer(
         gte: dateRange.start,
         lte: dateRange.end,
       },
-      status: { in: ['paid', 'partial'] },
+      status: 'PAID',
     },
     include: {
       customer: {
@@ -423,7 +423,7 @@ export async function getProfitabilityByCustomer(
     by: ['customerId'],
     where: {
       organizationId,
-      status: { in: ['paid', 'partial'] },
+      status: 'PAID',
     },
     _sum: {
       total: true,
@@ -517,7 +517,7 @@ export async function getProfitabilityTrend(
         gte: dateRange.start,
         lte: dateRange.end,
       },
-      status: { in: ['paid', 'partial'] },
+      status: 'PAID',
     },
     select: {
       total: true,
