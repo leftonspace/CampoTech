@@ -478,5 +478,3 @@ export function createInvoiceRoutes(pool: Pool): Router {
 
   return router;
 }
-
-export { InvoiceRepository, InvoiceService };

@@ -9,11 +9,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError, Decimal } from '@prisma/client/runtime/library';
 
 // Helper to check if error is "table doesn't exist"
 function isTableNotFoundError(error: unknown): boolean {
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error instanceof PrismaClientKnownRequestError &&
     error.code === 'P2021'
   );
 }
@@ -73,7 +74,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    console.error('Get price item error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Get price item error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error obteniendo item' },
       { status: 500 }
@@ -104,13 +106,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const { name, description, type, price, unit, taxRate, isActive } = body;
 
     // Build update data
-    const updateData: Prisma.PriceItemUpdateInput = {};
+    const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (type !== undefined) updateData.type = type.toUpperCase() as 'SERVICE' | 'PRODUCT';
-    if (price !== undefined) updateData.price = new Prisma.Decimal(price);
+    if (price !== undefined) updateData.price = new Decimal(price);
     if (unit !== undefined) updateData.unit = unit;
-    if (taxRate !== undefined) updateData.taxRate = new Prisma.Decimal(taxRate);
+    if (taxRate !== undefined) updateData.taxRate = new Decimal(taxRate);
     if (isActive !== undefined) updateData.isActive = isActive;
 
     let item;
@@ -161,7 +163,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    console.error('Update price item error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Update price item error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error actualizando item' },
       { status: 500 }
@@ -225,7 +228,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: 'Item eliminado exitosamente',
     });
   } catch (error) {
-    console.error('Delete price item error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Delete price item error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error eliminando item' },
       { status: 500 }

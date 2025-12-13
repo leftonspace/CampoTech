@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import {
   filterEntitiesByRole,
   getEntityFieldMetadata,
@@ -17,7 +18,7 @@ import {
 // Helper to check if error is "table doesn't exist"
 function isTableNotFoundError(error: unknown): boolean {
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error instanceof PrismaClientKnownRequestError &&
     error.code === 'P2021'
   );
 }
@@ -173,7 +174,8 @@ export async function GET(request: NextRequest) {
       _fieldMeta: fieldMeta,
     });
   } catch (error) {
-    console.error('Get vehicles error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Get vehicles error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error obteniendo vehículos' },
       { status: 500 }
@@ -277,7 +279,8 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
-    console.error('Create vehicle error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Create vehicle error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error creando vehículo' },
       { status: 500 }

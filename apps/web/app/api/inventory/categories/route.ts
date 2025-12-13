@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 /**
  * GET /api/inventory/categories
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
     const includeInactive = searchParams.get('includeInactive') === 'true';
     const flat = searchParams.get('flat') === 'true';
 
-    const where: Prisma.ProductCategoryWhereInput = {
+    const where: Record<string, unknown> = {
       organizationId: session.organizationId,
     };
 
@@ -96,7 +97,8 @@ export async function GET(request: NextRequest) {
       data: { categories: rootCategories },
     });
   } catch (error) {
-    console.error('Categories list error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Categories list error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error listing categories' },
       { status: 500 }
@@ -196,9 +198,10 @@ export async function POST(request: NextRequest) {
       message: 'Categoría creada exitosamente',
     });
   } catch (error) {
-    console.error('Category creation error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Category creation error:', err.message);
 
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error instanceof PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
         return NextResponse.json(
           { success: false, error: 'Ya existe una categoría con este código' },
@@ -267,7 +270,8 @@ export async function PATCH(request: NextRequest) {
       message: 'Categorías actualizadas exitosamente',
     });
   } catch (error) {
-    console.error('Categories update error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Categories update error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error updating categories' },
       { status: 500 }

@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 /**
  * GET /api/inventory/warehouses
@@ -80,7 +81,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const where: Prisma.WarehouseWhereInput = {
+    const where: Record<string, unknown> = {
       organizationId: session.organizationId,
     };
 
@@ -114,7 +115,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate stock value for each warehouse
     const warehousesWithStats = await Promise.all(
-      warehouses.map(async (warehouse) => {
+      warehouses.map(async (warehouse: typeof warehouses[number]) => {
         const stockValue = await prisma.inventoryLevel.aggregate({
           where: { warehouseId: warehouse.id },
           _sum: { totalCost: true },
@@ -141,7 +142,8 @@ export async function GET(request: NextRequest) {
       data: { warehouses: warehousesWithStats },
     });
   } catch (error) {
-    console.error('Warehouses list error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Warehouses list error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error listing warehouses' },
       { status: 500 }
@@ -236,9 +238,10 @@ export async function POST(request: NextRequest) {
       message: 'Depósito creado exitosamente',
     });
   } catch (error) {
-    console.error('Warehouse creation error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Warehouse creation error:', err.message);
 
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error instanceof PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
         return NextResponse.json(
           { success: false, error: 'Ya existe un depósito con este código' },
@@ -312,7 +315,7 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    const updateData: Prisma.WarehouseUpdateInput = {};
+    const updateData: Record<string, unknown> = {};
 
     if (body.code !== undefined) updateData.code = body.code.toUpperCase();
     if (body.name !== undefined) updateData.name = body.name;
@@ -348,7 +351,8 @@ export async function PATCH(request: NextRequest) {
       message: 'Depósito actualizado exitosamente',
     });
   } catch (error) {
-    console.error('Warehouse update error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Warehouse update error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error updating warehouse' },
       { status: 500 }
@@ -438,7 +442,8 @@ export async function DELETE(request: NextRequest) {
       message: 'Depósito eliminado exitosamente',
     });
   } catch (error) {
-    console.error('Warehouse delete error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Warehouse delete error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error deleting warehouse' },
       { status: 500 }

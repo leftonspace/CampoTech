@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 // Default service types to seed for new organizations
 const DEFAULT_SERVICE_TYPES = [
@@ -23,7 +24,7 @@ const DEFAULT_SERVICE_TYPES = [
 // Helper to check if table or column doesn't exist (schema mismatch)
 function isSchemaError(error: unknown): boolean {
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error instanceof PrismaClientKnownRequestError &&
     (error.code === 'P2021' || error.code === 'P2022') // Table not found or column not found
   );
 }
@@ -93,7 +94,8 @@ export async function GET(request: NextRequest) {
       data: serviceTypes,
     });
   } catch (error) {
-    console.error('Get service types error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Get service types error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error obteniendo tipos de servicio' },
       { status: 500 }
@@ -189,7 +191,8 @@ export async function POST(request: NextRequest) {
       throw createError;
     }
   } catch (error) {
-    console.error('Create service type error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Create service type error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error creando tipo de servicio' },
       { status: 500 }

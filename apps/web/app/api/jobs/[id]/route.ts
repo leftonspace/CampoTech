@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import {
   filterEntityByRole,
   getEntityFieldMetadata,
@@ -12,7 +13,7 @@ import {
 // Check if error is related to missing table
 function isTableNotFoundError(error: unknown): boolean {
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error instanceof PrismaClientKnownRequestError &&
     error.code === 'P2021'
   );
 }
@@ -107,7 +108,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       _fieldMeta: fieldMeta,
     });
   } catch (error) {
-    console.error('Get job error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Get job error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error fetching job' },
       { status: 500 }
@@ -223,7 +225,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       data: job,
     });
   } catch (error) {
-    console.error('Update job error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Update job error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error updating job' },
       { status: 500 }

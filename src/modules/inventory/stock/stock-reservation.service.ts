@@ -43,7 +43,7 @@ export async function createReservation(
   }
 
   // Create reservation in a transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: typeof prisma) => {
     // Create reservation
     const reservation = await tx.stockReservation.create({
       data: {
@@ -183,7 +183,7 @@ export async function fulfillReservation(
   }
 
   // Update in transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: typeof prisma) => {
     // Update reservation status
     const updated = await tx.stockReservation.update({
       where: { id: reservationId },
@@ -244,7 +244,7 @@ export async function cancelReservation(
   }
 
   // Update in transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: typeof prisma) => {
     // Update reservation status
     const updated = await tx.stockReservation.update({
       where: { id: reservationId },
@@ -285,7 +285,7 @@ export async function cancelJobReservations(
   });
 
   let cancelled = 0;
-  for (const reservation of reservations) {
+  for (const reservation of reservations as typeof reservations) {
     try {
       await cancelReservation(organizationId, reservation.id);
       cancelled++;
@@ -344,7 +344,7 @@ export async function updateReservationQuantity(
   }
 
   // Update in transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: typeof prisma) => {
     const updated = await tx.stockReservation.update({
       where: { id: reservationId },
       data: { quantity: newQuantity },
@@ -385,7 +385,7 @@ export async function processExpiredReservations(): Promise<{ expired: number }>
   });
 
   let expired = 0;
-  for (const reservation of expiredReservations) {
+  for (const reservation of expiredReservations as typeof expiredReservations) {
     try {
       const level = await prisma.inventoryLevel.findFirst({
         where: {

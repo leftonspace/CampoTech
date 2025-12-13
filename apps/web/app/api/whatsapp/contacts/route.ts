@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Format contacts
-    const contacts = customers.map((customer) => ({
+    const contacts = customers.map((customer: typeof customers[number]) => ({
       id: customer.id,
       name: customer.name,
       phone: customer.phone,

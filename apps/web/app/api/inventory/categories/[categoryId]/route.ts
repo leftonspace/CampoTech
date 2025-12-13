@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 interface RouteParams {
   params: Promise<{ categoryId: string }>;
@@ -61,7 +62,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    console.error('Category detail error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Category detail error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error fetching category' },
       { status: 500 }
@@ -137,7 +139,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Build update data
-    const updateData: Prisma.ProductCategoryUpdateInput = {};
+    const updateData: Record<string, unknown> = {};
 
     if (body.code !== undefined) updateData.code = body.code.toUpperCase();
     if (body.name !== undefined) updateData.name = body.name;
@@ -163,9 +165,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       message: 'Categoría actualizada exitosamente',
     });
   } catch (error) {
-    console.error('Category update error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Category update error:', err.message);
 
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error instanceof PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
         return NextResponse.json(
           { success: false, error: 'Ya existe una categoría con este código' },
@@ -270,7 +273,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: 'Categoría eliminada exitosamente',
     });
   } catch (error) {
-    console.error('Category delete error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Category delete error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error deleting category' },
       { status: 500 }

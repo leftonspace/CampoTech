@@ -154,15 +154,15 @@ export async function getInventoryCountWithDetails(
   if (!count) return null;
 
   // Get product details for items
-  const productIds = count.items.map((i) => i.productId);
+  const productIds = count.items.map((i: typeof count.items[number]) => i.productId);
   const products = await prisma.product.findMany({
     where: { id: { in: productIds } },
     select: { id: true, name: true, sku: true, barcode: true },
   });
 
-  const productMap = new Map(products.map((p) => [p.id, p]));
+  const productMap = new Map(products.map((p: typeof products[number]) => [p.id, p]));
 
-  const itemsWithProducts = count.items.map((item) => ({
+  const itemsWithProducts = count.items.map((item: typeof count.items[number]) => ({
     ...item,
     product: productMap.get(item.productId),
   }));
@@ -266,7 +266,7 @@ export async function updateCountItems(
 
   let updated = 0;
 
-  for (const update of updates) {
+  for (const update of updates as typeof updates) {
     const item = await prisma.inventoryCountItem.findFirst({
       where: {
         id: update.itemId,
@@ -324,7 +324,7 @@ export async function completeCountingPhase(
   }
 
   // Check all items have been counted
-  const uncountedItems = count.items.filter((i) => i.countedQty === null);
+  const uncountedItems = count.items.filter((i: typeof count.items[number]) => i.countedQty === null);
   if (uncountedItems.length > 0) {
     throw new Error(`Hay ${uncountedItems.length} items sin contar`);
   }
@@ -378,7 +378,7 @@ export async function approveInventoryCount(
   // Apply adjustments for items with variance
   let adjustmentsApplied = 0;
 
-  for (const item of count.items) {
+  for (const item of count.items as typeof count.items) {
     if (item.variance === null || item.variance === 0) continue;
 
     // Get inventory level

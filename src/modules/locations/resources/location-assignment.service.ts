@@ -419,7 +419,7 @@ export class LocationAssignmentService {
         locationCode: 'UNASSIGNED',
         technicians: unassigned,
         totalTechnicians: unassigned.length,
-        activeTechnicians: unassigned.filter((t) => t.isActive).length,
+        activeTechnicians: unassigned.filter((t: typeof unassigned[number]) => t.isActive).length,
         techniciansBySpecialty: {},
         techniciansBySkillLevel: {},
       });
@@ -540,7 +540,7 @@ export class LocationAssignmentService {
         // Check if location needs this specialty
         if (technician.specialty) {
           const hasSpecialty = location.technicians.some(
-            (t) => t.specialty === technician.specialty
+            (t: typeof location.technicians[number]) => t.specialty === technician.specialty
           );
           if (!hasSpecialty) {
             score += 0.3;
@@ -624,7 +624,7 @@ export class LocationAssignmentService {
       },
     });
 
-    const locationStats = locations.map((location) => ({
+    const locationStats = locations.map((location: typeof locations[number]) => ({
       locationId: location.id,
       locationName: location.name,
       technicianCount: location.technicians.length,
@@ -635,12 +635,12 @@ export class LocationAssignmentService {
     }));
 
     // Calculate imbalance score (standard deviation of ratios)
-    const ratios = locationStats.map((s) => s.ratio).filter((r) => r !== Infinity);
+    const ratios = locationStats.map((s: typeof locationStats[number]) => s.ratio).filter((r: number) => r !== Infinity);
     const avgRatio = ratios.length > 0
-      ? ratios.reduce((sum, r) => sum + r, 0) / ratios.length
+      ? ratios.reduce((sum: number, r: typeof ratios[number]) => sum + r, 0) / ratios.length
       : 0;
     const variance = ratios.length > 0
-      ? ratios.reduce((sum, r) => sum + Math.pow(r - avgRatio, 2), 0) / ratios.length
+      ? ratios.reduce((sum: number, r: typeof ratios[number]) => sum + Math.pow(r - avgRatio, 2), 0) / ratios.length
       : 0;
     const imbalanceScore = Math.sqrt(variance);
 
@@ -648,7 +648,7 @@ export class LocationAssignmentService {
     const recommendations: string[] = [];
 
     // Check for locations with no technicians
-    const noTechLocations = locationStats.filter((s) => s.technicianCount === 0 && s.activeJobCount > 0);
+    const noTechLocations = locationStats.filter((s: typeof locationStats[number]) => s.technicianCount === 0 && s.activeJobCount > 0);
     for (const loc of noTechLocations) {
       recommendations.push(
         `${loc.locationName} has ${loc.activeJobCount} active jobs but no assigned technicians`
@@ -656,7 +656,7 @@ export class LocationAssignmentService {
     }
 
     // Check for overloaded locations
-    const overloaded = locationStats.filter((s) => s.ratio > avgRatio * 1.5);
+    const overloaded = locationStats.filter((s: typeof locationStats[number]) => s.ratio > avgRatio * 1.5);
     for (const loc of overloaded) {
       recommendations.push(
         `${loc.locationName} is overloaded (${loc.activeJobCount} jobs / ${loc.technicianCount} technicians)`
@@ -664,7 +664,7 @@ export class LocationAssignmentService {
     }
 
     // Check for underutilized locations
-    const underutilized = locationStats.filter((s) => s.ratio < avgRatio * 0.5 && s.technicianCount > 1);
+    const underutilized = locationStats.filter((s: typeof locationStats[number]) => s.ratio < avgRatio * 0.5 && s.technicianCount > 1);
     for (const loc of underutilized) {
       recommendations.push(
         `${loc.locationName} may have excess capacity (${loc.technicianCount} technicians, ${loc.activeJobCount} jobs)`
@@ -725,7 +725,7 @@ export class LocationAssignmentService {
 
     // Check for active jobs at different locations
     const jobsAtOtherLocations = user.assignedJobs.filter(
-      (job) => job.locationId && job.locationId !== locationId
+      (job: typeof user.assignedJobs[number]) => job.locationId && job.locationId !== locationId
     );
 
     if (jobsAtOtherLocations.length > 0) {

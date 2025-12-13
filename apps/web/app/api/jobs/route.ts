@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import {
   filterEntitiesByRole,
   getEntityFieldMetadata,
@@ -11,7 +12,7 @@ import {
 // Check if error is related to missing table
 function isTableNotFoundError(error: unknown): boolean {
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error instanceof PrismaClientKnownRequestError &&
     error.code === 'P2021'
   );
 }
@@ -113,7 +114,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Jobs list error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Jobs list error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error fetching jobs' },
       { status: 500 }
@@ -222,7 +224,8 @@ export async function POST(request: NextRequest) {
       data: job,
     });
   } catch (error) {
-    console.error('Create job error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Create job error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error creating job' },
       { status: 500 }

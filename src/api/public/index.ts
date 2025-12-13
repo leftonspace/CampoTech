@@ -22,7 +22,7 @@ export * from './public-api.types';
 export {
   createApiKeyMiddleware,
   createRateLimitMiddleware,
-  createScopeCheckMiddleware,
+  requireScopes,
   versionExtractionMiddleware,
 } from './middleware';
 
@@ -137,32 +137,46 @@ export type {
 
 export {
   // API Reference
-  ApiReferenceService,
-  createApiReferenceService,
+  API_REFERENCE,
+  getAllEndpoints,
+  getEndpointsByTag,
+  getEndpointByOperationId,
+  getTags,
+  DEFAULT_PORTAL_CONFIG,
 
   // Developer Console
   DeveloperConsoleService,
-  createDeveloperConsoleService,
+  createConsoleService,
 
   // API Playground
   PlaygroundService,
   createPlaygroundService,
+  DEFAULT_PLAYGROUND_CONFIG,
 } from './developer-portal';
 
 export type {
   // Developer Portal Types
   DocPage,
   DocSection,
-  DocCategory,
-  ApiEndpointDoc,
-  CodeSample,
-  ApiReferenceData,
-  Application,
-  ApplicationStatus,
-  CreateApplicationOptions,
+  ApiEndpoint,
+  ApiParameter,
+  ApiRequestBody,
+  ApiResponse,
+  ApiSchema,
+  ApiSecurity,
+  DeveloperApp,
+  DeveloperApiKey,
+  DeveloperOAuthClient,
+  DeveloperWebhook,
   PlaygroundRequest,
   PlaygroundResponse,
-  GeneratedCode,
+  PlaygroundSession,
+  PlaygroundHistoryItem,
+  ChangelogEntry,
+  PortalConfig,
+  CreateAppOptions,
+  AppWithCredentials,
+  PlaygroundConfig,
 } from './developer-portal';
 
 // ═══════════════════════════════════════════════════════════════════════════════

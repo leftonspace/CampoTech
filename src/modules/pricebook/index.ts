@@ -660,5 +660,3 @@ export function createPriceBookRoutes(pool: Pool): Router {
 
   return router;
 }
-
-export { CategoryRepository, PriceBookItemRepository, PriceBookService };

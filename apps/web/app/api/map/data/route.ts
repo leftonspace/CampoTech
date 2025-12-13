@@ -247,7 +247,7 @@ export async function GET(request: NextRequest) {
       });
 
       customers = customersData
-        .map((customer) => {
+        .map((customer: typeof customersData[number]) => {
           const { formatted, lat, lng } = parseAddress(customer.address);
 
           if (lat === null || lng === null) return null;
@@ -255,8 +255,8 @@ export async function GET(request: NextRequest) {
           // Apply bounds filter
           if (!isWithinBounds(lat, lng, bounds)) return null;
 
-          const lastCompletedJob = customer.jobs.find((j) => j.status === 'COMPLETED');
-          const hasActiveJob = customer.jobs.some((j) =>
+          const lastCompletedJob = customer.jobs.find((j: typeof customer.jobs[number]) => j.status === 'COMPLETED');
+          const hasActiveJob = customer.jobs.some((j: typeof customer.jobs[number]) =>
             ['PENDING', 'ASSIGNED', 'EN_ROUTE', 'IN_PROGRESS'].includes(j.status)
           );
 
@@ -272,7 +272,7 @@ export async function GET(request: NextRequest) {
             hasActiveJob,
           };
         })
-        .filter((c): c is CustomerLocation => c !== null);
+        .filter((c: CustomerLocation | null): c is CustomerLocation => c !== null);
     }
 
     // Fetch technicians with their current locations
@@ -335,7 +335,7 @@ export async function GET(request: NextRequest) {
       });
 
       technicians = techniciansData
-        .map((tech) => {
+        .map((tech: typeof techniciansData[number]) => {
           const location = tech.currentLocation;
           const isOnline = location && location.lastSeen > onlineThreshold;
 
@@ -368,12 +368,12 @@ export async function GET(request: NextRequest) {
           if (!isWithinBounds(lat, lng, bounds)) return null;
 
           // Current job is one that's IN_PROGRESS or EN_ROUTE
-          const currentJob = tech.assignedJobs.find(j =>
+          const currentJob = tech.assignedJobs.find((j: typeof tech.assignedJobs[number]) =>
             ['IN_PROGRESS', 'EN_ROUTE'].includes(j.status)
           ) || null;
 
           // Next job is the first ASSIGNED job
-          const nextJob = tech.assignedJobs.find(j => j.status === 'ASSIGNED') || null;
+          const nextJob = tech.assignedJobs.find((j: typeof tech.assignedJobs[number]) => j.status === 'ASSIGNED') || null;
           const activeSession = tech.trackingSessions[0] || null;
 
           // Determine status
@@ -415,7 +415,7 @@ export async function GET(request: NextRequest) {
             } : null,
           };
         })
-        .filter((t): t is TechnicianLocation => t !== null);
+        .filter((t: TechnicianLocation | null): t is TechnicianLocation => t !== null);
     }
 
     // Fetch today's jobs
@@ -464,7 +464,7 @@ export async function GET(request: NextRequest) {
         orderBy: { scheduledDate: 'asc' },
       });
 
-      const mappedJobs = jobsData.map((job): TodayJob | null => {
+      const mappedJobs = jobsData.map((job: typeof jobsData[number]): TodayJob | null => {
         const { formatted, lat, lng } = parseAddress(job.customer.address);
 
         if (lat === null || lng === null) return null;
@@ -493,7 +493,7 @@ export async function GET(request: NextRequest) {
           serviceType: job.serviceType || '',
         };
       });
-      todayJobs = mappedJobs.filter((j): j is TodayJob => j !== null);
+      todayJobs = mappedJobs.filter((j: TodayJob | null): j is TodayJob => j !== null);
     }
 
     // Calculate stats (always use full counts, not filtered by bounds)
@@ -533,7 +533,7 @@ export async function GET(request: NextRequest) {
     let techniciansWorking = 0;
     let techniciansOffline = 0;
 
-    for (const tech of allTechnicians) {
+    for (const tech of allTechnicians as typeof allTechnicians) {
       const isOnline = tech.currentLocation && tech.currentLocation.lastSeen > onlineThreshold;
       const currentJob = tech.assignedJobs[0];
 
@@ -574,9 +574,9 @@ export async function GET(request: NextRequest) {
       techniciansWorking,
       techniciansOffline,
       todayJobsTotal: allTodayJobs.length,
-      todayJobsPending: allTodayJobs.filter((j) => ['PENDING', 'ASSIGNED'].includes(j.status)).length,
-      todayJobsInProgress: allTodayJobs.filter((j) => ['EN_ROUTE', 'IN_PROGRESS'].includes(j.status)).length,
-      todayJobsCompleted: allTodayJobs.filter((j) => j.status === 'COMPLETED').length,
+      todayJobsPending: allTodayJobs.filter((j: typeof allTodayJobs[number]) => ['PENDING', 'ASSIGNED'].includes(j.status)).length,
+      todayJobsInProgress: allTodayJobs.filter((j: typeof allTodayJobs[number]) => ['EN_ROUTE', 'IN_PROGRESS'].includes(j.status)).length,
+      todayJobsCompleted: allTodayJobs.filter((j: typeof allTodayJobs[number]) => j.status === 'COMPLETED').length,
     };
 
     // Fetch zones for filter dropdown

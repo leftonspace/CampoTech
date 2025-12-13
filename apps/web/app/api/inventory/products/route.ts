@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 /**
  * GET /api/inventory/products
@@ -146,7 +147,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build where clause for main list
-    const where: Prisma.ProductWhereInput = {
+    const where: Record<string, unknown> = {
       organizationId: session.organizationId,
     };
 
@@ -175,7 +176,7 @@ export async function GET(request: NextRequest) {
     const total = await prisma.product.count({ where });
 
     // Build orderBy
-    const orderBy: Prisma.ProductOrderByWithRelationInput = {};
+    const orderBy: Record<string, unknown> = {};
     if (sortBy === 'name') {
       orderBy.name = sortOrder as 'asc' | 'desc';
     } else if (sortBy === 'sku') {
@@ -262,7 +263,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Products list error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Products list error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error listing products' },
       { status: 500 }
@@ -403,9 +405,10 @@ export async function POST(request: NextRequest) {
       message: 'Producto creado exitosamente',
     });
   } catch (error) {
-    console.error('Product creation error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Product creation error:', err.message);
 
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error instanceof PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
         return NextResponse.json(
           { success: false, error: 'Ya existe un producto con este SKU' },

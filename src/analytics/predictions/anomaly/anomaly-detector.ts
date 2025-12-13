@@ -68,7 +68,7 @@ export async function detectAnomalies(
   );
 
   // Sort by severity and date
-  anomalies.sort((a, b) => {
+  anomalies.sort((a: typeof anomalies[number], b: typeof anomalies[number]) => {
     const severityOrder = { critical: 0, warning: 1, info: 2 };
     if (severityOrder[a.severity] !== severityOrder[b.severity]) {
       return severityOrder[a.severity] - severityOrder[b.severity];
@@ -79,9 +79,9 @@ export async function detectAnomalies(
   // Calculate summary
   const summary = {
     totalAnomalies: anomalies.length,
-    criticalCount: anomalies.filter((a) => a.severity === 'critical').length,
-    warningCount: anomalies.filter((a) => a.severity === 'warning').length,
-    infoCount: anomalies.filter((a) => a.severity === 'info').length,
+    criticalCount: anomalies.filter((a: typeof anomalies[number]) => a.severity === 'critical').length,
+    warningCount: anomalies.filter((a: typeof anomalies[number]) => a.severity === 'warning').length,
+    infoCount: anomalies.filter((a: typeof anomalies[number]) => a.severity === 'info').length,
   };
 
   // Get metric baselines
@@ -121,7 +121,7 @@ async function detectRevenueAnomalies(organizationId: string): Promise<Anomaly[]
   // Check last 7 days for anomalies
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  for (const [date, revenue] of Object.entries(dailyRevenue)) {
+  for (const [date, revenue] of Object.entries(dailyRevenue) as [string, number][]) {
     const dateObj = new Date(date);
     if (dateObj < sevenDaysAgo) continue;
 
@@ -180,7 +180,7 @@ async function detectJobAnomalies(organizationId: string): Promise<Anomaly[]> {
   // Check last 7 days for anomalies
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-  for (const [date, count] of Object.entries(dailyCounts)) {
+  for (const [date, count] of Object.entries(dailyCounts) as [string, number][]) {
     const dateObj = new Date(date);
     if (dateObj < sevenDaysAgo) continue;
 
@@ -264,7 +264,7 @@ async function detectCancellationAnomalies(organizationId: string): Promise<Anom
   const { mean, stdDev } = calculateStats(dailyRates);
 
   // Check for high cancellation days
-  for (const [date, rate] of rateByDate) {
+  for (const [date, rate] of rateByDate as Map<string, number>) {
     const dateObj = new Date(date);
     const stats = dateStats.get(date)!;
 
@@ -315,7 +315,7 @@ async function detectResponseTimeAnomalies(organizationId: string): Promise<Anom
   });
 
   // Calculate response times (in hours)
-  const responseTimes = jobs.map((job) => {
+  const responseTimes = jobs.map((job: typeof jobs[number]) => {
     const created = job.createdAt.getTime();
     const started = job.startedAt!.getTime();
     return (started - created) / (1000 * 60 * 60);
@@ -328,7 +328,7 @@ async function detectResponseTimeAnomalies(organizationId: string): Promise<Anom
 
   // Check for recent slow responses
   const recentJobs = jobs.slice(-10);
-  const avgRecentResponse = recentJobs.reduce((sum, job) => {
+  const avgRecentResponse = recentJobs.reduce((sum: number, job: typeof recentJobs[number]) => {
     const created = job.createdAt.getTime();
     const started = job.startedAt!.getTime();
     return sum + (started - created) / (1000 * 60 * 60);

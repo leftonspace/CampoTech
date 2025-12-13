@@ -292,7 +292,7 @@ export class DataExporter {
     `;
 
     // Get customer names
-    const customerIds = createdCustomers.map(c => c.entity_id);
+    const customerIds = createdCustomers.map((c: typeof createdCustomers[number]) => c.entity_id);
     const customers = customerIds.length > 0
       ? await prisma.customer.findMany({
           where: { id: { in: customerIds } },
@@ -323,7 +323,7 @@ export class DataExporter {
     `;
 
     const totalActions = activitySummary.reduce(
-      (sum, a) => sum + Number(a.count),
+      (sum: number, a: typeof activitySummary[number]) => sum + Number(a.count),
       0
     );
 
@@ -367,13 +367,13 @@ export class DataExporter {
         periodStart: activityStart.toISOString(),
         periodEnd: now.toISOString(),
         actionSummary: activitySummary.reduce(
-          (acc, a) => ({ ...acc, [a.action]: Number(a.count) }),
+          (acc: Record<string, number>, a: typeof activitySummary[number]) => ({ ...acc, [a.action]: Number(a.count) }),
           {} as Record<string, number>
         ),
       },
 
       jobs: [
-        ...assignedJobs.map(j => ({
+        ...assignedJobs.map((j: typeof assignedJobs[number]) => ({
           id: j.id,
           jobNumber: j.jobNumber,
           role: 'assigned' as const,
@@ -381,7 +381,7 @@ export class DataExporter {
           createdAt: j.createdAt.toISOString(),
           completedAt: j.completedAt?.toISOString() || null,
         })),
-        ...createdJobs.map(j => ({
+        ...createdJobs.map((j: typeof createdJobs[number]) => ({
           id: j.id,
           jobNumber: j.jobNumber,
           role: 'created' as const,
@@ -391,13 +391,13 @@ export class DataExporter {
         })),
       ],
 
-      customers: customers.map(c => ({
+      customers: customers.map((c: typeof customers[number]) => ({
         id: c.id,
         name: c.name,
         createdAt: c.createdAt.toISOString(),
       })),
 
-      documents: uploadedPhotos.map(p => ({
+      documents: uploadedPhotos.map((p: typeof uploadedPhotos[number]) => ({
         id: p.id,
         type: p.photoType,
         filename: p.photoUrl.split('/').pop() || 'unknown',
@@ -406,7 +406,7 @@ export class DataExporter {
         entityId: p.jobId,
       })),
 
-      loginHistory: loginHistory.map(l => ({
+      loginHistory: loginHistory.map((l: typeof loginHistory[number]) => ({
         timestamp: l.created_at.toISOString(),
         ipAddress: (l.metadata?.ipAddress as string) || null,
         userAgent: (l.metadata?.userAgent as string) || null,

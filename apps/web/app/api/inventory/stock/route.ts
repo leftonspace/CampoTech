@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       const warehouseId = searchParams.get('warehouseId');
       const lowStockOnly = searchParams.get('lowStock') === 'true';
 
-      const where: Prisma.InventoryLevelWhereInput = {
+      const where: Record<string, unknown> = {
         organizationId: session.organizationId,
       };
 
@@ -70,16 +70,16 @@ export async function GET(request: NextRequest) {
       let filteredLevels = levels;
       if (lowStockOnly) {
         filteredLevels = levels.filter(
-          (level) =>
+          (level: typeof levels[number]) =>
             level.product.trackInventory &&
             level.quantityOnHand <= level.product.minStockLevel
         );
       }
 
       // Calculate totals
-      const totalOnHand = filteredLevels.reduce((sum, l) => sum + l.quantityOnHand, 0);
-      const totalReserved = filteredLevels.reduce((sum, l) => sum + l.quantityReserved, 0);
-      const totalAvailable = filteredLevels.reduce((sum, l) => sum + l.quantityAvailable, 0);
+      const totalOnHand = filteredLevels.reduce((sum: number, l: typeof filteredLevels[number]) => sum + l.quantityOnHand, 0);
+      const totalReserved = filteredLevels.reduce((sum: number, l: typeof filteredLevels[number]) => sum + l.quantityReserved, 0);
+      const totalAvailable = filteredLevels.reduce((sum: number, l: typeof filteredLevels[number]) => sum + l.quantityAvailable, 0);
 
       return NextResponse.json({
         success: true,
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       const page = parseInt(searchParams.get('page') || '1', 10);
       const pageSize = parseInt(searchParams.get('pageSize') || '50', 10);
 
-      const where: Prisma.StockMovementWhereInput = {
+      const where: Record<string, unknown> = {
         organizationId: session.organizationId,
       };
 
@@ -127,10 +127,10 @@ export async function GET(request: NextRequest) {
       if (startDate || endDate) {
         where.performedAt = {};
         if (startDate) {
-          where.performedAt.gte = new Date(startDate);
+          (where.performedAt as any).gte = new Date(startDate);
         }
         if (endDate) {
-          where.performedAt.lte = new Date(endDate);
+          (where.performedAt as any).lte = new Date(endDate);
         }
       }
 
@@ -177,17 +177,17 @@ export async function GET(request: NextRequest) {
       const startDate = searchParams.get('startDate');
       const endDate = searchParams.get('endDate');
 
-      const where: Prisma.StockMovementWhereInput = {
+      const where: Record<string, unknown> = {
         organizationId: session.organizationId,
       };
 
       if (startDate || endDate) {
         where.performedAt = {};
         if (startDate) {
-          where.performedAt.gte = new Date(startDate);
+          (where.performedAt as any).gte = new Date(startDate);
         }
         if (endDate) {
-          where.performedAt.lte = new Date(endDate);
+          (where.performedAt as any).lte = new Date(endDate);
         }
       }
 
@@ -240,9 +240,9 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      const totalReserved = reservations.reduce((sum, r) => sum + r.quantity, 0);
+      const totalReserved = reservations.reduce((sum: number, r: typeof reservations[number]) => sum + r.quantity, 0);
       const reservedValue = reservations.reduce(
-        (sum, r) => sum + r.quantity * Number(r.product.salePrice),
+        (sum: number, r: typeof reservations[number]) => sum + r.quantity * Number(r.product.salePrice),
         0
       );
 
@@ -262,7 +262,7 @@ export async function GET(request: NextRequest) {
       const page = parseInt(searchParams.get('page') || '1', 10);
       const pageSize = parseInt(searchParams.get('pageSize') || '20', 10);
 
-      const where: Prisma.InventoryCountWhereInput = {
+      const where: Record<string, unknown> = {
         organizationId: session.organizationId,
       };
 
@@ -512,7 +512,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Execute transfer in a transaction
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: typeof prisma) => {
         // Reduce source
         await tx.inventoryLevel.update({
           where: { id: sourceLevel.id },
@@ -599,7 +599,7 @@ export async function POST(request: NextRequest) {
       const countNumber = `CNT-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
       // Get products to count
-      const where: Prisma.ProductWhereInput = {
+      const where: Record<string, unknown> = {
         organizationId: session.organizationId,
         isActive: true,
         trackInventory: true,
@@ -629,7 +629,7 @@ export async function POST(request: NextRequest) {
           totalItems: products.length,
           notes,
           items: {
-            create: products.map((product) => ({
+            create: products.map((product: typeof products[number]) => ({
               productId: product.id,
               expectedQty: product.inventoryLevels[0]?.quantityOnHand || 0,
             })),

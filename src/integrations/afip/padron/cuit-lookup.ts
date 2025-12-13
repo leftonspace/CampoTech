@@ -426,8 +426,3 @@ export function resetCUITLookupClient(): void {
   cuitLookupClient = null;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// EXPORTS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-export { validateCUITFormat, formatCUIT, cleanCUIT };

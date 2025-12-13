@@ -516,7 +516,7 @@ export class InterLocationDispatchService {
 
     return {
       organizationId,
-      locations: locations.map((l) => ({
+      locations: locations.map((l: typeof locations[number]) => ({
         id: l.id,
         name: l.name,
         coordinates: l.coordinates as Coordinates | null,
@@ -570,8 +570,8 @@ export class InterLocationDispatchService {
         });
 
         const bookedSlots = jobs
-          .filter((j) => j.scheduledTimeSlot)
-          .map((j) => {
+          .filter((j: typeof jobs[number]) => j.scheduledTimeSlot)
+          .map((j: typeof jobs[number]) => {
             const slot = j.scheduledTimeSlot as { start: string; end: string };
             return { start: slot.start, end: slot.end };
           });
@@ -615,7 +615,7 @@ export class InterLocationDispatchService {
       orderBy: { requestedAt: 'desc' },
     });
 
-    return transfers.map((t) => ({
+    return transfers.map((t: typeof transfers[number]) => ({
       id: t.id,
       jobId: t.referenceId || '',
       technicianId: '', // Would need to track
@@ -658,8 +658,8 @@ export class InterLocationDispatchService {
     });
 
     const currentAssignments = jobs
-      .filter((j) => j.technicianId)
-      .map((j) => ({
+      .filter((j: typeof jobs[number]) => j.technicianId)
+      .map((j: typeof jobs[number]) => ({
         jobId: j.id,
         technicianId: j.technicianId!,
         locationId: j.locationId || '',
@@ -781,9 +781,9 @@ export class InterLocationDispatchService {
       { start: '16:00', end: '18:00' },
     ];
 
-    return workingHours.filter((slot) => {
+    return workingHours.filter((slot: typeof workingHours[number]) => {
       return !bookedSlots.some(
-        (booked) => booked.start === slot.start && booked.end === slot.end
+        (booked: typeof bookedSlots[number]) => booked.start === slot.start && booked.end === slot.end
       );
     });
   }

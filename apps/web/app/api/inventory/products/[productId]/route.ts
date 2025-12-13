@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 interface RouteParams {
   params: Promise<{ productId: string }>;
@@ -117,7 +118,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    console.error('Product detail error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Product detail error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error fetching product' },
       { status: 500 }
@@ -185,7 +187,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Build update data
-    const updateData: Prisma.ProductUpdateInput = {};
+    const updateData: Record<string, unknown> = {};
 
     // Only update fields that are provided
     if (body.sku !== undefined) updateData.sku = body.sku;
@@ -234,9 +236,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       message: 'Producto actualizado exitosamente',
     });
   } catch (error) {
-    console.error('Product update error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Product update error:', err.message);
 
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error instanceof PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
         return NextResponse.json(
           { success: false, error: 'Ya existe un producto con este SKU' },
@@ -327,7 +330,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: 'Producto eliminado exitosamente',
     });
   } catch (error) {
-    console.error('Product delete error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Product delete error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error deleting product' },
       { status: 500 }

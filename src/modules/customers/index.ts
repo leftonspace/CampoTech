@@ -330,5 +330,3 @@ export function createCustomerRoutes(pool: Pool): Router {
 
   return router;
 }
-
-export { CustomerRepository, CustomerService };

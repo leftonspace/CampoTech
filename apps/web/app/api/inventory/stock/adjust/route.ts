@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
     const movementNumber = `ADJ-${datePrefix}-${(count + 1).toString().padStart(4, '0')}`;
 
     // Perform adjustment in transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: typeof prisma) => {
       // Update or create inventory level
       if (inventoryLevel) {
         inventoryLevel = await tx.inventoryLevel.update({

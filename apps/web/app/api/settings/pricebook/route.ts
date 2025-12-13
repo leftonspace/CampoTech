@@ -8,11 +8,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError, Decimal } from '@prisma/client/runtime/library';
 
 // Helper to check if error is "table doesn't exist"
 function isTableNotFoundError(error: unknown): boolean {
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error instanceof PrismaClientKnownRequestError &&
     error.code === 'P2021'
   );
 }
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const activeOnly = searchParams.get('activeOnly') !== 'false';
 
-    const where: Prisma.PriceItemWhereInput = {
+    const where: Record<string, unknown> = {
       organizationId: session.organizationId,
     };
 
@@ -49,9 +50,9 @@ export async function GET(request: NextRequest) {
       name: string;
       description: string | null;
       type: string;
-      price: Prisma.Decimal;
+      price: Decimal;
       unit: string | null;
-      taxRate: Prisma.Decimal;
+      taxRate: Decimal;
       isActive: boolean;
       createdAt: Date;
       updatedAt: Date;
@@ -92,7 +93,8 @@ export async function GET(request: NextRequest) {
       data: transformedItems,
     });
   } catch (error) {
-    console.error('Get pricebook error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Get pricebook error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error obteniendo lista de precios' },
       { status: 500 }
@@ -136,9 +138,9 @@ export async function POST(request: NextRequest) {
           name,
           description: description || null,
           type: (type?.toUpperCase() as 'SERVICE' | 'PRODUCT') || 'SERVICE',
-          price: new Prisma.Decimal(price),
+          price: new Decimal(price),
           unit: unit || null,
-          taxRate: taxRate ? new Prisma.Decimal(taxRate) : new Prisma.Decimal(21),
+          taxRate: taxRate ? new Decimal(taxRate) : new Decimal(21),
           isActive: isActive !== false,
         },
       });
@@ -171,7 +173,8 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Create price item error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Create price item error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error creando item de precio' },
       { status: 500 }

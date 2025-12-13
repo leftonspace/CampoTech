@@ -169,7 +169,7 @@ export async function GET(
       : null;
 
     // Transform jobs into itinerary items with coordinates and travel times
-    const itinerary = jobs.map((job, index) => {
+    const itinerary = jobs.map((job: typeof jobs[number], index: number) => {
       const timeSlot = job.scheduledTimeSlot as { start?: string; end?: string } | null;
       const trackingSession = job.trackingSessions[0];
       const { formatted, lat, lng } = parseAddress(job.customer.address);
@@ -224,20 +224,20 @@ export async function GET(
 
     // Calculate summary stats
     const totalTravelMinutes = itinerary.reduce(
-      (sum, item) => sum + (item.travelTimeFromPrevious || 0),
+      (sum: number, item: typeof itinerary[number]) => sum + (item.travelTimeFromPrevious || 0),
       0
     );
 
     const stats = {
       total: jobs.length,
-      completed: jobs.filter((j) => j.status === 'COMPLETED').length,
-      inProgress: jobs.filter((j) => j.status === 'IN_PROGRESS').length,
-      enRoute: jobs.filter((j) => j.status === 'EN_ROUTE').length,
-      pending: jobs.filter((j) => ['PENDING', 'ASSIGNED'].includes(j.status)).length,
-      totalEstimatedMinutes: jobs.reduce((sum, j) => sum + (j.estimatedDuration || 0), 0),
+      completed: jobs.filter((j: typeof jobs[number]) => j.status === 'COMPLETED').length,
+      inProgress: jobs.filter((j: typeof jobs[number]) => j.status === 'IN_PROGRESS').length,
+      enRoute: jobs.filter((j: typeof jobs[number]) => j.status === 'EN_ROUTE').length,
+      pending: jobs.filter((j: typeof jobs[number]) => ['PENDING', 'ASSIGNED'].includes(j.status)).length,
+      totalEstimatedMinutes: jobs.reduce((sum: number, j: typeof jobs[number]) => sum + (j.estimatedDuration || 0), 0),
       totalActualMinutes: jobs
-        .filter((j) => j.actualDuration)
-        .reduce((sum, j) => sum + (j.actualDuration || 0), 0),
+        .filter((j: typeof jobs[number]) => j.actualDuration)
+        .reduce((sum: number, j: typeof jobs[number]) => sum + (j.actualDuration || 0), 0),
       totalTravelMinutes,
     };
 

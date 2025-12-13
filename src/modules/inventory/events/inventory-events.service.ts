@@ -318,7 +318,7 @@ export function subscribeToStockAlerts(
   );
 
   return () => {
-    unsubscribers.forEach((unsub) => unsub());
+    unsubscribers.forEach((unsub: typeof unsubscribers[number]) => unsub());
   };
 }
 
@@ -546,21 +546,3 @@ async function getInventoryManagers(organizationId: string): Promise<Array<{ id:
     select: { id: true },
   });
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// EXPORTS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-export {
-  InventoryEventTypes,
-  publishStockLevelChanged,
-  publishStockMovement,
-  publishStockAlert,
-  publishPOEvent,
-  publishVehicleStockEvent,
-  publishReplenishmentEvent,
-  subscribeToInventoryEvent,
-  subscribeToStockAlerts,
-  subscribeToStockChanges,
-  initializeInventoryNotifications,
-};

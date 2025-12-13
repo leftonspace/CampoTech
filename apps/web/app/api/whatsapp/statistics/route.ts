@@ -229,7 +229,7 @@ export async function GET(request: NextRequest) {
           topUsed: topTemplates,
         },
         chart: {
-          daily: dailyMessages.map(d => ({
+          daily: dailyMessages.map((d: typeof dailyMessages[number]) => ({
             date: d.date,
             count: Number(d.count),
           })),

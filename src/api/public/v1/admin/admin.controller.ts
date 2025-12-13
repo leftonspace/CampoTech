@@ -76,7 +76,7 @@ export function createAdminController(pool: Pool): Router {
   const router = Router();
 
   // Require admin scope for all routes
-  router.use(requireScopes(['admin:read']));
+  router.use(requireScopes('admin:read'));
 
   // ─────────────────────────────────────────────────────────────────────────────
   // GET /admin/health - System health check
@@ -302,7 +302,7 @@ export function createAdminController(pool: Pool): Router {
 
   router.post(
     '/dlq/:id/retry',
-    requireScopes(['admin:write']),
+    requireScopes('admin:write'),
     async (req: Request, res: Response) => {
       try {
         const { id } = req.params;
@@ -401,7 +401,7 @@ export function createAdminController(pool: Pool): Router {
 
   router.post(
     '/dlq/:id/discard',
-    requireScopes(['admin:write']),
+    requireScopes('admin:write'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -507,7 +507,7 @@ export function createAdminController(pool: Pool): Router {
 
   router.post(
     '/panic/:service',
-    requireScopes(['admin:write']),
+    requireScopes('admin:write'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;

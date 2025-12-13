@@ -174,7 +174,7 @@ export function createInvoicesController(pool: Pool): Router {
 
   router.get(
     '/',
-    requireScopes(readScope('invoices')),
+    readScope('invoices'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -342,7 +342,7 @@ export function createInvoicesController(pool: Pool): Router {
 
   router.get(
     '/:id',
-    requireScopes(readScope('invoices')),
+    readScope('invoices'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -412,7 +412,7 @@ export function createInvoicesController(pool: Pool): Router {
 
   router.post(
     '/',
-    requireScopes(writeScope('invoices')),
+    writeScope('invoices'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -539,7 +539,7 @@ export function createInvoicesController(pool: Pool): Router {
 
   router.put(
     '/:id',
-    requireScopes(writeScope('invoices')),
+    writeScope('invoices'),
     async (req: Request, res: Response) => {
       await handleUpdateInvoice(pool, req, res);
     }
@@ -547,7 +547,7 @@ export function createInvoicesController(pool: Pool): Router {
 
   router.patch(
     '/:id',
-    requireScopes(writeScope('invoices')),
+    writeScope('invoices'),
     async (req: Request, res: Response) => {
       await handleUpdateInvoice(pool, req, res);
     }
@@ -559,7 +559,7 @@ export function createInvoicesController(pool: Pool): Router {
 
   router.delete(
     '/:id',
-    requireScopes(deleteScope('invoices')),
+    deleteScope('invoices'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -612,7 +612,7 @@ export function createInvoicesController(pool: Pool): Router {
   // Send invoice
   router.post(
     '/:id/send',
-    requireScopes(writeScope('invoices')),
+    writeScope('invoices'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -663,7 +663,7 @@ export function createInvoicesController(pool: Pool): Router {
   // Record payment
   router.post(
     '/:id/payments',
-    requireScopes(writeScope('invoices'), writeScope('payments')),
+    requireScopes('write:invoices', 'write:payments'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -741,7 +741,7 @@ export function createInvoicesController(pool: Pool): Router {
   // Refund invoice
   router.post(
     '/:id/refund',
-    requireScopes(writeScope('invoices'), writeScope('payments')),
+    requireScopes('write:invoices', 'write:payments'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -818,7 +818,7 @@ export function createInvoicesController(pool: Pool): Router {
   // Void invoice
   router.post(
     '/:id/void',
-    requireScopes(writeScope('invoices')),
+    writeScope('invoices'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -869,7 +869,7 @@ export function createInvoicesController(pool: Pool): Router {
   // Mark as viewed (for tracking when customer opens invoice link)
   router.post(
     '/:id/viewed',
-    requireScopes(writeScope('invoices')),
+    writeScope('invoices'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -909,7 +909,7 @@ export function createInvoicesController(pool: Pool): Router {
 
   router.post(
     '/batch-send',
-    requireScopes(writeScope('invoices')),
+    writeScope('invoices'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -955,7 +955,7 @@ export function createInvoicesController(pool: Pool): Router {
 
   router.post(
     '/batch-delete',
-    requireScopes(deleteScope('invoices')),
+    deleteScope('invoices'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;

@@ -9,10 +9,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 function isTableNotFoundError(error: unknown): boolean {
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error instanceof PrismaClientKnownRequestError &&
     error.code === 'P2021'
   );
 }
@@ -57,7 +58,8 @@ export async function GET(
         { status: 503 }
       );
     }
-    console.error('Get service type error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Get service type error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error obteniendo tipo de servicio' },
       { status: 500 }
@@ -128,7 +130,8 @@ export async function PUT(
         { status: 503 }
       );
     }
-    console.error('Update service type error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Update service type error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error actualizando tipo de servicio' },
       { status: 500 }
@@ -190,7 +193,8 @@ export async function DELETE(
         { status: 503 }
       );
     }
-    console.error('Delete service type error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Delete service type error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error eliminando tipo de servicio' },
       { status: 500 }

@@ -412,7 +412,7 @@ export async function getMovementSummaryByType(
     _sum: { quantity: true },
   });
 
-  return movements.map(m => ({
+  return movements.map((m: typeof movements[number]) => ({
     type: m.movementType as MovementType,
     count: m._count,
     totalQuantity: m._sum.quantity || 0,
@@ -442,7 +442,7 @@ export async function getDailyMovementTotals(
   // Group by date
   const dailyTotals: Record<string, { in: number; out: number }> = {};
 
-  for (const mov of movements) {
+  for (const mov of movements as typeof movements) {
     const dateKey = mov.performedAt.toISOString().slice(0, 10);
     if (!dailyTotals[dateKey]) {
       dailyTotals[dateKey] = { in: 0, out: 0 };
@@ -455,8 +455,8 @@ export async function getDailyMovementTotals(
   }
 
   return Object.entries(dailyTotals)
-    .map(([date, totals]) => ({ date, ...totals }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .map(([date, totals]: [string, { in: number; out: number }]) => ({ date, ...totals }))
+    .sort((a: { date: string }, b: { date: string }) => a.date.localeCompare(b.date));
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

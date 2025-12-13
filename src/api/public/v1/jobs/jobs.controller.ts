@@ -88,7 +88,7 @@ export function createJobsController(pool: Pool): Router {
 
   router.get(
     '/',
-    requireScopes(readScope('jobs')),
+    readScope('jobs'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -258,7 +258,7 @@ export function createJobsController(pool: Pool): Router {
 
   router.get(
     '/:id',
-    requireScopes(readScope('jobs')),
+    readScope('jobs'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -333,7 +333,7 @@ export function createJobsController(pool: Pool): Router {
 
   router.post(
     '/',
-    requireScopes(writeScope('jobs')),
+    writeScope('jobs'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -463,7 +463,7 @@ export function createJobsController(pool: Pool): Router {
 
   router.put(
     '/:id',
-    requireScopes(writeScope('jobs')),
+    writeScope('jobs'),
     async (req: Request, res: Response) => {
       await handleUpdateJob(pool, req, res);
     }
@@ -471,7 +471,7 @@ export function createJobsController(pool: Pool): Router {
 
   router.patch(
     '/:id',
-    requireScopes(writeScope('jobs')),
+    writeScope('jobs'),
     async (req: Request, res: Response) => {
       await handleUpdateJob(pool, req, res);
     }
@@ -483,7 +483,7 @@ export function createJobsController(pool: Pool): Router {
 
   router.delete(
     '/:id',
-    requireScopes(deleteScope('jobs')),
+    deleteScope('jobs'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -519,7 +519,7 @@ export function createJobsController(pool: Pool): Router {
   // Assign technician
   router.post(
     '/:id/assign',
-    requireScopes(writeScope('jobs')),
+    writeScope('jobs'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -588,7 +588,7 @@ export function createJobsController(pool: Pool): Router {
   // Schedule job
   router.post(
     '/:id/schedule',
-    requireScopes(writeScope('jobs')),
+    writeScope('jobs'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -644,7 +644,7 @@ export function createJobsController(pool: Pool): Router {
   // Start job
   router.post(
     '/:id/start',
-    requireScopes(writeScope('jobs')),
+    writeScope('jobs'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -698,7 +698,7 @@ export function createJobsController(pool: Pool): Router {
   // Complete job
   router.post(
     '/:id/complete',
-    requireScopes(writeScope('jobs')),
+    writeScope('jobs'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -781,7 +781,7 @@ export function createJobsController(pool: Pool): Router {
   // Cancel job
   router.post(
     '/:id/cancel',
-    requireScopes(writeScope('jobs')),
+    writeScope('jobs'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -841,7 +841,7 @@ export function createJobsController(pool: Pool): Router {
   // ─────────────────────────────────────────────────────────────────────────────
   router.post(
     '/:id/status',
-    requireScopes(writeScope('jobs')),
+    writeScope('jobs'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -982,7 +982,7 @@ export function createJobsController(pool: Pool): Router {
   // Add note
   router.post(
     '/:id/notes',
-    requireScopes(writeScope('jobs')),
+    writeScope('jobs'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -1042,7 +1042,7 @@ export function createJobsController(pool: Pool): Router {
 
   router.post(
     '/batch-update',
-    requireScopes(writeScope('jobs')),
+    writeScope('jobs'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -1114,7 +1114,7 @@ export function createJobsController(pool: Pool): Router {
 
   router.post(
     '/batch-delete',
-    requireScopes(deleteScope('jobs')),
+    deleteScope('jobs'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;

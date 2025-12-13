@@ -63,11 +63,11 @@ export class TrackingWebSocketServer {
   }
 
   private setupServer(): void {
-    this.wss.on('connection', (socket, request) => {
+    this.wss.on('connection', (socket: WebSocket, request: IncomingMessage) => {
       this.handleConnection(socket, request);
     });
 
-    this.wss.on('error', (error) => {
+    this.wss.on('error', (error: Error) => {
       console.error('[Tracking WS] Server error:', error);
     });
   }
@@ -81,7 +81,7 @@ export class TrackingWebSocketServer {
     const requestedJobId = jobIdMatch?.[1];
 
     // Set up initial message handler for authentication
-    socket.once('message', async (data) => {
+    socket.once('message', async (data: Buffer | ArrayBuffer | Buffer[]) => {
       try {
         const message = JSON.parse(data.toString()) as WSMessage;
 
@@ -189,7 +189,7 @@ export class TrackingWebSocketServer {
   private setupClientHandlers(client: WSClient): void {
     const socket = client.socket;
 
-    socket.on('message', (data) => {
+    socket.on('message', (data: Buffer | ArrayBuffer | Buffer[]) => {
       this.handleClientMessage(client, data.toString());
     });
 
@@ -197,7 +197,7 @@ export class TrackingWebSocketServer {
       this.handleClientDisconnect(client);
     });
 
-    socket.on('error', (error) => {
+    socket.on('error', (error: Error) => {
       console.error(`[Tracking WS] Client ${client.id} error:`, error);
       this.handleClientDisconnect(client);
     });
@@ -323,7 +323,7 @@ export class TrackingWebSocketServer {
     }
 
     // Update and broadcast to each job's subscribers
-    for (const jobId of activeJobs) {
+    for (const jobId of activeJobs as Set<string>) {
       await this.updateJobLocation(jobId, technicianId, location);
     }
   }
@@ -455,7 +455,7 @@ export class TrackingWebSocketServer {
       timestamp: new Date().toISOString(),
     });
 
-    for (const clientId of subscribers) {
+    for (const clientId of subscribers as Set<string>) {
       const client = this.clients.get(clientId);
       if (client && client.socket.readyState === WebSocket.OPEN) {
         client.socket.send(messageStr);
@@ -465,12 +465,12 @@ export class TrackingWebSocketServer {
 
   private handleClientDisconnect(client: WSClient): void {
     // Remove from all subscriptions
-    for (const jobId of client.subscribedJobs) {
+    for (const jobId of client.subscribedJobs as Set<string>) {
       this.jobSubscriptions.get(jobId)?.delete(client.id);
     }
 
     // Clean up empty subscription sets
-    for (const [jobId, subs] of this.jobSubscriptions.entries()) {
+    for (const [jobId, subs] of this.jobSubscriptions.entries() as IterableIterator<[string, Set<string>]>) {
       if (subs.size === 0) {
         this.jobSubscriptions.delete(jobId);
       }
@@ -492,7 +492,7 @@ export class TrackingWebSocketServer {
     this.pingInterval = setInterval(() => {
       const now = Date.now();
 
-      for (const [clientId, client] of this.clients.entries()) {
+      for (const [clientId, client] of this.clients.entries() as IterableIterator<[string, WSClient]>) {
         // Check for stale connections
         if (client.lastPing) {
           const timeSinceLastPing = now - client.lastPing.getTime();
@@ -530,7 +530,7 @@ export class TrackingWebSocketServer {
     let customers = 0;
     let technicians = 0;
 
-    for (const client of this.clients.values()) {
+    for (const client of this.clients.values() as IterableIterator<WSClient>) {
       if (client.type === 'customer') customers++;
       if (client.type === 'technician') technicians++;
     }
@@ -547,7 +547,7 @@ export class TrackingWebSocketServer {
     }
 
     // Close all client connections
-    for (const client of this.clients.values()) {
+    for (const client of this.clients.values() as IterableIterator<WSClient>) {
       client.socket.close();
     }
 

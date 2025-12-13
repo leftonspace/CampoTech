@@ -72,7 +72,7 @@ export async function createProduct(input: CreateProductInput): Promise<Product>
       maxStockLevel: input.maxStockLevel ?? null,
       reorderQty: input.reorderQty ?? null,
       weight: input.weight ?? null,
-      dimensions: input.dimensions as Prisma.InputJsonValue ?? null,
+      dimensions: input.dimensions as unknown ?? null,
       imageUrl: input.imageUrl || null,
       images: input.images || [],
       isActive: input.isActive ?? true,
@@ -216,7 +216,7 @@ export async function updateProduct(
       maxStockLevel: input.maxStockLevel,
       reorderQty: input.reorderQty,
       weight: input.weight,
-      dimensions: input.dimensions as Prisma.InputJsonValue,
+      dimensions: input.dimensions as unknown,
       imageUrl: input.imageUrl,
       images: input.images,
       isActive: input.isActive,
@@ -392,7 +392,7 @@ export async function listProducts(
   let productsWithInventory: ProductWithInventory[];
 
   if (includeInventory) {
-    productsWithInventory = products.map(p => {
+    productsWithInventory = products.map((p: typeof products[number]) => {
       const levels = (p as any).inventoryLevels || [];
       type LevelType = typeof levels[number];
       const totalOnHand = levels.reduce((sum: number, l: LevelType) => sum + l.quantityOnHand, 0);
@@ -417,7 +417,7 @@ export async function listProducts(
       } as unknown as ProductWithInventory;
     });
   } else {
-    productsWithInventory = products.map(p => ({
+    productsWithInventory = products.map((p: typeof products[number]) => ({
       ...p,
       totalOnHand: 0,
       totalReserved: 0,
@@ -429,12 +429,12 @@ export async function listProducts(
   // Apply stock filters after inventory calculation
   if (filters.lowStock) {
     productsWithInventory = productsWithInventory.filter(
-      p => p.stockStatus === 'LOW_STOCK'
+      (p: typeof productsWithInventory[number]) => p.stockStatus === 'LOW_STOCK'
     );
   }
   if (filters.outOfStock) {
     productsWithInventory = productsWithInventory.filter(
-      p => p.stockStatus === 'OUT_OF_STOCK'
+      (p: typeof productsWithInventory[number]) => p.stockStatus === 'OUT_OF_STOCK'
     );
   }
 
@@ -639,7 +639,7 @@ export async function bulkUpdatePrices(
 ): Promise<{ updated: number }> {
   let updated = 0;
 
-  for (const productId of productIds) {
+  for (const productId of productIds as string[]) {
     const product = await prisma.product.findFirst({
       where: {
         id: productId,
