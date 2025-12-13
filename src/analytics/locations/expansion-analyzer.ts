@@ -120,7 +120,7 @@ export async function analyzeExpansionOpportunities(
 
   // Calculate current state metrics
   const totalCustomers = await db.customer.count({
-    where: { organizationId, isActive: true },
+    where: { organizationId },
   });
 
   const currentState = {
