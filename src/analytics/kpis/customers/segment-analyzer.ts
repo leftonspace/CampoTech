@@ -156,7 +156,7 @@ export async function segmentCustomers(
       },
       invoices: {
         where: {
-          status: { in: ['paid', 'partial'] },
+          status: { in: ['PAID', 'PARTIAL'] },
         },
         select: {
           total: true,
@@ -282,7 +282,7 @@ export async function calculateRFMScores(
       },
       invoices: {
         where: {
-          status: { in: ['paid', 'partial'] },
+          status: { in: ['PAID', 'PARTIAL'] },
         },
         select: {
           total: true,
@@ -485,7 +485,7 @@ export async function getCustomerProfiles(
       },
       invoices: {
         where: {
-          status: { in: ['paid', 'partial'] },
+          status: { in: ['PAID', 'PARTIAL'] },
         },
         select: {
           total: true,
