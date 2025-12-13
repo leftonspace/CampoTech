@@ -117,9 +117,9 @@ export async function GET(req: NextRequest) {
       : 0;
 
     // Churned customers (had activity before but not in this period)
-    const previousActiveSet = new Set(previousJobs.map((j: typeof previousJobs[number]) => j.customerId));
+    const previousActiveSet = new Set(previousJobs.map((j: typeof previousJobs[number]) => j.customerId).filter((id): id is string => typeof id === 'string'));
     const churnedCustomers = Array.from(previousActiveSet).filter(
-      (id: string | null) => !activeCustomerIds.has(id)
+      (id) => !activeCustomerIds.has(id)
     ).length;
     const churnRate = previousActiveIds.size > 0
       ? (churnedCustomers / previousActiveIds.size) * 100

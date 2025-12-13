@@ -114,7 +114,16 @@ export async function GET(request: NextRequest) {
         take: 10,
       });
 
-      const estimates = [];
+      const estimates: Array<{
+        productId: string;
+        productName: string;
+        sku: string;
+        estimatedQty: number;
+        unitPrice: number;
+        totalPrice: number;
+        inStock: boolean;
+        availableQty: number;
+      }> = [];
       for (const product of commonProducts) {
         let availableQty = 0;
 

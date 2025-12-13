@@ -427,8 +427,7 @@ export async function sendMessage(
 
   // Queue for sending
   try {
-    await QueueManager.getInstance().addToQueue('WHATSAPP', {
-      type: 'send_message',
+    await QueueManager.getInstance().addToQueue('WHATSAPP', 'send_message', {
       organizationId,
       messageId: message.id,
       to: conversation.customerPhone,
@@ -493,8 +492,7 @@ export async function sendTemplate(
 
   // Queue for sending
   try {
-    await QueueManager.getInstance().addToQueue('WHATSAPP', {
-      type: 'send_template',
+    await QueueManager.getInstance().addToQueue('WHATSAPP', 'send_template', {
       organizationId,
       messageId: message.id,
       to: normalizePhone(phone),

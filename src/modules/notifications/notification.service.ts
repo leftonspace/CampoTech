@@ -303,8 +303,7 @@ async function deliverWhatsApp(payload: any): Promise<void> {
     await sendTemplateMessage(config, phone, template);
   } else {
     // Queue as text message (requires 24h window)
-    await QueueManager.getInstance().addToQueue('WHATSAPP', {
-      type: 'send_message',
+    await QueueManager.getInstance().addToQueue('WHATSAPP', 'send_message', {
       organizationId,
       to: phone,
       content: body,
@@ -321,8 +320,7 @@ async function deliverPush(payload: any): Promise<void> {
   }
 
   // Queue push notification
-  await QueueManager.getInstance().addToQueue('NOTIFICATION', {
-    type: 'push',
+  await QueueManager.getInstance().addToQueue('NOTIFICATION', 'push', {
     token: user.pushToken,
     title,
     body,
@@ -339,8 +337,7 @@ async function deliverEmail(payload: any): Promise<void> {
   }
 
   // Queue email
-  await QueueManager.getInstance().addToQueue('NOTIFICATION', {
-    type: 'email',
+  await QueueManager.getInstance().addToQueue('NOTIFICATION', 'email', {
     to: user.email,
     subject: title,
     body,
@@ -353,8 +350,7 @@ async function deliverSms(payload: any): Promise<void> {
   const { user, body } = payload;
 
   // SMS should only be used for OTP and critical alerts
-  await QueueManager.getInstance().addToQueue('NOTIFICATION', {
-    type: 'sms',
+  await QueueManager.getInstance().addToQueue('NOTIFICATION', 'sms', {
     to: user.phone,
     body,
   });
@@ -468,8 +464,7 @@ async function queueDeferredNotification(
     deliverAt.setDate(deliverAt.getDate() + 1);
   }
 
-  await QueueManager.getInstance().addToQueue('SCHEDULED', {
-    type: 'deferred_notification',
+  await QueueManager.getInstance().addToQueue('SCHEDULED', 'deferred_notification', {
     payload,
     deliverAt: deliverAt.toISOString(),
   });

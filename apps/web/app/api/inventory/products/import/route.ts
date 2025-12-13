@@ -105,7 +105,8 @@ export async function POST(request: NextRequest) {
         // Get category ID if provided
         let categoryId: string | null = null;
         if (row.categoryCode) {
-          categoryId = categoryMap.get(row.categoryCode.toLowerCase()) || null;
+          const mappedCategory = categoryMap.get(row.categoryCode.toLowerCase());
+          categoryId = typeof mappedCategory === 'string' ? mappedCategory : null;
         }
 
         // Parse numeric values

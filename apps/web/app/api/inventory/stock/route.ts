@@ -5,8 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+import { prisma, TransactionClient } from '@/lib/prisma';
 
 /**
  * GET /api/inventory/stock
@@ -512,7 +511,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Execute transfer in a transaction
-      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await prisma.$transaction(async (tx: TransactionClient) => {
         // Reduce source
         await tx.inventoryLevel.update({
           where: { id: sourceLevel.id },
