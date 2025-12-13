@@ -150,7 +150,6 @@ export async function segmentCustomers(
       jobs: {
         select: {
           id: true,
-          actualTotal: true,
           completedAt: true,
           createdAt: true,
         },
@@ -480,7 +479,6 @@ export async function getCustomerProfiles(
     include: {
       jobs: {
         select: {
-          actualTotal: true,
           completedAt: true,
           createdAt: true,
         },
