@@ -167,8 +167,12 @@ export async function getCustomerDimension(
       jobs: {
         select: {
           id: true,
-          actualTotal: true,
           completedAt: true,
+          invoice: {
+            select: {
+              total: true,
+            },
+          },
         },
       },
     },
@@ -181,7 +185,7 @@ export async function getCustomerDimension(
   return customers.map((customer) => {
     const totalJobs = customer.jobs.length;
     const totalRevenue = customer.jobs.reduce(
-      (sum, job) => sum + (job.actualTotal?.toNumber() || 0),
+      (sum, job) => sum + (job.invoice?.total?.toNumber() || 0),
       0
     );
     const lastJobAt = customer.jobs
