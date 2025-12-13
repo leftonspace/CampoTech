@@ -2645,6 +2645,14 @@ enum WaTemplateStatus {
   DISABLED
 }
 
+enum WaTemplateHeaderType {
+  TEXT
+  IMAGE
+  VIDEO
+  DOCUMENT
+  LOCATION
+}
+
 // Outbound Message Queue
 model WaOutboundQueue {
   id                    String   @id @default(cuid())

@@ -10,8 +10,10 @@
 export * from './notifications.service';
 export * from './notification-triggers.service';
 export * from './realtime.service';
+export * from './media.service';
 
 // Default exports
 export { default as WhatsAppNotifications } from './notifications.service';
 export { default as NotificationTriggers } from './notification-triggers.service';
 export { default as WhatsAppRealtime, realtimeService } from './realtime.service';
+export { default as WhatsAppMedia } from './media.service';

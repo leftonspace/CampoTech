@@ -11,6 +11,7 @@ import {
   notifyJobScheduled,
   notifyTechnicianAssigned,
   notifyTechnicianOnTheWay,
+  notifyTechnicianArrived,
   notifyJobStarted,
   notifyJobCompleted,
   notifyInvoiceReady,
@@ -91,6 +92,34 @@ export async function onTechnicianEnRoute(
     }
   } catch (error) {
     log.error('Error in onTechnicianEnRoute handler', {
+      jobId,
+      technicianId,
+      error: error instanceof Error ? error.message : 'Unknown',
+    });
+  }
+}
+
+/**
+ * Handle technician arrived event
+ */
+export async function onTechnicianArrived(
+  jobId: string,
+  technicianId: string
+): Promise<void> {
+  try {
+    log.info('Technician arrived - triggering WhatsApp notification', {
+      jobId,
+      technicianId,
+    });
+    const result = await notifyTechnicianArrived(jobId);
+    if (!result.success) {
+      log.warn('Failed to send technician arrived notification', {
+        jobId,
+        error: result.error,
+      });
+    }
+  } catch (error) {
+    log.error('Error in onTechnicianArrived handler', {
       jobId,
       technicianId,
       error: error instanceof Error ? error.message : 'Unknown',
@@ -205,6 +234,7 @@ type JobStatus =
   | 'SCHEDULED'
   | 'ASSIGNED'
   | 'EN_ROUTE'
+  | 'ARRIVED'
   | 'IN_PROGRESS'
   | 'COMPLETED'
   | 'CANCELLED';
@@ -245,6 +275,12 @@ export async function onJobStatusChange(
       }
       break;
 
+    case 'ARRIVED':
+      if (metadata?.technicianId) {
+        await onTechnicianArrived(jobId, metadata.technicianId);
+      }
+      break;
+
     case 'IN_PROGRESS':
       await onJobStarted(jobId);
       break;
@@ -263,6 +299,7 @@ export default {
   onJobScheduled,
   onTechnicianAssigned,
   onTechnicianEnRoute,
+  onTechnicianArrived,
   onJobStarted,
   onJobCompleted,
   onInvoiceCreated,
