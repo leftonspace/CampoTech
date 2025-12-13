@@ -252,7 +252,7 @@ export class MPFallbackHandler {
         // Update invoice status
         await db.invoice.update({
           where: { id: fallback.invoiceId },
-          data: { status: 'paid' },
+          data: { status: 'PAID' },
         });
 
         log.info('Fallback payment resolved', {

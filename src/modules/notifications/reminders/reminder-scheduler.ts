@@ -201,7 +201,7 @@ export async function rescheduleJobReminders(
   const job = await db.job.findUnique({
     where: { id: jobId },
     include: {
-      assignedTo: true,
+      technician: true,
       customer: true,
     },
   });
@@ -213,10 +213,10 @@ export async function rescheduleJobReminders(
   const reminders: ScheduledReminder[] = [];
 
   // Schedule technician reminders
-  if (job.assignedToId) {
+  if (job.technicianId) {
     const techReminders = await scheduleJobReminders({
       jobId,
-      userId: job.assignedToId,
+      userId: job.technicianId,
       organizationId: job.organizationId,
       scheduledAt: newScheduledAt,
       reminderType: 'technician',

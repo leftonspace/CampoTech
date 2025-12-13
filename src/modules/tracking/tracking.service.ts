@@ -484,7 +484,7 @@ async function sendTrackingNotification(
     if (!config) return;
 
     const technician = await db.user.findUnique({
-      where: { id: job.assignedToId },
+      where: { id: job.technicianId },
       select: { name: true },
     });
 

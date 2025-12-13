@@ -394,7 +394,7 @@ export async function getAggregatedJobs(
     const period = formatPeriod(job.createdAt, granularity);
     const current = aggregated.get(period) || { completed: 0, total: 0 };
     current.total++;
-    if (job.status === 'completado') {
+    if (job.status === 'COMPLETED') {
       current.completed++;
     }
     aggregated.set(period, current);

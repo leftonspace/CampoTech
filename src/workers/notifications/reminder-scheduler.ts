@@ -26,11 +26,11 @@ interface ScheduledReminder {
 interface JobWithDetails {
   id: string;
   description: string | null;
-  scheduledAt: Date | null;
+  scheduledDate: Date | null;
   customer: {
     name: string;
   } | null;
-  assignedTo: {
+  technician: {
     id: string;
     name: string;
   } | null;
@@ -52,24 +52,24 @@ export async function scheduleJobReminders(jobId: string): Promise<void> {
     const job = await db.job.findUnique({
       where: { id: jobId },
       include: {
-        assignedTo: { select: { id: true, name: true } },
+        technician: { select: { id: true, name: true } },
         organization: { select: { id: true, businessName: true } },
       },
     });
 
-    if (!job || !job.assignedToId || !job.scheduledAt) {
+    if (!job || !job.technicianId || !job.scheduledDate) {
       log.debug('Job not eligible for reminders', { jobId });
       return;
     }
 
     // Get technician's reminder preferences
-    const preferences = await getUserPreferences(job.assignedToId);
+    const preferences = await getUserPreferences(job.technicianId);
     const intervals = preferences.reminderIntervals || [1440, 60, 30]; // Default: 24h, 1h, 30min
 
     // Cancel any existing reminders for this job
     await cancelJobReminders(jobId);
 
-    const scheduledAt = new Date(job.scheduledAt);
+    const scheduledAt = new Date(job.scheduledDate);
     const now = new Date();
 
     // Schedule reminders for each interval
@@ -82,7 +82,7 @@ export async function scheduleJobReminders(jobId: string): Promise<void> {
           data: {
             organizationId: job.organizationId,
             jobId: job.id,
-            userId: job.assignedToId,
+            userId: job.technicianId,
             reminderType: getReminderType(minutesBefore),
             scheduledFor: reminderTime,
             status: 'pending',
@@ -91,7 +91,7 @@ export async function scheduleJobReminders(jobId: string): Promise<void> {
 
         log.debug('Scheduled reminder', {
           jobId,
-          userId: job.assignedToId,
+          userId: job.technicianId,
           reminderType: getReminderType(minutesBefore),
           scheduledFor: reminderTime,
         });
