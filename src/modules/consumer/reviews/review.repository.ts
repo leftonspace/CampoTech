@@ -215,7 +215,7 @@ export class ReviewRepository {
        LIMIT 1`,
       [consumerId, businessProfileId]
     );
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   /**
@@ -341,7 +341,7 @@ export class ReviewRepository {
       `DELETE FROM consumer_reviews WHERE id = $1`,
       [id]
     );
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   /**

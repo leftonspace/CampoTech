@@ -51,6 +51,8 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     ],
     defaultDateRange: 'month',
     defaultGranularity: 'day',
+    defaultFilters: {},
+    supportedFormats: ['pdf', 'excel'] as const,
     availableFormats: ['pdf', 'excel', 'csv'],
   },
 
@@ -96,6 +98,8 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     ],
     defaultDateRange: 'month',
     defaultGranularity: 'week',
+    defaultFilters: {},
+    supportedFormats: ['pdf', 'excel'] as const,
     availableFormats: ['pdf', 'excel'],
   },
 
@@ -143,6 +147,8 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     ],
     defaultDateRange: 'month',
     defaultGranularity: 'day',
+    defaultFilters: {},
+    supportedFormats: ['pdf', 'excel'] as const,
     availableFormats: ['pdf', 'excel', 'csv'],
   },
 
@@ -180,6 +186,8 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     ],
     defaultDateRange: 'month',
     defaultGranularity: 'week',
+    defaultFilters: {},
+    supportedFormats: ['pdf', 'excel'] as const,
     availableFormats: ['pdf', 'excel'],
   },
 
@@ -224,6 +232,8 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     ],
     defaultDateRange: 'quarter',
     defaultGranularity: 'month',
+    defaultFilters: {},
+    supportedFormats: ['pdf', 'excel'] as const,
     availableFormats: ['pdf', 'excel'],
   },
 
@@ -263,6 +273,8 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     ],
     defaultDateRange: 'month',
     defaultGranularity: 'week',
+    defaultFilters: {},
+    supportedFormats: ['pdf', 'excel'] as const,
     availableFormats: ['pdf'],
   },
 
@@ -294,6 +306,8 @@ export const REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     ],
     defaultDateRange: 'week',
     defaultGranularity: 'day',
+    defaultFilters: {},
+    supportedFormats: ['pdf', 'excel'] as const,
     availableFormats: ['pdf', 'excel'],
   },
 

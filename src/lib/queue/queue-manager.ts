@@ -131,11 +131,24 @@ const DEFAULT_JOB_OPTIONS: Record<string, JobsOptions> = {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export class QueueManager {
+  private static instance: QueueManager | null = null;
   private connection: Redis;
   private queues: Map<string, Queue> = new Map();
   private workers: Map<string, Worker> = new Map();
   private queueEvents: Map<string, QueueEvents> = new Map();
   private config: QueueConfig;
+
+  /**
+   * Get singleton instance of QueueManager
+   */
+  static getInstance(): QueueManager {
+    if (!QueueManager.instance) {
+      QueueManager.instance = new QueueManager({
+        redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
+      });
+    }
+    return QueueManager.instance;
+  }
 
   constructor(config: QueueConfig) {
     this.config = config;

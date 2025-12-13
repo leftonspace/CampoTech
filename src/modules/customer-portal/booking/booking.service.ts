@@ -417,7 +417,7 @@ export class BookingService {
        RETURNING id`
     );
 
-    if (result.rowCount > 0) {
+    if ((result.rowCount ?? 0) > 0) {
       console.log(`[Booking] Expired ${result.rowCount} pending bookings`);
     }
 

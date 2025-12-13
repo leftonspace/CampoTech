@@ -41,6 +41,8 @@ export const TAX_REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     ],
     defaultDateRange: 'month',
     defaultGranularity: 'day',
+    defaultFilters: {},
+    supportedFormats: ['pdf', 'excel'] as const,
     availableFormats: ['pdf', 'excel'],
   },
 
@@ -66,6 +68,8 @@ export const TAX_REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     ],
     defaultDateRange: 'quarter',
     defaultGranularity: 'month',
+    defaultFilters: {},
+    supportedFormats: ['pdf', 'excel'] as const,
     availableFormats: ['pdf', 'excel'],
   },
 
@@ -90,6 +94,8 @@ export const TAX_REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     ],
     defaultDateRange: 'month',
     defaultGranularity: 'day',
+    defaultFilters: {},
+    supportedFormats: ['pdf', 'excel'] as const,
     availableFormats: ['pdf', 'excel'],
   },
 
@@ -115,6 +121,8 @@ export const TAX_REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     ],
     defaultDateRange: 'month',
     defaultGranularity: 'day',
+    defaultFilters: {},
+    supportedFormats: ['pdf', 'excel'] as const,
     availableFormats: ['pdf', 'excel'],
   },
 
@@ -140,6 +148,8 @@ export const TAX_REPORT_TEMPLATES: Record<string, ReportTemplate> = {
     ],
     defaultDateRange: 'year',
     defaultGranularity: 'month',
+    defaultFilters: {},
+    supportedFormats: ['pdf', 'excel'] as const,
     availableFormats: ['pdf', 'excel'],
   },
 };

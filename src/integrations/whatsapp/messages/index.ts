@@ -10,9 +10,8 @@ export {
   sendTemplateMessage,
   sendJobScheduledTemplate,
   sendInvoiceTemplate,
-  sendPaymentConfirmationTemplate,
-  sendPaymentReminderTemplate,
-  sendWelcomeTemplate,
+  sendPaymentConfirmedTemplate,
+  sendPaymentLinkTemplate,
 } from './template.sender';
 export type { SendTemplateResult, SendTemplateError } from './template.sender';
 

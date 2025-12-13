@@ -512,7 +512,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Execute transfer in a transaction
-      await prisma.$transaction(async (tx: typeof prisma) => {
+      await prisma.$transaction(async (tx) => {
         // Reduce source
         await tx.inventoryLevel.update({
           where: { id: sourceLevel.id },

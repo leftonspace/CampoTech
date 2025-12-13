@@ -176,7 +176,7 @@ export class VerificationService {
       [input.businessProfileId, input.verificationType]
     );
 
-    if (existing.rowCount > 0) {
+    if ((existing.rowCount ?? 0) > 0) {
       throw new Error('Ya hay una solicitud de verificación pendiente');
     }
 

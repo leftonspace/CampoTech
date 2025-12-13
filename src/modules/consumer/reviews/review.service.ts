@@ -623,7 +623,7 @@ export class ReviewService {
        LIMIT 1`,
       [jobId, consumerId, businessProfileId]
     );
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   private async getConsumerReviewStats(

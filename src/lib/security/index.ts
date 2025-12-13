@@ -31,12 +31,10 @@ export {
   initializeSecretsManager,
   getSecretsManager,
   getSecret,
-  setSecret,
-  WELL_KNOWN_SECRETS,
 } from './secrets-manager';
 export type {
   SecretValue,
-  SecretsConfig,
+  SecretsManagerConfig,
 } from './secrets-manager';
 
 // Log Redaction

@@ -10,14 +10,11 @@ export {
   CATEGORY_METADATA,
   DEFAULT_RANKING_WEIGHTS,
   getCategoryDisplayName,
-  getCategoryIcon,
   getCategoryMetadata,
 } from './discovery.types';
 export type {
-  SearchParams,
   GeoSearchParams,
   RankingWeights,
-  RankingFactors,
   RankedBusiness,
   CategoryMetadata,
 } from './discovery.types';
