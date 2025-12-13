@@ -166,8 +166,8 @@ export async function getWarehousesByType(organizationId: string) {
   });
 
   // Separate into office (non-vehicle) and vehicle warehouses
-  const officeWarehouses = warehouses.filter((w) => w.type !== 'VEHICLE');
-  const vehicleWarehouses = warehouses.filter((w) => w.type === 'VEHICLE');
+  const officeWarehouses = warehouses.filter((w: typeof warehouses[number]) => w.type !== 'VEHICLE');
+  const vehicleWarehouses = warehouses.filter((w: typeof warehouses[number]) => w.type === 'VEHICLE');
 
   return {
     all: warehouses,
