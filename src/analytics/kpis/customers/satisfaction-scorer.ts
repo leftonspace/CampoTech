@@ -111,6 +111,9 @@ export async function calculateSatisfactionMetrics(
   // 2. Job completion rate
   // 3. No cancellations
 
+  type SatisfactionCustomerType = typeof customers[number];
+  type SatisfactionJobType = SatisfactionCustomerType['jobs'][number];
+
   const customerScores: number[] = [];
   let promoters = 0;
   let passives = 0;
@@ -121,8 +124,8 @@ export async function calculateSatisfactionMetrics(
     if (jobCount === 0) continue;
 
     // Calculate behavioral satisfaction score (0-100)
-    const completedJobs = customer.jobs.filter((j) => j.status === 'COMPLETED').length;
-    const cancelledJobs = customer.jobs.filter((j) => j.status === 'CANCELLED').length;
+    const completedJobs = customer.jobs.filter((j: SatisfactionJobType) => j.status === 'COMPLETED').length;
+    const cancelledJobs = customer.jobs.filter((j: SatisfactionJobType) => j.status === 'CANCELLED').length;
 
     const completionRate = jobCount > 0 ? completedJobs / jobCount : 0;
     const cancelRate = jobCount > 0 ? cancelledJobs / jobCount : 0;
@@ -218,14 +221,17 @@ async function calculatePreviousPeriodScore(
     },
   });
 
+  type PrevCustomerType = typeof customers[number];
+  type PrevJobType = PrevCustomerType['jobs'][number];
+
   const scores: number[] = [];
 
   for (const customer of customers) {
     const jobCount = customer.jobs.length;
     if (jobCount === 0) continue;
 
-    const completedJobs = customer.jobs.filter((j) => j.status === 'COMPLETED').length;
-    const cancelledJobs = customer.jobs.filter((j) => j.status === 'CANCELLED').length;
+    const completedJobs = customer.jobs.filter((j: PrevJobType) => j.status === 'COMPLETED').length;
+    const cancelledJobs = customer.jobs.filter((j: PrevJobType) => j.status === 'CANCELLED').length;
 
     const completionRate = completedJobs / jobCount;
     const cancelRate = cancelledJobs / jobCount;
