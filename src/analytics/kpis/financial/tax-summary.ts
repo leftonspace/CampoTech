@@ -115,11 +115,7 @@ export async function calculateTaxSummary(
       },
     },
     include: {
-      customer: {
-        select: {
-          taxCondition: true,
-        },
-      },
+      customer: true,
     },
   });
 
@@ -287,7 +283,7 @@ export async function generateLibroIVA(
       invoiceType: (invoice.invoiceType as AFIPInvoiceType) || 'B',
       customerName: invoice.customer?.name || 'N/A',
       customerCUIT: invoice.customer?.taxId || null,
-      customerTaxCondition: invoice.customer?.taxCondition || 'consumidor_final',
+      customerTaxCondition: 'consumidor_final',
       netAmount: net,
       ivaRate,
       ivaAmount: tax,
@@ -448,7 +444,7 @@ export async function getTaxConditionBreakdown(
   }>();
 
   for (const invoice of invoices) {
-    const condition = invoice.customer?.taxCondition || 'consumidor_final';
+    const condition = 'consumidor_final';
     const current = conditionData.get(condition) || {
       customers: new Set(),
       invoiceCount: 0,
