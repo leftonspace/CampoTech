@@ -88,7 +88,8 @@ export async function getJobFacts(options: FactQueryOptions): Promise<JobFact[]>
   // Get first job dates for customer analysis
   const customerFirstJobs = await getCustomerFirstJobDates(organizationId);
 
-  return jobs.map((job) => {
+  type FactJobType = typeof jobs[number];
+  return jobs.map((job: FactJobType) => {
     const firstJobDate = customerFirstJobs.get(job.customerId);
     const isFirstTimeCustomer = firstJobDate
       ? job.createdAt.getTime() === firstJobDate.getTime()
@@ -196,7 +197,8 @@ export async function getInvoiceFacts(options: FactQueryOptions): Promise<Invoic
     skip: offset,
   });
 
-  return invoices.map((invoice) => {
+  type FactInvoiceType = typeof invoices[number];
+  return invoices.map((invoice: FactInvoiceType) => {
     const firstPayment = invoice.payments[0];
     const paidAt = firstPayment?.paidAt || null;
     const daysToPayment = paidAt
@@ -298,7 +300,8 @@ export async function getPaymentFacts(options: FactQueryOptions): Promise<Paymen
     skip: offset,
   });
 
-  return payments.map((payment) => ({
+  type FactPaymentType = typeof payments[number];
+  return payments.map((payment: FactPaymentType) => ({
     id: `pay_${payment.id}`,
     organizationId: payment.organizationId,
     paymentId: payment.id,

@@ -163,11 +163,15 @@ export async function getCustomerDimension(
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
-  const dimensions = customers.map((customer): CustomerDimension => {
+  type DimCustomerType = typeof customers[number];
+  type DimJobType = DimCustomerType['jobs'][number];
+  type DimInvoiceType = DimCustomerType['invoices'][number];
+
+  const dimensions = customers.map((customer: DimCustomerType): CustomerDimension => {
     const totalJobs = customer.jobs.length;
-    const completedJobs = customer.jobs.filter((j) => j.status === 'COMPLETED');
+    const completedJobs = customer.jobs.filter((j: DimJobType) => j.status === 'COMPLETED');
     const totalRevenue = customer.invoices.reduce(
-      (sum, inv) => sum + inv.total.toNumber(),
+      (sum: number, inv: DimInvoiceType) => sum + inv.total.toNumber(),
       0
     );
 
@@ -273,13 +277,16 @@ export async function getTechnicianDimension(
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const dimensions = technicians.map((tech): TechnicianDimension => {
+  type DimTechType = typeof technicians[number];
+  type TechJobType = DimTechType['assignedJobs'][number];
+
+  const dimensions = technicians.map((tech: DimTechType): TechnicianDimension => {
     const totalJobs = tech.assignedJobs.length;
-    const completedJobs = tech.assignedJobs.filter((j) => j.status === 'COMPLETED').length;
+    const completedJobs = tech.assignedJobs.filter((j: TechJobType) => j.status === 'COMPLETED').length;
 
     // Calculate efficiency (jobs per working day in last 30 days)
     const recentJobs = tech.assignedJobs.filter(
-      (j) => j.completedAt && j.completedAt >= thirtyDaysAgo
+      (j: TechJobType) => j.completedAt && j.completedAt >= thirtyDaysAgo
     );
     const efficiency = recentJobs.length / 22; // Assuming 22 working days per month
 
