@@ -8,6 +8,7 @@
 
 import { Router, Request, Response } from 'express';
 import { Pool } from 'pg';
+import { z } from 'zod';
 import {
   createJobSchema,
   updateJobSchema,

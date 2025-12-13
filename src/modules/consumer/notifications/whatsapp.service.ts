@@ -9,7 +9,7 @@
  * https://developers.facebook.com/docs/whatsapp/cloud-api
  */
 
-import axios, { AxiosInstance } from 'axios';
+import axios from 'axios';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -131,7 +131,7 @@ export const MESSAGE_TEMPLATES = {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export class WhatsAppService {
-  private client: AxiosInstance;
+  private client: any; // AxiosInstance type causes conflicts
   private phoneNumberId: string;
 
   constructor(config: WhatsAppConfig) {
