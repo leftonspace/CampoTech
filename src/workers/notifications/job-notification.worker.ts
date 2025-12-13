@@ -215,11 +215,10 @@ export function startJobNotificationWorker(): Worker<JobNotificationJobData, Job
           where: { id: jobId },
           include: {
             customer: true,
-            assignedTo: true,
+            technician: true,
             organization: {
               select: {
                 name: true,
-                ownerId: true,
               },
             },
           },
@@ -282,28 +281,8 @@ export function startJobNotificationWorker(): Worker<JobNotificationJobData, Job
           }
         }
 
-        // Send to owner
-        if (recipients.owner && jobRecord.organization.ownerId) {
-          const ownerResult = await sendNotification({
-            eventType: type,
-            userId: jobRecord.organization.ownerId,
-            organizationId: orgId,
-            title,
-            body,
-            entityType: 'job',
-            entityId: jobId,
-            data: {
-              ...data,
-              jobId,
-              type,
-            },
-          });
-
-          if (ownerResult.success) {
-            notificationsSent++;
-            sentChannels.push(...ownerResult.channels);
-          }
-        }
+        // Note: Owner notifications skipped - Organization model doesn't have ownerId
+        // To send to owners, query for users with role=OWNER in the organization
 
         log.info('Job notification processed', {
           type,

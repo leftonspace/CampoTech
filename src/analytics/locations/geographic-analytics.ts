@@ -144,8 +144,7 @@ export async function generateJobsHeatmap(
       customer: {
         select: {
           id: true,
-          latitude: true,
-          longitude: true,
+          address: true,
         },
       },
     },
@@ -155,11 +154,12 @@ export async function generateJobsHeatmap(
   const pointCounts = new Map<string, { lat: number; lng: number; count: number }>();
 
   for (const job of jobs) {
-    if (job.customer?.latitude && job.customer?.longitude) {
-      const key = `${job.customer.latitude.toFixed(4)},${job.customer.longitude.toFixed(4)}`;
+    const coords = getAddressCoordinates(job.customer?.address);
+    if (coords) {
+      const key = `${coords.lat.toFixed(4)},${coords.lng.toFixed(4)}`;
       const existing = pointCounts.get(key) || {
-        lat: job.customer.latitude,
-        lng: job.customer.longitude,
+        lat: coords.lat,
+        lng: coords.lng,
         count: 0,
       };
       existing.count++;
@@ -207,8 +207,7 @@ export async function generateRevenueHeatmap(
       total: true,
       customer: {
         select: {
-          latitude: true,
-          longitude: true,
+          address: true,
         },
       },
     },
@@ -217,11 +216,12 @@ export async function generateRevenueHeatmap(
   const pointRevenue = new Map<string, { lat: number; lng: number; revenue: number }>();
 
   for (const invoice of invoices) {
-    if (invoice.customer?.latitude && invoice.customer?.longitude) {
-      const key = `${invoice.customer.latitude.toFixed(4)},${invoice.customer.longitude.toFixed(4)}`;
+    const coords = getAddressCoordinates(invoice.customer?.address);
+    if (coords) {
+      const key = `${coords.lat.toFixed(4)},${coords.lng.toFixed(4)}`;
       const existing = pointRevenue.get(key) || {
-        lat: invoice.customer.latitude,
-        lng: invoice.customer.longitude,
+        lat: coords.lat,
+        lng: coords.lng,
         revenue: 0,
       };
       existing.revenue += invoice.total || 0;
@@ -272,8 +272,7 @@ export async function generateResponseTimeHeatmap(
       startedAt: true,
       customer: {
         select: {
-          latitude: true,
-          longitude: true,
+          address: true,
         },
       },
     },
@@ -282,12 +281,13 @@ export async function generateResponseTimeHeatmap(
   const pointResponseTimes = new Map<string, { lat: number; lng: number; times: number[] }>();
 
   for (const job of jobs) {
-    if (job.customer?.latitude && job.customer?.longitude && job.startedAt) {
-      const key = `${job.customer.latitude.toFixed(3)},${job.customer.longitude.toFixed(3)}`;
+    const coords = getAddressCoordinates(job.customer?.address);
+    if (coords && job.startedAt) {
+      const key = `${coords.lat.toFixed(3)},${coords.lng.toFixed(3)}`;
       const responseTime = (job.startedAt.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60); // hours
       const existing = pointResponseTimes.get(key) || {
-        lat: job.customer.latitude,
-        lng: job.customer.longitude,
+        lat: coords.lat,
+        lng: coords.lng,
         times: [],
       };
       existing.times.push(responseTime);
@@ -338,15 +338,15 @@ export async function getGeographicPerformance(
     select: {
       id: true,
       name: true,
-      latitude: true,
-      longitude: true,
+      coordinates: true,
     },
   });
 
   const results: GeographicPerformance[] = [];
 
   for (const location of locations) {
-    if (!location.latitude || !location.longitude) continue;
+    const locCoords = getLocationCoordinates(location.coordinates);
+    if (!locCoords) continue;
 
     // Get metrics for this location
     const [jobs, invoices, zones] = await Promise.all([
@@ -421,14 +421,14 @@ export async function getGeographicPerformance(
           customers: new Set(zoneJobs.map((j) => j.customerId)).size,
           avgTravelTime: 15, // Placeholder - would need actual travel tracking
         },
-        centroid: { lat: location.latitude, lng: location.longitude }, // Would calculate actual zone centroid
+        centroid: locCoords, // Would calculate actual zone centroid
       });
     }
 
     results.push({
       locationId: location.id,
       locationName: location.name,
-      coordinates: { lat: location.latitude, lng: location.longitude },
+      coordinates: locCoords,
       metrics: {
         revenue: invoices.reduce((sum, i) => sum + (i.total || 0), 0),
         jobs: jobs.length,
@@ -464,8 +464,7 @@ export async function generateServiceDensityMap(
       customer: {
         select: {
           id: true,
-          latitude: true,
-          longitude: true,
+          address: true,
         },
       },
     },
@@ -484,7 +483,7 @@ export async function generateServiceDensityMap(
 
   const locations = await db.location.findMany({
     where: { organizationId, isActive: true },
-    select: { id: true, latitude: true, longitude: true },
+    select: { id: true, coordinates: true },
   });
 
   // Create revenue map by customer
@@ -494,9 +493,14 @@ export async function generateServiceDensityMap(
   }
 
   // Filter jobs with valid coordinates
-  const validJobs = jobs.filter((j) => j.customer?.latitude && j.customer?.longitude);
+  const jobsWithCoords = jobs
+    .map((j) => ({
+      ...j,
+      coords: getAddressCoordinates(j.customer?.address),
+    }))
+    .filter((j): j is typeof j & { coords: GeoCoordinate } => j.coords !== null);
 
-  if (validJobs.length === 0) {
+  if (jobsWithCoords.length === 0) {
     return {
       gridSize: gridSizeKm,
       cells: [],
@@ -505,8 +509,8 @@ export async function generateServiceDensityMap(
   }
 
   // Calculate bounds
-  const lats = validJobs.map((j) => j.customer!.latitude!);
-  const lngs = validJobs.map((j) => j.customer!.longitude!);
+  const lats = jobsWithCoords.map((j) => j.coords.lat);
+  const lngs = jobsWithCoords.map((j) => j.coords.lng);
   const bounds: GeoBounds = {
     north: Math.max(...lats) + 0.05,
     south: Math.min(...lats) - 0.05,
@@ -532,11 +536,9 @@ export async function generateServiceDensityMap(
       };
 
       // Find jobs in this cell
-      const cellJobs = validJobs.filter((j) => {
-        const jLat = j.customer!.latitude!;
-        const jLng = j.customer!.longitude!;
-        return jLat >= cellBounds.south && jLat < cellBounds.north &&
-               jLng >= cellBounds.west && jLng < cellBounds.east;
+      const cellJobs = jobsWithCoords.filter((j) => {
+        return j.coords.lat >= cellBounds.south && j.coords.lat < cellBounds.north &&
+               j.coords.lng >= cellBounds.west && j.coords.lng < cellBounds.east;
       });
 
       // Calculate metrics
@@ -559,10 +561,11 @@ export async function generateServiceDensityMap(
 
       let nearestLocation: { id: string; distance: number } | null = null;
       for (const loc of locations) {
-        if (loc.latitude && loc.longitude) {
+        const locCoords = getLocationCoordinates(loc.coordinates);
+        if (locCoords) {
           const distance = haversineDistance(
             { lat: centerLat, lng: centerLng },
-            { lat: loc.latitude, lng: loc.longitude }
+            locCoords
           );
           if (!nearestLocation || distance < nearestLocation.distance) {
             nearestLocation = { id: loc.id, distance };
@@ -571,9 +574,10 @@ export async function generateServiceDensityMap(
       }
 
       const hasLocation = locations.some((loc) => {
-        if (!loc.latitude || !loc.longitude) return false;
-        return loc.latitude >= cellBounds.south && loc.latitude < cellBounds.north &&
-               loc.longitude >= cellBounds.west && loc.longitude < cellBounds.east;
+        const locCoords = getLocationCoordinates(loc.coordinates);
+        if (!locCoords) return false;
+        return locCoords.lat >= cellBounds.south && locCoords.lat < cellBounds.north &&
+               locCoords.lng >= cellBounds.west && locCoords.lng < cellBounds.east;
       });
 
       cells.push({
@@ -618,8 +622,7 @@ export async function analyzeCoverage(
     select: {
       id: true,
       name: true,
-      latitude: true,
-      longitude: true,
+      coordinates: true,
       coverageRadius: true,
     },
   });
@@ -665,20 +668,20 @@ export async function analyzeCoverage(
       const loc1 = locations[i];
       const loc2 = locations[j];
 
-      if (!loc1.latitude || !loc1.longitude || !loc2.latitude || !loc2.longitude) continue;
+      const coords1 = getLocationCoordinates(loc1.coordinates);
+      const coords2 = getLocationCoordinates(loc2.coordinates);
 
-      const distance = haversineDistance(
-        { lat: loc1.latitude, lng: loc1.longitude },
-        { lat: loc2.latitude, lng: loc2.longitude }
-      );
+      if (!coords1 || !coords2) continue;
+
+      const distance = haversineDistance(coords1, coords2);
 
       const combinedRadius = (loc1.coverageRadius || 10) + (loc2.coverageRadius || 10);
 
       if (distance < combinedRadius) {
         overlappingAreas.push({
           center: {
-            lat: (loc1.latitude + loc2.latitude) / 2,
-            lng: (loc1.longitude + loc2.longitude) / 2,
+            lat: (coords1.lat + coords2.lat) / 2,
+            lng: (coords1.lng + coords2.lng) / 2,
           },
           radius: combinedRadius - distance,
           locations: [
@@ -729,6 +732,35 @@ export async function analyzeCoverage(
 // ═══════════════════════════════════════════════════════════════════════════════
 // HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Extract coordinates from Customer address JSON field
+ * Address format: { street, number, floor, apartment, city, postalCode, coordinates: { lat, lng } }
+ */
+function getAddressCoordinates(address: unknown): GeoCoordinate | null {
+  if (!address || typeof address !== 'object') return null;
+  const addr = address as Record<string, unknown>;
+  const coords = addr.coordinates;
+  if (!coords || typeof coords !== 'object') return null;
+  const c = coords as Record<string, unknown>;
+  if (typeof c.lat === 'number' && typeof c.lng === 'number') {
+    return { lat: c.lat, lng: c.lng };
+  }
+  return null;
+}
+
+/**
+ * Extract coordinates from Location coordinates JSON field
+ * Coordinates format: { lat, lng }
+ */
+function getLocationCoordinates(coordinates: unknown): GeoCoordinate | null {
+  if (!coordinates || typeof coordinates !== 'object') return null;
+  const c = coordinates as Record<string, unknown>;
+  if (typeof c.lat === 'number' && typeof c.lng === 'number') {
+    return { lat: c.lat, lng: c.lng };
+  }
+  return null;
+}
 
 function calculateBounds(points: HeatmapPoint[]): GeoBounds {
   if (points.length === 0) {
