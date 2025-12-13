@@ -103,15 +103,6 @@ export async function GET(request: NextRequest) {
         location: {
           select: { id: true, code: true, name: true },
         },
-        vehicle: {
-          select: {
-            id: true,
-            plateNumber: true,
-            make: true,
-            model: true,
-            status: true,
-          },
-        },
         _count: {
           select: {
             inventoryLevels: true,
@@ -121,6 +112,35 @@ export async function GET(request: NextRequest) {
       },
       orderBy: [{ isDefault: 'desc' }, { type: 'asc' }, { name: 'asc' }],
     });
+
+    // Try to fetch vehicle info separately (handles case where migration hasn't run)
+    let vehicleMap: Record<string, any> = {};
+    try {
+      const warehousesWithVehicles = await prisma.warehouse.findMany({
+        where: {
+          organizationId: session.organizationId,
+          vehicleId: { not: null },
+        },
+        select: {
+          id: true,
+          vehicle: {
+            select: {
+              id: true,
+              plateNumber: true,
+              make: true,
+              model: true,
+              status: true,
+            },
+          },
+        },
+      });
+      vehicleMap = Object.fromEntries(
+        warehousesWithVehicles.map((w) => [w.id, w.vehicle])
+      );
+    } catch {
+      // vehicleId column may not exist yet - migration not run
+      console.log('Vehicle relation not available - migration may be pending');
+    }
 
     // Calculate stock value for each warehouse
     const warehousesWithStats = await Promise.all(
@@ -137,6 +157,7 @@ export async function GET(request: NextRequest) {
 
         return {
           ...warehouse,
+          vehicle: vehicleMap[warehouse.id] || null,
           productCount: warehouse._count.inventoryLevels,
           storageLocationCount: warehouse._count.storageLocations,
           totalItems: itemCount._sum.quantityOnHand || 0,
@@ -421,7 +442,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Don't allow deleting vehicle warehouses - they are linked to fleet
-    if (warehouse.type === 'VEHICLE' || warehouse.vehicleId) {
+    const isVehicleWarehouse = warehouse.type === 'VEHICLE' || (warehouse as any).vehicleId;
+    if (isVehicleWarehouse) {
       return NextResponse.json(
         {
           success: false,
