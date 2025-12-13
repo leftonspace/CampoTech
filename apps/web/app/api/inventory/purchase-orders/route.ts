@@ -267,7 +267,7 @@ export async function POST(request: NextRequest) {
 
       const hasVariance = receivingItems.some((item: typeof receivingItems[number]) => item.quantityExpected !== item.quantityReceived);
 
-      await prisma.$transaction(async (tx: typeof prisma) => {
+      await prisma.$transaction(async (tx) => {
         // Create receiving record
         await tx.purchaseReceiving.create({
           data: {

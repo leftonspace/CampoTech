@@ -326,7 +326,7 @@ export async function POST(request: NextRequest) {
       const today = new Date();
       const datePrefix = today.toISOString().slice(0, 10).replace(/-/g, '');
 
-      await prisma.$transaction(async (tx: typeof prisma) => {
+      await prisma.$transaction(async (tx) => {
         // Apply adjustments if requested
         if (applyAdjustments !== false) {
           let movementCount = await tx.stockMovement.count({

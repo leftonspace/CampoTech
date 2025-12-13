@@ -45,11 +45,10 @@ export type {
 
 // Aggregation workers (Phase 9.8)
 export {
-  startAggregationWorker,
-  processExpiredBuffer,
+  startAggregationProcessor,
 } from './aggregation-processor.worker';
 
 export {
-  startBufferCleanupWorker,
-  runBufferCleanup,
+  startCleanupWorker,
+  runFullCleanup,
 } from './buffer-cleanup.worker';

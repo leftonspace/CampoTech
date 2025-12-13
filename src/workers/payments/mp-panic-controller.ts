@@ -20,7 +20,7 @@ import {
   PanicReason,
   canProcessMessage,
 } from '../whatsapp/panic-mode.service';
-import { MPRetryStrategy, CircuitBreaker } from './mp-retry.strategy';
+import { MPRetryStrategy, MPCircuitBreaker } from './mp-retry.strategy';
 import { log } from '../../lib/logging/logger';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -76,15 +76,16 @@ const DEFAULT_CONFIG: MPPanicConfig = {
 
 export class MPPanicController {
   private config: MPPanicConfig;
-  private circuitBreaker: CircuitBreaker;
+  private circuitBreaker: MPCircuitBreaker;
   private metricsPerOrg: Map<string, PaymentMetrics> = new Map();
 
   constructor(config: Partial<MPPanicConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
-    this.circuitBreaker = new CircuitBreaker({
+    this.circuitBreaker = new MPCircuitBreaker({
       failureThreshold: 5,
-      openDuration: 30000, // 30 seconds
+      openDurationMs: 30000, // 30 seconds
       halfOpenRequests: 3,
+      successThreshold: 3,
     });
   }
 
@@ -106,7 +107,7 @@ export class MPPanicController {
     }
 
     // Check circuit breaker
-    if (this.circuitBreaker.getState() === 'open') {
+    if (this.circuitBreaker.getState().state === 'open') {
       return {
         allowed: false,
         reason: 'MercadoPago circuit breaker is open',
@@ -273,7 +274,7 @@ export class MPPanicController {
    * Get circuit breaker state
    */
   getCircuitState(): 'closed' | 'open' | 'half-open' {
-    return this.circuitBreaker.getState();
+    return this.circuitBreaker.getState().state;
   }
 
   /**

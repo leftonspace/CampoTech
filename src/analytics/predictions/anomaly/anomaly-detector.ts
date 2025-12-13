@@ -69,7 +69,14 @@ export async function detectAnomalies(
 
   // Sort by severity and date
   anomalies.sort((a: typeof anomalies[number], b: typeof anomalies[number]) => {
-    const severityOrder = { critical: 0, warning: 1, info: 2 };
+    const severityOrder: Record<string, number> = {
+      critical: 0,
+      high: 1,
+      warning: 2,
+      medium: 3,
+      low: 4,
+      info: 5,
+    };
     if (severityOrder[a.severity] !== severityOrder[b.severity]) {
       return severityOrder[a.severity] - severityOrder[b.severity];
     }

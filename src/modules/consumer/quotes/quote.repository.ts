@@ -390,7 +390,7 @@ export class QuoteRepository {
        LIMIT 1`,
       [requestId, businessProfileId]
     );
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   /**
@@ -403,7 +403,7 @@ export class QuoteRepository {
        LIMIT 1`,
       [requestId, businessProfileId]
     );
-    return result.rowCount > 0;
+    return (result.rowCount ?? 0) > 0;
   }
 
   /**

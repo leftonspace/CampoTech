@@ -8,13 +8,11 @@
 // Organizations
 export {
   OrganizationRepository,
-  OrganizationService,
 } from './organizations/organization.repository';
 export type {
   CreateOrganizationDTO,
   UpdateOrganizationDTO,
   AFIPConfigDTO,
-  OrganizationFilters,
 } from './organizations/organization.types';
 export { default as organizationRoutes } from './organizations/organization.routes';
 
@@ -40,7 +38,6 @@ export {
 export type {
   CreateCustomerDTO,
   UpdateCustomerDTO,
-  CustomerFilters,
 } from './customers';
 
 // Jobs

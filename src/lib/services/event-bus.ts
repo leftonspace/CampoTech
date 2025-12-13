@@ -175,6 +175,17 @@ export class EventBus {
   }
 
   /**
+   * Alias for publish - for compatibility
+   */
+  async emit<T>(
+    type: EventType | string,
+    payload: T,
+    metadata?: Partial<Event['metadata']>
+  ): Promise<Event<T>> {
+    return this.publish(type, payload, metadata);
+  }
+
+  /**
    * Subscribe to an event type
    */
   subscribe<T>(type: EventType | string, handler: EventHandler<T>): () => void {
