@@ -263,8 +263,6 @@ export async function generateLibroIVA(
       customer: {
         select: {
           name: true,
-          taxId: true,
-          taxCondition: true,
         },
       },
     },
@@ -282,7 +280,7 @@ export async function generateLibroIVA(
       invoiceNumber: invoice.invoiceNumber || invoice.id,
       invoiceType: (invoice.type as AFIPInvoiceType) || 'B',
       customerName: invoice.customer?.name || 'N/A',
-      customerCUIT: invoice.customer?.taxId || null,
+      customerCUIT: null, // taxId not tracked on Customer
       customerTaxCondition: 'consumidor_final',
       netAmount: net,
       ivaRate,
@@ -431,7 +429,6 @@ export async function getTaxConditionBreakdown(
       customer: {
         select: {
           id: true,
-          taxCondition: true,
         },
       },
     },
@@ -511,8 +508,6 @@ export async function generateCITIVentas(
     include: {
       customer: {
         select: {
-          taxId: true,
-          taxCondition: true,
           name: true,
         },
       },
@@ -531,8 +526,8 @@ export async function generateCITIVentas(
       tipoComprobante: mapInvoiceTypeToAFIP(invoice.type as AFIPInvoiceType),
       puntoVenta: '00001',
       numeroComprobante: invoice.invoiceNumber || invoice.id,
-      codigoDocumento: invoice.customer?.taxId ? '80' : '99', // 80 = CUIT, 99 = Sin ID
-      numeroDocumento: invoice.customer?.taxId || '0',
+      codigoDocumento: '99', // 99 = Sin ID (taxId not tracked)
+      numeroDocumento: '0',
       denominacion: invoice.customer?.name || 'CONSUMIDOR FINAL',
       importeTotal: total.toFixed(2),
       importeNoGravado: '0.00',
