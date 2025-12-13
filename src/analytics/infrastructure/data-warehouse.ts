@@ -39,7 +39,8 @@ export async function getJobFacts(
     },
     include: {
       customer: true,
-      assignedTo: true,
+      technician: true,
+      invoice: true,
     },
   });
 
@@ -48,18 +49,18 @@ export async function getJobFacts(
     organizationId: job.organizationId,
     jobId: job.id,
     customerId: job.customerId,
-    technicianId: job.assignedToId,
+    technicianId: job.technicianId,
     serviceType: job.serviceType || 'other',
-    locationId: null, // Will be added in Phase 11
+    locationId: job.locationId,
     createdAt: job.createdAt,
-    scheduledAt: job.scheduledStart,
-    startedAt: job.actualStart,
+    scheduledAt: job.scheduledDate,
+    startedAt: job.startedAt,
     completedAt: job.completedAt,
     status: job.status,
-    durationMinutes: calculateDuration(job.actualStart, job.completedAt),
+    durationMinutes: job.actualDuration || calculateDuration(job.startedAt, job.completedAt),
     travelTimeMinutes: null, // Could be calculated from tracking data
-    estimatedAmount: job.estimatedTotal?.toNumber() || 0,
-    actualAmount: job.actualTotal?.toNumber() || 0,
+    estimatedAmount: job.invoice?.subtotal?.toNumber() || 0,
+    actualAmount: job.invoice?.total?.toNumber() || 0,
     isFirstTimeCustomer: false, // Will be enriched
     isRepeatJob: false, // Will be enriched
     satisfactionScore: null, // Will be added with feedback feature
@@ -232,7 +233,7 @@ export async function getTechnicianDimension(
         select: {
           id: true,
           status: true,
-          actualStart: true,
+          startedAt: true,
           completedAt: true,
         },
       },
@@ -277,9 +278,14 @@ export async function getServiceDimension(
     where: { organizationId },
     select: {
       serviceType: true,
-      actualTotal: true,
-      actualStart: true,
+      startedAt: true,
       completedAt: true,
+      actualDuration: true,
+      invoice: {
+        select: {
+          total: true,
+        },
+      },
     },
   });
 
@@ -301,9 +307,9 @@ export async function getServiceDimension(
     };
 
     current.count++;
-    current.totalRevenue += job.actualTotal?.toNumber() || 0;
+    current.totalRevenue += job.invoice?.total?.toNumber() || 0;
 
-    const duration = calculateDuration(job.actualStart, job.completedAt);
+    const duration = job.actualDuration || calculateDuration(job.startedAt, job.completedAt);
     if (duration) {
       current.totalDuration += duration;
       current.durationCount++;
