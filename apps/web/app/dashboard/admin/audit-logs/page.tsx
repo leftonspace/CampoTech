@@ -79,7 +79,7 @@ const ENTITY_LABELS: Record<string, string> = {
   vehicle: 'Vehiculo',
   organization: 'Organizacion',
   product: 'Producto',
-  location: 'Sucursal',
+  location: 'Zona',
   session: 'Sesion',
 };
 

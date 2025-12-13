@@ -420,8 +420,8 @@ export default function LocationZonesPage() {
           <div>
             <p className="font-medium text-blue-900">Sobre las zonas</p>
             <p className="text-sm text-blue-700">
-              Las zonas permiten organizar las áreas de servicio de cada sucursal. La prioridad
-              determina qué zona se asigna cuando un cliente está en múltiples zonas. Puedes
+              Las sub-zonas permiten organizar las áreas de servicio dentro de cada zona. La prioridad
+              determina qué sub-zona se asigna cuando un cliente está en múltiples áreas. Puedes
               definir polígonos de cobertura desde el editor de mapas.
             </p>
           </div>

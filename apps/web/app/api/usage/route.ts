@@ -261,7 +261,7 @@ function getHighlightsForTier(tierId: string): string[] {
     EMPRESARIAL: [
       '20 usuarios',
       'Trabajos ilimitados',
-      'Multi-sucursal',
+      'Multi-zona',
       'API acceso',
       'Soporte prioritario',
     ],

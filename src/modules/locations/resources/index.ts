@@ -2,7 +2,7 @@
  * Resources Module
  * ================
  *
- * Team and resource management for multi-location operations.
+ * Team and resource management for zone operations.
  */
 
 // Location Assignment
@@ -17,19 +17,6 @@ export {
   type BulkAssignmentResult,
   type TeamBalanceReport,
 } from './location-assignment.service';
-
-// Resource Sharing
-export {
-  ResourceSharingService,
-  getResourceSharingService,
-  ResourceSharingError,
-  type ResourceType,
-  type SharedResource,
-  type ResourceAvailability,
-  type SharingRequest,
-  type SharingMetrics,
-  type LocationResourceSummary,
-} from './resource-sharing';
 
 // Capacity Manager
 export {
@@ -46,16 +33,3 @@ export {
   type CapacityAdjustment,
   type WorkloadDistribution,
 } from './capacity-manager';
-
-// Inter-Location Dispatch
-export {
-  InterLocationDispatchService,
-  getInterLocationDispatchService,
-  DispatchError,
-  type DispatchCandidate,
-  type DispatchRecommendation,
-  type CrossLocationDispatch,
-  type TravelTimeMatrix,
-  type DispatchOptimizationResult,
-  type AvailabilityWindow,
-} from './inter-location-dispatch';
