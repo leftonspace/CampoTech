@@ -103,6 +103,15 @@ export async function GET(request: NextRequest) {
         location: {
           select: { id: true, code: true, name: true },
         },
+        vehicle: {
+          select: {
+            id: true,
+            plateNumber: true,
+            make: true,
+            model: true,
+            status: true,
+          },
+        },
         _count: {
           select: {
             inventoryLevels: true,
@@ -110,7 +119,7 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+      orderBy: [{ isDefault: 'desc' }, { type: 'asc' }, { name: 'asc' }],
     });
 
     // Calculate stock value for each warehouse
@@ -408,6 +417,17 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'Depósito no encontrado' },
         { status: 404 }
+      );
+    }
+
+    // Don't allow deleting vehicle warehouses - they are linked to fleet
+    if (warehouse.type === 'VEHICLE' || warehouse.vehicleId) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No se puede eliminar un almacén de vehículo. El almacén se elimina automáticamente al eliminar el vehículo de la flota.',
+        },
+        { status: 400 }
       );
     }
 

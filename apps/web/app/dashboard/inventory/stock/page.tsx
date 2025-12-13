@@ -14,7 +14,11 @@ import {
   Warehouse,
   Calendar,
   FileText,
+  ArrowLeftRight,
+  Building2,
+  Truck,
 } from 'lucide-react';
+import { QuickTransferModal } from '@/components/inventory/QuickTransferModal';
 
 interface StockMovement {
   id: string;
@@ -49,6 +53,7 @@ export default function StockPage() {
   const [warehouseId, setWarehouseId] = useState('');
   const [movementType, setMovementType] = useState('');
   const [view, setView] = useState<'movements' | 'levels' | 'counts'>('movements');
+  const [showTransferModal, setShowTransferModal] = useState(false);
 
   const { data: warehousesData } = useQuery({
     queryKey: ['warehouses-list'],
@@ -83,6 +88,13 @@ export default function StockPage() {
           <p className="text-gray-500">Movimientos y niveles de inventario</p>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={() => setShowTransferModal(true)}
+            className="btn-outline"
+          >
+            <ArrowLeftRight className="mr-2 h-4 w-4" />
+            Transferir
+          </button>
           <Link href="/dashboard/inventory/stock/adjust" className="btn-secondary">
             <ArrowUpDown className="mr-2 h-4 w-4" />
             Ajustar stock
@@ -266,6 +278,12 @@ export default function StockPage() {
 
       {/* Inventory counts view */}
       {view === 'counts' && <InventoryCountsView />}
+
+      {/* Quick transfer modal */}
+      <QuickTransferModal
+        open={showTransferModal}
+        onClose={() => setShowTransferModal(false)}
+      />
     </div>
   );
 }

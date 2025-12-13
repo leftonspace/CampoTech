@@ -4,11 +4,18 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { ArrowLeft, Package, Tag, Barcode, DollarSign, Boxes } from 'lucide-react';
+import { ArrowLeft, Package, Tag, Barcode, DollarSign, Boxes, MapPin, Building2, Truck } from 'lucide-react';
 
 interface Category {
   id: string;
   name: string;
+}
+
+interface Warehouse {
+  id: string;
+  name: string;
+  code: string;
+  type: string;
 }
 
 // Format number with thousand separators for display
@@ -68,6 +75,8 @@ export default function NewProductPage() {
     unitOfMeasure: 'UNIT',
     unitsPerPackage: '',
     isActive: true,
+    warehouseId: '',
+    initialStock: '',
   });
 
   // Display values for formatted inputs
@@ -82,7 +91,18 @@ export default function NewProductPage() {
     },
   });
 
+  const { data: warehousesData } = useQuery({
+    queryKey: ['warehouses-active'],
+    queryFn: async () => {
+      const res = await fetch('/api/inventory/warehouses');
+      return res.json();
+    },
+  });
+
   const categories = categoriesData?.data?.categories as Category[] | undefined;
+  const warehouses = warehousesData?.data?.warehouses as Warehouse[] | undefined;
+  const officeWarehouses = warehouses?.filter((w) => w.type !== 'VEHICLE') || [];
+  const vehicleWarehouses = warehouses?.filter((w) => w.type === 'VEHICLE') || [];
 
   // Check if unit requires package quantity
   const showUnitsPerPackage = ['BOX', 'PACK', 'PALLET'].includes(formData.unitOfMeasure);
@@ -130,6 +150,8 @@ export default function NewProductPage() {
           unitOfMeasure: formData.unitOfMeasure,
           unitsPerPackage: formData.unitsPerPackage ? parseInt(formData.unitsPerPackage) : undefined,
           isActive: formData.isActive,
+          warehouseId: formData.warehouseId || undefined,
+          initialStock: formData.initialStock ? parseInt(formData.initialStock) : 0,
         }),
       });
 
@@ -436,6 +458,72 @@ export default function NewProductPage() {
               />
               <p className="mt-1 text-xs text-gray-500">
                 Nivel optimo de stock (opcional)
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Storage location */}
+        <div>
+          <h3 className="mb-4 font-medium text-gray-900">Ubicación del inventario</h3>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label htmlFor="warehouseId" className="label mb-1 block">
+                Almacén / Ubicación
+              </label>
+              <div className="relative">
+                <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                <select
+                  id="warehouseId"
+                  value={formData.warehouseId}
+                  onChange={(e) => setFormData({ ...formData, warehouseId: e.target.value })}
+                  className="input pl-10"
+                >
+                  <option value="">Seleccionar ubicación (opcional)</option>
+                  {officeWarehouses.length > 0 && (
+                    <optgroup label="Depósitos">
+                      {officeWarehouses.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.name} ({w.code})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {vehicleWarehouses.length > 0 && (
+                    <optgroup label="Vehículos">
+                      {vehicleWarehouses.map((w) => (
+                        <option key={w.id} value={w.id}>
+                          {w.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                ¿Dónde se guardará este producto?
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor="initialStock" className="label mb-1 block">
+                Cantidad inicial
+              </label>
+              <input
+                id="initialStock"
+                type="text"
+                inputMode="numeric"
+                value={formData.initialStock}
+                onChange={(e) => {
+                  const val = e.target.value.replace(/\D/g, '');
+                  setFormData({ ...formData, initialStock: val });
+                }}
+                placeholder="0"
+                className="input"
+                disabled={!formData.warehouseId}
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Stock inicial en esta ubicación
               </p>
             </div>
           </div>

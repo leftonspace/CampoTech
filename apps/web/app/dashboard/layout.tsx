@@ -61,7 +61,7 @@ const allNavigation: NavItemDef[] = [
   { name: 'Facturas', href: '/dashboard/invoices', icon: FileText, module: 'invoices' },
   { name: 'Pagos', href: '/dashboard/payments', icon: CreditCard, module: 'payments' },
   { name: 'Analytics', href: '/dashboard/analytics/overview', icon: BarChart3, module: 'analytics' },
-  { name: 'Sucursales', href: '/dashboard/locations', icon: Building2, module: 'locations' },
+  { name: 'Zonas', href: '/dashboard/locations', icon: MapPin, module: 'locations' },
   { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle, module: 'whatsapp' },
   { name: 'Configuracion', href: '/dashboard/settings', icon: Settings, module: 'settings' },
 ];
