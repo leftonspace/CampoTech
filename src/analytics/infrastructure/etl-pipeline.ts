@@ -143,7 +143,7 @@ export async function runFullETL(organizationId: string): Promise<ETLStatus> {
     };
 
     // Flush any pending events first
-    await flushEvents(organizationId);
+    await flushEvents();
 
     // Extract and transform facts
     const jobCount = await processJobFacts(organizationId, dateRange);
@@ -209,7 +209,7 @@ export async function runIncrementalETL(organizationId: string): Promise<ETLStat
     };
 
     // Flush any pending events
-    await flushEvents(organizationId);
+    await flushEvents();
 
     // Process recent facts
     const jobCount = await processJobFacts(organizationId, dateRange);
