@@ -162,7 +162,7 @@ export async function calculateTaxSummary(
     ivaByRateMap.set(ivaRate, currentRate);
 
     // Update by invoice type
-    const invoiceType = (invoice.invoiceType as AFIPInvoiceType) || 'B';
+    const invoiceType = (invoice.type as AFIPInvoiceType) || 'B';
     const currentType = invoicesByTypeMap.get(invoiceType) || {
       count: 0,
       netAmount: 0,
@@ -280,7 +280,7 @@ export async function generateLibroIVA(
     return {
       date: invoice.createdAt,
       invoiceNumber: invoice.invoiceNumber || invoice.id,
-      invoiceType: (invoice.invoiceType as AFIPInvoiceType) || 'B',
+      invoiceType: (invoice.type as AFIPInvoiceType) || 'B',
       customerName: invoice.customer?.name || 'N/A',
       customerCUIT: invoice.customer?.taxId || null,
       customerTaxCondition: 'consumidor_final',
@@ -528,7 +528,7 @@ export async function generateCITIVentas(
 
     return {
       fecha: invoice.createdAt.toISOString().slice(0, 10).replace(/-/g, ''),
-      tipoComprobante: mapInvoiceTypeToAFIP(invoice.invoiceType as AFIPInvoiceType),
+      tipoComprobante: mapInvoiceTypeToAFIP(invoice.type as AFIPInvoiceType),
       puntoVenta: '00001',
       numeroComprobante: invoice.invoiceNumber || invoice.id,
       codigoDocumento: invoice.customer?.taxId ? '80' : '99', // 80 = CUIT, 99 = Sin ID
@@ -549,7 +549,7 @@ export async function generateCITIVentas(
     const net = invoice.subtotal?.toNumber() || total - tax;
 
     return {
-      tipoComprobante: mapInvoiceTypeToAFIP(invoice.invoiceType as AFIPInvoiceType),
+      tipoComprobante: mapInvoiceTypeToAFIP(invoice.type as AFIPInvoiceType),
       puntoVenta: '00001',
       numeroComprobante: invoice.invoiceNumber || invoice.id,
       codigoAlicuota: '5', // 5 = 21%
