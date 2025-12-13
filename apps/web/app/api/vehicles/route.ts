@@ -14,6 +14,7 @@ import {
   getEntityFieldMetadata,
   UserRole,
 } from '@/lib/middleware/field-filter';
+import { createVehicleWarehouse } from '@/lib/services/vehicle-storage';
 
 // Helper to check if error is "table doesn't exist"
 function isTableNotFoundError(error: unknown): boolean {
@@ -261,6 +262,20 @@ export async function POST(request: NextRequest) {
         status: 'ACTIVE',
       },
     });
+
+    // Auto-create warehouse storage location for this vehicle
+    try {
+      const vehicleName = `${make} ${model} (${plateNumber.toUpperCase()})`;
+      await createVehicleWarehouse(
+        vehicle.id,
+        vehicleName,
+        plateNumber.toUpperCase(),
+        session.organizationId
+      );
+    } catch (warehouseError) {
+      // Log but don't fail the vehicle creation
+      console.warn('Failed to create warehouse for vehicle:', warehouseError);
+    }
 
     return NextResponse.json({
       success: true,

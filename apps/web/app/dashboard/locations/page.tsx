@@ -57,38 +57,25 @@ export default function LocationsPage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sucursales</h1>
-          <p className="text-gray-500">Gestiona las sucursales y zonas de cobertura</p>
+          <h1 className="text-2xl font-bold text-gray-900">Zonas de Servicio</h1>
+          <p className="text-gray-500">Gestiona las zonas de cobertura y técnicos asignados</p>
         </div>
         <Link href="/dashboard/locations/new" className="btn-primary">
           <Plus className="mr-2 h-4 w-4" />
-          Nueva sucursal
+          Nueva zona
         </Link>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div className="card p-4">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100">
-              <Building2 className="h-5 w-5 text-primary-600" />
+              <MapPin className="h-5 w-5 text-primary-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Total sucursales</p>
+              <p className="text-sm text-gray-500">Total zonas</p>
               <p className="text-xl font-bold">{locations?.length || 0}</p>
-            </div>
-          </div>
-        </div>
-        <div className="card p-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Activas</p>
-              <p className="text-xl font-bold">
-                {locations?.filter((l) => l.isActive).length || 0}
-              </p>
             </div>
           </div>
         </div>
@@ -107,13 +94,13 @@ export default function LocationsPage() {
         </div>
         <div className="card p-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
-              <Globe className="h-5 w-5 text-purple-600" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+              <CheckCircle className="h-5 w-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Zonas definidas</p>
+              <p className="text-sm text-gray-500">Zonas activas</p>
               <p className="text-xl font-bold">
-                {locations?.reduce((sum, l) => sum + (l._count?.zones || 0), 0) || 0}
+                {locations?.filter((l) => l.isActive).length || 0}
               </p>
             </div>
           </div>
@@ -126,7 +113,7 @@ export default function LocationsPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <input
             type="text"
-            placeholder="Buscar por nombre o código..."
+            placeholder="Buscar zona..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="input pl-10"
@@ -175,7 +162,7 @@ export default function LocationsPage() {
                     <p className="truncate font-medium text-gray-900">{location.name}</p>
                     {location.isHeadquarters && (
                       <span className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700">
-                        Casa central
+                        Principal
                       </span>
                     )}
                     {!location.isActive && (
@@ -210,11 +197,11 @@ export default function LocationsPage() {
           </div>
         ) : (
           <div className="p-8 text-center">
-            <Building2 className="mx-auto h-12 w-12 text-gray-400" />
-            <p className="mt-4 text-gray-500">No se encontraron sucursales</p>
+            <MapPin className="mx-auto h-12 w-12 text-gray-400" />
+            <p className="mt-4 text-gray-500">No se encontraron zonas</p>
             <Link href="/dashboard/locations/new" className="btn-primary mt-4 inline-flex">
               <Plus className="mr-2 h-4 w-4" />
-              Crear sucursal
+              Crear zona
             </Link>
           </div>
         )}

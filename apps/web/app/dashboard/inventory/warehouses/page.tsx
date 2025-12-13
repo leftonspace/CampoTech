@@ -12,7 +12,18 @@ import {
   ChevronRight,
   Settings,
   X,
+  Building2,
+  Truck,
+  RefreshCw,
 } from 'lucide-react';
+
+interface VehicleInfo {
+  id: string;
+  plateNumber: string;
+  make: string;
+  model: string;
+  status: string;
+}
 
 interface WarehouseData {
   id: string;
@@ -25,18 +36,24 @@ interface WarehouseData {
   isActive: boolean;
   productCount?: number;
   stockValue?: number;
+  vehicle?: VehicleInfo | null;
+  vehicleId?: string | null;
 }
 
 const WAREHOUSE_TYPE_LABELS: Record<string, string> = {
   MAIN: 'Principal',
-  BRANCH: 'Sucursal',
+  SECONDARY: 'Secundario',
+  TRANSIT: 'En tránsito',
   VEHICLE: 'Vehículo',
-  VIRTUAL: 'Virtual',
 };
 
+type TabType = 'all' | 'office' | 'vehicle';
+
 export default function WarehousesPage() {
+  const queryClient = useQueryClient();
   const [showNewModal, setShowNewModal] = useState(false);
   const [includeInactive, setIncludeInactive] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabType>('all');
 
   const { data, isLoading } = useQuery({
     queryKey: ['warehouses', { includeInactive }],
@@ -48,7 +65,30 @@ export default function WarehousesPage() {
     },
   });
 
-  const warehouses = data?.data?.warehouses as WarehouseData[] | undefined;
+  const syncMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/inventory/sync-vehicle-storage', {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error('Error syncing');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['warehouses'] });
+    },
+  });
+
+  const allWarehouses = data?.data?.warehouses as WarehouseData[] | undefined;
+
+  // Filter warehouses based on active tab
+  const warehouses = allWarehouses?.filter((w) => {
+    if (activeTab === 'office') return w.type !== 'VEHICLE';
+    if (activeTab === 'vehicle') return w.type === 'VEHICLE';
+    return true;
+  });
+
+  const officeCount = allWarehouses?.filter((w) => w.type !== 'VEHICLE').length || 0;
+  const vehicleCount = allWarehouses?.filter((w) => w.type === 'VEHICLE').length || 0;
 
   return (
     <div className="space-y-6">
@@ -56,16 +96,57 @@ export default function WarehousesPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Almacenes</h1>
-          <p className="text-gray-500">Gestiona ubicaciones de inventario</p>
+          <p className="text-gray-500">Gestiona ubicaciones de inventario (depósitos y vehículos)</p>
         </div>
         <button onClick={() => setShowNewModal(true)} className="btn-primary">
           <Plus className="mr-2 h-4 w-4" />
-          Nuevo almacén
+          Nuevo depósito
         </button>
       </div>
 
-      {/* Filters */}
-      <div className="card p-4">
+      {/* Tabs */}
+      <div className="card p-1">
+        <div className="flex gap-1">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={cn(
+              'flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors',
+              activeTab === 'all'
+                ? 'bg-primary-100 text-primary-700'
+                : 'text-gray-600 hover:bg-gray-100'
+            )}
+          >
+            Todos ({allWarehouses?.length || 0})
+          </button>
+          <button
+            onClick={() => setActiveTab('office')}
+            className={cn(
+              'flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2',
+              activeTab === 'office'
+                ? 'bg-primary-100 text-primary-700'
+                : 'text-gray-600 hover:bg-gray-100'
+            )}
+          >
+            <Building2 className="h-4 w-4" />
+            Depósitos ({officeCount})
+          </button>
+          <button
+            onClick={() => setActiveTab('vehicle')}
+            className={cn(
+              'flex-1 rounded-md px-4 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2',
+              activeTab === 'vehicle'
+                ? 'bg-primary-100 text-primary-700'
+                : 'text-gray-600 hover:bg-gray-100'
+            )}
+          >
+            <Truck className="h-4 w-4" />
+            Vehículos ({vehicleCount})
+          </button>
+        </div>
+      </div>
+
+      {/* Filters and sync button */}
+      <div className="card p-4 flex items-center justify-between">
         <label className="inline-flex items-center gap-2 cursor-pointer">
           <input
             type="checkbox"
@@ -75,6 +156,17 @@ export default function WarehousesPage() {
           />
           <span className="text-sm text-gray-600">Mostrar inactivos</span>
         </label>
+
+        {activeTab === 'vehicle' && vehicleCount === 0 && (
+          <button
+            onClick={() => syncMutation.mutate()}
+            disabled={syncMutation.isPending}
+            className="btn-outline text-sm"
+          >
+            <RefreshCw className={cn('mr-2 h-4 w-4', syncMutation.isPending && 'animate-spin')} />
+            {syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar vehículos de flota'}
+          </button>
+        )}
       </div>
 
       {/* Warehouses grid */}
@@ -109,12 +201,16 @@ export default function WarehousesPage() {
                     className={cn(
                       'flex h-12 w-12 items-center justify-center rounded-lg',
                       warehouse.type === 'MAIN' && 'bg-blue-100 text-blue-600',
-                      warehouse.type === 'BRANCH' && 'bg-green-100 text-green-600',
+                      warehouse.type === 'SECONDARY' && 'bg-green-100 text-green-600',
                       warehouse.type === 'VEHICLE' && 'bg-purple-100 text-purple-600',
-                      warehouse.type === 'VIRTUAL' && 'bg-gray-100 text-gray-600'
+                      warehouse.type === 'TRANSIT' && 'bg-yellow-100 text-yellow-600'
                     )}
                   >
-                    <Warehouse className="h-6 w-6" />
+                    {warehouse.type === 'VEHICLE' ? (
+                      <Truck className="h-6 w-6" />
+                    ) : (
+                      <Building2 className="h-6 w-6" />
+                    )}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
@@ -128,12 +224,17 @@ export default function WarehousesPage() {
                     <p className="text-sm text-gray-500">
                       {WAREHOUSE_TYPE_LABELS[warehouse.type]} • {warehouse.code}
                     </p>
+                    {warehouse.vehicle && (
+                      <p className="text-xs text-purple-600 mt-1">
+                        {warehouse.vehicle.make} {warehouse.vehicle.model}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <ChevronRight className="h-5 w-5 text-gray-400" />
               </div>
 
-              {warehouse.address && (
+              {warehouse.address && warehouse.type !== 'VEHICLE' && (
                 <div className="mt-4 flex items-start gap-2 text-sm text-gray-500">
                   <MapPin className="h-4 w-4 shrink-0" />
                   <span className="line-clamp-2">
@@ -159,15 +260,35 @@ export default function WarehousesPage() {
         </div>
       ) : (
         <div className="card p-8 text-center">
-          <Warehouse className="mx-auto h-12 w-12 text-gray-400" />
-          <p className="mt-4 text-gray-500">No hay almacenes configurados</p>
-          <button
-            onClick={() => setShowNewModal(true)}
-            className="btn-primary mt-4 inline-flex"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Crear almacén
-          </button>
+          {activeTab === 'vehicle' ? (
+            <>
+              <Truck className="mx-auto h-12 w-12 text-gray-400" />
+              <p className="mt-4 text-gray-500">No hay vehículos con almacén configurado</p>
+              <p className="mt-2 text-sm text-gray-400">
+                Los almacenes de vehículos se crean automáticamente al agregar vehículos en Flota.
+              </p>
+              <button
+                onClick={() => syncMutation.mutate()}
+                disabled={syncMutation.isPending}
+                className="btn-outline mt-4 inline-flex"
+              >
+                <RefreshCw className={cn('mr-2 h-4 w-4', syncMutation.isPending && 'animate-spin')} />
+                {syncMutation.isPending ? 'Sincronizando...' : 'Sincronizar vehículos existentes'}
+              </button>
+            </>
+          ) : (
+            <>
+              <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+              <p className="mt-4 text-gray-500">No hay depósitos configurados</p>
+              <button
+                onClick={() => setShowNewModal(true)}
+                className="btn-primary mt-4 inline-flex"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Crear depósito
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -188,7 +309,7 @@ function NewWarehouseModal({ onClose }: { onClose: () => void }) {
   const [formData, setFormData] = useState({
     name: '',
     code: '',
-    type: 'BRANCH',
+    type: 'MAIN',
     address: '',
     city: '',
     state: '',
@@ -220,11 +341,15 @@ function NewWarehouseModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Nuevo almacén</h2>
+          <h2 className="text-lg font-semibold">Nuevo depósito</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        <p className="mt-1 text-sm text-gray-500">
+          Los almacenes de vehículos se crean automáticamente al agregar vehículos en Flota.
+        </p>
 
         <form onSubmit={handleSubmit} className="mt-4 space-y-4">
           <div>
@@ -235,8 +360,8 @@ function NewWarehouseModal({ onClose }: { onClose: () => void }) {
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="input mt-1 w-full"
-              placeholder="Almacén central"
-              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el nombre del almacén')}
+              placeholder="Depósito central"
+              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el nombre del depósito')}
               onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
             />
           </div>
@@ -249,8 +374,8 @@ function NewWarehouseModal({ onClose }: { onClose: () => void }) {
               value={formData.code}
               onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
               className="input mt-1 w-full"
-              placeholder="WH-001"
-              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el código del almacén')}
+              placeholder="DEP-001"
+              onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el código del depósito')}
               onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
             />
           </div>
@@ -263,9 +388,8 @@ function NewWarehouseModal({ onClose }: { onClose: () => void }) {
               className="input mt-1 w-full"
             >
               <option value="MAIN">Principal</option>
-              <option value="BRANCH">Sucursal</option>
-              <option value="VEHICLE">Vehículo</option>
-              <option value="VIRTUAL">Virtual</option>
+              <option value="SECONDARY">Secundario</option>
+              <option value="TRANSIT">En tránsito</option>
             </select>
           </div>
 

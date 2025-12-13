@@ -355,24 +355,30 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // If initial stock is provided and there's a default warehouse, create inventory level
+    // If initial stock is provided, create inventory level in specified warehouse
     if (body.initialStock && body.initialStock > 0) {
-      // Find default warehouse
-      const defaultWarehouse = await prisma.warehouse.findFirst({
-        where: {
-          organizationId: session.organizationId,
-          isDefault: true,
-          isActive: true,
-        },
-      });
+      // Use specified warehouse or find default
+      let targetWarehouseId = body.warehouseId;
 
-      if (defaultWarehouse) {
+      if (!targetWarehouseId) {
+        // Find default warehouse
+        const defaultWarehouse = await prisma.warehouse.findFirst({
+          where: {
+            organizationId: session.organizationId,
+            isDefault: true,
+            isActive: true,
+          },
+        });
+        targetWarehouseId = defaultWarehouse?.id;
+      }
+
+      if (targetWarehouseId) {
         // Create inventory level
         await prisma.inventoryLevel.create({
           data: {
             organizationId: session.organizationId,
             productId: product.id,
-            warehouseId: defaultWarehouse.id,
+            warehouseId: targetWarehouseId,
             quantityOnHand: body.initialStock,
             quantityAvailable: body.initialStock,
             unitCost: body.costPrice || 0,
@@ -390,7 +396,7 @@ export async function POST(request: NextRequest) {
             movementType: 'INITIAL_STOCK',
             quantity: body.initialStock,
             direction: 'IN',
-            toWarehouseId: defaultWarehouse.id,
+            toWarehouseId: targetWarehouseId,
             unitCost: body.costPrice || 0,
             totalCost: (body.costPrice || 0) * body.initialStock,
             notes: 'Stock inicial al crear producto',

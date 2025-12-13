@@ -1090,8 +1090,9 @@ model Warehouse {
   id             String   @id @default(cuid())
   organizationId String
   locationId     String?  // Link to Location model (branch location)
+  vehicleId      String?  @unique // Link to Vehicle (for VEHICLE type warehouses)
 
-  code           String   // Warehouse code (e.g., "DEP-001", "ALM-CABA")
+  code           String   // Warehouse code (e.g., "DEP-001", "ALM-CABA", "VEH-ABC123")
   name           String
   type           WarehouseType @default(MAIN)
   address        Json?    // { street, city, postalCode }
@@ -1108,6 +1109,7 @@ model Warehouse {
 
   organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   location         Location?         @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  vehicle          Vehicle?          @relation("VehicleWarehouse", fields: [vehicleId], references: [id], onDelete: SetNull)
   storageLocations StorageLocation[]
   inventoryLevels  InventoryLevel[]
   stockMovementsFrom StockMovement[] @relation("MovementFromWarehouse")
@@ -1119,6 +1121,7 @@ model Warehouse {
   @@unique([organizationId, code])
   @@index([organizationId])
   @@index([locationId])
+  @@index([vehicleId])
   @@map("warehouses")
 }
 
@@ -2144,6 +2147,7 @@ model Vehicle {
   assignments     VehicleAssignment[]
   maintenanceLogs VehicleMaintenance[]
   inventoryLocations InventoryLocation[] @relation("VehicleInventoryLocations")
+  warehouse       Warehouse?         @relation("VehicleWarehouse") // Inventory warehouse for this vehicle
 
   @@unique([organizationId, plateNumber])
   @@index([organizationId])
