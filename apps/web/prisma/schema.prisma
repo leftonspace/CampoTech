@@ -53,6 +53,18 @@ model Organization {
   dashboardAlerts      DashboardAlert[]       @relation("OrgDashboardAlerts")
   priceItems           PriceItem[]            @relation("OrgPriceItems")
   serviceTypeConfigs   ServiceTypeConfig[]
+  // WhatsApp Integration
+  whatsappPhoneNumberId       String?
+  whatsappBusinessAccountId   String?
+  whatsappAccessToken         String?  // Encrypted
+  whatsappWebhookVerifyToken  String?
+  whatsappAppSecret           String?  // Encrypted
+  whatsappBusinessAccount     WhatsAppBusinessAccount?
+  waConversations             WaConversation[]
+  waMessages                  WaMessage[]
+  waTemplates                 WaTemplate[]
+  waOutboundQueue             WaOutboundQueue[]
+  waWebhookLogs               WaWebhookLog[]
 
   @@map("organizations")
 }
@@ -96,6 +108,9 @@ model User {
   inventoryTransactions InventoryTransaction[] @relation("PerformedTransactions")
   // Job Assignments (many-to-many)
   jobAssignments       JobAssignment[]        @relation("TechnicianAssignments")
+  // WhatsApp
+  assignedWaConversations WaConversation[]     @relation("WaConversationAssignee")
+  sentWaMessages          WaMessage[]          @relation("WaMessageSender")
 
   @@unique([email, organizationId])
   @@index([organizationId])
@@ -136,7 +151,8 @@ model Customer {
   zone         Zone?        @relation("CustomerZone", fields: [zoneId], references: [id], onDelete: SetNull)
   jobs         Job[]
   invoices     Invoice[]
-  reviews      Review[]
+  reviews         Review[]
+  waConversations WaConversation[]
 
   @@index([phone])
   @@index([organizationId])
@@ -2421,4 +2437,278 @@ model PriceItem {
   @@index([type])
   @@index([isActive])
   @@map("price_items")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WHATSAPP BUSINESS INTEGRATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// WhatsApp Business Account (one per organization)
+model WhatsAppBusinessAccount {
+  id                    String   @id @default(cuid())
+  organizationId        String   @unique
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Meta Business credentials
+  phoneNumberId         String?  // WhatsApp Phone Number ID
+  businessAccountId     String?  // WhatsApp Business Account ID
+  accessToken           String?  // Encrypted access token
+  accessTokenExpiresAt  DateTime?
+
+  // Webhook configuration
+  webhookVerifyToken    String   @default(cuid())
+  webhookSecret         String?  // For signature verification
+
+  // Status
+  status                WaAccountStatus @default(PENDING)
+  verifiedAt            DateTime?
+
+  // Metadata
+  displayPhoneNumber    String?  // +54 11 1234-5678
+  businessName          String?
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([organizationId])
+  @@map("whatsapp_business_accounts")
+}
+
+enum WaAccountStatus {
+  PENDING
+  VERIFYING
+  ACTIVE
+  SUSPENDED
+  DISCONNECTED
+}
+
+// WhatsApp Conversations (threads with customers)
+model WaConversation {
+  id                    String   @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Contact info
+  customerPhone         String   // +5491112345678
+  customerName          String?
+  customerId            String?  // Link to Customer record if exists
+  customer              Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  // Conversation state
+  status                WaConversationStatus @default(OPEN)
+  isUnread              Boolean  @default(true)
+  unreadCount           Int      @default(0)
+  lastMessageAt         DateTime @default(now())
+  lastMessagePreview    String?  // First 100 chars of last message
+  lastMessageDirection  String?  // 'inbound' | 'outbound'
+  lastMessageStatus     String?  // 'sent' | 'delivered' | 'read' | 'failed'
+
+  // 24-hour window tracking
+  windowExpiresAt       DateTime? // When the 24h reply window closes
+  canSendFreeform       Boolean  @default(false) // Can send without template
+
+  // Assignment
+  assignedToId          String?
+  assignedTo            User?    @relation("WaConversationAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  // Related entities
+  activeJobId           String?  // Currently discussed job
+
+  // Active status
+  isActive              Boolean  @default(true)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  messages              WaMessage[]
+
+  @@unique([organizationId, customerPhone])
+  @@index([organizationId, status])
+  @@index([organizationId, isUnread])
+  @@index([organizationId, lastMessageAt])
+  @@index([customerId])
+  @@map("wa_conversations")
+}
+
+enum WaConversationStatus {
+  OPEN
+  CLOSED
+  ARCHIVED
+  SPAM
+}
+
+// WhatsApp Messages
+model WaMessage {
+  id                    String   @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  conversationId        String
+  conversation          WaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  // Customer reference (denormalized for queries)
+  customerId            String?
+
+  // WhatsApp message identifiers
+  waMessageId           String?  @unique // WhatsApp's message ID
+
+  // Message details
+  direction             String   // 'inbound' | 'outbound'
+  type                  String   // 'text' | 'image' | 'audio' | 'video' | 'document' | 'template' | 'interactive'
+  from                  String   // Sender phone/ID
+  to                    String   // Recipient phone/ID
+  content               String   // Message text content
+
+  // Media
+  mediaId               String?
+  mediaUrl              String?
+  mediaMimeType         String?
+  mediaFilename         String?
+
+  // Template info (for outbound templates)
+  templateName          String?
+  templateParams        Json?
+
+  // Interactive message metadata
+  metadata              Json?
+
+  // Status tracking
+  status                String   @default("pending") // 'pending' | 'queued' | 'sent' | 'delivered' | 'read' | 'failed'
+  statusUpdatedAt       DateTime?
+  errorCode             String?
+  errorMessage          String?
+
+  // Sender info (for outbound)
+  sentById              String?
+  sentBy                User?    @relation("WaMessageSender", fields: [sentById], references: [id], onDelete: SetNull)
+
+  // Reply context
+  replyToId             String?  // ID of message being replied to
+
+  createdAt             DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([waMessageId])
+  @@map("wa_messages")
+}
+
+// WhatsApp Message Templates
+model WaTemplate {
+  id                    String   @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Meta template info
+  waTemplateId          String?  // Meta's template ID
+  name                  String   // Template name (lowercase, underscores)
+  language              String   @default("es_AR")
+  category              WaTemplateCategory @default(UTILITY)
+
+  // Content
+  components            Json     // Array of component objects
+  headerType            String?  // 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
+  headerContent         String?
+  bodyText              String?  // Main message body
+  footerText            String?
+  buttons               Json?    // Array of button objects
+
+  // Status from Meta
+  status                WaTemplateStatus @default(PENDING)
+  rejectionReason       String?
+
+  // Usage tracking
+  usageCount            Int      @default(0)
+  lastUsedAt            DateTime?
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([organizationId, name, language])
+  @@index([organizationId, status])
+  @@index([organizationId, category])
+  @@map("wa_templates")
+}
+
+enum WaTemplateCategory {
+  UTILITY
+  MARKETING
+  AUTHENTICATION
+}
+
+enum WaTemplateStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  PAUSED
+  DISABLED
+}
+
+// Outbound Message Queue
+model WaOutboundQueue {
+  id                    String   @id @default(cuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Message details
+  messageId             String?  // Reference to WaMessage
+  to                    String   // Recipient phone
+  type                  String   // 'text' | 'template' | 'media' | 'interactive'
+  payload               Json     // Message payload
+
+  // Processing status
+  status                WaQueueStatus @default(PENDING)
+  attempts              Int      @default(0)
+  maxAttempts           Int      @default(3)
+  lastAttemptAt         DateTime?
+  nextAttemptAt         DateTime?
+
+  // Result
+  waMessageId           String?  // WhatsApp message ID when sent
+  errorCode             String?
+  errorMessage          String?
+
+  // Priority & ordering
+  priority              Int      @default(0)
+  scheduledFor          DateTime?
+
+  createdAt             DateTime @default(now())
+  processedAt           DateTime?
+
+  @@index([organizationId, status])
+  @@index([status, nextAttemptAt])
+  @@index([scheduledFor])
+  @@map("wa_outbound_queue")
+}
+
+enum WaQueueStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+// Webhook Event Log (for debugging and replay)
+model WaWebhookLog {
+  id                    String   @id @default(cuid())
+  organizationId        String?
+  organization          Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  // Request info
+  eventType             String   // 'messages' | 'message_status' | 'errors'
+  payload               Json     // Raw webhook payload
+  signature             String?  // x-hub-signature-256
+
+  // Processing
+  processed             Boolean  @default(false)
+  processedAt           DateTime?
+  error                 String?
+
+  receivedAt            DateTime @default(now())
+
+  @@index([organizationId, receivedAt])
+  @@index([processed])
+  @@map("wa_webhook_logs")
 }
