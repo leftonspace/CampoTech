@@ -148,19 +148,21 @@ export {
 
 // Fact Tables
 export {
-  queryJobFacts,
-  queryInvoiceFacts,
-  queryPaymentFacts,
-  getJobFactsSummary,
-  getInvoiceFactsSummary,
-  getPaymentFactsSummary,
-  getRevenueByDimension,
-  getJobsByDimension,
-  type JobFactQuery,
-  type InvoiceFactQuery,
-  type PaymentFactQuery,
-  type FactSummary,
-  type DimensionalBreakdown,
+  getJobFacts as queryJobFacts,
+  getInvoiceFacts as queryInvoiceFacts,
+  getPaymentFacts as queryPaymentFacts,
+  getJobFactsCount,
+  getInvoiceFactsCount,
+  getPaymentFactsCount,
+  getJobFactsByPeriod,
+  getInvoiceFactsByPeriod,
+  getPaymentFactsByPeriod,
+  getOperationsSummary as getJobFactsSummary,
+  getRevenueSummary as getInvoiceFactsSummary,
+  getCollectionSummary as getPaymentFactsSummary,
+  syncAllFacts,
+  type FactQueryOptions,
+  type FactSyncResult,
 } from './models/fact-tables';
 
 // ═══════════════════════════════════════════════════════════════════════════════
