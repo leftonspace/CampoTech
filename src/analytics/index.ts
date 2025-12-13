@@ -90,14 +90,20 @@ export {
 export {
   writePoint,
   writePoints,
+  writeAggregatedPoint,
   queryTimeSeries,
   downsample,
   getLatestValue,
-  deleteTimeSeries,
+  getDataForPeriod,
+  getDataRange,
+  runAutoDownsample,
+  cleanupExpiredData,
+  getStorageStats,
   type TimeSeriesPoint,
   type TimeSeriesQuery,
-  type TimeSeriesResult,
-  type DownsampleConfig,
+  type TimeSeriesConfig,
+  type TimeSeriesWriteResult,
+  type TimeSeriesDownsampleResult,
 } from './collectors/time-series-storage';
 
 // ═══════════════════════════════════════════════════════════════════════════════
