@@ -269,7 +269,8 @@ export async function generateLibroIVA(
     orderBy: { createdAt: 'asc' },
   });
 
-  return invoices.map((invoice) => {
+  type LibroInvoiceType = typeof invoices[number];
+  return invoices.map((invoice: LibroInvoiceType) => {
     const total = invoice.total?.toNumber() || 0;
     const tax = invoice.taxAmount?.toNumber() || 0;
     const net = invoice.subtotal?.toNumber() || total - tax;
@@ -515,8 +516,10 @@ export async function generateCITIVentas(
     orderBy: { createdAt: 'asc' },
   });
 
+  type CITIInvoiceType = typeof invoices[number];
+
   // CITI Ventas - Comprobantes
-  const comprobantes = invoices.map((invoice) => {
+  const comprobantes = invoices.map((invoice: CITIInvoiceType) => {
     const total = invoice.total?.toNumber() || 0;
     const tax = invoice.taxAmount?.toNumber() || 0;
     const net = invoice.subtotal?.toNumber() || total - tax;
@@ -538,7 +541,7 @@ export async function generateCITIVentas(
   });
 
   // CITI Ventas - Alícuotas
-  const alicuotas = invoices.map((invoice) => {
+  const alicuotas = invoices.map((invoice: CITIInvoiceType) => {
     const total = invoice.total?.toNumber() || 0;
     const tax = invoice.taxAmount?.toNumber() || 0;
     const net = invoice.subtotal?.toNumber() || total - tax;

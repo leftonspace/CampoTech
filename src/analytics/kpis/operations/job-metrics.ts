@@ -78,19 +78,21 @@ export async function calculateJobMetrics(
     },
   });
 
+  type JobType = typeof jobs[number];
+
   const totalJobs = jobs.length;
-  const completedJobs = jobs.filter((j) => j.status === 'COMPLETED').length;
-  const cancelledJobs = jobs.filter((j) => j.status === 'CANCELLED').length;
-  const pendingJobs = jobs.filter((j) => j.status === 'PENDING').length;
-  const inProgressJobs = jobs.filter((j) => j.status === 'IN_PROGRESS').length;
+  const completedJobs = jobs.filter((j: JobType) => j.status === 'COMPLETED').length;
+  const cancelledJobs = jobs.filter((j: JobType) => j.status === 'CANCELLED').length;
+  const pendingJobs = jobs.filter((j: JobType) => j.status === 'PENDING').length;
+  const inProgressJobs = jobs.filter((j: JobType) => j.status === 'IN_PROGRESS').length;
 
   // Calculate completion rate
   const completionRate = totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
   const cancellationRate = totalJobs > 0 ? (cancelledJobs / totalJobs) * 100 : 0;
 
   // Calculate average duration (for completed jobs)
-  const jobsWithDuration = jobs.filter((j) => j.startedAt && j.completedAt);
-  const totalDuration = jobsWithDuration.reduce((sum, j) => {
+  const jobsWithDuration = jobs.filter((j: JobType) => j.startedAt && j.completedAt);
+  const totalDuration = jobsWithDuration.reduce((sum: number, j: JobType) => {
     const duration = j.completedAt!.getTime() - j.startedAt!.getTime();
     return sum + duration;
   }, 0);
@@ -99,8 +101,8 @@ export async function calculateJobMetrics(
     : 0;
 
   // Calculate average response time (time from creation to start)
-  const jobsWithResponse = jobs.filter((j) => j.startedAt);
-  const totalResponse = jobsWithResponse.reduce((sum, j) => {
+  const jobsWithResponse = jobs.filter((j: JobType) => j.startedAt);
+  const totalResponse = jobsWithResponse.reduce((sum: number, j: JobType) => {
     const response = j.startedAt!.getTime() - j.createdAt.getTime();
     return sum + response;
   }, 0);
@@ -110,9 +112,9 @@ export async function calculateJobMetrics(
 
   // Calculate on-time completion rate
   const scheduledCompletedJobs = jobs.filter(
-    (j) => j.status === 'COMPLETED' && j.scheduledDate && j.completedAt
+    (j: JobType) => j.status === 'COMPLETED' && j.scheduledDate && j.completedAt
   );
-  const onTimeJobs = scheduledCompletedJobs.filter((j) => {
+  const onTimeJobs = scheduledCompletedJobs.filter((j: JobType) => {
     // Consider on-time if completed within 2 hours of scheduled time
     const scheduledEnd = new Date(j.scheduledDate!.getTime() + 2 * 60 * 60 * 1000);
     return j.completedAt! <= scheduledEnd;
@@ -268,9 +270,10 @@ export async function getJobsByStatus(
     _count: true,
   });
 
-  const totalJobs = jobs.reduce((sum, j) => sum + j._count, 0);
+  type StatusGroupType = typeof jobs[number];
+  const totalJobs = jobs.reduce((sum: number, j: StatusGroupType) => sum + j._count, 0);
 
-  return jobs.map((j) => ({
+  return jobs.map((j: StatusGroupType) => ({
     status: j.status,
     count: j._count,
     percentage: totalJobs > 0 ? (j._count / totalJobs) * 100 : 0,

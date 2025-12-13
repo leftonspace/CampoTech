@@ -222,18 +222,22 @@ export async function getARPUBySegment(
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
+  type ARPUCustomerType = typeof customers[number];
+  type ARPUInvoiceType = ARPUCustomerType['invoices'][number];
+  type ARPUJobType = ARPUCustomerType['jobs'][number];
+
   const segmentData = new Map<string, { revenue: number; count: number }>();
 
   for (const customer of customers) {
     const revenue = customer.invoices.reduce(
-      (sum, inv) => sum + (inv.total?.toNumber() || 0),
+      (sum: number, inv: ARPUInvoiceType) => sum + (inv.total?.toNumber() || 0),
       0
     );
 
     const totalJobs = customer.jobs.length;
     const lastJobAt = customer.jobs
-      .filter((j) => j.completedAt)
-      .sort((a, b) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
+      .filter((j: ARPUJobType) => j.completedAt)
+      .sort((a: ARPUJobType, b: ARPUJobType) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
       ?.completedAt;
 
     // Determine segment
