@@ -378,13 +378,16 @@ export async function getGeographicPerformance(
       }),
     ]);
 
-    const uniqueCustomers = new Set(jobs.map((j) => j.customerId));
-    const completedJobs = jobs.filter((j) => j.status === 'COMPLETED').length;
+    type GeoJobType = typeof jobs[number];
+    type GeoInvoiceType = typeof invoices[number];
+
+    const uniqueCustomers = new Set(jobs.map((j: GeoJobType) => j.customerId));
+    const completedJobs = jobs.filter((j: GeoJobType) => j.status === 'COMPLETED').length;
 
     // Calculate avg response time
-    const jobsWithResponse = jobs.filter((j) => j.startedAt);
+    const jobsWithResponse = jobs.filter((j: GeoJobType) => j.startedAt);
     const avgResponseTime = jobsWithResponse.length > 0
-      ? jobsWithResponse.reduce((sum, j) => {
+      ? jobsWithResponse.reduce((sum: number, j: GeoJobType) => {
           return sum + (j.startedAt!.getTime() - j.createdAt.getTime()) / (1000 * 60 * 60);
         }, 0) / jobsWithResponse.length
       : 0;
@@ -412,13 +415,15 @@ export async function getGeographicPerformance(
         select: { total: true },
       });
 
+      type ZoneJobType = typeof zoneJobs[number];
+      type ZoneInvType = typeof zoneInvoices[number];
       zonePerformances.push({
         zoneId: zone.id,
         zoneName: zone.name,
         metrics: {
-          revenue: zoneInvoices.reduce((sum, i) => sum + (i.total || 0), 0),
+          revenue: zoneInvoices.reduce((sum: number, i: ZoneInvType) => sum + (i.total || 0), 0),
           jobs: zoneJobs.length,
-          customers: new Set(zoneJobs.map((j) => j.customerId)).size,
+          customers: new Set(zoneJobs.map((j: ZoneJobType) => j.customerId)).size,
           avgTravelTime: 15, // Placeholder - would need actual travel tracking
         },
         centroid: locCoords, // Would calculate actual zone centroid
@@ -430,7 +435,7 @@ export async function getGeographicPerformance(
       locationName: location.name,
       coordinates: locCoords,
       metrics: {
-        revenue: invoices.reduce((sum, i) => sum + (i.total || 0), 0),
+        revenue: invoices.reduce((sum: number, i: GeoInvoiceType) => sum + (i.total || 0), 0),
         jobs: jobs.length,
         customers: uniqueCustomers.size,
         avgResponseTime,
@@ -486,6 +491,9 @@ export async function generateServiceDensityMap(
     select: { id: true, coordinates: true },
   });
 
+  type DensityJobType = typeof jobs[number];
+  type DensityLocationType = typeof locations[number];
+
   // Create revenue map by customer
   const customerRevenue = new Map<string, number>();
   for (const inv of invoices) {
@@ -494,11 +502,13 @@ export async function generateServiceDensityMap(
 
   // Filter jobs with valid coordinates
   const jobsWithCoords = jobs
-    .map((j) => ({
+    .map((j: DensityJobType) => ({
       ...j,
       coords: getAddressCoordinates(j.customer?.address),
     }))
     .filter((j): j is typeof j & { coords: GeoCoordinate } => j.coords !== null);
+
+  type JobWithCoordsType = typeof jobsWithCoords[number];
 
   if (jobsWithCoords.length === 0) {
     return {
@@ -509,8 +519,8 @@ export async function generateServiceDensityMap(
   }
 
   // Calculate bounds
-  const lats = jobsWithCoords.map((j) => j.coords.lat);
-  const lngs = jobsWithCoords.map((j) => j.coords.lng);
+  const lats = jobsWithCoords.map((j: JobWithCoordsType) => j.coords.lat);
+  const lngs = jobsWithCoords.map((j: JobWithCoordsType) => j.coords.lng);
   const bounds: GeoBounds = {
     north: Math.max(...lats) + 0.05,
     south: Math.min(...lats) - 0.05,
@@ -536,21 +546,21 @@ export async function generateServiceDensityMap(
       };
 
       // Find jobs in this cell
-      const cellJobs = jobsWithCoords.filter((j) => {
+      const cellJobs = jobsWithCoords.filter((j: JobWithCoordsType) => {
         return j.coords.lat >= cellBounds.south && j.coords.lat < cellBounds.north &&
                j.coords.lng >= cellBounds.west && j.coords.lng < cellBounds.east;
       });
 
       // Calculate metrics
-      const uniqueCustomers = new Set(cellJobs.map((j) => j.customer!.id));
+      const uniqueCustomers = new Set(cellJobs.map((j: JobWithCoordsType) => j.customer!.id));
       let cellRevenue = 0;
       for (const customerId of uniqueCustomers) {
-        cellRevenue += customerRevenue.get(customerId) || 0;
+        cellRevenue += customerRevenue.get(customerId as string) || 0;
       }
 
-      const jobsWithResponse = cellJobs.filter((j) => j.startedAt);
+      const jobsWithResponse = cellJobs.filter((j: JobWithCoordsType) => j.startedAt);
       const avgResponseTime = jobsWithResponse.length > 0
-        ? jobsWithResponse.reduce((sum, j) => {
+        ? jobsWithResponse.reduce((sum: number, j: JobWithCoordsType) => {
             return sum + (j.startedAt!.getTime() - j.createdAt.getTime()) / (1000 * 60 * 60);
           }, 0) / jobsWithResponse.length
         : 0;
@@ -560,7 +570,7 @@ export async function generateServiceDensityMap(
       const centerLng = lng + lngStep / 2;
 
       let nearestLocation: { id: string; distance: number } | null = null;
-      for (const loc of locations) {
+      for (const loc of locations as DensityLocationType[]) {
         const locCoords = getLocationCoordinates(loc.coordinates);
         if (locCoords) {
           const distance = haversineDistance(
@@ -573,7 +583,7 @@ export async function generateServiceDensityMap(
         }
       }
 
-      const hasLocation = locations.some((loc) => {
+      const hasLocation = locations.some((loc: DensityLocationType) => {
         const locCoords = getLocationCoordinates(loc.coordinates);
         if (!locCoords) return false;
         return locCoords.lat >= cellBounds.south && locCoords.lat < cellBounds.north &&
@@ -627,9 +637,11 @@ export async function analyzeCoverage(
     },
   });
 
+  type CoverageLocType = typeof locations[number];
+
   // Calculate total coverage area
   let totalCoverageArea = 0;
-  for (const loc of locations) {
+  for (const loc of locations as CoverageLocType[]) {
     if (loc.coverageRadius) {
       totalCoverageArea += Math.PI * loc.coverageRadius * loc.coverageRadius;
     }
@@ -646,7 +658,7 @@ export async function analyzeCoverage(
   );
 
   for (const cell of highDemandCells.slice(0, 5)) {
-    const nearestLoc = locations.find((l) => l.id === cell.nearestLocationId);
+    const nearestLoc = locations.find((l: CoverageLocType) => l.id === cell.nearestLocationId);
     if (nearestLoc) {
       coverageGaps.push({
         center: cell.center,
