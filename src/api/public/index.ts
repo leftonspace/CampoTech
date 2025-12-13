@@ -32,13 +32,13 @@ export {
 
 export {
   createPublicApiV1Router,
-  PublicApiConfig,
   createCustomersController,
   createJobsController,
   createInvoicesController,
   createPaymentsController,
   createWebhooksController,
 } from './v1/router';
+export type { PublicApiConfig } from './v1/router';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // AUTHENTICATION & AUTHORIZATION
@@ -48,6 +48,20 @@ export {
   // API Keys
   ApiKeyService,
   createApiKeyService,
+
+  // OAuth 2.0 Constants
+  DEFAULT_OAUTH2_CONFIG,
+
+  // OAuth 2.0 Service
+  OAuth2Service,
+  createOAuth2Service,
+
+  // OAuth 2.0 Router
+  createOAuth2Router,
+} from './auth';
+
+export type {
+  // API Key Types
   ApiKey,
   CreateApiKeyOptions,
   ApiKeyValidationResult,
@@ -68,14 +82,6 @@ export {
   OAuth2Exception,
   ConsentRecord,
   OAuth2Config,
-  DEFAULT_OAUTH2_CONFIG,
-
-  // OAuth 2.0 Service
-  OAuth2Service,
-  createOAuth2Service,
-
-  // OAuth 2.0 Router
-  createOAuth2Router,
 } from './auth';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -83,17 +89,9 @@ export {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export {
-  // Types
+  // Constants
   WEBHOOK_EVENT_TYPES,
-  WebhookEventType,
-  WebhookEvent,
-  WebhookSubscription,
-  RetryPolicy,
   DEFAULT_RETRY_POLICY,
-  DeliveryStatus,
-  WebhookDelivery,
-  DeliveryResult,
-  WebhookConfig,
   DEFAULT_WEBHOOK_CONFIG,
 
   // Signature utilities
@@ -112,12 +110,24 @@ export {
   // Event emitter
   WebhookEventEmitter,
   createWebhookEmitter,
-  EmitEventOptions,
-  EventEmitterConfig,
 
   // Delivery worker
   WebhookDeliveryWorker,
   createWebhookWorker,
+} from './webhooks';
+
+export type {
+  // Webhook Types
+  WebhookEventType,
+  WebhookEvent,
+  WebhookSubscription,
+  RetryPolicy,
+  DeliveryStatus,
+  WebhookDelivery,
+  DeliveryResult,
+  WebhookConfig,
+  EmitEventOptions,
+  EventEmitterConfig,
   WorkerStats,
 } from './webhooks';
 
@@ -126,7 +136,21 @@ export {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export {
-  // Types
+  // API Reference
+  ApiReferenceService,
+  createApiReferenceService,
+
+  // Developer Console
+  DeveloperConsoleService,
+  createDeveloperConsoleService,
+
+  // API Playground
+  PlaygroundService,
+  createPlaygroundService,
+} from './developer-portal';
+
+export type {
+  // Developer Portal Types
   DocPage,
   DocSection,
   DocCategory,
@@ -139,18 +163,6 @@ export {
   PlaygroundRequest,
   PlaygroundResponse,
   GeneratedCode,
-
-  // API Reference
-  ApiReferenceService,
-  createApiReferenceService,
-
-  // Developer Console
-  DeveloperConsoleService,
-  createDeveloperConsoleService,
-
-  // API Playground
-  PlaygroundService,
-  createPlaygroundService,
 } from './developer-portal';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -168,7 +180,30 @@ export {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export {
-  // Types
+  // Integration Utilities
+  createIntegrationError,
+
+  // Google Calendar
+  GoogleCalendarService,
+  createGoogleCalendarService,
+
+  // QuickBooks
+  QuickBooksService,
+  createQuickBooksService,
+
+  // Zapier
+  ZapierService,
+  createZapierService,
+  AVAILABLE_TRIGGERS,
+  AVAILABLE_ACTIONS,
+
+  // Utilities
+  getAvailableIntegrations,
+  validateIntegrationConfig,
+} from './integrations';
+
+export type {
+  // Integration Types
   IntegrationProvider,
   IntegrationStatus,
   BaseIntegrationConfig,
@@ -183,19 +218,14 @@ export {
   MappingConfig,
   IntegrationError,
   IntegrationErrorCode,
-  createIntegrationError,
 
-  // Google Calendar
-  GoogleCalendarService,
-  createGoogleCalendarService,
+  // Google Calendar Types
   GoogleCalendarConfig,
   CalendarEvent,
   CalendarSyncOptions,
   GoogleCalendarCredentials,
 
-  // QuickBooks
-  QuickBooksService,
-  createQuickBooksService,
+  // QuickBooks Types
   QuickBooksConfig,
   QuickBooksCredentials,
   QuickBooksCustomer,
@@ -203,21 +233,13 @@ export {
   QuickBooksPayment,
   QuickBooksSyncOptions,
 
-  // Zapier
-  ZapierService,
-  createZapierService,
+  // Zapier Types
   ZapierConfig,
   ZapierTrigger,
   ZapierAction,
   ZapierWebhook,
   TriggerType,
   ActionType,
-  AVAILABLE_TRIGGERS,
-  AVAILABLE_ACTIONS,
-
-  // Utilities
-  getAvailableIntegrations,
-  validateIntegrationConfig,
 } from './integrations';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -229,67 +251,82 @@ export {
   AnalyticsService,
   createAnalyticsService,
 
+  // Usage service
+  UsageTrackingService,
+  createUsageTrackingService,
+
+  // Rate limit service
+  RateLimitMonitorService,
+  createRateLimitMonitorService,
+
+  // Error service
+  ErrorTrackingService,
+  createErrorTrackingService,
+
+  // Alert service
+  AlertingService,
+  createAlertingService,
+
+  // Dashboard service
+  DashboardService,
+  createDashboardService,
+
+  // Configuration
+  DEFAULT_ANALYTICS_CONFIG,
+} from './analytics';
+
+export type {
   // Time types
   TimePeriod,
   TimeGranularity,
   TimeRange,
 
-  // Usage types and service
+  // Usage types
   ApiRequest,
   UsageMetrics,
   UsageSummary,
   UsageTrend,
-  UsageTrackingService,
-  createUsageTrackingService,
   TrackRequestOptions,
   UsageQueryOptions,
   TopEndpoint,
   TopApiKey,
 
-  // Rate limit types and service
+  // Rate limit types
   RateLimitStatus,
   RateLimitEvent,
   RateLimitMetrics,
   RateLimitConfig,
-  RateLimitMonitorService,
-  createRateLimitMonitorService,
   RecordLimitEventOptions,
   RateLimitOverride,
   RateLimitAnalysis,
 
-  // Error types and service
+  // Error types
   ErrorSeverity,
   ErrorCategory,
   ApiError,
   ErrorGroup,
   ErrorMetrics,
   ErrorTrend,
-  ErrorTrackingService,
-  createErrorTrackingService,
   TrackErrorOptions,
   ErrorQueryOptions,
   ErrorSearchResult,
   ErrorGroupUpdateOptions,
 
-  // Alert types and service
+  // Alert types
   AlertChannel,
   AlertCondition,
   AlertRule,
   Alert,
   AlertNotification,
-  AlertingService,
-  createAlertingService,
   CreateAlertRuleOptions,
   AlertCheckResult,
   NotificationResult,
 
-  // Dashboard types and service
+  // Dashboard types
   WidgetType,
   MetricType,
   DashboardWidget,
   Dashboard,
-  DashboardService,
-  createDashboardService,
   CreateDashboardOptions,
   WidgetData,
   DashboardData,
@@ -307,7 +344,6 @@ export {
 
   // Configuration
   AnalyticsConfig,
-  DEFAULT_ANALYTICS_CONFIG,
 } from './analytics';
 
 // ═══════════════════════════════════════════════════════════════════════════════

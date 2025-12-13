@@ -6,13 +6,12 @@
  * Phase 15: Consumer Marketplace
  */
 
-export {
-  VerificationService,
+export { VerificationService, VERIFICATION_REQUIREMENTS } from './verification.service';
+export type {
   VerificationType,
   VerificationStatus,
   VerificationRequest,
   CreateVerificationInput,
   TrustScore,
   TrustSignal,
-  VERIFICATION_REQUIREMENTS,
 } from './verification.service';

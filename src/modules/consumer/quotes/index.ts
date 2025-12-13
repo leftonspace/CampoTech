@@ -6,8 +6,8 @@
  * Phase 15: Consumer Marketplace
  */
 
-export {
-  QuoteRepository,
+export { QuoteRepository } from './quote.repository';
+export type {
   CreateQuoteInput,
   UpdateQuoteInput,
   CreateMessageInput,
@@ -16,13 +16,12 @@ export {
   QuoteSearchParams,
 } from './quote.repository';
 
-export {
-  QuoteService,
+export { QuoteService, NotificationService } from './quote.service';
+export type {
   QuoteError,
   SubmitQuoteInput,
   QuoteWithDetails,
   QuoteComparisonResult,
-  NotificationService,
 } from './quote.service';
 
 export {

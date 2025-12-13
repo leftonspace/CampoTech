@@ -8,35 +8,38 @@
 
 export {
   WhatsAppService,
-  WhatsAppConfig,
-  WhatsAppTemplate,
   MESSAGE_TEMPLATES,
   initializeWhatsAppService,
   getWhatsAppService,
   resetWhatsAppService,
 } from './whatsapp.service';
+export type { WhatsAppConfig, WhatsAppTemplate } from './whatsapp.service';
 
 export {
   PushNotificationService,
   MockPushNotificationService,
-  PushConfig,
-  PushMessage,
-  SendPushResult,
-  MulticastResult,
   NOTIFICATION_CHANNELS,
   initializePushService,
   initializeMockPushService,
   getPushService,
   resetPushService,
 } from './push.service';
+export type {
+  PushConfig,
+  PushMessage,
+  SendPushResult,
+  MulticastResult,
+} from './push.service';
 
 export {
   NotificationService,
   NotificationScheduler,
-  NotificationConfig,
-  NotificationPreferences,
-  NotificationLog,
   initializeNotificationService,
   getNotificationService,
   resetNotificationService,
+} from './notification.service';
+export type {
+  NotificationConfig,
+  NotificationPreferences,
+  NotificationLog,
 } from './notification.service';

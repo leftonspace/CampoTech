@@ -7,27 +7,24 @@
  */
 
 export {
-  SearchParams,
-  GeoSearchParams,
-  RankingWeights,
-  RankingFactors,
-  RankedBusiness,
-  CategoryMetadata,
   CATEGORY_METADATA,
   DEFAULT_RANKING_WEIGHTS,
   getCategoryDisplayName,
   getCategoryIcon,
   getCategoryMetadata,
 } from './discovery.types';
+export type {
+  SearchParams,
+  GeoSearchParams,
+  RankingWeights,
+  RankingFactors,
+  RankedBusiness,
+  CategoryMetadata,
+} from './discovery.types';
 
 export { RankingService } from './ranking.service';
 export { GeoSearchService } from './geo-search.service';
 export { DiscoveryService, BusinessPublicProfileRepository } from './discovery.service';
 export { createDiscoveryRoutes } from './discovery.routes';
-export {
-  BadgeService,
-  BadgeCriteria,
-  BadgeInfo,
-  BusinessMetrics,
-  BADGE_CRITERIA,
-} from './badge.service';
+export { BadgeService, BADGE_CRITERIA } from './badge.service';
+export type { BadgeCriteria, BadgeInfo, BusinessMetrics } from './badge.service';
