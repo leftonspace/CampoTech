@@ -186,7 +186,7 @@ export async function POST(request: NextRequest) {
       data: {
         lastMessageAt: new Date(),
         lastMessagePreview: `[${type === 'button' ? 'Botones' : 'Lista'}] ${bodyText.substring(0, 50)}`,
-        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        windowExpiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
       },
     });
 
