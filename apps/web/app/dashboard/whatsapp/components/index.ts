@@ -7,6 +7,7 @@ export { default as TemplateSelector } from './TemplateSelector';
 export { default as ContactInfo } from './ContactInfo';
 export { default as QuickActions } from './QuickActions';
 export { default as NewConversationModal } from './NewConversationModal';
+export { default as EmojiPicker, EmojiButton } from './EmojiPicker';
 
 export type { Conversation, ConversationFilter } from './ConversationList';
 export type { Message } from './MessageBubble';

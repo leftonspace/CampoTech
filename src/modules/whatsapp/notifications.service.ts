@@ -18,6 +18,7 @@ export type NotificationTrigger =
   | 'job_scheduled'
   | 'technician_assigned'
   | 'technician_on_the_way'
+  | 'technician_arrived'
   | 'job_started'
   | 'job_completed'
   | 'invoice_ready'
@@ -63,6 +64,7 @@ const TRIGGER_TEMPLATE_MAP: Record<NotificationTrigger, string> = {
   job_scheduled: 'trabajo_programado',
   technician_assigned: 'tecnico_asignado',
   technician_on_the_way: 'tecnico_en_camino',
+  technician_arrived: 'tecnico_llegado',
   job_started: 'trabajo_iniciado',
   job_completed: 'trabajo_completado',
   invoice_ready: 'factura_lista',
@@ -154,6 +156,13 @@ export async function notifyTechnicianAssigned(jobId: string): Promise<Notificat
  */
 export async function notifyTechnicianOnTheWay(jobId: string): Promise<NotificationResult> {
   return sendNotification('technician_on_the_way', jobId);
+}
+
+/**
+ * Send technician arrived notification
+ */
+export async function notifyTechnicianArrived(jobId: string): Promise<NotificationResult> {
+  return sendNotification('technician_arrived', jobId);
 }
 
 /**
@@ -434,6 +443,13 @@ function buildTemplateParams(
         '3': '15-20', // Estimated time - could be calculated from tracking
       };
 
+    case 'technician_arrived':
+      return {
+        '1': job.customer.name,
+        '2': job.technician?.name || 'El tecnico',
+        '3': job.title,
+      };
+
     case 'job_started':
       return {
         '1': job.customer.name,
@@ -492,6 +508,7 @@ export default {
   notifyJobScheduled,
   notifyTechnicianAssigned,
   notifyTechnicianOnTheWay,
+  notifyTechnicianArrived,
   notifyJobStarted,
   notifyJobCompleted,
   notifyInvoiceReady,

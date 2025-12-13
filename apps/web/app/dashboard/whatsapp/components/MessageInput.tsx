@@ -4,14 +4,12 @@ import { useState, useRef, useEffect } from 'react';
 import {
   Send,
   Paperclip,
-  Smile,
   Clock,
   FileText,
   Image,
   Mic,
-  X,
 } from 'lucide-react';
-import Link from 'next/link';
+import { EmojiButton } from './EmojiPicker';
 
 interface MessageInputProps {
   isInWindow: boolean;
@@ -78,6 +76,27 @@ export default function MessageInput({
 
     input.click();
     setShowAttachMenu(false);
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    // Insert emoji at cursor position
+    if (textareaRef.current) {
+      const start = textareaRef.current.selectionStart;
+      const end = textareaRef.current.selectionEnd;
+      const newText = text.slice(0, start) + emoji + text.slice(end);
+      setText(newText);
+
+      // Set cursor position after emoji
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = start + emoji.length;
+          textareaRef.current.selectionEnd = start + emoji.length;
+          textareaRef.current.focus();
+        }
+      }, 0);
+    } else {
+      setText(text + emoji);
+    }
   };
 
   return (
@@ -151,6 +170,11 @@ export default function MessageInput({
             </>
           )}
         </div>
+
+        {/* Emoji button */}
+        {isInWindow && (
+          <EmojiButton onSelect={handleEmojiSelect} />
+        )}
 
         {/* Text input */}
         <div className="flex-1">
