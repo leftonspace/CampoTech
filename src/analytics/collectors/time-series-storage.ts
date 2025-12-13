@@ -53,7 +53,7 @@ export interface TimeSeriesWriteResult {
 }
 
 export interface TimeSeriesDownsampleResult {
-  sourceGranularity: TimeGranularity;
+  sourceGranularity: TimeGranularity | 'raw';
   targetGranularity: TimeGranularity;
   pointsProcessed: number;
   pointsCreated: number;
@@ -328,7 +328,7 @@ export async function getDataRange(
 export async function downsample(
   organizationId: string,
   metric: string,
-  sourceGranularity: TimeGranularity,
+  sourceGranularity: TimeGranularity | 'raw',
   targetGranularity: TimeGranularity,
   dateRange: DateRange
 ): Promise<TimeSeriesDownsampleResult> {
