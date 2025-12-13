@@ -460,10 +460,10 @@ export async function getSatisfactionByTechnician(
         gte: dateRange.start,
         lte: dateRange.end,
       },
-      assignedToId: { not: null },
+      technicianId: { not: null },
     },
     include: {
-      assignedTo: {
+      technician: {
         select: { id: true, name: true },
       },
     },
@@ -479,10 +479,10 @@ export async function getSatisfactionByTechnician(
   }>();
 
   for (const job of jobs) {
-    if (!job.assignedTo) continue;
+    if (!job.technician) continue;
 
-    const current = techData.get(job.assignedTo.id) || {
-      name: job.assignedTo.name,
+    const current = techData.get(job.technician.id) || {
+      name: job.technician.name,
       completed: 0,
       cancelled: 0,
       total: 0,
@@ -501,7 +501,7 @@ export async function getSatisfactionByTechnician(
       if (timeDiff <= 15) current.onTime++;
     }
 
-    techData.set(job.assignedTo.id, current);
+    techData.set(job.technician.id, current);
   }
 
   const results: SatisfactionByTechnician[] = [];
