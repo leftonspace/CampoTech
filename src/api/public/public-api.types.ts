@@ -157,18 +157,18 @@ export interface CursorPaginationParams {
 export interface CursorPaginationResult<T> {
   data: T[];
   pagination: {
-    hasMore: boolean;
-    nextCursor?: string;
-    prevCursor?: string;
-    totalCount?: number;
+    has_more: boolean;
+    next_cursor?: string;
+    prev_cursor?: string;
+    total_count?: number;
   };
 }
 
 export interface PaginationMeta {
   cursor: string;
   limit: number;
-  hasMore: boolean;
-  nextCursor?: string;
+  has_more: boolean;
+  next_cursor?: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

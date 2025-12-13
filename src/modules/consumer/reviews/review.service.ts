@@ -132,16 +132,16 @@ export class ReviewService {
 
     // Auto-process based on analysis
     if (analysis.recommendation === 'auto_publish') {
-      await this.repository.updateStatus(review.id, 'published');
+      await this.repository.updateStatus(review.id, ReviewStatus.PUBLISHED);
       await this.updateBusinessRatings(input.businessProfileId);
-      return { ...review, status: 'published' as ReviewStatus };
+      return { ...review, status: ReviewStatus.PUBLISHED };
     } else if (analysis.recommendation === 'auto_reject') {
       await this.repository.updateStatus(
         review.id,
-        'rejected',
+        ReviewStatus.REMOVED,
         analysis.reasons.join('; ')
       );
-      return { ...review, status: 'rejected' as ReviewStatus };
+      return { ...review, status: ReviewStatus.REMOVED };
     }
 
     // Queue for manual review
@@ -167,7 +167,7 @@ export class ReviewService {
       throw new ReviewError('UNAUTHORIZED', 'No autorizado', 403);
     }
 
-    if (review.status === 'rejected') {
+    if (review.status === ReviewStatus.REMOVED) {
       throw new ReviewError('CANNOT_EDIT', 'No podés editar una reseña rechazada');
     }
 
@@ -185,13 +185,13 @@ export class ReviewService {
     if (input.comment || input.overallRating) {
       const analysis = await this.analyzeReview(updated!, consumerId);
       if (analysis.recommendation === 'manual_review') {
-        await this.repository.updateStatus(updated!.id, 'pending');
+        await this.repository.updateStatus(updated!.id, ReviewStatus.PENDING);
         await this.queueForModeration(updated!.id, analysis);
       }
     }
 
     // Update business ratings if published
-    if (updated!.status === 'published') {
+    if (updated!.status === ReviewStatus.PUBLISHED) {
       await this.updateBusinessRatings(review.businessProfileId);
     }
 
@@ -242,7 +242,7 @@ export class ReviewService {
     const { reviews, total } = await this.repository.findByBusiness(
       businessProfileId,
       {
-        status: 'published',
+        status: ReviewStatus.PUBLISHED,
         limit,
         offset,
         sortBy,
@@ -414,7 +414,7 @@ export class ReviewService {
 
     const updated = await this.repository.updateStatus(
       reviewId,
-      'published',
+      ReviewStatus.PUBLISHED,
       moderatorNotes
     );
     await this.updateBusinessRatings(review.businessProfileId);
@@ -431,7 +431,7 @@ export class ReviewService {
       throw new ReviewError('REVIEW_NOT_FOUND', 'Reseña no encontrada', 404);
     }
 
-    return (await this.repository.updateStatus(reviewId, 'rejected', reason))!;
+    return (await this.repository.updateStatus(reviewId, ReviewStatus.REMOVED, reason))!;
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
