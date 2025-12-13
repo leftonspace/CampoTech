@@ -65,6 +65,18 @@ model Organization {
   waTemplates                 WaTemplate[]
   waOutboundQueue             WaOutboundQueue[]
   waWebhookLogs               WaWebhookLog[]
+  // New models
+  auditLogs                   AuditLog[]
+  notificationPreferences     NotificationPreferences[]
+  notificationLogs            NotificationLogs[]
+  events                      Event[]
+  onboardingProgress          OnboardingProgress[]
+  panicModes                  PanicMode[]
+  fallbackPayments            FallbackPayment[]
+  employeeVerificationTokens  EmployeeVerificationToken[]
+  chargebacks                 Chargeback[]
+  supportTickets              SupportTicket[]
+  smsOutboundQueue            SmsOutboundQueue[]
 
   @@map("organizations")
 }
@@ -111,6 +123,11 @@ model User {
   // WhatsApp
   assignedWaConversations WaConversation[]     @relation("WaConversationAssignee")
   sentWaMessages          WaMessage[]          @relation("WaMessageSender")
+  // New models
+  notifications           Notification[]
+  notificationPreferences NotificationPreferences?
+  onboardingProgress      OnboardingProgress?
+  employeeVerificationTokens EmployeeVerificationToken[]
 
   @@unique([email, organizationId])
   @@index([organizationId])
@@ -123,6 +140,7 @@ enum UserRole {
   ADMIN
   DISPATCHER
   TECHNICIAN
+  ACCOUNTANT
   VIEWER
 }
 
@@ -315,8 +333,10 @@ model Invoice {
   customer     Customer     @relation(fields: [customerId], references: [id])
   organization Organization @relation(fields: [organizationId], references: [id])
   location     Location?    @relation("InvoiceLocation", fields: [locationId], references: [id], onDelete: SetNull)
-  payments     Payment[]
-  lineItems    InvoiceItem[] @relation("InvoiceLineItems")
+  payments         Payment[]
+  lineItems        InvoiceItem[] @relation("InvoiceLineItems")
+  fallbackPayments FallbackPayment[]
+  chargebacks      Chargeback[]
 
   @@index([status])
   @@index([organizationId])
@@ -355,6 +375,7 @@ model Payment {
   invoice      Invoice      @relation(fields: [invoiceId], references: [id])
   organization Organization @relation(fields: [organizationId], references: [id])
   disputes     PaymentDispute[] @relation("PaymentDisputes")
+  chargebacks  Chargeback[]
 
   @@index([invoiceId])
   @@map("payments")
@@ -2036,10 +2057,11 @@ model TrackingSession {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
-  job          Job          @relation("JobTrackingSessions", fields: [jobId], references: [id], onDelete: Cascade)
-  technician   User         @relation("TechnicianTrackingSessions", fields: [technicianId], references: [id], onDelete: Cascade)
-  organization Organization @relation("OrgTrackingSessions", fields: [organizationId], references: [id], onDelete: Cascade)
-  tokens       TrackingToken[]
+  job             Job          @relation("JobTrackingSessions", fields: [jobId], references: [id], onDelete: Cascade)
+  technician      User         @relation("TechnicianTrackingSessions", fields: [technicianId], references: [id], onDelete: Cascade)
+  organization    Organization @relation("OrgTrackingSessions", fields: [organizationId], references: [id], onDelete: Cascade)
+  tokens          TrackingToken[]
+  locationHistory TrackingLocationHistory[]
 
   @@index([jobId])
   @@index([technicianId])
@@ -2719,4 +2741,315 @@ model WaWebhookLog {
   @@index([organizationId, receivedAt])
   @@index([processed])
   @@map("wa_webhook_logs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MISSING MODELS - Added for code compatibility
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// AuditLog - Security and compliance logging
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  action         String   // MANUAL_VERIFICATION, LOGIN, etc.
+  entityType     String   // user, job, invoice, etc.
+  entityId       String?
+  metadata       Json?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([action])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// Notification - User notifications
+model Notification {
+  id             String   @id @default(cuid())
+  userId         String
+  type           String   // chargeback, payment_fallback, panic_mode, etc.
+  title          String
+  body           String
+  metadata       Json?
+  read           Boolean  @default(false)
+  readAt         DateTime?
+  createdAt      DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// NotificationPreferences - User notification settings
+model NotificationPreferences {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  organizationId    String
+  webEnabled        Boolean  @default(true)
+  pushEnabled       Boolean  @default(true)
+  emailEnabled      Boolean  @default(false)
+  whatsappEnabled   Boolean  @default(true)
+  smsEnabled        Boolean  @default(false)
+  reminderIntervals Json?    // Array of minutes before appointment
+  quietHoursStart   String?  // "22:00"
+  quietHoursEnd     String?  // "08:00"
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("notification_preferences")
+}
+
+// NotificationLogs - Notification delivery tracking
+model NotificationLogs {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String?
+  eventType      String
+  channel        String   // web, push, email, whatsapp, sms
+  title          String
+  body           String
+  data           Json?
+  status         String   // sent, delivered, failed
+  errorMessage   String?
+  entityType     String?
+  entityId       String?
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("notification_logs")
+}
+
+// TrackingLocationHistory - Technician GPS history for sessions
+model TrackingLocationHistory {
+  id           String   @id @default(cuid())
+  sessionId    String
+  lat          Decimal  @db.Decimal(10, 8)
+  lng          Decimal  @db.Decimal(11, 8)
+  speed        Decimal? @db.Decimal(6, 2)
+  heading      Decimal? @db.Decimal(5, 2)
+  accuracy     Decimal? @db.Decimal(6, 2)
+  movementMode String?  // driving, walking, stationary
+  recordedAt   DateTime @default(now())
+
+  session TrackingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([recordedAt])
+  @@map("tracking_location_history")
+}
+
+// Event - Analytics and system events
+model Event {
+  id             String   @id @default(cuid())
+  organizationId String
+  type           String   // panic_mode_triggered, etc.
+  source         String   // whatsapp, mercadopago, etc.
+  data           Json?
+  severity       String?  // info, warning, critical
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([type])
+  @@index([severity])
+  @@index([createdAt])
+  @@map("events")
+}
+
+// OnboardingProgress - User onboarding state tracking
+model OnboardingProgress {
+  id                 String    @id @default(cuid())
+  userId             String    @unique
+  organizationId     String
+  phoneVerified      Boolean   @default(false)
+  phoneVerifiedAt    DateTime?
+  termsAccepted      Boolean   @default(false)
+  termsAcceptedAt    DateTime?
+  profileCompleted   Boolean   @default(false)
+  profileCompletedAt DateTime?
+  tutorialCompleted  Boolean   @default(false)
+  tutorialCompletedAt DateTime?
+  tutorialSkipped    Boolean   @default(false)
+  completed          Boolean   @default(false)
+  completedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@map("onboarding_progress")
+}
+
+// PanicMode - Emergency mode for integrations
+model PanicMode {
+  id             String    @id @default(cuid())
+  organizationId String
+  integration    String    // whatsapp, mercadopago, etc.
+  reason         String    // rate_limit, auth_failure, etc.
+  metadata       Json?
+  active         Boolean   @default(true)
+  triggeredAt    DateTime  @default(now())
+  autoResolveAt  DateTime?
+  resolvedAt     DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([integration])
+  @@index([active])
+  @@map("panic_modes")
+}
+
+// FallbackPayment - Backup payment records when automatic fails
+model FallbackPayment {
+  id              String    @id @default(cuid())
+  orgId           String
+  invoiceId       String
+  customerId      String?
+  amount          Decimal   @db.Decimal(10, 2)
+  currency        String    @default("ARS")
+  reason          String    // card_declined, insufficient_funds, etc.
+  originalError   String?
+  suggestedMethod String?
+  notificationSent Boolean  @default(false)
+  resolvedAt      DateTime?
+  resolvedBy      String?
+  resolvedMethod  String?
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  invoice      Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([invoiceId])
+  @@index([resolvedAt])
+  @@map("fallback_payments")
+}
+
+// EmployeeVerificationToken - Employee invite/verification tokens
+model EmployeeVerificationToken {
+  id             String    @id @default(cuid())
+  userId         String
+  organizationId String
+  code           String
+  expiresAt      DateTime
+  isUsed         Boolean   @default(false)
+  attempts       Int       @default(0)
+  cooldownUntil  DateTime?
+  createdAt      DateTime  @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([code])
+  @@index([expiresAt])
+  @@map("employee_verification_tokens")
+}
+
+// Chargeback - Payment dispute records from MercadoPago
+model Chargeback {
+  id                    String    @id @default(cuid())
+  orgId                 String
+  mpChargebackId        String    @unique
+  mpPaymentId           String
+  paymentId             String?
+  invoiceId             String?
+  amount                Decimal   @db.Decimal(10, 2)
+  currency              String    @default("ARS")
+  reason                String?
+  reasonDetail          String?
+  status                String    // pending, won, lost
+  documentationStatus   String?
+  documentationDeadline DateTime?
+  covered               Boolean?
+  coverageReason        String?
+  mpCreatedAt           DateTime?
+  mpUpdatedAt           DateTime?
+  resolvedAt            DateTime?
+  metadata              Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  payment      Payment?     @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  invoice      Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  @@index([orgId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("chargebacks")
+}
+
+// SupportTicket - Customer support tickets
+model SupportTicket {
+  id          String    @id @default(cuid())
+  orgId       String
+  type        String    // payment_issues, technical, billing, etc.
+  priority    String    @default("normal") // low, normal, high, urgent
+  subject     String
+  description String?   @db.Text
+  status      String    @default("open") // open, in_progress, resolved, closed
+  assignedTo  String?
+  resolvedAt  DateTime?
+  closedAt    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([status])
+  @@index([priority])
+  @@index([createdAt])
+  @@map("support_tickets")
+}
+
+// SmsOutboundQueue - SMS message queue (fallback from WhatsApp)
+model SmsOutboundQueue {
+  id              String    @id @default(cuid())
+  organizationId  String
+  customerId      String?
+  phone           String
+  body            String    @db.Text
+  status          String    @default("pending") // pending, sent, failed
+  source          String?   // whatsapp_fallback, direct, etc.
+  sourceMessageId String?
+  sentAt          DateTime?
+  errorMessage    String?
+  createdAt       DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("sms_outbound_queue")
 }

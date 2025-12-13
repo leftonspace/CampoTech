@@ -541,7 +541,7 @@ async function getInventoryManagers(organizationId: string): Promise<Array<{ id:
     where: {
       organizationId,
       isActive: true,
-      role: { in: ['owner', 'admin', 'dispatcher'] },
+      role: { in: ['OWNER', 'ADMIN', 'DISPATCHER'] },
     },
     select: { id: true },
   });

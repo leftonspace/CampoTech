@@ -334,7 +334,7 @@ export class PanicModeService {
     const admins = await db.user.findMany({
       where: {
         organizationId,
-        role: { in: ['owner', 'admin'] },
+        role: { in: ['OWNER', 'ADMIN'] },
       },
       select: { id: true, email: true, phone: true },
     });
