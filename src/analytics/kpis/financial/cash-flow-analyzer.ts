@@ -8,7 +8,7 @@
 
 import { db } from '../../../lib/db';
 import { log } from '../../../lib/logging/logger';
-import { DateRange, KPIValue, TimeGranularity } from '../../analytics.types';
+import { DateRange, KPIResult, TimeGranularity } from '../../analytics.types';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -413,7 +413,7 @@ export async function calculateDSO(
 export async function generateFinancialKPIs(
   organizationId: string,
   dateRange: DateRange
-): Promise<KPIValue[]> {
+): Promise<KPIResult[]> {
   const metrics = await calculateCashFlowMetrics(organizationId, dateRange);
   const aging = await getAccountsReceivableAging(organizationId);
   const dso = await calculateDSO(organizationId, dateRange);

@@ -8,7 +8,7 @@
 
 import { db } from '../../../lib/db';
 import { log } from '../../../lib/logging/logger';
-import { DateRange, KPIValue } from '../../analytics.types';
+import { DateRange, KPIResult } from '../../analytics.types';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -354,7 +354,7 @@ export async function compareTechnicianPerformance(
 export async function generateTechnicianKPIs(
   organizationId: string,
   dateRange: DateRange
-): Promise<KPIValue[]> {
+): Promise<KPIResult[]> {
   const teamEfficiency = await calculateTeamEfficiency(organizationId, dateRange);
 
   return [

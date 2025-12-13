@@ -8,7 +8,7 @@
 
 import { db } from '../../../lib/db';
 import { log } from '../../../lib/logging/logger';
-import { DateRange, KPIValue } from '../../analytics.types';
+import { DateRange, KPIResult } from '../../analytics.types';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -422,7 +422,7 @@ export async function calculateARPU(
  */
 export async function generateMRRKPIs(
   organizationId: string
-): Promise<KPIValue[]> {
+): Promise<KPIResult[]> {
   const metrics = await calculateMRR(organizationId);
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
