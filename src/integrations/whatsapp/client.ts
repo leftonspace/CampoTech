@@ -6,7 +6,8 @@
  * Handles all API communication with Meta's Graph API.
  */
 
-import axios, { AxiosInstance, AxiosError, AxiosResponse } from 'axios';
+import axios from 'axios';
+import type { AxiosInstance, AxiosError, AxiosResponse } from 'axios';
 import { log } from '../../lib/logging/logger';
 import {
   WhatsAppConfig,
