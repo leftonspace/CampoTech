@@ -36,6 +36,7 @@
     "dist",
     "build",
     "__tests__",
+    "**/__tests__/**",
     "**/*.test.ts",
     "**/*.test.tsx",
     "**/*.spec.ts",

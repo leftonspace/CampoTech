@@ -15,9 +15,8 @@ export type {
   RatingSummary,
 } from './review.repository';
 
-export { ReviewService } from './review.service';
+export { ReviewService, ReviewError } from './review.service';
 export type {
-  ReviewError,
   SubmitReviewInput,
   FraudSignal,
   ReviewAnalysis,

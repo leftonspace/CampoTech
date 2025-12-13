@@ -60,7 +60,6 @@ export {
   DEFAULT_RANKING_WEIGHTS,
   BADGE_CRITERIA,
   getCategoryDisplayName,
-  getCategoryIcon,
   getCategoryMetadata,
 } from './discovery';
 

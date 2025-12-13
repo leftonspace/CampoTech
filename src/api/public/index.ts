@@ -215,10 +215,10 @@ export type {
   // Integration Types
   IntegrationProvider,
   IntegrationStatus,
-  BaseIntegrationConfig,
+  Integration,
   IntegrationCredentials,
   SyncResult,
-  IntegrationError,
+  SyncError,
 
   // Google Calendar Types
   GoogleCalendarConfig,
@@ -426,12 +426,9 @@ export function createCampoTechApi(options: CampoTechApiOptions): CampoTechApi {
   const analytics = createAnalyticsService(pool, analyticsConfig);
 
   // Create webhook services
-  const webhookEmitter = createWebhookEmitter(pool, {
-    batchSize: webhookConfig?.concurrency || 10,
-  });
+  const webhookEmitter = createWebhookEmitter(pool, {});
   const webhookWorker = createWebhookWorker(pool, {
-    concurrency: webhookConfig?.concurrency || 5,
-    maxRetries: webhookConfig?.retryAttempts || 3,
+    maxConcurrency: webhookConfig?.concurrency || 5,
   });
 
   return {
