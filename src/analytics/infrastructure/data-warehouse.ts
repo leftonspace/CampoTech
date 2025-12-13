@@ -98,7 +98,7 @@ export async function getInvoiceFacts(
       invoiceId: invoice.id,
       customerId: invoice.customerId,
       jobId: invoice.jobId,
-      invoiceType: (invoice.invoiceType as 'A' | 'B' | 'C' | 'E') || 'B',
+      invoiceType: mapInvoiceType(invoice.type),
       createdAt: invoice.createdAt,
       dueDate: invoice.dueDate || new Date(),
       paidAt,
@@ -438,4 +438,14 @@ function getServiceCategory(type: string): string {
     emergency: 'Urgencias',
   };
   return categories[type] || 'General';
+}
+
+function mapInvoiceType(type: string): 'A' | 'B' | 'C' | 'E' {
+  switch (type) {
+    case 'FACTURA_A': return 'A';
+    case 'FACTURA_B': return 'B';
+    case 'FACTURA_C': return 'C';
+    case 'FACTURA_E': return 'E';
+    default: return 'C';
+  }
 }
