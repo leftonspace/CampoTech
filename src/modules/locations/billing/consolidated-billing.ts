@@ -193,8 +193,9 @@ export class ConsolidatedBillingService {
     const locationBreakdown = this.calculateLocationBreakdown(input.items);
 
     // Calculate totals
-    const subtotal = input.items.reduce((sum, item) => sum + item.total, 0);
-    const taxAmount = input.items.reduce((sum, item) => sum + item.taxAmount, 0);
+    type ItemType = typeof input.items[number];
+    const subtotal = input.items.reduce((sum: number, item: ItemType) => sum + item.total, 0);
+    const taxAmount = input.items.reduce((sum: number, item: ItemType) => sum + item.taxAmount, 0);
     const total = subtotal + taxAmount;
 
     return {
@@ -237,7 +238,7 @@ export class ConsolidatedBillingService {
       locationCounts.set(item.locationId, count + 1);
     }
 
-    const sortedLocations = Array.from(locationCounts.entries())
+    const sortedLocations = (Array.from(locationCounts.entries()) as [string, number][])
       .sort((a, b) => b[1] - a[1]);
 
     for (const [locationId] of sortedLocations) {
@@ -314,7 +315,8 @@ export class ConsolidatedBillingService {
       breakdown.set(item.locationId, existing);
     }
 
-    return Array.from(breakdown.entries()).map(([locationId, data]) => ({
+    type BreakdownData = { locationCode: string; locationName: string; itemCount: number; subtotal: number };
+    return (Array.from(breakdown.entries()) as [string, BreakdownData][]).map(([locationId, data]) => ({
       locationId,
       ...data,
     }));
@@ -402,7 +404,8 @@ export class ConsolidatedBillingService {
     }
 
     // Get top customers
-    const topCustomers = Array.from(customerTotals.entries())
+    type CustomerData = { name: string; total: number; count: number };
+    const topCustomers = (Array.from(customerTotals.entries()) as [string, CustomerData][])
       .map(([customerId, data]) => ({
         customerId,
         customerName: data.name,
@@ -461,9 +464,10 @@ export class ConsolidatedBillingService {
     }
 
     // Calculate totals
-    const totalRevenue = locationBreakdown.reduce((sum, loc) => sum + loc.subtotal, 0);
-    const totalTax = locationBreakdown.reduce((sum, loc) => sum + loc.taxAmount, 0);
-    const totalInvoices = locationBreakdown.reduce((sum, loc) => sum + loc.invoiceCount, 0);
+    type BreakdownType = typeof locationBreakdown[number];
+    const totalRevenue = locationBreakdown.reduce((sum: number, loc: BreakdownType) => sum + loc.subtotal, 0);
+    const totalTax = locationBreakdown.reduce((sum: number, loc: BreakdownType) => sum + loc.taxAmount, 0);
+    const totalInvoices = locationBreakdown.reduce((sum: number, loc: BreakdownType) => sum + loc.invoiceCount, 0);
 
     // Calculate comparison with previous period
     let comparison: OrganizationBillingReport['comparison'] = null;
@@ -537,7 +541,7 @@ export class ConsolidatedBillingService {
       take: 100,
     });
 
-    return jobs.map(job => ({
+    return jobs.map((job: typeof jobs[number]) => ({
       jobId: job.id,
       jobNumber: job.jobNumber,
       customerId: job.customerId,
@@ -558,7 +562,7 @@ export class ConsolidatedBillingService {
     // Basic estimation - would be enhanced with actual pricing logic
     const materialsTotal = job.materialsUsed
       ? (job.materialsUsed as any[]).reduce(
-          (sum, m) => sum + (m.quantity || 1) * (m.unitPrice || 0),
+          (sum: number, m: any) => sum + (m.quantity || 1) * (m.unitPrice || 0),
           0
         )
       : 0;
@@ -624,7 +628,8 @@ export class ConsolidatedBillingService {
     // Calculate totals by location
     const locationTotals = new Map<string, { name: string; total: number }>();
 
-    for (const invoice of invoices) {
+    type InvoiceType = typeof invoices[number];
+    for (const invoice of invoices as InvoiceType[]) {
       if (invoice.locationId && invoice.location) {
         const existing = locationTotals.get(invoice.locationId) || {
           name: invoice.location.name,
@@ -640,7 +645,7 @@ export class ConsolidatedBillingService {
         id: customer.id,
         name: customer.name,
       },
-      invoices: invoices.map(inv => ({
+      invoices: invoices.map((inv: InvoiceType) => ({
         id: inv.id,
         invoiceNumber: inv.invoiceNumber,
         type: inv.type,
@@ -652,8 +657,8 @@ export class ConsolidatedBillingService {
       })),
       totals: {
         invoiceCount: invoices.length,
-        totalBilled: invoices.reduce((sum, inv) => sum + Number(inv.total), 0),
-        byLocation: Array.from(locationTotals.entries()).map(([locationId, data]) => ({
+        totalBilled: invoices.reduce((sum: number, inv: InvoiceType) => sum + Number(inv.total), 0),
+        byLocation: (Array.from(locationTotals.entries()) as [string, { name: string; total: number }][]).map(([locationId, data]) => ({
           locationId,
           locationName: data.name,
           total: data.total,

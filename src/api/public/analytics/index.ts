@@ -7,7 +7,7 @@
  */
 
 // Types
-export {
+export type {
   // Time types
   TimePeriod,
   TimeGranularity,
@@ -58,67 +58,33 @@ export {
 
   // Configuration
   AnalyticsConfig,
-  DEFAULT_ANALYTICS_CONFIG,
 } from './analytics.types';
 
+export { DEFAULT_ANALYTICS_CONFIG } from './analytics.types';
+
 // Usage Tracking Service
-export {
-  UsageTrackingService,
-  createUsageTrackingService,
-  TrackRequestOptions,
-  UsageQueryOptions,
-  TopEndpoint,
-  TopApiKey,
-} from './usage-tracking.service';
+export { UsageTrackingService, createUsageTrackingService } from './usage-tracking.service';
+export type { TrackRequestOptions, UsageQueryOptions, TopEndpoint, TopApiKey } from './usage-tracking.service';
 
 // Rate Limit Monitor Service
-export {
-  RateLimitMonitorService,
-  createRateLimitMonitorService,
-  RecordLimitEventOptions,
-  RateLimitOverride,
-  RateLimitAnalysis,
-} from './rate-limit-monitor.service';
+export { RateLimitMonitorService, createRateLimitMonitorService } from './rate-limit-monitor.service';
+export type { RecordLimitEventOptions, RateLimitOverride, RateLimitAnalysis } from './rate-limit-monitor.service';
 
 // Error Tracking Service
-export {
-  ErrorTrackingService,
-  createErrorTrackingService,
-  TrackErrorOptions,
-  ErrorQueryOptions,
-  ErrorSearchResult,
-  ErrorGroupUpdateOptions,
-} from './error-tracking.service';
+export { ErrorTrackingService, createErrorTrackingService } from './error-tracking.service';
+export type { TrackErrorOptions, ErrorQueryOptions, ErrorSearchResult, ErrorGroupUpdateOptions } from './error-tracking.service';
 
 // Alerting Service
-export {
-  AlertingService,
-  createAlertingService,
-  CreateAlertRuleOptions,
-  AlertCheckResult,
-  NotificationResult,
-} from './alerting.service';
+export { AlertingService, createAlertingService } from './alerting.service';
+export type { CreateAlertRuleOptions, AlertCheckResult, NotificationResult } from './alerting.service';
 
 // Dashboard Service
-export {
-  DashboardService,
-  createDashboardService,
-  CreateDashboardOptions,
-  WidgetData,
-  DashboardData,
-  CreateReportOptions,
-} from './dashboard.service';
+export { DashboardService, createDashboardService } from './dashboard.service';
+export type { CreateDashboardOptions, WidgetData, DashboardData, CreateReportOptions } from './dashboard.service';
 
 // Usage Reports Service
-export {
-  UsageReportsService,
-  createUsageReportsService,
-  CreateReportOptions as CreateUsageReportOptions,
-  ReportMetricConfig,
-  ReportFilters,
-  ReportGenerationResult,
-  ScheduledReport,
-} from './usage-reports';
+export { UsageReportsService, createUsageReportsService } from './usage-reports';
+export type { CreateReportOptions as CreateUsageReportOptions, ReportMetricConfig, ReportFilters, ReportGenerationResult, ScheduledReport } from './usage-reports';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // UNIFIED ANALYTICS SERVICE

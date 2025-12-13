@@ -55,7 +55,7 @@ export async function createPurchaseOrder(
   let subtotal = 0;
   let taxAmount = 0;
 
-  const itemsData = input.items.map((item) => {
+  const itemsData = input.items.map((item: typeof input.items[number]) => {
     const discount = item.discount || 0;
     const taxRate = item.taxRate ?? 21;
     const lineSubtotal = item.quantity * item.unitPrice * (1 - discount / 100);
@@ -715,7 +715,7 @@ export async function getPurchasingStats(
     supplierTotals[order.supplierId].value += Number(order.total);
   }
 
-  const topSuppliers = Object.entries(supplierTotals)
+  const topSuppliers = (Object.entries(supplierTotals) as [string, { name: string; count: number; value: number }][])
     .map(([supplierId, data]) => ({
       supplierId,
       supplierName: data.name,

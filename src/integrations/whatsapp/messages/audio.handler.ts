@@ -275,7 +275,7 @@ export async function getPendingAudioMessages(
     take: limit,
   });
 
-  return messages.map((m) => ({
+  return messages.map((m: typeof messages[number]) => ({
     id: m.id,
     organizationId: m.organizationId,
     messageId: m.waMessageId,

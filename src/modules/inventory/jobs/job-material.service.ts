@@ -387,7 +387,7 @@ export async function getJobMaterialSummary(
   const profitMargin = total > 0 ? (profit / total) * 100 : 0;
 
   const hasPendingMaterials = materials.some(
-    (m) => m.estimatedQty > m.usedQty + m.returnedQty
+    (m: typeof materials[number]) => m.estimatedQty > m.usedQty + m.returnedQty
   );
 
   return {
@@ -625,7 +625,7 @@ export async function generateMaterialUsageReport(
     totalProfit: totalMaterialsRevenue - totalMaterialsCost,
     averageMaterialsPerJob: totalJobs > 0 ? totalMaterialsRevenue / totalJobs : 0,
     byProduct: Object.entries(byProduct)
-      .map(([productId, data]) => ({
+      .map(([productId, data]: [string, any]) => ({
         productId,
         productName: data.name,
         quantityUsed: data.qty,
@@ -633,9 +633,9 @@ export async function generateMaterialUsageReport(
         totalRevenue: data.revenue,
         jobCount: data.jobs.size,
       }))
-      .sort((a, b) => b.totalRevenue - a.totalRevenue),
+      .sort((a: any, b: any) => b.totalRevenue - a.totalRevenue),
     byTechnician: Object.entries(byTechnician)
-      .map(([technicianId, data]) => ({
+      .map(([technicianId, data]: [string, any]) => ({
         technicianId,
         technicianName: data.name,
         totalMaterials: data.materials,
@@ -643,7 +643,7 @@ export async function generateMaterialUsageReport(
         totalRevenue: data.revenue,
         jobCount: data.jobs.size,
       }))
-      .sort((a, b) => b.totalRevenue - a.totalRevenue),
+      .sort((a: any, b: any) => b.totalRevenue - a.totalRevenue),
   };
 }
 

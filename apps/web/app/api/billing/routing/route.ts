@@ -102,7 +102,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: locations.map((loc) => ({
+      data: locations.map((loc: typeof locations[number]) => ({
         locationId: loc.id,
         locationName: loc.name,
         address: loc.address,

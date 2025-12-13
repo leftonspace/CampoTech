@@ -6,7 +6,7 @@
  */
 
 // Types
-export {
+export type {
   DocSection,
   DocPage,
   ApiEndpoint,
@@ -25,8 +25,8 @@ export {
   PlaygroundHistoryItem,
   ChangelogEntry,
   PortalConfig,
-  DEFAULT_PORTAL_CONFIG,
 } from './portal.types';
+export { DEFAULT_PORTAL_CONFIG } from './portal.types';
 
 // API Reference
 export {
@@ -38,17 +38,9 @@ export {
 } from './api-reference';
 
 // Console Service
-export {
-  DeveloperConsoleService,
-  createConsoleService,
-  CreateAppOptions,
-  AppWithCredentials,
-} from './console.service';
+export { DeveloperConsoleService, createConsoleService } from './console.service';
+export type { CreateAppOptions, AppWithCredentials } from './console.service';
 
 // Playground Service
-export {
-  PlaygroundService,
-  createPlaygroundService,
-  PlaygroundConfig,
-  DEFAULT_PLAYGROUND_CONFIG,
-} from './playground.service';
+export { PlaygroundService, createPlaygroundService, DEFAULT_PLAYGROUND_CONFIG } from './playground.service';
+export type { PlaygroundConfig } from './playground.service';

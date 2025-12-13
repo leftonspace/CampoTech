@@ -47,12 +47,12 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Aggregate by location
-    const locationTotals = locations.map((loc) => {
-      const locInvoices = invoices.filter((inv) => inv.locationId === loc.id);
-      const total = locInvoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
+    const locationTotals = locations.map((loc: typeof locations[number]) => {
+      const locInvoices = invoices.filter((inv: typeof invoices[number]) => inv.locationId === loc.id);
+      const total = locInvoices.reduce((sum: number, inv: typeof locInvoices[number]) => sum + (inv.total ? Number(inv.total) : 0), 0);
       const paid = locInvoices
-        .filter((inv) => inv.status === 'PAID')
-        .reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
+        .filter((inv: typeof locInvoices[number]) => inv.status === 'PAID')
+        .reduce((sum: number, inv: typeof locInvoices[number]) => sum + (inv.total ? Number(inv.total) : 0), 0);
 
       return {
         locationId: loc.id,
@@ -64,10 +64,10 @@ export async function GET(request: NextRequest) {
       };
     });
 
-    const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
+    const totalRevenue = invoices.reduce((sum: number, inv: typeof invoices[number]) => sum + (inv.total ? Number(inv.total) : 0), 0);
     const paidRevenue = invoices
-      .filter((inv) => inv.status === 'PAID')
-      .reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
+      .filter((inv: typeof invoices[number]) => inv.status === 'PAID')
+      .reduce((sum: number, inv: typeof invoices[number]) => sum + (inv.total ? Number(inv.total) : 0), 0);
 
     return NextResponse.json({
       success: true,
@@ -124,10 +124,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    const total = invoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
+    const total = invoices.reduce((sum: number, inv: typeof invoices[number]) => sum + (inv.total ? Number(inv.total) : 0), 0);
     const paid = invoices
-      .filter((inv) => inv.status === 'PAID')
-      .reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
+      .filter((inv: typeof invoices[number]) => inv.status === 'PAID')
+      .reduce((sum: number, inv: typeof invoices[number]) => sum + (inv.total ? Number(inv.total) : 0), 0);
 
     return NextResponse.json({
       success: true,

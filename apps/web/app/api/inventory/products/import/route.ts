@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
       where: { organizationId: session.organizationId },
       select: { id: true, code: true },
     });
-    const categoryMap = new Map(categories.map((c) => [c.code.toLowerCase(), c.id]));
+    const categoryMap = new Map(categories.map((c: typeof categories[number]) => [c.code.toLowerCase(), c.id]));
 
     // Process rows
     const results = {
@@ -251,8 +251,8 @@ export async function GET(request: NextRequest) {
 
     if (format === 'csv') {
       // Return CSV template
-      const headers = template.columns.map((c) => c.name).join(',');
-      const exampleRow = template.columns.map((c) => {
+      const headers = template.columns.map((c: typeof template.columns[number]) => c.name).join(',');
+      const exampleRow = template.columns.map((c: typeof template.columns[number]) => {
         const val = template.example[c.name as keyof typeof template.example];
         return typeof val === 'string' ? `"${val}"` : val;
       }).join(',');

@@ -601,7 +601,7 @@ export async function getAllEmailTemplates(organizationId: string): Promise<Emai
  */
 function extractVariables(template: string): string[] {
   const matches = template.match(/\{\{(\w+)\}\}/g) || [];
-  const variables = new Set(matches.map((m) => m.replace(/\{\{|\}\}/g, '')));
+  const variables = new Set(matches.map((m: string) => m.replace(/\{\{|\}\}/g, '')));
   return Array.from(variables);
 }
 

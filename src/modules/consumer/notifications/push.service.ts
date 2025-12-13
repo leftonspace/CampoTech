@@ -192,7 +192,7 @@ export class PushNotificationService {
       return {
         successCount: result.successCount,
         failureCount: result.failureCount,
-        responses: result.responses.map((r, i) => ({
+        responses: result.responses.map((r: typeof result.responses[number], i: number) => ({
           success: r.success,
           messageId: r.messageId,
           error: r.error?.message,
@@ -203,7 +203,7 @@ export class PushNotificationService {
       return {
         successCount: 0,
         failureCount: tokens.length,
-        responses: tokens.map(() => ({
+        responses: tokens.map((_token: string) => ({
           success: false,
           error: error.message,
         })),
@@ -306,7 +306,7 @@ export class MockPushNotificationService {
     console.log(`[Mock Push] Multicast to ${tokens.length} devices`);
     console.log(`[Mock Push] Title: ${message.title}`);
 
-    const responses = tokens.map(token => {
+    const responses = tokens.map((token: string) => {
       this.sentMessages.push({ token, message, timestamp: new Date() });
       return { success: true, messageId: `mock-${Date.now()}` };
     });

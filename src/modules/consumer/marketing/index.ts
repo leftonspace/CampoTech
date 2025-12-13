@@ -6,16 +6,16 @@
  * Phase 15: Consumer Marketplace
  */
 
-export {
-  SeoPagesService,
+export { SeoPagesService } from './seo-pages.service';
+export type {
   SeoPageData,
   CategoryLandingPage,
   CityLandingPage,
   ServiceLandingPage,
 } from './seo-pages.service';
 
-export {
-  ReferralService,
+export { ReferralService } from './referral.service';
+export type {
   ReferralCode,
   ReferralReward,
   ReferralStats,

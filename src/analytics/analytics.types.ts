@@ -141,6 +141,8 @@ export interface KPIValue {
   changePercent: number | null;
   trend: 'up' | 'down' | 'stable';
   updatedAt: Date;
+  name?: string;
+  unit?: 'number' | 'currency' | 'percentage' | 'duration';
 }
 
 export interface KPIResult {
@@ -260,13 +262,19 @@ export interface ReportTemplate {
   sections: ReportSection[];
   defaultFilters: ReportFilter[];
   supportedFormats: ReportFormat[];
+  availableFormats?: ReportFormat[];
+  defaultDateRange?: 'week' | 'month' | 'quarter' | 'year';
+  defaultGranularity?: 'day' | 'week' | 'month';
 }
 
 export interface ReportSection {
   id: string;
   title: string;
-  type: 'kpi_cards' | 'table' | 'chart' | 'text';
-  config: Record<string, unknown>;
+  type: 'kpi_cards' | 'kpi_grid' | 'table' | 'chart' | 'text';
+  chartType?: 'line' | 'bar' | 'pie' | 'area' | 'doughnut';
+  dataSource?: string;
+  kpis?: string[];
+  config?: Record<string, unknown>;
 }
 
 export interface ReportFilter {
@@ -351,15 +359,17 @@ export interface ChurnFactor {
 
 export interface Anomaly {
   id: string;
-  type: 'revenue' | 'operations' | 'payment' | 'behavior';
-  severity: 'low' | 'medium' | 'high';
+  type: 'revenue' | 'operations' | 'operational' | 'payment' | 'behavior';
+  severity: 'critical' | 'warning' | 'info' | 'low' | 'medium' | 'high';
   description: string;
   detectedAt: Date;
-  affectedEntity: string;
+  affectedEntity?: string;
+  metric?: string;
   expectedValue: number;
   actualValue: number;
   deviation: number;
-  isResolved: boolean;
+  isResolved?: boolean;
+  possibleCauses?: string[];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

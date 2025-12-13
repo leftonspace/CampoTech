@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate daily job counts for the last 30 days
     const dailyJobCounts = new Map<string, number>();
-    recentJobs.forEach((job) => {
+    recentJobs.forEach((job: typeof recentJobs[number]) => {
       const dateKey = job.createdAt.toISOString().split('T')[0];
       dailyJobCounts.set(dateKey, (dailyJobCounts.get(dateKey) || 0) + 1);
     });
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
       : 0;
 
     // Generate forecasts based on historical data
-    const forecasts = Array.from({ length: 30 }, (_, i) => {
+    const forecasts = Array.from({ length: 30 }, (_: unknown, i: number) => {
       const date = new Date();
       date.setDate(date.getDate() + i);
 
@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
     const peakPeriods: { dayOfWeek: number; hour: number; avgDemand: number }[] = [];
     if (hasJobData) {
       const hourlyDemand = new Map<string, number[]>();
-      recentJobs.forEach((job) => {
+      recentJobs.forEach((job: typeof recentJobs[number]) => {
         const dayOfWeek = job.createdAt.getDay();
         const hour = job.createdAt.getHours();
         const key = `${dayOfWeek}-${hour}`;
@@ -160,11 +160,11 @@ export async function GET(request: NextRequest) {
 
       // Find top 4 peak periods
       const sortedPeriods = Array.from(hourlyDemand.entries())
-        .map(([key, counts]) => {
+        .map(([key, counts]: [string, number[]]) => {
           const [day, hour] = key.split('-').map(Number);
           return { dayOfWeek: day, hour, avgDemand: counts.length / 4 }; // 4 weeks
         })
-        .sort((a, b) => b.avgDemand - a.avgDemand)
+        .sort((a: { dayOfWeek: number; hour: number; avgDemand: number }, b: { dayOfWeek: number; hour: number; avgDemand: number }) => b.avgDemand - a.avgDemand)
         .slice(0, 4);
 
       peakPeriods.push(...sortedPeriods);
@@ -189,19 +189,19 @@ export async function GET(request: NextRequest) {
 
     // Calculate current MRR (Monthly Recurring Revenue approximation)
     const last30DaysInvoices = invoices.filter(
-      (inv) => inv.createdAt >= thirtyDaysAgo && inv.status === 'PAID'
+      (inv: typeof invoices[number]) => inv.createdAt >= thirtyDaysAgo && inv.status === 'PAID'
     );
     const currentMRR = last30DaysInvoices.reduce(
-      (sum, inv) => sum + Number(inv.total || 0),
+      (sum: number, inv: typeof last30DaysInvoices[number]) => sum + Number(inv.total || 0),
       0
     );
 
     // Previous month revenue for growth rate
     const prev30to60DaysInvoices = invoices.filter(
-      (inv) => inv.createdAt >= sixtyDaysAgo && inv.createdAt < thirtyDaysAgo && inv.status === 'PAID'
+      (inv: typeof invoices[number]) => inv.createdAt >= sixtyDaysAgo && inv.createdAt < thirtyDaysAgo && inv.status === 'PAID'
     );
     const prevMRR = prev30to60DaysInvoices.reduce(
-      (sum, inv) => sum + Number(inv.total || 0),
+      (sum: number, inv: typeof prev30to60DaysInvoices[number]) => sum + Number(inv.total || 0),
       0
     );
 
@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
 
     // Generate revenue scenarios
     const generateScenarioProjections = (baseGrowth: number) => {
-      return Array.from({ length: 12 }, (_, i) => ({
+      return Array.from({ length: 12 }, (_: unknown, i: number) => ({
         month: new Date(Date.now() + i * 30 * 24 * 60 * 60 * 1000).toISOString(),
         projectedRevenue: hasRevenueData
           ? Math.round(currentMRR * Math.pow(1 + baseGrowth / 12, i + 1))
@@ -260,17 +260,17 @@ export async function GET(request: NextRequest) {
 
     // Identify at-risk customers (no activity in 60+ days)
     const customerActivityMap = new Map(
-      recentCustomerActivity.map((ca) => [ca.customerId, ca._max.createdAt])
+      recentCustomerActivity.map((ca: typeof recentCustomerActivity[number]) => [ca.customerId, ca._max.createdAt])
     );
 
-    const atRiskCustomers = customers.filter((customer) => {
+    const atRiskCustomers = customers.filter((customer: typeof customers[number]) => {
       const lastActivity = customerActivityMap.get(customer.id);
       if (!lastActivity) return true; // No activity = at risk
       const daysSinceActivity = (now.getTime() - lastActivity.getTime()) / (24 * 60 * 60 * 1000);
       return daysSinceActivity > 60;
     });
 
-    const highRiskCustomers = atRiskCustomers.slice(0, 10).map((customer) => {
+    const highRiskCustomers = atRiskCustomers.slice(0, 10).map((customer: typeof atRiskCustomers[number]) => {
       const lastActivity = customerActivityMap.get(customer.id);
       const daysSinceActivity = lastActivity
         ? Math.floor((now.getTime() - lastActivity.getTime()) / (24 * 60 * 60 * 1000))
@@ -297,8 +297,8 @@ export async function GET(request: NextRequest) {
     const churnData = {
       summary: {
         totalAtRisk: atRiskCustomers.length,
-        highRiskCount: highRiskCustomers.filter((c) => c.riskLevel === 'high').length,
-        mediumRiskCount: highRiskCustomers.filter((c) => c.riskLevel === 'medium').length,
+        highRiskCount: highRiskCustomers.filter((c: typeof highRiskCustomers[number]) => c.riskLevel === 'high').length,
+        mediumRiskCount: highRiskCustomers.filter((c: typeof highRiskCustomers[number]) => c.riskLevel === 'medium').length,
         potentialRevenueLoss: 0,
         churnRate,
       },
@@ -387,9 +387,9 @@ export async function GET(request: NextRequest) {
       anomalies,
       summary: {
         totalAnomalies: anomalies.length,
-        criticalCount: anomalies.filter((a) => a.severity === 'critical').length,
-        warningCount: anomalies.filter((a) => a.severity === 'warning').length,
-        infoCount: anomalies.filter((a) => a.severity === 'info').length,
+        criticalCount: anomalies.filter((a: typeof anomalies[number]) => a.severity === 'critical').length,
+        warningCount: anomalies.filter((a: typeof anomalies[number]) => a.severity === 'warning').length,
+        infoCount: anomalies.filter((a: typeof anomalies[number]) => a.severity === 'info').length,
       },
       baselines: hasJobData ? [
         { metric: 'Demanda diaria promedio', value: Math.round(avgDailyDemand * 10) / 10 },
@@ -412,7 +412,7 @@ export async function GET(request: NextRequest) {
       revenue: {
         currentMRR,
         growthRate: Math.round(growthRate * 100),
-        scenarios: revenueData.projections.scenarios.map((s) => ({
+        scenarios: revenueData.projections.scenarios.map((s: typeof revenueData.projections.scenarios[number]) => ({
           name: s.name,
           nextMonth: s.projections[0]?.projectedRevenue || 0,
           sixMonths: s.projections[5]?.projectedRevenue || 0,

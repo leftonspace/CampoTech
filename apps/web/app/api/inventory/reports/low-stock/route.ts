@@ -66,8 +66,8 @@ export async function GET(request: NextRequest) {
 
     for (const product of products) {
       // Calculate total stock across all warehouses
-      const totalOnHand = product.inventoryLevels.reduce((sum, l) => sum + l.quantityOnHand, 0);
-      const totalAvailable = product.inventoryLevels.reduce((sum, l) => sum + l.quantityAvailable, 0);
+      const totalOnHand = product.inventoryLevels.reduce((sum: number, l: typeof product.inventoryLevels[number]) => sum + l.quantityOnHand, 0);
+      const totalAvailable = product.inventoryLevels.reduce((sum: number, l: typeof product.inventoryLevels[number]) => sum + l.quantityAvailable, 0);
 
       // Check for low stock at product level (minStockLevel serves as reorder point)
       const isAtOrBelowReorder = totalAvailable <= product.minStockLevel;
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Sort by severity (critical first) then by deficit
-    alerts.sort((a, b) => {
+    alerts.sort((a: typeof alerts[number], b: typeof alerts[number]) => {
       if (a.severity !== b.severity) {
         return a.severity === 'critical' ? -1 : 1;
       }
@@ -133,10 +133,10 @@ export async function GET(request: NextRequest) {
     });
 
     // Calculate summary
-    const criticalCount = alerts.filter((a) => a.severity === 'critical').length;
-    const warningCount = alerts.filter((a) => a.severity === 'warning').length;
-    const totalEstimatedCost = alerts.reduce((sum, a) => sum + a.estimatedCost, 0);
-    const uniqueProducts = new Set(alerts.map((a) => a.productId)).size;
+    const criticalCount = alerts.filter((a: typeof alerts[number]) => a.severity === 'critical').length;
+    const warningCount = alerts.filter((a: typeof alerts[number]) => a.severity === 'warning').length;
+    const totalEstimatedCost = alerts.reduce((sum: number, a: typeof alerts[number]) => sum + a.estimatedCost, 0);
+    const uniqueProducts = new Set(alerts.map((a: typeof alerts[number]) => a.productId)).size;
 
     // Group by category
     const byCategory: Record<string, { name: string; critical: number; warning: number }> = {};
@@ -168,9 +168,9 @@ export async function GET(request: NextRequest) {
 
     // Generate suggested purchase order
     const suggestedPO = alerts
-      .filter((a) => a.deficit > 0)
-      .reduce((acc, alert) => {
-        const existing = acc.find((item) => item.productId === alert.productId);
+      .filter((a: typeof alerts[number]) => a.deficit > 0)
+      .reduce((acc: Array<{ productId: string; sku: string; name: string; quantity: number; unitCost: number; totalCost: number }>, alert: typeof alerts[number]) => {
+        const existing = acc.find((item: typeof acc[number]) => item.productId === alert.productId);
         if (existing) {
           existing.quantity = Math.max(existing.quantity, alert.reorderQty || alert.deficit);
         } else {
@@ -197,13 +197,13 @@ export async function GET(request: NextRequest) {
           uniqueProducts,
           totalEstimatedCost,
         },
-        alerts: severity ? alerts.filter((a) => a.severity === severity) : alerts,
-        byCategory: Object.values(byCategory).sort((a, b) => (b.critical + b.warning) - (a.critical + a.warning)),
-        byWarehouse: Object.values(byWarehouse).sort((a, b) => (b.critical + b.warning) - (a.critical + a.warning)),
+        alerts: severity ? alerts.filter((a: typeof alerts[number]) => a.severity === severity) : alerts,
+        byCategory: Object.values(byCategory).sort((a: { name: string; critical: number; warning: number }, b: { name: string; critical: number; warning: number }) => (b.critical + b.warning) - (a.critical + a.warning)),
+        byWarehouse: Object.values(byWarehouse).sort((a: { name: string; critical: number; warning: number }, b: { name: string; critical: number; warning: number }) => (b.critical + b.warning) - (a.critical + a.warning)),
         suggestedPurchaseOrder: {
           items: suggestedPO,
           totalItems: suggestedPO.length,
-          totalCost: suggestedPO.reduce((sum, item) => sum + item.totalCost, 0),
+          totalCost: suggestedPO.reduce((sum: number, item: typeof suggestedPO[number]) => sum + item.totalCost, 0),
         },
         generatedAt: new Date().toISOString(),
       },

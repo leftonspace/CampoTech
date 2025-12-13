@@ -394,9 +394,10 @@ export async function listProducts(
   if (includeInventory) {
     productsWithInventory = products.map(p => {
       const levels = (p as any).inventoryLevels || [];
-      const totalOnHand = levels.reduce((sum: number, l: any) => sum + l.quantityOnHand, 0);
-      const totalReserved = levels.reduce((sum: number, l: any) => sum + l.quantityReserved, 0);
-      const totalAvailable = levels.reduce((sum: number, l: any) => sum + l.quantityAvailable, 0);
+      type LevelType = typeof levels[number];
+      const totalOnHand = levels.reduce((sum: number, l: LevelType) => sum + l.quantityOnHand, 0);
+      const totalReserved = levels.reduce((sum: number, l: LevelType) => sum + l.quantityReserved, 0);
+      const totalAvailable = levels.reduce((sum: number, l: LevelType) => sum + l.quantityAvailable, 0);
 
       let stockStatus: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
       if (totalAvailable <= 0) {

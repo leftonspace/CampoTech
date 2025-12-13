@@ -84,7 +84,7 @@ export async function getProductPriceBookLinks(
     orderBy: { createdAt: 'desc' },
   });
 
-  return links.map((link) => ({
+  return links.map((link: typeof links[number]) => ({
     productId: link.productId,
     priceBookItemId: link.priceBookItemId,
     productSku: link.product.sku,
@@ -231,7 +231,7 @@ export async function getUnlinkedProducts(
     orderBy: { name: 'asc' },
   });
 
-  return products.map((p) => ({
+  return products.map((p: typeof products[number]) => ({
     id: p.id,
     sku: p.sku,
     name: p.name,
@@ -262,7 +262,7 @@ export async function getUnlinkedPriceBookItems(
     orderBy: { name: 'asc' },
   });
 
-  return items.map((item) => ({
+  return items.map((item: typeof items[number]) => ({
     id: item.id,
     code: item.code,
     name: item.name,
@@ -307,7 +307,7 @@ export async function getLinkSuggestions(
   }
 
   // Sort by match score (highest first)
-  return suggestions.sort((a, b) => b.matchScore - a.matchScore);
+  return suggestions.sort((a: typeof suggestions[number], b: typeof suggestions[number]) => b.matchScore - a.matchScore);
 }
 
 /**
@@ -322,7 +322,7 @@ export async function autoLinkByCode(
   ]);
 
   let linked = 0;
-  const itemsByCode = new Map(unlinkedItems.map((i) => [i.code.toLowerCase(), i]));
+  const itemsByCode = new Map(unlinkedItems.map((i: typeof unlinkedItems[number]) => [i.code.toLowerCase(), i]));
 
   for (const product of unlinkedProducts) {
     // Try exact SKU match
@@ -714,12 +714,12 @@ export async function getLinkStats(organizationId: string): Promise<{
   ]);
 
   const priceDifferences = linksWithDiff.filter(
-    (link) => Number(link.product.salePrice) !== Number(link.priceBookItem.unitPrice)
+    (link: typeof linksWithDiff[number]) => Number(link.product.salePrice) !== Number(link.priceBookItem.unitPrice)
   ).length;
 
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
   const needsSync = linksWithDiff.filter(
-    (link) =>
+    (link: typeof linksWithDiff[number]) =>
       !link.lastSyncedAt ||
       link.lastSyncedAt < oneDayAgo ||
       Number(link.product.salePrice) !== Number(link.priceBookItem.unitPrice)

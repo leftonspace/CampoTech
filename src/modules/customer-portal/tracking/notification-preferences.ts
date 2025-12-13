@@ -205,7 +205,7 @@ export async function updateSinglePreference(
 ): Promise<CustomerNotificationPreferences> {
   const current = await getNotificationPreferences(customerId, organizationId);
 
-  const updatedPreferences = current.preferences.map((pref) => {
+  const updatedPreferences = current.preferences.map((pref: typeof current.preferences[number]) => {
     if (pref.eventType === eventType) {
       return {
         ...pref,
@@ -336,14 +336,14 @@ export async function getNotifiableCustomers(
     });
 
     return prefs
-      .filter((pref) => {
+      .filter((pref: typeof prefs[number]) => {
         const eventPref = (pref.preferences as NotificationPreference[]).find(
-          (p) => p.eventType === eventType
+          (p: NotificationPreference) => p.eventType === eventType
         );
         if (!eventPref) return true;
         return eventPref.enabled && eventPref.channels.includes(channel);
       })
-      .map((pref) => pref.customerId);
+      .map((pref: typeof prefs[number]) => pref.customerId);
   } catch (error) {
     log.error('Error getting notifiable customers', { organizationId, eventType, channel, error });
     return [];

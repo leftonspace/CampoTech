@@ -71,23 +71,23 @@ export async function GET(req: NextRequest) {
 
     // Calculate KPIs
     const totalJobs = jobs.length;
-    const completedJobs = jobs.filter((j) => j.status === 'COMPLETED').length;
+    const completedJobs = jobs.filter((j: typeof jobs[number]) => j.status === 'COMPLETED').length;
     const completionRate = totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
 
-    const totalRevenue = invoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
-    const paidInvoices = invoices.filter((i) => i.status === 'PAID');
-    const collectedRevenue = paidInvoices.reduce((sum, inv) => sum + (inv.total ? Number(inv.total) : 0), 0);
+    const totalRevenue = invoices.reduce((sum: number, inv: typeof invoices[number]) => sum + (inv.total ? Number(inv.total) : 0), 0);
+    const paidInvoices = invoices.filter((i: typeof invoices[number]) => i.status === 'PAID');
+    const collectedRevenue = paidInvoices.reduce((sum: number, inv: typeof paidInvoices[number]) => sum + (inv.total ? Number(inv.total) : 0), 0);
     const collectionRate = totalRevenue > 0 ? (collectedRevenue / totalRevenue) * 100 : 0;
 
     const avgTicket = invoices.length > 0 ? totalRevenue / invoices.length : 0;
 
     // Jobs by status
     const statusCounts: Record<string, number> = {};
-    jobs.forEach((job) => {
+    jobs.forEach((job: typeof jobs[number]) => {
       statusCounts[job.status] = (statusCounts[job.status] || 0) + 1;
     });
 
-    const jobsByStatus = Object.entries(statusCounts).map(([status, count]) => ({
+    const jobsByStatus = Object.entries(statusCounts).map(([status, count]: [string, number]) => ({
       label: formatStatus(status),
       value: count,
       color: getStatusColor(status),

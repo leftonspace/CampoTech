@@ -6,8 +6,8 @@
  * Phase 15: Consumer Marketplace
  */
 
-export {
-  ModeSwitchService,
+export { ModeSwitchService } from './mode-switch.service';
+export type {
   AppMode,
   DualProfileInfo,
   ConsumerProfileSummary,

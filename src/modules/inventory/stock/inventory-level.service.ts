@@ -112,10 +112,11 @@ export async function getStockLevelSummary(
   if (!product) return null;
 
   const levels = product.inventoryLevels;
-  const totalOnHand = levels.reduce((sum, l) => sum + l.quantityOnHand, 0);
-  const totalReserved = levels.reduce((sum, l) => sum + l.quantityReserved, 0);
-  const totalAvailable = levels.reduce((sum, l) => sum + l.quantityAvailable, 0);
-  const totalOnOrder = levels.reduce((sum, l) => sum + l.quantityOnOrder, 0);
+  type LevelType = typeof levels[number];
+  const totalOnHand = levels.reduce((sum: number, l: LevelType) => sum + l.quantityOnHand, 0);
+  const totalReserved = levels.reduce((sum: number, l: LevelType) => sum + l.quantityReserved, 0);
+  const totalAvailable = levels.reduce((sum: number, l: LevelType) => sum + l.quantityAvailable, 0);
+  const totalOnOrder = levels.reduce((sum: number, l: LevelType) => sum + l.quantityOnOrder, 0);
 
   let status: 'OK' | 'LOW' | 'OUT' | 'OVERSTOCK';
   if (totalAvailable <= 0) {
@@ -128,7 +129,8 @@ export async function getStockLevelSummary(
     status = 'OK';
   }
 
-  const warehouseBreakdown = levels.map(l => ({
+  type LevelType2 = typeof levels[number];
+  const warehouseBreakdown = levels.map((l: LevelType2) => ({
     warehouseId: l.warehouseId,
     warehouseName: (l as any).warehouse?.name || 'Unknown',
     onHand: l.quantityOnHand,

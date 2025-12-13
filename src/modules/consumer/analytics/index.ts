@@ -6,8 +6,8 @@
  * Phase 15: Consumer Marketplace
  */
 
-export {
-  MarketplaceAnalyticsService,
+export { MarketplaceAnalyticsService } from './marketplace-analytics.service';
+export type {
   MarketplaceDashboard,
   OverviewMetrics,
   TrendData,

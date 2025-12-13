@@ -70,9 +70,9 @@ export async function GET(request: NextRequest) {
     // Calculate stats
     const stats = {
       total: locations.length,
-      warehouses: locations.filter((l) => l.locationType === 'WAREHOUSE').length,
-      vehicles: locations.filter((l) => l.locationType === 'VEHICLE').length,
-      hubs: locations.filter((l) => l.locationType === 'HUB').length,
+      warehouses: locations.filter((l: typeof locations[number]) => l.locationType === 'WAREHOUSE').length,
+      vehicles: locations.filter((l: typeof locations[number]) => l.locationType === 'VEHICLE').length,
+      hubs: locations.filter((l: typeof locations[number]) => l.locationType === 'HUB').length,
     };
 
     return NextResponse.json({

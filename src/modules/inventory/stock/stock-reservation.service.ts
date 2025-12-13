@@ -512,7 +512,8 @@ export async function getReservationStats(organizationId: string): Promise<{
     totalReservedValue: Number(totalValue[0]?.total || 0),
   };
 
-  for (const count of counts) {
+  type CountType = typeof counts[number];
+  for (const count of counts as CountType[]) {
     const status = count.status as ReservationStatus;
     stats[status.toLowerCase() as keyof typeof stats] = count._count as number;
     stats.total += count._count;

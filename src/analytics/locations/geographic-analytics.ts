@@ -501,12 +501,13 @@ export async function generateServiceDensityMap(
   }
 
   // Filter jobs with valid coordinates
+  type MappedJobType = DensityJobType & { coords: GeoCoordinate | null };
   const jobsWithCoords = jobs
-    .map((j: DensityJobType) => ({
+    .map((j: DensityJobType): MappedJobType => ({
       ...j,
       coords: getAddressCoordinates(j.customer?.address),
     }))
-    .filter((j): j is typeof j & { coords: GeoCoordinate } => j.coords !== null);
+    .filter((j: MappedJobType): j is MappedJobType & { coords: GeoCoordinate } => j.coords !== null);
 
   type JobWithCoordsType = typeof jobsWithCoords[number];
 

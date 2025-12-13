@@ -6,8 +6,8 @@
  * Phase 15: Consumer Marketplace
  */
 
-export {
-  LeadsDashboardService,
+export { LeadsDashboardService } from './leads-dashboard.service';
+export type {
   Lead,
   QuoteInfo,
   LeadStats,

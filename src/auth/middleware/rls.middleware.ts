@@ -201,4 +201,4 @@ declare global {
 // EXPORTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export { RLSContext };
+export type { RLSContext };

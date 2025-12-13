@@ -39,6 +39,8 @@ export {
   getCustomerAuthService,
   initializeCustomerAuthService,
   resetCustomerAuthService,
+} from './customer-auth.service';
+export type {
   CustomerAuthError,
   MagicLinkError,
   CustomerOTPError,
@@ -61,8 +63,8 @@ export {
   CustomerSessionService,
   getCustomerSessionService,
   resetCustomerSessionService,
-  CustomerSecretProvider,
 } from './customer-session.service';
+export type { CustomerSecretProvider } from './customer-session.service';
 
 // Middleware
 export {
@@ -99,6 +101,8 @@ export {
   MockSMSProvider,
   createEmailProvider,
   createSMSProvider,
+} from './adapters/providers.adapters';
+export type {
   EmailConfig,
   TwilioConfig,
   WhatsAppConfig,

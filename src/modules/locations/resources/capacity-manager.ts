@@ -457,9 +457,9 @@ export class CapacityManager {
     }
 
     // Calculate imbalance score
-    const avgJobs = locationStats.reduce((sum, l) => sum + l.totalJobs, 0) / locationStats.length;
+    const avgJobs = locationStats.reduce((sum: number, l: typeof locationStats[number]) => sum + l.totalJobs, 0) / locationStats.length;
     const variance = locationStats.reduce(
-      (sum, l) => sum + Math.pow(l.totalJobs - avgJobs, 2),
+      (sum: number, l: typeof locationStats[number]) => sum + Math.pow(l.totalJobs - avgJobs, 2),
       0
     ) / locationStats.length;
     const imbalanceScore = Math.sqrt(variance) / (avgJobs || 1);

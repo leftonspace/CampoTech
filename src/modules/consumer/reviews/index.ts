@@ -6,8 +6,8 @@
  * Phase 15: Consumer Marketplace
  */
 
-export {
-  ReviewRepository,
+export { ReviewRepository } from './review.repository';
+export type {
   CreateReviewInput,
   UpdateReviewInput,
   ReviewWithConsumer,
@@ -15,8 +15,8 @@ export {
   RatingSummary,
 } from './review.repository';
 
-export {
-  ReviewService,
+export { ReviewService } from './review.service';
+export type {
   ReviewError,
   SubmitReviewInput,
   FraudSignal,

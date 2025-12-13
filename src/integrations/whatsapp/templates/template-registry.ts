@@ -324,7 +324,7 @@ export async function getOrganizationTemplates(
     orderBy: { name: 'asc' },
   });
 
-  return templates.map((t) => ({
+  return templates.map((t: typeof templates[number]) => ({
     id: t.id,
     organizationId: t.organizationId,
     name: t.name,
@@ -392,12 +392,12 @@ export async function submitTemplateToMeta(
       name: template.name,
       language: template.language,
       category: template.category,
-      components: template.components.map((c) => ({
+      components: template.components.map((c: typeof template.components[number]) => ({
         type: c.type,
         format: c.format,
         text: c.text,
         example: c.example,
-        buttons: c.buttons?.map((b) => ({
+        buttons: c.buttons?.map((b: typeof c.buttons[number]) => ({
           type: b.type,
           text: b.text,
           url: b.url,

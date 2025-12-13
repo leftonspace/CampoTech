@@ -98,18 +98,18 @@ export async function GET(req: NextRequest) {
     const totalCustomers = customers.length;
 
     // Active customers (had a job in the period)
-    const activeCustomerIds = new Set(currentJobs.map((j) => j.customerId));
+    const activeCustomerIds = new Set(currentJobs.map((j: typeof currentJobs[number]) => j.customerId));
     const activeCustomers = activeCustomerIds.size;
-    const previousActiveIds = new Set(previousJobs.map((j) => j.customerId));
+    const previousActiveIds = new Set(previousJobs.map((j: typeof previousJobs[number]) => j.customerId));
     const activeChange = previousActiveIds.size > 0
       ? ((activeCustomers - previousActiveIds.size) / previousActiveIds.size) * 100
       : 0;
 
     // New customers (created in the period)
-    const newCustomers = customers.filter((c) =>
+    const newCustomers = customers.filter((c: typeof customers[number]) =>
       c.createdAt >= dateRange.start && c.createdAt <= dateRange.end
     ).length;
-    const previousNewCustomers = customers.filter((c) =>
+    const previousNewCustomers = customers.filter((c: typeof customers[number]) =>
       c.createdAt >= previousRange.start && c.createdAt <= previousRange.end
     ).length;
     const newCustomersChange = previousNewCustomers > 0
@@ -117,9 +117,9 @@ export async function GET(req: NextRequest) {
       : 0;
 
     // Churned customers (had activity before but not in this period)
-    const previousActiveSet = new Set(previousJobs.map((j) => j.customerId));
+    const previousActiveSet = new Set(previousJobs.map((j: typeof previousJobs[number]) => j.customerId));
     const churnedCustomers = Array.from(previousActiveSet).filter(
-      (id) => !activeCustomerIds.has(id)
+      (id: string | null) => !activeCustomerIds.has(id)
     ).length;
     const churnRate = previousActiveIds.size > 0
       ? (churnedCustomers / previousActiveIds.size) * 100
@@ -127,22 +127,22 @@ export async function GET(req: NextRequest) {
 
     // Average CLV (Customer Lifetime Value)
     const customerRevenue: Record<string, number> = {};
-    invoices.forEach((inv) => {
+    invoices.forEach((inv: typeof invoices[number]) => {
       if (inv.customerId) {
         const totalNum = inv.total ? Number(inv.total) : 0;
         customerRevenue[inv.customerId] = (customerRevenue[inv.customerId] || 0) + totalNum;
       }
     });
     const clvValues = Object.values(customerRevenue);
-    const avgCLV = clvValues.length > 0 ? clvValues.reduce((a, b) => a + b, 0) / clvValues.length : 0;
+    const avgCLV = clvValues.length > 0 ? clvValues.reduce((a: number, b: number) => a + b, 0) / clvValues.length : 0;
 
     // Satisfaction score
-    const periodReviews = reviews.filter((r) =>
+    const periodReviews = reviews.filter((r: typeof reviews[number]) =>
       r.createdAt >= dateRange.start && r.createdAt <= dateRange.end
     );
-    const ratings = periodReviews.filter((r) => r.rating !== null).map((r) => r.rating as number);
+    const ratings = periodReviews.filter((r: typeof periodReviews[number]) => r.rating !== null).map((r: typeof periodReviews[number]) => r.rating as number);
     const avgSatisfaction = ratings.length > 0
-      ? (ratings.reduce((a, b) => a + b, 0) / ratings.length / 5) * 100
+      ? (ratings.reduce((a: number, b: number) => a + b, 0) / ratings.length / 5) * 100
       : 0;
 
     // Customer growth trend
@@ -153,10 +153,10 @@ export async function GET(req: NextRequest) {
 
     // Top customers by CLV
     const topCustomers = Object.entries(customerRevenue)
-      .sort((a, b) => b[1] - a[1])
+      .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
       .slice(0, 10)
-      .map(([customerId, revenue]) => {
-        const customer = customers.find((c) => c.id === customerId);
+      .map(([customerId, revenue]: [string, number]) => {
+        const customer = customers.find((c: typeof customers[number]) => c.id === customerId);
         const customerName = customer?.name || 'Unknown';
         const jobCount = customer?._count?.jobs || 0;
         return {
@@ -251,10 +251,10 @@ function aggregateCustomerGrowth(
 
   const groups: Record<string, number> = {};
   const sorted = customers
-    .filter((c) => c.createdAt >= start && c.createdAt <= end)
-    .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    .filter((c: typeof customers[number]) => c.createdAt >= start && c.createdAt <= end)
+    .sort((a: typeof customers[number], b: typeof customers[number]) => a.createdAt.getTime() - b.createdAt.getTime());
 
-  sorted.forEach((customer) => {
+  sorted.forEach((customer: typeof sorted[number]) => {
     cumulative += 1;
     const date = new Date(customer.createdAt);
     const key = groupByWeek
@@ -263,7 +263,7 @@ function aggregateCustomerGrowth(
     groups[key] = cumulative;
   });
 
-  return Object.entries(groups).map(([label, value]) => ({ label, value }));
+  return Object.entries(groups).map(([label, value]: [string, number]) => ({ label, value }));
 }
 
 function calculateSegments(
@@ -275,7 +275,7 @@ function calculateSegments(
   let occasional = 0;
   let inactive = 0;
 
-  customers.forEach((customer) => {
+  customers.forEach((customer: typeof customers[number]) => {
     const customerRevenue = revenue[customer.id] || 0;
     const jobCount = customer._count?.jobs || 0;
 
@@ -309,7 +309,7 @@ function calculateCohortRetention(
     const monthStart = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const monthEnd = new Date(now.getFullYear(), now.getMonth() - i + 1, 0);
 
-    const cohort = customers.filter((c) =>
+    const cohort = customers.filter((c: typeof customers[number]) =>
       c.createdAt >= monthStart && c.createdAt <= monthEnd
     );
 
@@ -318,8 +318,8 @@ function calculateCohortRetention(
       continue;
     }
 
-    const activeInCohort = cohort.filter((c) =>
-      jobs.some((j) => j.customerId === c.id)
+    const activeInCohort = cohort.filter((c: typeof cohort[number]) =>
+      jobs.some((j: typeof jobs[number]) => j.customerId === c.id)
     ).length;
 
     const retentionRate = (activeInCohort / cohort.length) * 100;
@@ -343,8 +343,8 @@ function aggregateSatisfactionTrend(
   const groups: Record<string, { sum: number; count: number }> = {};
 
   reviews
-    .filter((r) => r.createdAt >= start && r.createdAt <= end && r.rating !== null)
-    .forEach((review) => {
+    .filter((r: typeof reviews[number]) => r.createdAt >= start && r.createdAt <= end && r.rating !== null)
+    .forEach((review: typeof reviews[number]) => {
       const date = new Date(review.createdAt);
       const key = groupByWeek
         ? `Sem ${getWeekNumber(date)}`
@@ -357,7 +357,7 @@ function aggregateSatisfactionTrend(
       groups[key].count += 1;
     });
 
-  return Object.entries(groups).map(([label, data]) => ({
+  return Object.entries(groups).map(([label, data]: [string, { sum: number; count: number }]) => ({
     label,
     value: Math.round(data.count > 0 ? data.sum / data.count : 0),
   }));
@@ -376,10 +376,10 @@ function calculateChurnRisk(
   let medium = 0;
   let high = 0;
 
-  customers.forEach((customer) => {
-    const customerJobs = jobs.filter((j) => j.customerId === customer.id);
+  customers.forEach((customer: typeof customers[number]) => {
+    const customerJobs = jobs.filter((j: typeof jobs[number]) => j.customerId === customer.id);
     const lastJobDate = customerJobs.length > 0
-      ? Math.max(...customerJobs.map((j) => j.createdAt.getTime()))
+      ? Math.max(...customerJobs.map((j: typeof customerJobs[number]) => j.createdAt.getTime()))
       : 0;
 
     if (lastJobDate >= thirtyDaysAgo.getTime()) {
@@ -410,8 +410,8 @@ function calculateFrequencyDistribution(
     '7+ compras': 0,
   };
 
-  customers.forEach((customer) => {
-    const jobCount = jobs.filter((j) => j.customerId === customer.id).length;
+  customers.forEach((customer: typeof customers[number]) => {
+    const jobCount = jobs.filter((j: typeof jobs[number]) => j.customerId === customer.id).length;
 
     if (jobCount === 0) {
       frequency['Sin compras'] += 1;
@@ -426,7 +426,7 @@ function calculateFrequencyDistribution(
     }
   });
 
-  return Object.entries(frequency).map(([label, value]) => ({ label, value }));
+  return Object.entries(frequency).map(([label, value]: [string, number]) => ({ label, value }));
 }
 
 function getWeekNumber(date: Date): number {

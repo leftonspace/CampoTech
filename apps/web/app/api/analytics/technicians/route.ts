@@ -83,9 +83,9 @@ export async function GET(req: NextRequest) {
     const avgJobsPerTech = activeTechnicians > 0 ? totalJobs / activeTechnicians : 0;
 
     // Calculate per-technician stats
-    const technicianPerformance = technicians.map((tech) => {
-      const techJobs = jobs.filter((j) => j.technicianId === tech.id);
-      const techCompleted = techJobs.filter((j) => j.status === 'COMPLETED').length;
+    const technicianPerformance = technicians.map((tech: typeof technicians[number]) => {
+      const techJobs = jobs.filter((j: typeof jobs[number]) => j.technicianId === tech.id);
+      const techCompleted = techJobs.filter((j: typeof techJobs[number]) => j.status === 'COMPLETED').length;
 
       return {
         id: tech.id,
@@ -101,9 +101,9 @@ export async function GET(req: NextRequest) {
     });
 
     const topTechnicians = [...technicianPerformance]
-      .sort((a, b) => b.completedJobs - a.completedJobs)
+      .sort((a: typeof technicianPerformance[number], b: typeof technicianPerformance[number]) => b.completedJobs - a.completedJobs)
       .slice(0, 10)
-      .map((tech) => ({
+      .map((tech: typeof technicianPerformance[number]) => ({
         id: tech.id,
         name: tech.name,
         value: tech.completedJobs,
@@ -120,7 +120,7 @@ export async function GET(req: NextRequest) {
         utilization: { value: 0, change: 0 },
       },
       topTechnicians,
-      technicianPerformance: technicianPerformance.sort((a, b) => b.completedJobs - a.completedJobs),
+      technicianPerformance: technicianPerformance.sort((a: typeof technicianPerformance[number], b: typeof technicianPerformance[number]) => b.completedJobs - a.completedJobs),
       performanceTrend: [],
       workloadDistribution: [],
       ratingDistribution: [],

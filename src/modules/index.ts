@@ -10,7 +10,7 @@ export {
   OrganizationRepository,
   OrganizationService,
 } from './organizations/organization.repository';
-export {
+export type {
   CreateOrganizationDTO,
   UpdateOrganizationDTO,
   AFIPConfigDTO,
@@ -25,6 +25,8 @@ export {
   createUserRoutes,
   ROLE_PERMISSIONS,
   hasPermission,
+} from './users';
+export type {
   CreateUserDTO,
   UpdateUserDTO,
 } from './users';
@@ -34,6 +36,8 @@ export {
   CustomerRepository,
   CustomerService,
   createCustomerRoutes,
+} from './customers';
+export type {
   CreateCustomerDTO,
   UpdateCustomerDTO,
   CustomerFilters,
@@ -44,6 +48,8 @@ export {
   JobRepository,
   JobService,
   createJobRoutes,
+} from './jobs';
+export type {
   CreateJobDTO,
   UpdateJobDTO,
   JobFilters,
@@ -54,6 +60,8 @@ export {
   InvoiceRepository,
   InvoiceService,
   createInvoiceRoutes,
+} from './invoices';
+export type {
   CreateInvoiceDTO,
   CreateInvoiceLineItemDTO,
   InvoiceFilters,
@@ -65,6 +73,8 @@ export {
   PaymentRepository,
   PaymentService,
   createPaymentRoutes,
+} from './payments';
+export type {
   CreatePaymentDTO,
   RefundPaymentDTO,
   PaymentFilters,
@@ -76,6 +86,8 @@ export {
   PriceBookItemRepository,
   PriceBookService,
   createPriceBookRoutes,
+} from './pricebook';
+export type {
   PriceBookCategory,
   CreateCategoryDTO,
   UpdateCategoryDTO,
@@ -92,6 +104,8 @@ export {
   createAuditMiddleware,
   calculateAuditHash,
   verifyAuditEntry,
+} from './audit';
+export type {
   AuditAction,
   AuditEntityType,
   CreateAuditLogDTO,

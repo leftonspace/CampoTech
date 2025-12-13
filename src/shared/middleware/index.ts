@@ -25,7 +25,6 @@ export {
 
 // Authorization
 export {
-  AuthContext,
   ROLE_PERMISSIONS,
   hasPermission,
   canAccessResource,
@@ -35,6 +34,7 @@ export {
   requireRole,
   checkResourceAccess,
 } from './authorization.middleware';
+export type { AuthContext } from './authorization.middleware';
 
 // Rate Limiting
 export {

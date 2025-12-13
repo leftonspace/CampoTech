@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
 
     // Calculate totals
     const totals = stats.reduce(
-      (acc, stat) => ({
+      (acc: { buffersCreated: number; messagesAggregated: number; immediateTriggers: number; timeoutTriggers: number }, stat: typeof stats[number]) => ({
         buffersCreated: acc.buffersCreated + stat.totalBuffersCreated,
         messagesAggregated: acc.messagesAggregated + stat.totalMessagesAggregated,
         immediateTriggers: acc.immediateTriggers + stat.totalImmediateTriggers,
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
 
     // Group events by trigger reason
     const triggerReasons = recentEvents.reduce(
-      (acc, event) => {
+      (acc: Record<string, number>, event: typeof recentEvents[number]) => {
         const reason = event.triggerReason;
         acc[reason] = (acc[reason] || 0) + 1;
         return acc;
@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
         },
         activeContexts,
         triggerReasons,
-        dailyStats: stats.map((s) => ({
+        dailyStats: stats.map((s: typeof stats[number]) => ({
           date: s.date.toISOString().split('T')[0],
           buffersCreated: s.totalBuffersCreated,
           messagesAggregated: s.totalMessagesAggregated,

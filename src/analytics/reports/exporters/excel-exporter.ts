@@ -109,15 +109,15 @@ async function generateWithXLSX(
 
   for (const sheet of sheets) {
     // Convert data to array of arrays with headers
-    const headers = sheet.columns.map(c => c.header);
-    const rows = sheet.data.map(row => sheet.columns.map(c => row[c.key]));
+    const headers = sheet.columns.map((c: typeof sheet.columns[number]) => c.header);
+    const rows = sheet.data.map((row: typeof sheet.data[number]) => sheet.columns.map((c: typeof sheet.columns[number]) => row[c.key]));
     const sheetData = [headers, ...rows];
 
     const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
 
     // Set column widths
     if (options.autoWidth) {
-      const colWidths = sheet.columns.map((col, idx) => {
+      const colWidths = sheet.columns.map((col: typeof sheet.columns[number], idx: number) => {
         let maxWidth = col.header.length;
         for (const row of sheet.data) {
           const cellValue = String(row[col.key] || '');
@@ -190,10 +190,10 @@ async function generateWithExcelJS(
 
     // Auto-fit columns
     if (options.autoWidth) {
-      worksheet.columns.forEach(column => {
+      worksheet.columns.forEach((column: any) => {
         if (column.eachCell) {
           let maxLength = 0;
-          column.eachCell({ includeEmpty: true }, cell => {
+          column.eachCell({ includeEmpty: true }, (cell: any) => {
             const cellLength = cell.value ? String(cell.value).length : 10;
             if (cellLength > maxLength) {
               maxLength = cellLength;
@@ -213,10 +213,10 @@ async function generateWithExcelJS(
  * Generate CSV as fallback (compatible with Excel import)
  */
 function generateCSVFallback(sheets: ExcelSheet[]): Buffer {
-  const csvSheets = sheets.map(sheet => {
-    const headers = sheet.columns.map(c => escapeCSV(c.header)).join(',');
-    const rows = sheet.data.map(row =>
-      sheet.columns.map(c => escapeCSV(formatCSVValue(row[c.key]))).join(',')
+  const csvSheets = sheets.map((sheet: typeof sheets[number]) => {
+    const headers = sheet.columns.map((c: typeof sheet.columns[number]) => escapeCSV(c.header)).join(',');
+    const rows = sheet.data.map((row: typeof sheet.data[number]) =>
+      sheet.columns.map((c: typeof sheet.columns[number]) => escapeCSV(formatCSVValue(row[c.key]))).join(',')
     );
     return `=== ${sheet.name} ===\n${headers}\n${rows.join('\n')}`;
   });
@@ -296,7 +296,7 @@ function createSectionSheet(section: ReportSection): ExcelSheet | null {
       const kpis = section.data as KPIValue[];
       return {
         name: sheetName,
-        data: kpis.map((kpi) => ({
+        data: kpis.map((kpi: typeof kpis[number]) => ({
           metrica: kpi.name,
           valor: kpi.value,
           unidad: kpi.unit,
@@ -317,14 +317,14 @@ function createSectionSheet(section: ReportSection): ExcelSheet | null {
       const tableData = section.data as TableData;
       return {
         name: sheetName,
-        data: tableData.rows.map((row) => {
+        data: tableData.rows.map((row: typeof tableData.rows[number]) => {
           const excelRow: ExcelRow = {};
           for (const col of tableData.columns) {
             excelRow[col.key] = row[col.key] as string | number | Date | null;
           }
           return excelRow;
         }),
-        columns: tableData.columns.map((col) => ({
+        columns: tableData.columns.map((col: typeof tableData.columns[number]) => ({
           header: col.label,
           key: col.key,
           width: 15,
@@ -349,7 +349,7 @@ function createSectionSheet(section: ReportSection): ExcelSheet | null {
         data: rows,
         columns: [
           { header: 'Período', key: 'periodo', width: 15 },
-          ...chartData.datasets.map((ds) => ({
+          ...chartData.datasets.map((ds: typeof chartData.datasets[number]) => ({
             header: ds.label,
             key: ds.label,
             width: 15,
@@ -389,7 +389,7 @@ function createCombinedDataSheet(reportData: ReportData): ExcelSheet {
       case 'table': {
         const tableData = section.data as TableData;
         for (const row of tableData.rows) {
-          const values = tableData.columns.map((col) => row[col.key]).join(' | ');
+          const values = tableData.columns.map((col: typeof tableData.columns[number]) => row[col.key]).join(' | ');
           rows.push({ seccion: '', tipo: '', valor: values });
         }
         break;
@@ -398,7 +398,7 @@ function createCombinedDataSheet(reportData: ReportData): ExcelSheet {
       case 'chart': {
         const chartData = section.data as ChartData;
         for (let i = 0; i < chartData.labels.length; i++) {
-          const values = chartData.datasets.map((ds) => `${ds.label}: ${ds.data[i]}`).join(', ');
+          const values = chartData.datasets.map((ds: typeof chartData.datasets[number]) => `${ds.label}: ${ds.data[i]}`).join(', ');
           rows.push({ seccion: '', tipo: chartData.labels[i], valor: values });
         }
         break;
@@ -430,7 +430,7 @@ function createWorkbookJSON(sheets: ExcelSheet[]): object {
       lastModifiedBy: 'CampoTech Analytics',
       created: new Date().toISOString(),
     },
-    sheets: sheets.map((sheet) => ({
+    sheets: sheets.map((sheet: typeof sheets[number]) => ({
       name: sheet.name,
       columns: sheet.columns,
       data: sheet.data,
@@ -454,10 +454,10 @@ export function generateExcelBuffer(sheets: ExcelSheet[]): Buffer {
   // return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
 
   // Return CSV format as fallback
-  const csvSheets = sheets.map((sheet) => {
-    const headers = sheet.columns.map((c) => c.header).join(',');
-    const rows = sheet.data.map((row) =>
-      sheet.columns.map((c) => formatCSVValue(row[c.key])).join(',')
+  const csvSheets = sheets.map((sheet: typeof sheets[number]) => {
+    const headers = sheet.columns.map((c: typeof sheet.columns[number]) => c.header).join(',');
+    const rows = sheet.data.map((row: typeof sheet.data[number]) =>
+      sheet.columns.map((c: typeof sheet.columns[number]) => formatCSVValue(row[c.key])).join(',')
     );
     return `=== ${sheet.name} ===\n${headers}\n${rows.join('\n')}`;
   });

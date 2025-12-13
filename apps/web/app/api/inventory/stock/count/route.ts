@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
           assignedToId: assignedToId || null,
           notes,
           items: {
-            create: products.map((product) => ({
+            create: products.map((product: typeof products[number]) => ({
               productId: product.id,
               expectedQty: product.inventoryLevels[0]?.quantityOnHand || 0,
             })),
@@ -245,7 +245,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Check all items are counted
-      const uncountedItems = count.items.filter((item) => item.countedQty === null);
+      const uncountedItems = count.items.filter((item: typeof count.items[number]) => item.countedQty === null);
       if (uncountedItems.length > 0) {
         return NextResponse.json(
           { success: false, error: `Hay ${uncountedItems.length} items sin contar` },
@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
 
       // Calculate totals
       const totalItems = count.items.length;
-      const matchedItems = count.items.filter((item) => item.variance === 0).length;
+      const matchedItems = count.items.filter((item: typeof count.items[number]) => item.variance === 0).length;
       const varianceItems = totalItems - matchedItems;
 
       const updated = await prisma.inventoryCount.update({
@@ -531,14 +531,14 @@ export async function GET(request: NextRequest) {
       }
 
       // Get product info for items
-      const productIds = count.items.map((i) => i.productId);
+      const productIds = count.items.map((i: typeof count.items[number]) => i.productId);
       const products = await prisma.product.findMany({
         where: { id: { in: productIds } },
         select: { id: true, sku: true, name: true },
       });
-      const productMap = new Map(products.map((p) => [p.id, p]));
+      const productMap = new Map(products.map((p: typeof products[number]) => [p.id, p]));
 
-      const itemsWithProducts = count.items.map((item) => ({
+      const itemsWithProducts = count.items.map((item: typeof count.items[number]) => ({
         ...item,
         product: productMap.get(item.productId),
       }));
@@ -582,7 +582,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        counts: counts.map((c) => ({
+        counts: counts.map((c: typeof counts[number]) => ({
           ...c,
           itemCount: c._count.items,
           _count: undefined,

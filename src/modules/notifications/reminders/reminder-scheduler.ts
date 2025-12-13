@@ -254,7 +254,7 @@ export async function getUserPendingReminders(userId: string): Promise<Scheduled
     orderBy: { scheduledFor: 'asc' },
   });
 
-  return reminders.map((r) => ({
+  return reminders.map((r: typeof reminders[number]) => ({
     id: r.id,
     jobId: r.jobId,
     userId: r.userId,
@@ -294,7 +294,7 @@ export async function getDueReminders(limit: number = 100): Promise<ScheduledRem
     take: limit,
   });
 
-  return reminders.map((r) => ({
+  return reminders.map((r: typeof reminders[number]) => ({
     id: r.id,
     jobId: r.jobId,
     userId: r.userId,

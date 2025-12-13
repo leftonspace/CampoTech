@@ -7,7 +7,7 @@
  */
 
 // Types
-export {
+export type {
   IntegrationProvider,
   IntegrationStatus,
   BaseIntegrationConfig,
@@ -22,13 +22,12 @@ export {
   MappingConfig,
   IntegrationError,
   IntegrationErrorCode,
-  createIntegrationError,
 } from './integration.types';
+export { createIntegrationError } from './integration.types';
 
 // Google Calendar Integration
-export {
-  GoogleCalendarService,
-  createGoogleCalendarService,
+export { GoogleCalendarService, createGoogleCalendarService } from './google-calendar.service';
+export type {
   GoogleCalendarConfig,
   CalendarEvent,
   CalendarSyncOptions,
@@ -36,9 +35,8 @@ export {
 } from './google-calendar.service';
 
 // QuickBooks Integration
-export {
-  QuickBooksService,
-  createQuickBooksService,
+export { QuickBooksService, createQuickBooksService } from './quickbooks.service';
+export type {
   QuickBooksConfig,
   QuickBooksCredentials,
   QuickBooksCustomer,
@@ -51,14 +49,16 @@ export {
 export {
   ZapierService,
   createZapierService,
+  AVAILABLE_TRIGGERS,
+  AVAILABLE_ACTIONS,
+} from './zapier.service';
+export type {
   ZapierConfig,
   ZapierTrigger,
   ZapierAction,
   ZapierWebhook,
   TriggerType,
   ActionType,
-  AVAILABLE_TRIGGERS,
-  AVAILABLE_ACTIONS,
 } from './zapier.service';
 
 // Integration Registry

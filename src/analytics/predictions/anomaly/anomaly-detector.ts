@@ -439,8 +439,8 @@ function groupByDateCount<T extends Record<string, any>>(
 function calculateStats(values: number[]): { mean: number; stdDev: number } {
   if (values.length === 0) return { mean: 0, stdDev: 0 };
 
-  const mean = values.reduce((sum, v) => sum + v, 0) / values.length;
-  const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
+  const mean = values.reduce((sum: number, v: number) => sum + v, 0) / values.length;
+  const variance = values.reduce((sum: number, v: number) => sum + Math.pow(v - mean, 2), 0) / values.length;
   const stdDev = Math.sqrt(variance);
 
   return { mean, stdDev };

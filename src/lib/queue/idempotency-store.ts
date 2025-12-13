@@ -339,7 +339,7 @@ export class IdempotencyStore {
       take: 100,
     });
 
-    return entries.map((entry) => ({
+    return entries.map((entry: typeof entries[number]) => ({
       key: entry.key,
       status: entry.status as IdempotencyStatus,
       result: entry.result,

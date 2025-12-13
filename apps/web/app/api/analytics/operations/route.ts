@@ -66,17 +66,17 @@ export async function GET(req: NextRequest) {
 
     // Calculate KPIs
     const totalJobs = jobs.length;
-    const completedJobs = jobs.filter((j) => j.status === 'COMPLETED').length;
+    const completedJobs = jobs.filter((j: typeof jobs[number]) => j.status === 'COMPLETED').length;
     const completionRate = totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
-    const cancelledJobs = jobs.filter((j) => j.status === 'CANCELLED').length;
+    const cancelledJobs = jobs.filter((j: typeof jobs[number]) => j.status === 'CANCELLED').length;
 
     // Jobs by status
     const statusCounts: Record<string, number> = {};
-    jobs.forEach((job) => {
+    jobs.forEach((job: typeof jobs[number]) => {
       statusCounts[job.status] = (statusCounts[job.status] || 0) + 1;
     });
 
-    const jobsByStatus = Object.entries(statusCounts).map(([status, count]) => ({
+    const jobsByStatus = Object.entries(statusCounts).map(([status, count]: [string, number]) => ({
       label: status,
       value: count,
       color: getStatusColor(status),

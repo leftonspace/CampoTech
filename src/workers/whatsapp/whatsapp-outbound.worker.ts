@@ -271,10 +271,11 @@ function buildTemplateComponents(
 
   // Group parameters by component type
   // Assumes params are numbered: 1, 2, 3... for body
-  const bodyParams = Object.entries(params)
-    .filter(([key]) => !key.startsWith('header_') && !key.startsWith('button_'))
-    .sort(([a], [b]) => Number(a) - Number(b))
-    .map(([, value]) => ({ type: 'text' as const, text: value }));
+  type ParamEntry = [string, string];
+  const bodyParams = (Object.entries(params) as ParamEntry[])
+    .filter(([key]: ParamEntry) => !key.startsWith('header_') && !key.startsWith('button_'))
+    .sort(([a]: ParamEntry, [b]: ParamEntry) => Number(a) - Number(b))
+    .map(([, value]: ParamEntry) => ({ type: 'text' as const, text: value }));
 
   if (bodyParams.length > 0) {
     components.push({
@@ -284,10 +285,10 @@ function buildTemplateComponents(
   }
 
   // Header parameters (header_1, header_2, etc.)
-  const headerParams = Object.entries(params)
-    .filter(([key]) => key.startsWith('header_'))
-    .sort(([a], [b]) => Number(a.replace('header_', '')) - Number(b.replace('header_', '')))
-    .map(([, value]) => ({ type: 'text' as const, text: value }));
+  const headerParams = (Object.entries(params) as ParamEntry[])
+    .filter(([key]: ParamEntry) => key.startsWith('header_'))
+    .sort(([a]: ParamEntry, [b]: ParamEntry) => Number(a.replace('header_', '')) - Number(b.replace('header_', '')))
+    .map(([, value]: ParamEntry) => ({ type: 'text' as const, text: value }));
 
   if (headerParams.length > 0) {
     components.push({
