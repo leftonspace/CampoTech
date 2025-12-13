@@ -385,8 +385,8 @@ export class ChargebackHandler {
   ): Promise<{ id: string; invoiceId?: string } | null> {
     const payment = await db.payment.findFirst({
       where: {
-        orgId,
-        mpPaymentId,
+        organizationId: orgId,
+        reference: mpPaymentId, // MP payment ID stored as reference
       },
       select: {
         id: true,

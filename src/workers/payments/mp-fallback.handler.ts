@@ -235,17 +235,13 @@ export class MPFallbackHandler {
         // Create actual payment record
         await db.payment.create({
           data: {
-            orgId: fallback.orgId,
+            organizationId: fallback.orgId,
             invoiceId: fallback.invoiceId,
             amount: fallback.amount,
             method: paymentMethod,
-            status: 'completed',
-            metadata: {
-              source: 'fallback_resolution',
-              fallbackId,
-              originalReason: fallback.reason,
-              ...paymentDetails,
-            },
+            status: 'COMPLETED',
+            reference: `fallback_${fallbackId}`, // Store fallback reference
+            paidAt: new Date(),
           },
         });
 
