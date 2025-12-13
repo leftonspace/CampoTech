@@ -30,11 +30,14 @@ type MetricPoint = TimeSeriesPoint & { metric: string };
 
 // Helper to write points grouped by metric
 async function writeMetricPoints(organizationId: string, points: MetricPoint[]): Promise<void> {
-  const grouped = new Map<string, TimeSeriesPoint[]>();
+  const grouped = new Map<string, Array<{ value: number; timestamp?: Date; tags?: Record<string, string> }>>();
   for (const point of points) {
-    const { metric, ...rest } = point;
+    const { metric, timestamp, ...rest } = point;
     const existing = grouped.get(metric) || [];
-    existing.push(rest);
+    existing.push({
+      ...rest,
+      timestamp: new Date(timestamp),
+    });
     grouped.set(metric, existing);
   }
   for (const [metric, metricPoints] of grouped) {
