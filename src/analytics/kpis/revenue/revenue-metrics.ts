@@ -179,7 +179,9 @@ export async function getRevenueByServiceType(
     },
     select: {
       serviceType: true,
-      actualTotal: true,
+      invoice: {
+        select: { total: true },
+      },
     },
   });
 
@@ -189,7 +191,7 @@ export async function getRevenueByServiceType(
 
   for (const job of jobs) {
     const serviceType = job.serviceType || 'other';
-    const revenue = job.actualTotal?.toNumber() || 0;
+    const revenue = job.invoice?.total?.toNumber() || 0;
 
     const current = serviceMap.get(serviceType) || { revenue: 0, count: 0 };
     current.revenue += revenue;
