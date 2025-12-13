@@ -22,6 +22,8 @@ export interface TimeSeriesConfig {
     day: number;
     week: number;
     month: number;
+    quarter: number;
+    year: number;
   };
   aggregationRules: {
     [key in TimeGranularity]?: TimeGranularity;
@@ -69,6 +71,8 @@ const DEFAULT_CONFIG: TimeSeriesConfig = {
     day: 365 * 24 * 60 * 60,      // 1 year
     week: 3 * 365 * 24 * 60 * 60, // 3 years
     month: 5 * 365 * 24 * 60 * 60, // 5 years
+    quarter: 7 * 365 * 24 * 60 * 60, // 7 years
+    year: 10 * 365 * 24 * 60 * 60,   // 10 years
   },
   aggregationRules: {
     hour: 'day',
