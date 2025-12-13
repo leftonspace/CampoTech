@@ -26,9 +26,11 @@
       "@/hooks/*": ["./hooks/*"],
       "@/types/*": ["./types/*"],
       "@/styles/*": ["./styles/*"],
-      "@/src/*": ["../../src/*"]
+      "@/src/*": ["../../src/*"],
+      "pusher": ["../../node_modules/pusher"],
+      "ioredis": ["../../node_modules/ioredis"]
     },
-    "typeRoots": ["./node_modules/@types", "../../node_modules/@types"]
+    "typeRoots": ["./types", "./node_modules/@types", "../../node_modules/@types"]
   },
   "include": [
     "next-env.d.ts",
