@@ -207,13 +207,16 @@ export async function getCustomerDimension(
       segment = 'active';
     }
 
+    // Extract city from address JSON field
+    const address = customer.address as { city?: string; province?: string } | null;
+
     return {
       customerId: customer.id,
       organizationId: customer.organizationId,
       name: customer.name,
-      taxCondition: customer.taxCondition || 'consumidor_final',
-      city: customer.city,
-      province: customer.province,
+      taxCondition: 'consumidor_final', // Not stored on customer in current schema
+      city: address?.city || null,
+      province: address?.province || null,
       customerSince: customer.createdAt,
       totalJobs,
       totalRevenue,
