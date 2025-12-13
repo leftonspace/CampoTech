@@ -8,6 +8,7 @@ import {
   UserRole,
   canAccessModule,
 } from '@/lib/middleware/field-filter';
+import { onInvoiceCreated } from '@/src/modules/whatsapp/notification-triggers.service';
 
 /**
  * Invoices API
@@ -218,6 +219,13 @@ export async function POST(request: NextRequest) {
         lineItems: true,
       },
     });
+
+    // Trigger WhatsApp notification for new invoice (non-blocking, only if not draft)
+    if (!asDraft) {
+      onInvoiceCreated(invoice.id, customerId, session.organizationId).catch((err) => {
+        console.error('WhatsApp notification error:', err);
+      });
+    }
 
     return NextResponse.json({
       success: true,

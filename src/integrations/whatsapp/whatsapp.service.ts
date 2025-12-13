@@ -39,6 +39,7 @@ import {
   BufferedMessage,
   AggregationResult,
 } from './aggregation/message-aggregator.service';
+import { realtimeService } from '../../modules/whatsapp/realtime.service';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -864,7 +865,7 @@ export async function processInboundMessage(
   const mediaId = hasMedia(message) ? getMediaId(message) : null;
 
   // Store message
-  await db.waMessage.create({
+  const storedMessage = await db.waMessage.create({
     data: {
       organizationId,
       conversationId,
@@ -890,6 +891,31 @@ export async function processInboundMessage(
       unreadCount: { increment: 1 },
     },
   });
+
+  // Broadcast real-time notification for new message
+  try {
+    await realtimeService.notifyNewMessage(
+      organizationId,
+      conversationId,
+      {
+        id: storedMessage.id,
+        direction: 'inbound',
+        type: message.type,
+        content,
+        timestamp: storedMessage.createdAt.toISOString(),
+        status: 'delivered',
+        mediaUrl: storedMessage.mediaUrl || undefined,
+      },
+      message.from,
+      contactName || 'Unknown'
+    );
+  } catch (error) {
+    log.error('Error broadcasting realtime new message', {
+      organizationId,
+      conversationId,
+      error: error instanceof Error ? error.message : 'Unknown',
+    });
+  }
 
   // Process audio messages specially
   if (message.type === 'audio') {
@@ -1023,6 +1049,31 @@ export async function processStatusUpdate(
       where: { id: message.conversationId },
       data: { lastMessageStatus: status.status },
     });
+
+    // Broadcast real-time notification for status update
+    try {
+      const statusMap: Record<string, 'sent' | 'delivered' | 'read' | 'failed'> = {
+        sent: 'sent',
+        delivered: 'delivered',
+        read: 'read',
+        failed: 'failed',
+      };
+      const mappedStatus = statusMap[status.status] || 'sent';
+
+      await realtimeService.notifyMessageStatus(
+        organizationId,
+        message.conversationId,
+        message.id,
+        status.id,
+        mappedStatus
+      );
+    } catch (error) {
+      log.error('Error broadcasting realtime status update', {
+        organizationId,
+        messageId: status.id,
+        error: error instanceof Error ? error.message : 'Unknown',
+      });
+    }
   }
 }
 

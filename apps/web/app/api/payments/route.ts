@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { onPaymentReceived } from '@/src/modules/whatsapp/notification-triggers.service';
 
 /**
  * Payments API
@@ -160,6 +161,11 @@ export async function POST(request: NextRequest) {
         data: { status: 'PAID' },
       });
     }
+
+    // Trigger WhatsApp notification for payment received (non-blocking)
+    onPaymentReceived(payment.id, invoice.customerId, session.organizationId).catch((err) => {
+      console.error('WhatsApp notification error:', err);
+    });
 
     return NextResponse.json({
       success: true,

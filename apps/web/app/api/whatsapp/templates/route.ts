@@ -7,8 +7,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { WhatsAppClient } from '@/src/integrations/whatsapp/client';
+import { listTemplates } from '@/src/integrations/whatsapp/whatsapp.service';
 
-// GET - List templates from database
+// GET - List templates from service layer
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
@@ -25,27 +26,21 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const category = searchParams.get('category');
 
-    // Build filter
-    const where: any = { organizationId };
+    // Get templates from service layer
+    const templates = await listTemplates(organizationId);
+
+    // Apply optional client-side filtering
+    let filteredTemplates = templates;
     if (status) {
-      where.status = status;
+      filteredTemplates = filteredTemplates.filter(t => t.status === status);
     }
     if (category) {
-      where.category = category;
+      filteredTemplates = filteredTemplates.filter(t => t.category === category);
     }
-
-    const templates = await prisma.waTemplate.findMany({
-      where,
-      orderBy: [
-        { status: 'asc' },
-        { usageCount: 'desc' },
-        { name: 'asc' },
-      ],
-    });
 
     return NextResponse.json({
       success: true,
-      data: templates,
+      data: filteredTemplates,
     });
   } catch (error) {
     console.error('WhatsApp templates list error:', error);
