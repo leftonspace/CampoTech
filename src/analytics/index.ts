@@ -45,7 +45,7 @@ export {
 export {
   AGGREGATION_JOBS,
   runAggregationJob,
-  getAggregationJobStatus,
+  getAggregationJobStatuses,
   scheduleAggregationJobs,
   runDueAggregationJobs,
   type AggregationJob,
