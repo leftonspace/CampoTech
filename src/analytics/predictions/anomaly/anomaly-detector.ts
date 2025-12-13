@@ -246,7 +246,7 @@ async function detectCancellationAnomalies(organizationId: string): Promise<Anom
     const date = job.createdAt.toISOString().slice(0, 10);
     const current = dateStats.get(date) || { total: 0, cancelled: 0 };
     current.total++;
-    if (job.status === 'cancelado') current.cancelled++;
+    if (job.status === 'CANCELLED') current.cancelled++;
     dateStats.set(date, current);
   }
 
@@ -306,18 +306,18 @@ async function detectResponseTimeAnomalies(organizationId: string): Promise<Anom
     where: {
       organizationId,
       createdAt: { gte: fourteenDaysAgo },
-      actualStart: { not: null },
+      startedAt: { not: null },
     },
     select: {
       createdAt: true,
-      actualStart: true,
+      startedAt: true,
     },
   });
 
   // Calculate response times (in hours)
   const responseTimes = jobs.map((job) => {
     const created = job.createdAt.getTime();
-    const started = job.actualStart!.getTime();
+    const started = job.startedAt!.getTime();
     return (started - created) / (1000 * 60 * 60);
   });
 
@@ -330,7 +330,7 @@ async function detectResponseTimeAnomalies(organizationId: string): Promise<Anom
   const recentJobs = jobs.slice(-10);
   const avgRecentResponse = recentJobs.reduce((sum, job) => {
     const created = job.createdAt.getTime();
-    const started = job.actualStart!.getTime();
+    const started = job.startedAt!.getTime();
     return sum + (started - created) / (1000 * 60 * 60);
   }, 0) / recentJobs.length;
 

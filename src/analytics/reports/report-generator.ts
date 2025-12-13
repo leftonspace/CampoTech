@@ -589,7 +589,9 @@ async function generateTableData(
         select: {
           status: true,
           createdAt: true,
-          actualTotal: true,
+          invoice: {
+            select: { total: true },
+          },
         },
       });
 
@@ -599,9 +601,9 @@ async function generateTableData(
         const day = job.createdAt.toISOString().slice(0, 10);
         const current = dayMap.get(day) || { total: 0, completed: 0, revenue: 0 };
         current.total++;
-        if (job.status === 'completado') {
+        if (job.status === 'COMPLETED') {
           current.completed++;
-          current.revenue += job.actualTotal?.toNumber() || 0;
+          current.revenue += job.invoice?.total?.toNumber() || 0;
         }
         dayMap.set(day, current);
       }

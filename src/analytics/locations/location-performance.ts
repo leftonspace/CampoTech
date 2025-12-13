@@ -147,8 +147,8 @@ export async function calculateLocationKPIs(
         id: true,
         status: true,
         createdAt: true,
-        scheduledStart: true,
-        actualStart: true,
+        scheduledDate: true,
+        startedAt: true,
         completedAt: true,
         customerId: true,
         technicianId: true,
@@ -203,33 +203,33 @@ export async function calculateLocationKPIs(
 
   // Calculate job metrics
   const totalJobs = currentJobs.length;
-  const completedJobs = currentJobs.filter((j) => j.status === 'completado').length;
-  const cancelledJobs = currentJobs.filter((j) => j.status === 'cancelado').length;
-  const pendingJobs = currentJobs.filter((j) => j.status === 'pendiente').length;
+  const completedJobs = currentJobs.filter((j) => j.status === 'COMPLETED').length;
+  const cancelledJobs = currentJobs.filter((j) => j.status === 'CANCELLED').length;
+  const pendingJobs = currentJobs.filter((j) => j.status === 'PENDING').length;
 
   // Calculate efficiency metrics
-  const jobsWithDuration = currentJobs.filter((j) => j.actualStart && j.completedAt);
+  const jobsWithDuration = currentJobs.filter((j) => j.startedAt && j.completedAt);
   const avgJobDuration = jobsWithDuration.length > 0
     ? jobsWithDuration.reduce((sum, j) => {
-        const duration = j.completedAt!.getTime() - j.actualStart!.getTime();
+        const duration = j.completedAt!.getTime() - j.startedAt!.getTime();
         return sum + duration / (1000 * 60);
       }, 0) / jobsWithDuration.length
     : 0;
 
-  const jobsWithResponse = currentJobs.filter((j) => j.actualStart);
+  const jobsWithResponse = currentJobs.filter((j) => j.startedAt);
   const avgResponseTime = jobsWithResponse.length > 0
     ? jobsWithResponse.reduce((sum, j) => {
-        const response = j.actualStart!.getTime() - j.createdAt.getTime();
+        const response = j.startedAt!.getTime() - j.createdAt.getTime();
         return sum + response / (1000 * 60 * 60);
       }, 0) / jobsWithResponse.length
     : 0;
 
   // Calculate on-time rate
   const scheduledCompletedJobs = currentJobs.filter(
-    (j) => j.status === 'completado' && j.scheduledStart && j.completedAt
+    (j) => j.status === 'COMPLETED' && j.scheduledDate && j.completedAt
   );
   const onTimeJobs = scheduledCompletedJobs.filter((j) => {
-    const scheduledEnd = new Date(j.scheduledStart!.getTime() + 2 * 60 * 60 * 1000);
+    const scheduledEnd = new Date(j.scheduledDate!.getTime() + 2 * 60 * 60 * 1000);
     return j.completedAt! <= scheduledEnd;
   });
   const onTimeRate = scheduledCompletedJobs.length > 0
@@ -238,7 +238,7 @@ export async function calculateLocationKPIs(
 
   // Calculate team metrics
   const technicianJobCounts = new Map<string, { name: string; count: number }>();
-  for (const job of currentJobs.filter((j) => j.status === 'completado' && j.technicianId)) {
+  for (const job of currentJobs.filter((j) => j.status === 'COMPLETED' && j.technicianId)) {
     const tech = technicians.find((t) => t.id === job.technicianId);
     if (tech) {
       const current = technicianJobCounts.get(job.technicianId!) || { name: tech.name, count: 0 };
@@ -363,7 +363,7 @@ export async function getLocationPerformanceTrend(
       id: true,
       status: true,
       createdAt: true,
-      actualStart: true,
+      startedAt: true,
       completedAt: true,
     },
   });
@@ -399,9 +399,9 @@ export async function getLocationPerformanceTrend(
       durationCount: 0,
     };
     current.jobs++;
-    if (job.status === 'completado') current.completed++;
-    if (job.actualStart && job.completedAt) {
-      const duration = (job.completedAt.getTime() - job.actualStart.getTime()) / (1000 * 60);
+    if (job.status === 'COMPLETED') current.completed++;
+    if (job.startedAt && job.completedAt) {
+      const duration = (job.completedAt.getTime() - job.startedAt.getTime()) / (1000 * 60);
       current.totalDuration += duration;
       current.durationCount++;
     }
@@ -453,7 +453,7 @@ export async function getLocationDailyMetrics(
     select: {
       status: true,
       createdAt: true,
-      actualStart: true,
+      startedAt: true,
       completedAt: true,
     },
   });
@@ -494,9 +494,9 @@ export async function getLocationDailyMetrics(
       technicianHours: 0,
     };
     current.jobs++;
-    if (job.status === 'completado') current.completed++;
-    if (job.actualStart && job.completedAt) {
-      const hours = (job.completedAt.getTime() - job.actualStart.getTime()) / (1000 * 60 * 60);
+    if (job.status === 'COMPLETED') current.completed++;
+    if (job.startedAt && job.completedAt) {
+      const hours = (job.completedAt.getTime() - job.startedAt.getTime()) / (1000 * 60 * 60);
       current.technicianHours += hours;
     }
     dateMap.set(dateKey, current);
@@ -547,7 +547,7 @@ export async function getLocationServiceTypeBreakdown(
     select: {
       serviceType: true,
       status: true,
-      actualStart: true,
+      startedAt: true,
       completedAt: true,
     },
   });
@@ -585,9 +585,9 @@ export async function getLocationServiceTypeBreakdown(
       durationCount: 0,
     };
     current.count++;
-    if (job.status === 'completado') current.completed++;
-    if (job.actualStart && job.completedAt) {
-      const duration = (job.completedAt.getTime() - job.actualStart.getTime()) / (1000 * 60);
+    if (job.status === 'COMPLETED') current.completed++;
+    if (job.startedAt && job.completedAt) {
+      const duration = (job.completedAt.getTime() - job.startedAt.getTime()) / (1000 * 60);
       current.totalDuration += duration;
       current.durationCount++;
     }

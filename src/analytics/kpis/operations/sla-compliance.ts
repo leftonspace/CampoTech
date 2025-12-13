@@ -153,8 +153,8 @@ export async function calculateSLACompliance(
       urgency: true,
       serviceType: true,
       createdAt: true,
-      scheduledStart: true,
-      actualStart: true,
+      scheduledDate: true,
+      startedAt: true,
       completedAt: true,
       status: true,
     },
@@ -183,16 +183,16 @@ export async function calculateSLACompliance(
       (s) => s.metric === 'response_time' && s.urgencyLevel === urgency
     ) || slas.find((s) => s.metric === 'response_time' && s.urgencyLevel === 'normal');
 
-    if (sla && job.actualStart) {
+    if (sla && job.startedAt) {
       const responseTime =
-        (job.actualStart.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60);
+        (job.startedAt.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60);
       totalResponseTime += responseTime;
       jobsWithResponse++;
 
       if (responseTime <= sla.targetValue) {
         compliantJobs++;
       }
-    } else if (!job.actualStart && job.status === 'completado') {
+    } else if (!job.startedAt && job.status === 'COMPLETED') {
       // Completed without start time - assume compliant
       compliantJobs++;
     }
@@ -247,7 +247,7 @@ async function calculatePreviousPeriodCompliance(
     select: {
       urgency: true,
       createdAt: true,
-      actualStart: true,
+      startedAt: true,
       status: true,
     },
   });
@@ -262,13 +262,13 @@ async function calculatePreviousPeriodCompliance(
       (s) => s.metric === 'response_time' && s.urgencyLevel === urgency
     );
 
-    if (sla && job.actualStart) {
+    if (sla && job.startedAt) {
       const responseTime =
-        (job.actualStart.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60);
+        (job.startedAt.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60);
       if (responseTime <= sla.targetValue) {
         compliantJobs++;
       }
-    } else if (!job.actualStart && job.status === 'completado') {
+    } else if (!job.startedAt && job.status === 'COMPLETED') {
       compliantJobs++;
     }
   }
@@ -298,7 +298,7 @@ export async function getSLAByUrgency(
     select: {
       urgency: true,
       createdAt: true,
-      actualStart: true,
+      startedAt: true,
       status: true,
     },
   });
@@ -335,9 +335,9 @@ export async function getSLAByUrgency(
 
     current.total++;
 
-    if (job.actualStart) {
+    if (job.startedAt) {
       const responseTime =
-        (job.actualStart.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60);
+        (job.startedAt.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60);
       current.totalResponseTime += responseTime;
       current.jobsWithResponse++;
 
@@ -345,7 +345,7 @@ export async function getSLAByUrgency(
       if (responseTime <= target) {
         current.compliant++;
       }
-    } else if (job.status === 'completado') {
+    } else if (job.status === 'COMPLETED') {
       current.compliant++;
     }
 
@@ -398,7 +398,7 @@ export async function getSLAByServiceType(
     select: {
       serviceType: true,
       createdAt: true,
-      actualStart: true,
+      startedAt: true,
       completedAt: true,
       urgency: true,
       status: true,
@@ -433,23 +433,23 @@ export async function getSLAByServiceType(
     current.total++;
 
     // Check SLA compliance based on response time
-    if (job.actualStart) {
+    if (job.startedAt) {
       const urgency = (job.urgency || 'normal').toLowerCase();
       const target = { emergency: 2, high: 4, normal: 24, low: 48 }[urgency] || 24;
       const responseTime =
-        (job.actualStart.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60);
+        (job.startedAt.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60);
 
       if (responseTime <= target) {
         current.compliant++;
       }
-    } else if (job.status === 'completado') {
+    } else if (job.status === 'COMPLETED') {
       current.compliant++;
     }
 
     // Calculate completion time
-    if (job.completedAt && job.actualStart) {
+    if (job.completedAt && job.startedAt) {
       const completionTime =
-        (job.completedAt.getTime() - job.actualStart.getTime()) / (1000 * 60 * 60);
+        (job.completedAt.getTime() - job.startedAt.getTime()) / (1000 * 60 * 60);
       current.totalCompletionTime += completionTime;
       current.completedJobs++;
     }
@@ -494,7 +494,7 @@ export async function getSLAViolations(
         gte: dateRange.start,
         lte: dateRange.end,
       },
-      actualStart: { not: null },
+      startedAt: { not: null },
     },
     include: {
       customer: {
@@ -514,12 +514,12 @@ export async function getSLAViolations(
   const violations: SLAViolation[] = [];
 
   for (const job of jobs) {
-    if (!job.actualStart) continue;
+    if (!job.startedAt) continue;
 
     const urgency = (job.urgency || 'normal').toLowerCase();
     const target = urgencyTargets[urgency] || 24;
     const responseTime =
-      (job.actualStart.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60);
+      (job.startedAt.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60);
 
     if (responseTime > target) {
       violations.push({
@@ -530,7 +530,7 @@ export async function getSLAViolations(
         targetValue: target,
         actualValue: responseTime,
         variance: responseTime - target,
-        violatedAt: job.actualStart,
+        violatedAt: job.startedAt,
         urgency,
       });
     }
@@ -563,7 +563,7 @@ export async function getSLATrend(
     },
     select: {
       createdAt: true,
-      actualStart: true,
+      startedAt: true,
       urgency: true,
       status: true,
     },
@@ -595,11 +595,11 @@ export async function getSLATrend(
 
     current.total++;
 
-    if (job.actualStart) {
+    if (job.startedAt) {
       const urgency = (job.urgency || 'normal').toLowerCase();
       const target = urgencyTargets[urgency] || 24;
       const responseTime =
-        (job.actualStart.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60);
+        (job.startedAt.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60);
 
       current.totalResponseTime += responseTime;
       current.jobsWithResponse++;
@@ -607,7 +607,7 @@ export async function getSLATrend(
       if (responseTime <= target) {
         current.compliant++;
       }
-    } else if (job.status === 'completado') {
+    } else if (job.status === 'COMPLETED') {
       current.compliant++;
     }
 
