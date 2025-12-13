@@ -121,8 +121,8 @@ export async function calculateSatisfactionMetrics(
     if (jobCount === 0) continue;
 
     // Calculate behavioral satisfaction score (0-100)
-    const completedJobs = customer.jobs.filter((j) => j.status === 'completado').length;
-    const cancelledJobs = customer.jobs.filter((j) => j.status === 'cancelado').length;
+    const completedJobs = customer.jobs.filter((j) => j.status === 'COMPLETED').length;
+    const cancelledJobs = customer.jobs.filter((j) => j.status === 'CANCELLED').length;
 
     const completionRate = jobCount > 0 ? completedJobs / jobCount : 0;
     const cancelRate = jobCount > 0 ? cancelledJobs / jobCount : 0;
@@ -224,8 +224,8 @@ async function calculatePreviousPeriodScore(
     const jobCount = customer.jobs.length;
     if (jobCount === 0) continue;
 
-    const completedJobs = customer.jobs.filter((j) => j.status === 'completado').length;
-    const cancelledJobs = customer.jobs.filter((j) => j.status === 'cancelado').length;
+    const completedJobs = customer.jobs.filter((j) => j.status === 'COMPLETED').length;
+    const cancelledJobs = customer.jobs.filter((j) => j.status === 'CANCELLED').length;
 
     const completionRate = completedJobs / jobCount;
     const cancelRate = cancelledJobs / jobCount;
@@ -294,7 +294,7 @@ export async function getSatisfactionByCategory(
 
     // Completion (job was completed, not cancelled)
     categories.completion.total++;
-    if (job.status === 'completado') {
+    if (job.status === 'COMPLETED') {
       categories.completion.satisfied++;
     }
 
@@ -314,7 +314,7 @@ export async function getSatisfactionByCategory(
     }
 
     // Quality (proxy: job completed without rework)
-    if (job.status === 'completado') {
+    if (job.status === 'COMPLETED') {
       categories.quality.total++;
       categories.quality.satisfied++; // Simplified - no rework tracking yet
     }
@@ -390,8 +390,8 @@ export async function getSatisfactionByServiceType(
     };
 
     current.total++;
-    if (job.status === 'completado') current.completed++;
-    if (job.status === 'cancelado') current.cancelled++;
+    if (job.status === 'COMPLETED') current.completed++;
+    if (job.status === 'CANCELLED') current.cancelled++;
     if (job.customer?.id) {
       current.customers.add(job.customer.id);
       if ((customerJobCounts.get(job.customer.id) || 0) > 1) {
@@ -491,8 +491,8 @@ export async function getSatisfactionByTechnician(
     };
 
     current.total++;
-    if (job.status === 'completado') current.completed++;
-    if (job.status === 'cancelado') current.cancelled++;
+    if (job.status === 'COMPLETED') current.completed++;
+    if (job.status === 'CANCELLED') current.cancelled++;
 
     if (job.scheduledStart && job.actualStart) {
       current.scheduledWithTime++;
@@ -594,8 +594,8 @@ export async function getSatisfactionTrend(
     };
 
     current.total++;
-    if (job.status === 'completado') current.completed++;
-    if (job.status === 'cancelado') current.cancelled++;
+    if (job.status === 'COMPLETED') current.completed++;
+    if (job.status === 'CANCELLED') current.cancelled++;
 
     if (job.customer?.id) {
       current.customers.add(job.customer.id);
