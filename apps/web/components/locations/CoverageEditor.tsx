@@ -134,7 +134,7 @@ export function CoverageEditor({
       <div className="border-b p-4">
         <h3 className="font-medium text-gray-900">Configurar área de cobertura</h3>
         <p className="mt-1 text-sm text-gray-500">
-          Define el área geográfica de servicio para esta sucursal
+          Define el área geográfica de servicio para esta zona
         </p>
       </div>
 

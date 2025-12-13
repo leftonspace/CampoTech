@@ -168,7 +168,7 @@ export default function LocationSettingsPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Configuración</h1>
-          <p className="text-gray-500">Ajustes de la sucursal</p>
+          <p className="text-gray-500">Ajustes de la zona</p>
         </div>
       </div>
 
@@ -390,7 +390,7 @@ export default function LocationSettingsPage() {
                       <div>
                         <span className="font-medium text-gray-700">Notificaciones</span>
                         <p className="text-sm text-gray-500">
-                          Enviar notificaciones de trabajos a esta sucursal
+                          Enviar notificaciones de trabajos a esta zona
                         </p>
                       </div>
                     </label>

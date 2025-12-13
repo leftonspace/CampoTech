@@ -118,10 +118,10 @@ export default function LocationDetailPage() {
     return (
       <div className="card p-8 text-center">
         <Building2 className="mx-auto h-12 w-12 text-gray-400" />
-        <p className="mt-4 text-gray-500">Sucursal no encontrada</p>
+        <p className="mt-4 text-gray-500">Zona no encontrada</p>
         <Link href="/dashboard/locations" className="btn-primary mt-4 inline-flex">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver a sucursales
+          Volver a zonas
         </Link>
       </div>
     );
@@ -390,7 +390,7 @@ export default function LocationDetailPage() {
               <Users className="h-5 w-5 text-primary-600" />
               <div>
                 <p className="font-medium text-gray-900">Gestionar equipo</p>
-                <p className="text-sm text-gray-500">Asignar técnicos a esta sucursal</p>
+                <p className="text-sm text-gray-500">Asignar técnicos a esta zona</p>
               </div>
             </Link>
             <Link
@@ -410,7 +410,7 @@ export default function LocationDetailPage() {
               <Briefcase className="h-5 w-5 text-primary-600" />
               <div>
                 <p className="font-medium text-gray-900">Ver trabajos</p>
-                <p className="text-sm text-gray-500">Trabajos de esta sucursal</p>
+                <p className="text-sm text-gray-500">Trabajos de esta zona</p>
               </div>
             </Link>
           </div>
@@ -421,9 +421,9 @@ export default function LocationDetailPage() {
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="card w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900">Eliminar sucursal</h3>
+            <h3 className="text-lg font-semibold text-gray-900">Eliminar zona</h3>
             <p className="mt-2 text-gray-500">
-              ¿Estás seguro de que deseas eliminar la sucursal "{location.name}"? Esta acción no
+              ¿Estás seguro de que deseas eliminar la zona "{location.name}"? Esta acción no
               se puede deshacer.
             </p>
             <div className="mt-6 flex justify-end gap-3">

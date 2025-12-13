@@ -165,8 +165,8 @@ export default function CrossLocationReportsPage() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Reportes multi-sucursal</h1>
-            <p className="text-gray-500">Comparativa de rendimiento entre sucursales</p>
+            <h1 className="text-2xl font-bold text-gray-900">Reportes multi-zona</h1>
+            <p className="text-gray-500">Comparativa de rendimiento entre zonas</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -353,7 +353,7 @@ export default function CrossLocationReportsPage() {
       {/* Detailed Table */}
       <div className="card">
         <div className="border-b p-4">
-          <h2 className="font-semibold text-gray-900">Detalle por sucursal</h2>
+          <h2 className="font-semibold text-gray-900">Detalle por zona</h2>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -364,7 +364,7 @@ export default function CrossLocationReportsPage() {
                     onClick={() => toggleSort('name')}
                     className="flex items-center gap-1 text-xs font-medium uppercase text-gray-500 hover:text-gray-700"
                   >
-                    Sucursal
+                    Zona
                     <ArrowUpDown className="h-3 w-3" />
                   </button>
                 </th>

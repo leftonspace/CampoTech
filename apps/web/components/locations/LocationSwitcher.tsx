@@ -93,7 +93,7 @@ export function LocationSwitcher({
       >
         <Building2 className="h-4 w-4 text-gray-500" />
         <span className="max-w-[150px] truncate">
-          {selectedLocation?.name || 'Todas las sucursales'}
+          {selectedLocation?.name || 'Todas las zonas'}
         </span>
         <ChevronDown
           className={cn(
@@ -115,7 +115,7 @@ export function LocationSwitcher({
                 )}
               >
                 <Building2 className="h-4 w-4 text-gray-400" />
-                <span className="flex-1 text-left">Todas las sucursales</span>
+                <span className="flex-1 text-left">Todas las zonas</span>
                 {!selectedLocationId && (
                   <Check className="h-4 w-4 text-primary-600" />
                 )}
@@ -153,7 +153,7 @@ export function LocationSwitcher({
               onClick={() => setIsOpen(false)}
             >
               <Plus className="h-4 w-4" />
-              Administrar sucursales
+              Administrar zonas
             </Link>
           </div>
         </div>

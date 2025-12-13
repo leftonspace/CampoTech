@@ -90,7 +90,7 @@ export default function LocationDashboardPage() {
   if (!stats) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-500">No se encontraron datos para esta sucursal</p>
+        <p className="text-gray-500">No se encontraron datos para esta zona</p>
       </div>
     );
   }
@@ -110,7 +110,7 @@ export default function LocationDashboardPage() {
             <h1 className="text-2xl font-bold text-gray-900">
               Dashboard: {stats.location.name}
             </h1>
-            <p className="text-gray-500">Vista operativa de la sucursal</p>
+            <p className="text-gray-500">Vista operativa de la zona</p>
           </div>
         </div>
         <div className="flex items-center gap-2">

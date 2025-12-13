@@ -2,8 +2,8 @@
  * Locations Module
  * ================
  *
- * Multi-location support for CampoTech.
- * Enables organizations to manage multiple branches, service areas, and zones.
+ * Zones support for CampoTech.
+ * Enables organizations to manage service zones and technician coverage areas.
  */
 
 // Types
@@ -25,15 +25,9 @@ export {
   LocationAssignmentService,
   getLocationAssignmentService,
   AssignmentError,
-  ResourceSharingService,
-  getResourceSharingService,
-  ResourceSharingError,
   CapacityManager,
   getCapacityManager,
   CapacityError,
-  InterLocationDispatchService,
-  getInterLocationDispatchService,
-  DispatchError,
 } from './resources';
 export type {
   TechnicianAssignment,
@@ -42,12 +36,6 @@ export type {
   AssignmentReason,
   BulkAssignmentResult,
   TeamBalanceReport,
-  ResourceType,
-  SharedResource,
-  ResourceAvailability,
-  SharingRequest,
-  SharingMetrics,
-  LocationResourceSummary,
   TimeSlotCapacity,
   CapacityForecast,
   CapacityForecastDay,
@@ -56,11 +44,5 @@ export type {
   BottleneckType,
   CapacityAdjustment,
   WorkloadDistribution,
-  DispatchCandidate,
-  DispatchRecommendation,
-  CrossLocationDispatch,
-  TravelTimeMatrix,
-  DispatchOptimizationResult,
-  AvailabilityWindow,
 } from './resources';
 // Note: LocationCapacity is exported from location.types, not re-exported from resources

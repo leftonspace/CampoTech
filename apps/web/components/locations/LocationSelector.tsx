@@ -35,7 +35,7 @@ export function LocationSelector({
   onChange,
   required = false,
   disabled = false,
-  placeholder = 'Seleccionar sucursal',
+  placeholder = 'Seleccionar zona',
   className,
   showInactive = false,
   excludeIds = [],

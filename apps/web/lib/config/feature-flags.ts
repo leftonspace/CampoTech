@@ -188,11 +188,11 @@ export const FEATURES: Record<FeatureId, FeatureConfig> = {
   // EMPRESARIAL Features
   multi_location: {
     id: 'multi_location',
-    name: 'Multi-Sucursal',
-    description: 'Operar múltiples ubicaciones con config. independiente',
+    name: 'Multi-Zona',
+    description: 'Operar múltiples zonas de cobertura con técnicos asignados',
     category: 'enterprise',
     minTier: 'EMPRESARIAL',
-    icon: 'building',
+    icon: 'map-pin',
   },
   advanced_analytics: {
     id: 'advanced_analytics',
@@ -566,7 +566,7 @@ export const DASHBOARD_NAV: NavItem[] = [
   { id: 'fleet', label: 'Flota', href: '/dashboard/fleet', icon: 'truck', feature: 'fleet_management' },
   { id: 'inventory', label: 'Inventario', href: '/dashboard/inventory', icon: 'package', feature: 'inventory_management' },
   { id: 'dispatch', label: 'Despacho', href: '/dashboard/dispatch', icon: 'map-pin', feature: 'live_tracking' },
-  { id: 'locations', label: 'Sucursales', href: '/dashboard/locations', icon: 'building', feature: 'multi_location' },
+  { id: 'locations', label: 'Zonas', href: '/dashboard/locations', icon: 'map-pin', feature: 'multi_location' },
   { id: 'whatsapp', label: 'WhatsApp', href: '/dashboard/whatsapp', icon: 'message-circle' },
   { id: 'analytics', label: 'Reportes', href: '/dashboard/analytics', icon: 'bar-chart-2', feature: 'advanced_analytics' },
   { id: 'settings', label: 'Configuración', href: '/dashboard/settings', icon: 'settings' },

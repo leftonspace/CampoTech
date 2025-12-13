@@ -33,7 +33,7 @@ async function createLocation(data: LocationFormData): Promise<{ success: boolea
 }
 
 const LOCATION_TYPES = [
-  { value: 'BRANCH', label: 'Sucursal' },
+  { value: 'BRANCH', label: 'Zona' },
   { value: 'HEADQUARTERS', label: 'Casa central' },
   { value: 'SERVICE_CENTER', label: 'Centro de servicio' },
   { value: 'WAREHOUSE', label: 'Depósito' },
@@ -60,7 +60,7 @@ export default function NewLocationPage() {
       if (result.success && result.data) {
         router.push(`/dashboard/locations/${result.data.id}`);
       } else {
-        setError(result.error || 'Error al crear la sucursal');
+        setError(result.error || 'Error al crear la zona');
       }
     } catch (err) {
       setError('Error de conexión');
@@ -89,8 +89,8 @@ export default function NewLocationPage() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Nueva sucursal</h1>
-          <p className="text-gray-500">Crear una nueva sucursal o punto de servicio</p>
+          <h1 className="text-2xl font-bold text-gray-900">Nueva zona</h1>
+          <p className="text-gray-500">Crear una nueva zona de servicio</p>
         </div>
       </div>
 
@@ -134,9 +134,9 @@ export default function NewLocationPage() {
                   value={formData.name}
                   onChange={(e) => handleInputChange('name', e.target.value)}
                   className="input mt-1"
-                  placeholder="Sucursal Centro"
+                  placeholder="Zona Centro"
                   required
-                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el nombre de la sucursal')}
+                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el nombre de la zona')}
                   onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                 />
               </div>
@@ -243,7 +243,7 @@ export default function NewLocationPage() {
                   value={formData.email || ''}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   className="input mt-1"
-                  placeholder="sucursal@empresa.com"
+                  placeholder="zona@empresa.com"
                 />
               </div>
             </div>
@@ -320,7 +320,7 @@ export default function NewLocationPage() {
           </Link>
           <button type="submit" className="btn-primary" disabled={isSubmitting}>
             <Save className="mr-2 h-4 w-4" />
-            {isSubmitting ? 'Guardando...' : 'Crear sucursal'}
+            {isSubmitting ? 'Guardando...' : 'Crear zona'}
           </button>
         </div>
       </form>
