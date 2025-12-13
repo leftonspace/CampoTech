@@ -152,8 +152,8 @@ export async function POST(request: NextRequest) {
         data: {
           organizationId,
           customerPhone: phone,
-          waId: phone.replace(/\D/g, ''),
-          status: 'OPEN',
+          customerName: 'Unknown',
+          lastMessageAt: new Date(),
         },
       });
     }
@@ -162,18 +162,21 @@ export async function POST(request: NextRequest) {
     const messageId = result.messages?.[0]?.id;
     const message = await prisma.waMessage.create({
       data: {
+        organizationId,
         conversationId: conversation.id,
         waMessageId: messageId,
-        direction: 'OUTBOUND',
-        messageType: 'INTERACTIVE',
+        direction: 'outbound',
+        type: 'interactive',
+        from: org.whatsappPhoneNumberId,
+        to: phone,
         content: bodyText,
         metadata: {
-          type,
+          interactiveType: type,
           headerText,
           footerText,
           ...(type === 'button' ? { buttons } : { buttonText, sections }),
         },
-        status: 'SENT',
+        status: 'sent',
       },
     });
 
