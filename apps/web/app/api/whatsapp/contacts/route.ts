@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const customers = await prisma.customer.findMany({
       where: {
         organizationId: session.organizationId,
-        phone: { not: null },
+        NOT: [{ phone: null }, { phone: '' }],
         OR: query
           ? [
               { name: { contains: query, mode: 'insensitive' } },
