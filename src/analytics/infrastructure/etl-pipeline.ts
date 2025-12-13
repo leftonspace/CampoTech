@@ -21,7 +21,7 @@ import {
   getServiceDimension,
 } from './data-warehouse';
 import { writePoints, TimeSeriesPoint, queryTimeSeries } from '../collectors/time-series-storage';
-import { aggregateMetrics } from '../collectors/metrics-aggregator';
+import { aggregateMetrics, getAllMetricNames } from '../collectors/metrics-aggregator';
 import { flushEvents } from '../collectors/event-collector';
 import { DateRange, TimeGranularity } from '../analytics.types';
 
@@ -618,9 +618,15 @@ export async function getCachedDimension<T>(
 
 async function aggregateAllMetrics(organizationId: string, dateRange: DateRange): Promise<void> {
   const granularities: TimeGranularity[] = ['hour', 'day', 'week', 'month'];
+  const metrics = getAllMetricNames();
 
   for (const granularity of granularities) {
-    await aggregateMetrics(organizationId, dateRange, granularity);
+    await aggregateMetrics({
+      organizationId,
+      metrics,
+      dateRange,
+      granularity,
+    });
   }
 
   log.debug('Aggregated all metrics', { organizationId });
