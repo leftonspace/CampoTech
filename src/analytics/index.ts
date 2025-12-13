@@ -66,10 +66,10 @@ export {
   collectInvoicePaid,
   collectPaymentReceived,
   collectCustomerCreated,
-  collectCustomerUpdated,
+  collectCustomerFirstJob,
   flushEvents,
   processEventQueue,
-  getEventQueueStats,
+  getEventCollectorStats,
   type AnalyticsEvent,
   type EventType,
 } from './collectors/event-collector';
