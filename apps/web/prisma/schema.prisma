@@ -140,6 +140,7 @@ enum UserRole {
   ADMIN
   DISPATCHER
   TECHNICIAN
+  ACCOUNTANT
   VIEWER
 }
 
@@ -2975,21 +2976,27 @@ model EmployeeVerificationToken {
 
 // Chargeback - Payment dispute records from MercadoPago
 model Chargeback {
-  id              String    @id @default(cuid())
-  orgId           String
-  mpChargebackId  String    @unique
-  mpPaymentId     String
-  paymentId       String?
-  invoiceId       String?
-  amount          Decimal   @db.Decimal(10, 2)
-  currency        String    @default("ARS")
-  reason          String?
-  status          String    // pending, won, lost
-  documentationDue DateTime?
-  resolvedAt      DateTime?
-  metadata        Json?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                    String    @id @default(cuid())
+  orgId                 String
+  mpChargebackId        String    @unique
+  mpPaymentId           String
+  paymentId             String?
+  invoiceId             String?
+  amount                Decimal   @db.Decimal(10, 2)
+  currency              String    @default("ARS")
+  reason                String?
+  reasonDetail          String?
+  status                String    // pending, won, lost
+  documentationStatus   String?
+  documentationDeadline DateTime?
+  covered               Boolean?
+  coverageReason        String?
+  mpCreatedAt           DateTime?
+  mpUpdatedAt           DateTime?
+  resolvedAt            DateTime?
+  metadata              Json?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
 
   organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
   payment      Payment?     @relation(fields: [paymentId], references: [id], onDelete: SetNull)

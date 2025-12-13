@@ -504,7 +504,7 @@ export class ChargebackHandler {
     const admins = await db.user.findMany({
       where: {
         organizationId: orgId,
-        role: { in: ['owner', 'admin', 'accountant'] },
+        role: { in: ['OWNER', 'ADMIN', 'ACCOUNTANT'] },
       },
       select: { id: true },
     });

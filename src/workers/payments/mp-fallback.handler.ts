@@ -366,7 +366,7 @@ export class MPFallbackHandler {
     const admins = await db.user.findMany({
       where: {
         organizationId: orgId,
-        role: { in: ['owner', 'admin'] },
+        role: { in: ['OWNER', 'ADMIN'] },
       },
       select: { id: true },
     });
