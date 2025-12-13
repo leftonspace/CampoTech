@@ -104,14 +104,16 @@ export async function calculateTechnicianPerformance(
     },
   });
 
+  type TechJobType = typeof jobs[number];
+
   const totalJobs = jobs.length;
-  const completedJobs = jobs.filter((j) => j.status === 'COMPLETED').length;
-  const cancelledJobs = jobs.filter((j) => j.status === 'CANCELLED').length;
+  const completedJobs = jobs.filter((j: TechJobType) => j.status === 'COMPLETED').length;
+  const cancelledJobs = jobs.filter((j: TechJobType) => j.status === 'CANCELLED').length;
   const completionRate = totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
 
   // Calculate average duration
-  const jobsWithDuration = jobs.filter((j) => j.startedAt && j.completedAt);
-  const totalDuration = jobsWithDuration.reduce((sum, j) => {
+  const jobsWithDuration = jobs.filter((j: TechJobType) => j.startedAt && j.completedAt);
+  const totalDuration = jobsWithDuration.reduce((sum: number, j: TechJobType) => {
     return sum + (j.completedAt!.getTime() - j.startedAt!.getTime());
   }, 0);
   const averageDuration = jobsWithDuration.length > 0
@@ -119,7 +121,7 @@ export async function calculateTechnicianPerformance(
     : 0;
 
   // Calculate revenue
-  const totalRevenue = jobs.reduce((sum, j) => sum + (j.invoice?.total?.toNumber() || 0), 0);
+  const totalRevenue = jobs.reduce((sum: number, j: TechJobType) => sum + (j.invoice?.total?.toNumber() || 0), 0);
   const averageJobValue = completedJobs > 0 ? totalRevenue / completedJobs : 0;
 
   // Calculate efficiency (jobs per working day)
@@ -128,14 +130,14 @@ export async function calculateTechnicianPerformance(
 
   // Calculate utilization rate (assuming 8 hour work days)
   const totalWorkMinutes = workingDays * 8 * 60;
-  const workedMinutes = jobsWithDuration.reduce((sum, j) => {
+  const workedMinutes = jobsWithDuration.reduce((sum: number, j: TechJobType) => {
     return sum + (j.completedAt!.getTime() - j.startedAt!.getTime()) / (1000 * 60);
   }, 0);
   const utilizationRate = totalWorkMinutes > 0 ? (workedMinutes / totalWorkMinutes) * 100 : 0;
 
   // Calculate on-time rate
-  const scheduledJobs = jobs.filter((j) => j.scheduledDate && j.completedAt);
-  const onTimeJobs = scheduledJobs.filter((j) => {
+  const scheduledJobs = jobs.filter((j: TechJobType) => j.scheduledDate && j.completedAt);
+  const onTimeJobs = scheduledJobs.filter((j: TechJobType) => {
     const scheduledEnd = new Date(j.scheduledDate!.getTime() + 2 * 60 * 60 * 1000);
     return j.completedAt! <= scheduledEnd;
   });

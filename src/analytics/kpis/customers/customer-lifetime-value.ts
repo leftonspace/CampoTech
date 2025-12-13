@@ -490,7 +490,16 @@ export async function getTopCustomersByCLV(
   type TopCustomerType = typeof customers[number];
   type TopJobType = TopCustomerType['jobs'][number];
 
-  const customerCLVs = customers.map((customer: TopCustomerType) => {
+  type CLVEntry = {
+    customerId: string;
+    name: string;
+    clv: number;
+    totalJobs: number;
+    avgJobValue: number;
+    customerSince: Date;
+  };
+
+  const customerCLVs: CLVEntry[] = customers.map((customer: TopCustomerType) => {
     const completedJobs = customer.jobs.filter((j: TopJobType) => j.completedAt);
     const totalRevenue = completedJobs.reduce(
       (sum: number, j: TopJobType) => sum + (j.invoice?.total?.toNumber() || 0),

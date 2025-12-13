@@ -194,31 +194,35 @@ export async function calculateLocationKPIs(
     }),
   ]);
 
+  type LocInvoiceType = typeof invoices[number];
+  type LocJobType = typeof currentJobs[number];
+  type TechType = typeof technicians[number];
+
   // Calculate revenue
-  const currentRevenue = invoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
-  const previousRevenue = previousInvoices.reduce((sum, inv) => sum + (inv.total || 0), 0);
+  const currentRevenue = invoices.reduce((sum: number, inv: LocInvoiceType) => sum + (inv.total || 0), 0);
+  const previousRevenue = previousInvoices.reduce((sum: number, inv: LocInvoiceType) => sum + (inv.total || 0), 0);
   const revenueTrend = previousRevenue > 0
     ? ((currentRevenue - previousRevenue) / previousRevenue) * 100
     : 0;
 
   // Calculate job metrics
   const totalJobs = currentJobs.length;
-  const completedJobs = currentJobs.filter((j) => j.status === 'COMPLETED').length;
-  const cancelledJobs = currentJobs.filter((j) => j.status === 'CANCELLED').length;
-  const pendingJobs = currentJobs.filter((j) => j.status === 'PENDING').length;
+  const completedJobs = currentJobs.filter((j: LocJobType) => j.status === 'COMPLETED').length;
+  const cancelledJobs = currentJobs.filter((j: LocJobType) => j.status === 'CANCELLED').length;
+  const pendingJobs = currentJobs.filter((j: LocJobType) => j.status === 'PENDING').length;
 
   // Calculate efficiency metrics
-  const jobsWithDuration = currentJobs.filter((j) => j.startedAt && j.completedAt);
+  const jobsWithDuration = currentJobs.filter((j: LocJobType) => j.startedAt && j.completedAt);
   const avgJobDuration = jobsWithDuration.length > 0
-    ? jobsWithDuration.reduce((sum, j) => {
+    ? jobsWithDuration.reduce((sum: number, j: LocJobType) => {
         const duration = j.completedAt!.getTime() - j.startedAt!.getTime();
         return sum + duration / (1000 * 60);
       }, 0) / jobsWithDuration.length
     : 0;
 
-  const jobsWithResponse = currentJobs.filter((j) => j.startedAt);
+  const jobsWithResponse = currentJobs.filter((j: LocJobType) => j.startedAt);
   const avgResponseTime = jobsWithResponse.length > 0
-    ? jobsWithResponse.reduce((sum, j) => {
+    ? jobsWithResponse.reduce((sum: number, j: LocJobType) => {
         const response = j.startedAt!.getTime() - j.createdAt.getTime();
         return sum + response / (1000 * 60 * 60);
       }, 0) / jobsWithResponse.length
@@ -226,9 +230,9 @@ export async function calculateLocationKPIs(
 
   // Calculate on-time rate
   const scheduledCompletedJobs = currentJobs.filter(
-    (j) => j.status === 'COMPLETED' && j.scheduledDate && j.completedAt
+    (j: LocJobType) => j.status === 'COMPLETED' && j.scheduledDate && j.completedAt
   );
-  const onTimeJobs = scheduledCompletedJobs.filter((j) => {
+  const onTimeJobs = scheduledCompletedJobs.filter((j: LocJobType) => {
     const scheduledEnd = new Date(j.scheduledDate!.getTime() + 2 * 60 * 60 * 1000);
     return j.completedAt! <= scheduledEnd;
   });
@@ -238,8 +242,8 @@ export async function calculateLocationKPIs(
 
   // Calculate team metrics
   const technicianJobCounts = new Map<string, { name: string; count: number }>();
-  for (const job of currentJobs.filter((j) => j.status === 'COMPLETED' && j.technicianId)) {
-    const tech = technicians.find((t) => t.id === job.technicianId);
+  for (const job of currentJobs.filter((j: LocJobType) => j.status === 'COMPLETED' && j.technicianId)) {
+    const tech = technicians.find((t: TechType) => t.id === job.technicianId);
     if (tech) {
       const current = technicianJobCounts.get(job.technicianId!) || { name: tech.name, count: 0 };
       current.count++;
@@ -257,25 +261,25 @@ export async function calculateLocationKPIs(
   }
 
   // Calculate customer metrics
-  const uniqueCustomers = new Set(currentJobs.map((j) => j.customerId));
+  const uniqueCustomers = new Set(currentJobs.map((j: LocJobType) => j.customerId));
   const newCustomerIds = new Set<string>();
   for (const customerId of uniqueCustomers) {
     const firstJob = await db.job.findFirst({
-      where: { customerId, organizationId },
+      where: { customerId: customerId as string, organizationId },
       orderBy: { createdAt: 'asc' },
       select: { createdAt: true },
     });
     if (firstJob && firstJob.createdAt >= dateRange.start) {
-      newCustomerIds.add(customerId);
+      newCustomerIds.add(customerId as string);
     }
   }
 
-  const repeatCustomers = currentJobs.filter((j) => {
-    const customerJobCount = currentJobs.filter((cj) => cj.customerId === j.customerId).length;
+  const repeatCustomers = currentJobs.filter((j: LocJobType) => {
+    const customerJobCount = currentJobs.filter((cj: LocJobType) => cj.customerId === j.customerId).length;
     return customerJobCount > 1;
   });
   const repeatRate = uniqueCustomers.size > 0
-    ? (new Set(repeatCustomers.map((j) => j.customerId)).size / uniqueCustomers.size) * 100
+    ? (new Set(repeatCustomers.map((j: LocJobType) => j.customerId)).size / uniqueCustomers.size) * 100
     : 0;
 
   // Calculate capacity metrics

@@ -63,6 +63,9 @@ export async function calculateRevenueMetrics(
     },
   });
 
+  type InvoiceWithPaymentsType = typeof invoices[number];
+  type PaymentType = InvoiceWithPaymentsType['payments'][number];
+
   // Calculate totals
   let totalInvoiced = 0;
   let totalCollected = 0;
@@ -71,7 +74,7 @@ export async function calculateRevenueMetrics(
     totalInvoiced += invoice.total?.toNumber() || 0;
 
     const paymentSum = invoice.payments.reduce(
-      (sum, p) => sum + (p.amount?.toNumber() || 0),
+      (sum: number, p: PaymentType) => sum + (p.amount?.toNumber() || 0),
       0
     );
     totalCollected += paymentSum;
@@ -248,6 +251,9 @@ export async function getRevenueByCustomerSegment(
   // Segment customers and aggregate revenue
   const segmentMap = new Map<string, { revenue: number; customers: Set<string> }>();
 
+  type RevenueInvoiceType = typeof invoices[number];
+  type CustomerJobType = NonNullable<RevenueInvoiceType['customer']>['jobs'][number];
+
   for (const invoice of invoices) {
     const customer = invoice.customer;
     if (!customer) continue;
@@ -255,8 +261,8 @@ export async function getRevenueByCustomerSegment(
     // Determine segment
     const totalJobs = customer.jobs.length;
     const lastJobAt = customer.jobs
-      .filter((j) => j.completedAt)
-      .sort((a, b) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
+      .filter((j: CustomerJobType) => j.completedAt)
+      .sort((a: CustomerJobType, b: CustomerJobType) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
       ?.completedAt || null;
 
     let segment = 'new';

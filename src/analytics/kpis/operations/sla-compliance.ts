@@ -434,8 +434,9 @@ export async function getSLAByServiceType(
 
     // Check SLA compliance based on response time
     if (job.startedAt) {
-      const urgency = (job.urgency || 'normal').toLowerCase();
-      const target = { emergency: 2, high: 4, normal: 24, low: 48 }[urgency] || 24;
+      const urgency = (job.urgency || 'normal').toLowerCase() as 'emergency' | 'high' | 'normal' | 'low';
+      const targetHours: Record<string, number> = { emergency: 2, high: 4, normal: 24, low: 48 };
+      const target = targetHours[urgency] || 24;
       const responseTime =
         (job.startedAt.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60);
 

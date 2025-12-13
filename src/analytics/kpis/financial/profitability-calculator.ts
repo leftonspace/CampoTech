@@ -122,8 +122,9 @@ export async function calculateProfitability(
     },
   });
 
-  const revenue = invoices.reduce((sum, inv) => sum + (inv.total?.toNumber() || 0), 0);
-  const taxAmount = invoices.reduce((sum, inv) => sum + (inv.taxAmount?.toNumber() || 0), 0);
+  type InvoiceType = typeof invoices[number];
+  const revenue = invoices.reduce((sum: number, inv: InvoiceType) => sum + (inv.total?.toNumber() || 0), 0);
+  const taxAmount = invoices.reduce((sum: number, inv: InvoiceType) => sum + (inv.taxAmount?.toNumber() || 0), 0);
   const revenueBeforeTax = revenue - taxAmount;
 
   // Calculate total hours worked
@@ -205,8 +206,9 @@ async function calculatePreviousPeriodProfitability(
     },
   });
 
-  const revenue = invoices.reduce((sum, inv) => sum + (inv.total?.toNumber() || 0), 0);
-  const taxAmount = invoices.reduce((sum, inv) => sum + (inv.taxAmount?.toNumber() || 0), 0);
+  type GrossInvoiceType = typeof invoices[number];
+  const revenue = invoices.reduce((sum: number, inv: GrossInvoiceType) => sum + (inv.total?.toNumber() || 0), 0);
+  const taxAmount = invoices.reduce((sum: number, inv: GrossInvoiceType) => sum + (inv.taxAmount?.toNumber() || 0), 0);
   const revenueBeforeTax = revenue - taxAmount;
 
   const estimatedCOGSRate = 0.45;

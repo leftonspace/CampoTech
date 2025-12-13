@@ -315,7 +315,8 @@ export async function calculateLocationSaturation(
     const maxDaily = 20; // Default max daily jobs capacity
     const capacityUtilization = (avgDailyJobs / maxDaily) * 100;
 
-    const uniqueCustomers = new Set(jobs.map((j) => j.customerId)).size;
+    type ExpJobType = typeof jobs[number];
+    const uniqueCustomers = new Set(jobs.map((j: ExpJobType) => j.customerId)).size;
     // Default coverage radius calculation - assume ~10km service area
     const defaultCoverageRadius = 10;
     const customerDensity = uniqueCustomers / (Math.PI * defaultCoverageRadius * defaultCoverageRadius);

@@ -174,12 +174,12 @@ export async function segmentCustomers(
   type SegmentInvoiceType = SegmentCustomerType['invoices'][number];
   type SegmentJobType = SegmentCustomerType['jobs'][number];
 
-  // Calculate revenue percentiles for VIP identification
-  const customerRevenues = customers.map((c: SegmentCustomerType) => ({
+  type RevenueEntry = { id: string; revenue: number };
+  const customerRevenues: RevenueEntry[] = customers.map((c: SegmentCustomerType) => ({
     id: c.id,
     revenue: c.invoices.reduce((sum: number, inv: SegmentInvoiceType) => sum + (inv.total?.toNumber() || 0), 0),
   }));
-  const sortedRevenues = customerRevenues.map((c) => c.revenue).sort((a, b) => b - a);
+  const sortedRevenues = customerRevenues.map((c: RevenueEntry) => c.revenue).sort((a: number, b: number) => b - a);
   const vipThreshold = sortedRevenues[Math.floor(sortedRevenues.length * 0.1)] || Infinity;
 
   // Segment each customer
@@ -301,8 +301,10 @@ export async function calculateRFMScores(
   type RFMCustomerType = typeof customers[number];
   type RFMInvoiceType = RFMCustomerType['invoices'][number];
 
+  type RFMDataEntry = { customerId: string; recencyDays: number; frequency: number; monetary: number };
+
   // Calculate raw RFM values
-  const rfmData = customers.map((customer: RFMCustomerType) => {
+  const rfmData: RFMDataEntry[] = customers.map((customer: RFMCustomerType) => {
     const lastInvoice = customer.invoices
       .sort((a: RFMInvoiceType, b: RFMInvoiceType) => b.createdAt.getTime() - a.createdAt.getTime())[0];
 
@@ -325,9 +327,9 @@ export async function calculateRFMScores(
   });
 
   // Calculate quintiles for scoring
-  const recencyValues = rfmData.map((d) => d.recencyDays).sort((a, b) => a - b);
-  const frequencyValues = rfmData.map((d) => d.frequency).sort((a, b) => b - a);
-  const monetaryValues = rfmData.map((d) => d.monetary).sort((a, b) => b - a);
+  const recencyValues = rfmData.map((d: RFMDataEntry) => d.recencyDays).sort((a: number, b: number) => a - b);
+  const frequencyValues = rfmData.map((d: RFMDataEntry) => d.frequency).sort((a: number, b: number) => b - a);
+  const monetaryValues = rfmData.map((d: RFMDataEntry) => d.monetary).sort((a: number, b: number) => b - a);
 
   const getQuintile = (value: number, sortedValues: number[], ascending: boolean): number => {
     const index = sortedValues.findIndex((v) => v >= value);
@@ -513,10 +515,10 @@ export async function getCustomerProfiles(
   type ProfileJobType = ProfileCustomerType['jobs'][number];
 
   // Calculate VIP threshold
-  const revenues = customers.map((c: ProfileCustomerType) =>
+  const revenues: number[] = customers.map((c: ProfileCustomerType) =>
     c.invoices.reduce((sum: number, inv: ProfileInvoiceType) => sum + (inv.total?.toNumber() || 0), 0)
   );
-  const sortedRevenues = revenues.sort((a, b) => b - a);
+  const sortedRevenues = revenues.sort((a: number, b: number) => b - a);
   const vipThreshold = sortedRevenues[Math.floor(sortedRevenues.length * 0.1)] || Infinity;
 
   const profiles: CustomerSegmentProfile[] = [];

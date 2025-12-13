@@ -74,8 +74,9 @@ export async function calculateCashFlowMetrics(
     },
   });
 
+  type PaymentType = typeof payments[number];
   const totalInflow = payments.reduce(
-    (sum, p) => sum + (p.amount?.toNumber() || 0),
+    (sum: number, p: PaymentType) => sum + (p.amount?.toNumber() || 0),
     0
   );
 
@@ -96,8 +97,9 @@ export async function calculateCashFlowMetrics(
     },
   });
 
+  type UnpaidInvoiceType = typeof unpaidInvoices[number];
   const accountsReceivable = unpaidInvoices.reduce(
-    (sum, inv) => sum + (inv.total?.toNumber() || 0),
+    (sum: number, inv: UnpaidInvoiceType) => sum + (inv.total?.toNumber() || 0),
     0
   );
 
@@ -290,7 +292,8 @@ export async function getOverdueInvoices(
     take: limit,
   });
 
-  return invoices.map((inv) => ({
+  type OverdueInvoiceType = typeof invoices[number];
+  return invoices.map((inv: OverdueInvoiceType) => ({
     id: inv.id,
     customerName: inv.customer?.name || 'Unknown',
     amount: inv.total?.toNumber() || 0,
