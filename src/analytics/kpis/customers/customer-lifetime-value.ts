@@ -8,7 +8,7 @@
 
 import { db } from '../../../lib/db';
 import { log } from '../../../lib/logging/logger';
-import { DateRange, KPIValue, CustomerDimension } from '../../analytics.types';
+import { DateRange, KPIResult, CustomerDimension } from '../../analytics.types';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -505,7 +505,7 @@ export async function getTopCustomersByCLV(
 export async function generateCustomerKPIs(
   organizationId: string,
   dateRange: DateRange
-): Promise<KPIValue[]> {
+): Promise<KPIResult[]> {
   const metrics = await calculateCustomerMetrics(organizationId, dateRange);
 
   // Get previous period for comparison

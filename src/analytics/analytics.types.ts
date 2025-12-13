@@ -143,6 +143,16 @@ export interface KPIValue {
   updatedAt: Date;
 }
 
+export interface KPIResult {
+  id: string;
+  name: string;
+  value: number;
+  unit: 'number' | 'currency' | 'percentage' | 'duration';
+  trend: 'up' | 'down' | 'stable';
+  changePercent?: number;
+  period: DateRange;
+}
+
 export interface KPIDefinition {
   id: string;
   name: string;

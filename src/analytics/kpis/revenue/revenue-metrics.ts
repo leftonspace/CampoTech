@@ -8,7 +8,7 @@
 
 import { db } from '../../../lib/db';
 import { log } from '../../../lib/logging/logger';
-import { DateRange, KPIValue, TimeGranularity } from '../../analytics.types';
+import { DateRange, KPIResult, TimeGranularity } from '../../analytics.types';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -295,7 +295,7 @@ export async function getRevenueByCustomerSegment(
 export async function generateRevenueKPIs(
   organizationId: string,
   dateRange: DateRange
-): Promise<KPIValue[]> {
+): Promise<KPIResult[]> {
   const metrics = await calculateRevenueMetrics(organizationId, dateRange);
 
   return [
