@@ -271,5 +271,3 @@ export function createUserRoutes(pool: Pool): Router {
 
   return router;
 }
-
-export { UserRepository, UserService };

@@ -10,55 +10,39 @@
 export type {
   IntegrationProvider,
   IntegrationStatus,
-  BaseIntegrationConfig,
+  Integration,
   IntegrationCredentials,
-  IntegrationConnection,
-  SyncDirection,
-  SyncFrequency,
-  SyncStatus,
   SyncResult,
-  SyncLog,
-  FieldMapping,
-  MappingConfig,
-  IntegrationError,
-  IntegrationErrorCode,
+  SyncError,
+  GoogleCalendarConfig,
+  GoogleCalendarEvent,
+  QuickBooksConfig,
+  QuickBooksCustomer,
+  QuickBooksInvoice,
+  QuickBooksInvoiceLine,
+  QuickBooksPayment,
+  ZapierConfig,
+  ZapierTrigger,
+  ZapierAction,
+  ZapierField,
+  IntegrationEvent,
+  IntegrationProviderConfig,
 } from './integration.types';
-export { createIntegrationError } from './integration.types';
 
 // Google Calendar Integration
 export { GoogleCalendarService, createGoogleCalendarService } from './google-calendar.service';
-export type {
-  GoogleCalendarConfig,
-  CalendarEvent,
-  CalendarSyncOptions,
-  GoogleCalendarCredentials,
-} from './google-calendar.service';
+export type { GoogleCalendarServiceConfig } from './google-calendar.service';
 
 // QuickBooks Integration
 export { QuickBooksService, createQuickBooksService } from './quickbooks.service';
-export type {
-  QuickBooksConfig,
-  QuickBooksCredentials,
-  QuickBooksCustomer,
-  QuickBooksInvoice,
-  QuickBooksPayment,
-  QuickBooksSyncOptions,
-} from './quickbooks.service';
+export type { QuickBooksServiceConfig } from './quickbooks.service';
 
 // Zapier Integration
 export {
   ZapierService,
   createZapierService,
-  AVAILABLE_TRIGGERS,
-  AVAILABLE_ACTIONS,
-} from './zapier.service';
-export type {
-  ZapierConfig,
-  ZapierTrigger,
-  ZapierAction,
-  ZapierWebhook,
-  TriggerType,
-  ActionType,
+  ZAPIER_TRIGGERS,
+  ZAPIER_ACTIONS,
 } from './zapier.service';
 
 // Integration Registry

@@ -8,11 +8,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError, Decimal } from '@prisma/client/runtime/library';
 
 // Helper to check if error is "table doesn't exist"
 function isTableNotFoundError(error: unknown): boolean {
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error instanceof PrismaClientKnownRequestError &&
     error.code === 'P2021'
   );
 }
@@ -49,9 +50,9 @@ export async function GET(request: NextRequest) {
       name: string;
       description: string | null;
       type: string;
-      price: Prisma.Decimal;
+      price: Decimal;
       unit: string | null;
-      taxRate: Prisma.Decimal;
+      taxRate: Decimal;
       isActive: boolean;
       createdAt: Date;
       updatedAt: Date;
@@ -137,9 +138,9 @@ export async function POST(request: NextRequest) {
           name,
           description: description || null,
           type: (type?.toUpperCase() as 'SERVICE' | 'PRODUCT') || 'SERVICE',
-          price: new Prisma.Decimal(price),
+          price: new Decimal(price),
           unit: unit || null,
-          taxRate: taxRate ? new Prisma.Decimal(taxRate) : new Prisma.Decimal(21),
+          taxRate: taxRate ? new Decimal(taxRate) : new Decimal(21),
           isActive: isActive !== false,
         },
       });

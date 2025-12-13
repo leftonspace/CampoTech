@@ -8,6 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 // Default service types to seed for new organizations
 const DEFAULT_SERVICE_TYPES = [
@@ -23,7 +24,7 @@ const DEFAULT_SERVICE_TYPES = [
 // Helper to check if table or column doesn't exist (schema mismatch)
 function isSchemaError(error: unknown): boolean {
   return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error instanceof PrismaClientKnownRequestError &&
     (error.code === 'P2021' || error.code === 'P2022') // Table not found or column not found
   );
 }

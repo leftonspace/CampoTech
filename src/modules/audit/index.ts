@@ -762,5 +762,3 @@ export function createAuditRoutes(pool: Pool): Router {
 
   return router;
 }
-
-export { AuditRepository, AuditService };

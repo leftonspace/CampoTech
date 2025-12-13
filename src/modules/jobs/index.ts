@@ -666,5 +666,3 @@ export function createJobRoutes(pool: Pool): Router {
 
   return router;
 }
-
-export { JobRepository, JobService };

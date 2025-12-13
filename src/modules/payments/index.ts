@@ -572,5 +572,3 @@ export function createPaymentRoutes(pool: Pool): Router {
 
   return router;
 }
-
-export { PaymentRepository, PaymentService };

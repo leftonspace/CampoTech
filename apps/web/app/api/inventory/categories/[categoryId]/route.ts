@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 interface RouteParams {
   params: Promise<{ categoryId: string }>;
@@ -167,7 +168,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const err = error instanceof Error ? error : new Error('Unknown error');
     console.error('Category update error:', err.message);
 
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    if (error instanceof PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
         return NextResponse.json(
           { success: false, error: 'Ya existe una categoría con este código' },
