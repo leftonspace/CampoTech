@@ -81,8 +81,8 @@ export async function calculateJobMetrics(
   const totalJobs = jobs.length;
   const completedJobs = jobs.filter((j) => j.status === 'COMPLETED').length;
   const cancelledJobs = jobs.filter((j) => j.status === 'CANCELLED').length;
-  const pendingJobs = jobs.filter((j) => j.status === 'pendiente').length;
-  const inProgressJobs = jobs.filter((j) => j.status === 'en_progreso').length;
+  const pendingJobs = jobs.filter((j) => j.status === 'PENDING').length;
+  const inProgressJobs = jobs.filter((j) => j.status === 'IN_PROGRESS').length;
 
   // Calculate completion rate
   const completionRate = totalJobs > 0 ? (completedJobs / totalJobs) * 100 : 0;
