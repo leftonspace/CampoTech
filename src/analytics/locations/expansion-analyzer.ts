@@ -274,8 +274,6 @@ export async function calculateLocationSaturation(
     select: {
       id: true,
       name: true,
-      maxDailyJobs: true,
-      coverageRadius: true,
     },
   });
 
@@ -314,13 +312,13 @@ export async function calculateLocationSaturation(
     // Calculate metrics
     const daysInPeriod = Math.ceil(periodLength / (1000 * 60 * 60 * 24));
     const avgDailyJobs = jobs.length / daysInPeriod;
-    const maxDaily = location.maxDailyJobs || 20;
+    const maxDaily = 20; // Default max daily jobs capacity
     const capacityUtilization = (avgDailyJobs / maxDaily) * 100;
 
     const uniqueCustomers = new Set(jobs.map((j) => j.customerId)).size;
-    const customerDensity = location.coverageRadius
-      ? uniqueCustomers / (Math.PI * location.coverageRadius * location.coverageRadius)
-      : 0;
+    // Default coverage radius calculation - assume ~10km service area
+    const defaultCoverageRadius = 10;
+    const customerDensity = uniqueCustomers / (Math.PI * defaultCoverageRadius * defaultCoverageRadius);
 
     const growthTrend = prevJobs > 0
       ? ((jobs.length - prevJobs) / prevJobs) * 100
