@@ -70,7 +70,6 @@ export async function calculateCashFlowMetrics(
     },
     select: {
       amount: true,
-      processingFee: true,
       createdAt: true,
     },
   });
@@ -80,11 +79,8 @@ export async function calculateCashFlowMetrics(
     0
   );
 
-  // Processing fees as outflow (simplified - real implementation would include expenses)
-  const totalOutflow = payments.reduce(
-    (sum, p) => sum + (p.processingFee?.toNumber() || 0),
-    0
-  );
+  // Processing fees as outflow (simplified - not tracked in current schema)
+  const totalOutflow = 0;
 
   const netCashFlow = totalInflow - totalOutflow;
   const operatingCashFlow = totalInflow; // Simplified
@@ -173,7 +169,6 @@ export async function getCashFlowTrend(
     },
     select: {
       amount: true,
-      processingFee: true,
       createdAt: true,
     },
     orderBy: { createdAt: 'asc' },
@@ -186,7 +181,7 @@ export async function getCashFlowTrend(
     const period = formatPeriod(payment.createdAt, granularity);
     const current = periodMap.get(period) || { inflow: 0, outflow: 0 };
     current.inflow += payment.amount?.toNumber() || 0;
-    current.outflow += payment.processingFee?.toNumber() || 0;
+    // processingFee not tracked in current schema
     periodMap.set(period, current);
   }
 
