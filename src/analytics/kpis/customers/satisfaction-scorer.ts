@@ -265,8 +265,8 @@ export async function getSatisfactionByCategory(
     select: {
       status: true,
       serviceType: true,
-      actualStart: true,
-      scheduledStart: true,
+      startedAt: true,
+      scheduledDate: true,
       completedAt: true,
       urgency: true,
     },
@@ -282,10 +282,10 @@ export async function getSatisfactionByCategory(
 
   for (const job of jobs) {
     // Punctuality (arrived on time)
-    if (job.scheduledStart && job.actualStart) {
+    if (job.scheduledDate && job.startedAt) {
       categories.punctuality.total++;
       const timeDiff =
-        (job.actualStart.getTime() - job.scheduledStart.getTime()) / (1000 * 60);
+        (job.startedAt.getTime() - job.scheduledDate.getTime()) / (1000 * 60);
       if (timeDiff <= 15) {
         // Within 15 minutes
         categories.punctuality.satisfied++;
@@ -299,7 +299,7 @@ export async function getSatisfactionByCategory(
     }
 
     // Response time (based on urgency)
-    if (job.actualStart) {
+    if (job.startedAt) {
       categories.response_time.total++;
       const urgency = (job.urgency || 'normal').toLowerCase();
       const targetHours: Record<string, number> = {
@@ -494,10 +494,10 @@ export async function getSatisfactionByTechnician(
     if (job.status === 'COMPLETED') current.completed++;
     if (job.status === 'CANCELLED') current.cancelled++;
 
-    if (job.scheduledStart && job.actualStart) {
+    if (job.scheduledDate && job.startedAt) {
       current.scheduledWithTime++;
       const timeDiff =
-        (job.actualStart.getTime() - job.scheduledStart.getTime()) / (1000 * 60);
+        (job.startedAt.getTime() - job.scheduledDate.getTime()) / (1000 * 60);
       if (timeDiff <= 15) current.onTime++;
     }
 
