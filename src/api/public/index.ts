@@ -194,9 +194,6 @@ export {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export {
-  // Integration Utilities
-  createIntegrationError,
-
   // Google Calendar
   GoogleCalendarService,
   createGoogleCalendarService,
@@ -208,8 +205,6 @@ export {
   // Zapier
   ZapierService,
   createZapierService,
-  AVAILABLE_TRIGGERS,
-  AVAILABLE_ACTIONS,
 
   // Utilities
   getAvailableIntegrations,
@@ -222,38 +217,22 @@ export type {
   IntegrationStatus,
   BaseIntegrationConfig,
   IntegrationCredentials,
-  IntegrationConnection,
-  SyncDirection,
-  SyncFrequency,
-  SyncStatus,
   SyncResult,
-  SyncLog,
-  FieldMapping,
-  MappingConfig,
   IntegrationError,
-  IntegrationErrorCode,
 
   // Google Calendar Types
   GoogleCalendarConfig,
-  CalendarEvent,
-  CalendarSyncOptions,
-  GoogleCalendarCredentials,
 
   // QuickBooks Types
   QuickBooksConfig,
-  QuickBooksCredentials,
   QuickBooksCustomer,
   QuickBooksInvoice,
   QuickBooksPayment,
-  QuickBooksSyncOptions,
 
   // Zapier Types
   ZapierConfig,
   ZapierTrigger,
   ZapierAction,
-  ZapierWebhook,
-  TriggerType,
-  ActionType,
 } from './integrations';
 
 // ═══════════════════════════════════════════════════════════════════════════════

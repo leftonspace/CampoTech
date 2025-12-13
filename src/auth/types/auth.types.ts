@@ -83,6 +83,7 @@ export interface AuthContext {
   orgId: string;
   role: UserRole;
   sessionId: string;
+  permissions?: string[];
 }
 
 // OTP send request
@@ -115,6 +116,8 @@ export enum AuthErrorCode {
   OTP_EXPIRED = 'AUTH_009',
   SESSION_REVOKED = 'AUTH_010',
   TOKEN_REVOKED = 'AUTH_011',
+  RATE_LIMITED = 'RATE_LIMITED',
+  USER_DISABLED = 'USER_DISABLED',
 }
 
 // Permission definitions

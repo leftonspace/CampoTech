@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 /**
  * POST /api/inventory/stock/count
@@ -326,7 +327,7 @@ export async function POST(request: NextRequest) {
       const today = new Date();
       const datePrefix = today.toISOString().slice(0, 10).replace(/-/g, '');
 
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
         // Apply adjustments if requested
         if (applyAdjustments !== false) {
           let movementCount = await tx.stockMovement.count({

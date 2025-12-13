@@ -187,15 +187,15 @@ export class QuoteService {
     });
 
     // Mark quote as sent
-    await this.repository.updateStatus(quote.id, 'sent');
+    await this.repository.updateStatus(quote.id, QuoteStatus.SENT);
 
     // Update request status and quote count
-    await this.requestRepository.incrementQuoteCount(input.requestId);
+    await this.requestRepository.incrementQuotesReceived(input.requestId);
 
     // Send notification to consumer
     await this.notifyConsumerNewQuote(request, business, quote);
 
-    return { ...quote, status: 'sent' as QuoteStatus };
+    return { ...quote, status: QuoteStatus.SENT };
   }
 
   /**
@@ -230,7 +230,7 @@ export class QuoteService {
     if (!quote) return null;
 
     // Mark as viewed if consumer is viewing
-    if (viewerType === 'consumer' && quote.status === 'sent') {
+    if (viewerType === 'consumer' && quote.status === QuoteStatus.SENT) {
       await this.repository.markViewed(id);
     }
 
@@ -254,7 +254,7 @@ export class QuoteService {
 
     // Mark all sent quotes as viewed
     for (const quote of quotes) {
-      if (quote.status === 'sent') {
+      if (quote.status === QuoteStatus.SENT) {
         await this.repository.markViewed(quote.id);
       }
     }
@@ -292,8 +292,8 @@ export class QuoteService {
     if (enrichedQuotes.length >= 2) {
       // Best value: lowest average price with good rating
       const sortedByValue = [...enrichedQuotes].sort((a, b) => {
-        const priceA = (a.estimatedPriceMin + a.estimatedPriceMax) / 2;
-        const priceB = (b.estimatedPriceMin + b.estimatedPriceMax) / 2;
+        const priceA = ((a.estimatedPriceMin ?? 0) + (a.estimatedPriceMax ?? 0)) / 2;
+        const priceB = ((b.estimatedPriceMin ?? 0) + (b.estimatedPriceMax ?? 0)) / 2;
         const ratingA = a.business?.overallRating || 0;
         const ratingB = b.business?.overallRating || 0;
         return (priceA / (ratingA + 1)) - (priceB / (ratingB + 1));
@@ -348,11 +348,11 @@ export class QuoteService {
       throw new QuoteError('UNAUTHORIZED', 'Not authorized to accept this quote', 403);
     }
 
-    if (!['sent', 'viewed'].includes(quote.status)) {
+    if (![QuoteStatus.SENT, QuoteStatus.VIEWED].includes(quote.status)) {
       throw new QuoteError('INVALID_STATUS', `Cannot accept quote with status: ${quote.status}`);
     }
 
-    if (quote.validUntil < new Date()) {
+    if (quote.validUntil && quote.validUntil < new Date()) {
       throw new QuoteError('QUOTE_EXPIRED', 'This quote has expired');
     }
 
@@ -362,7 +362,7 @@ export class QuoteService {
     // Reject other quotes for this request
     const otherQuotes = await this.repository.findByRequestId(quote.requestId);
     for (const other of otherQuotes) {
-      if (other.id !== quoteId && ['sent', 'viewed', 'pending'].includes(other.status)) {
+      if (other.id !== quoteId && [QuoteStatus.SENT, QuoteStatus.VIEWED, QuoteStatus.PENDING].includes(other.status)) {
         await this.repository.reject(other.id, 'Another quote was accepted');
       }
     }
@@ -391,7 +391,7 @@ export class QuoteService {
       throw new QuoteError('UNAUTHORIZED', 'Not authorized to reject this quote', 403);
     }
 
-    if (!['sent', 'viewed'].includes(quote.status)) {
+    if (![QuoteStatus.SENT, QuoteStatus.VIEWED].includes(quote.status)) {
       throw new QuoteError('INVALID_STATUS', `Cannot reject quote with status: ${quote.status}`);
     }
 
@@ -420,7 +420,7 @@ export class QuoteService {
       throw new QuoteError('UNAUTHORIZED', 'Not authorized to update this quote', 403);
     }
 
-    if (!['pending', 'sent', 'viewed'].includes(quote.status)) {
+    if (![QuoteStatus.PENDING, QuoteStatus.SENT, QuoteStatus.VIEWED].includes(quote.status)) {
       throw new QuoteError('INVALID_STATUS', 'Cannot update quote after acceptance/rejection');
     }
 
@@ -567,7 +567,7 @@ export class QuoteService {
     const consumer = consumerResult.rows[0];
     if (!consumer) return;
 
-    const avgPrice = (quote.estimatedPriceMin + quote.estimatedPriceMax) / 2;
+    const avgPrice = ((quote.estimatedPriceMin ?? 0) + (quote.estimatedPriceMax ?? 0)) / 2;
 
     // WhatsApp notification
     if (consumer.contact_preference !== 'push_only' && consumer.phone) {

@@ -6,7 +6,7 @@
  * Handles all API communication with Meta's Graph API.
  */
 
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosInstance, AxiosError, AxiosResponse } from 'axios';
 import { log } from '../../lib/logging/logger';
 import {
   WhatsAppConfig,
@@ -65,7 +65,7 @@ export class WhatsAppClient {
 
     // Add response interceptor for error handling
     this.client.interceptors.response.use(
-      (response) => response,
+      (response: AxiosResponse) => response,
       (error: AxiosError) => {
         if (error.response?.data) {
           const waError = this.parseError(error.response.data);

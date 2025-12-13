@@ -503,8 +503,8 @@ async function listCustomers(
   return {
     data: customers,
     pagination: {
-      hasMore,
-      nextCursor,
+      has_more: hasMore,
+      next_cursor: nextCursor,
     },
   };
 }

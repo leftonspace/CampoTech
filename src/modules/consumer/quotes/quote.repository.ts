@@ -418,14 +418,16 @@ export class QuoteRepository {
   }> {
     const quotes = await this.findByRequestId(requestId);
     const validQuotes = quotes.filter(q =>
-      ['sent', 'viewed'].includes(q.status) && q.validUntil > new Date()
+      ['sent', 'viewed'].includes(q.status) && q.validUntil && q.validUntil > new Date()
     );
 
     if (validQuotes.length === 0) {
       return { quotes: [], avgPrice: 0, minPrice: 0, maxPrice: 0, avgDuration: 0 };
     }
 
-    const prices = validQuotes.map(q => (q.estimatedPriceMin + q.estimatedPriceMax) / 2);
+    const prices = validQuotes
+      .filter(q => q.estimatedPriceMin !== undefined && q.estimatedPriceMax !== undefined)
+      .map(q => (q.estimatedPriceMin! + q.estimatedPriceMax!) / 2);
     const durations = validQuotes
       .filter(q => q.estimatedDurationHours)
       .map(q => q.estimatedDurationHours!);

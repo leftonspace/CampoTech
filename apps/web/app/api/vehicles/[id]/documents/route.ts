@@ -7,7 +7,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { VehicleDocumentType } from '@prisma/client';
 
 export async function GET(
   request: NextRequest,
@@ -143,7 +142,7 @@ export async function POST(
     }
 
     // Validate document type
-    const validTypes = Object.values(VehicleDocumentType);
+    const validTypes = ['INSURANCE', 'REGISTRATION', 'VTV', 'LICENSE', 'MANUAL', 'OTHER'];
     if (!validTypes.includes(documentType)) {
       return NextResponse.json(
         { success: false, error: 'Tipo de documento inválido' },
@@ -155,7 +154,7 @@ export async function POST(
     const document = await prisma.vehicleDocument.create({
       data: {
         vehicleId: id,
-        documentType: documentType as VehicleDocumentType,
+        documentType,
         fileName,
         fileUrl,
         fileSize: fileSize || null,

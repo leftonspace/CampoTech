@@ -235,6 +235,17 @@ export class QueueManager {
   }
 
   /**
+   * Add a job to a queue (generic version)
+   */
+  async addToQueue(queueName: string, jobName: string, data: any, options?: any): Promise<any> {
+    const queue = this.getQueue(queueName);
+    if (!queue) {
+      throw new Error(`Queue ${queueName} not found`);
+    }
+    return queue.add(jobName, data, options);
+  }
+
+  /**
    * Add multiple jobs in bulk
    */
   async addBulk(

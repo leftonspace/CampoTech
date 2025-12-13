@@ -68,7 +68,8 @@ export async function receivePurchaseOrder(
   }
 
   // Validate items
-  const orderItemMap = new Map(order.items.map((i: typeof order.items[number]) => [i.productId, i]));
+  type OrderItemType = typeof order.items[number];
+  const orderItemMap = new Map(order.items.map((i: OrderItemType) => [i.productId, i]));
   const receivingItems: Array<{
     productId: string;
     quantityExpected: number;
@@ -76,13 +77,13 @@ export async function receivePurchaseOrder(
     notes?: string;
   }> = [];
 
-  for (const item of items as typeof items) {
+  for (const item of items) {
     const orderItem = orderItemMap.get(item.productId);
     if (!orderItem) {
       throw new Error(`Producto ${item.productId} no está en la orden de compra`);
     }
 
-    const pendingQty = orderItem.quantity - orderItem.quantityReceived;
+    const pendingQty = (orderItem.quantity as number) - (orderItem.quantityReceived as number);
     if (item.quantityReceived > pendingQty) {
       throw new Error(
         `Cantidad recibida (${item.quantityReceived}) excede la pendiente (${pendingQty}) para producto ${orderItem.product?.name}`

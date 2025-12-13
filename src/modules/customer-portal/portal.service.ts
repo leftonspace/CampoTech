@@ -293,6 +293,10 @@ export class PortalService {
 
 let instance: PortalService | null = null;
 
+export function initializePortalService(pool: Pool): void {
+  instance = new PortalService(pool);
+}
+
 export function getPortalService(pool?: Pool): PortalService {
   if (!instance && pool) {
     instance = new PortalService(pool);

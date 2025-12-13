@@ -266,14 +266,14 @@ export async function GET(request: NextRequest) {
     const atRiskCustomers = customers.filter((customer: typeof customers[number]) => {
       const lastActivity = customerActivityMap.get(customer.id);
       if (!lastActivity) return true; // No activity = at risk
-      const daysSinceActivity = (now.getTime() - lastActivity.getTime()) / (24 * 60 * 60 * 1000);
+      const daysSinceActivity = (now.getTime() - (lastActivity as Date).getTime()) / (24 * 60 * 60 * 1000);
       return daysSinceActivity > 60;
     });
 
     const highRiskCustomers = atRiskCustomers.slice(0, 10).map((customer: typeof atRiskCustomers[number]) => {
       const lastActivity = customerActivityMap.get(customer.id);
       const daysSinceActivity = lastActivity
-        ? Math.floor((now.getTime() - lastActivity.getTime()) / (24 * 60 * 60 * 1000))
+        ? Math.floor((now.getTime() - (lastActivity as Date).getTime()) / (24 * 60 * 60 * 1000))
         : 999;
 
       return {

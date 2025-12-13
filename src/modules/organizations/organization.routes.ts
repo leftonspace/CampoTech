@@ -3,7 +3,7 @@
  * ===================
  */
 
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { organizationController, organizationErrorHandler } from './organization.controller';
 
 const router = Router();
@@ -13,16 +13,16 @@ const router = Router();
 // ═══════════════════════════════════════════════════════════════════════════════
 
 // Current organization (requires auth)
-router.get('/me', (req, res, next) => organizationController.getCurrent(req, res, next));
-router.put('/me', (req, res, next) => organizationController.updateCurrent(req, res, next));
-router.put('/me/settings', (req, res, next) => organizationController.updateSettings(req, res, next));
+router.get('/me', (req: Request, res: Response, next: NextFunction) => organizationController.getCurrent(req, res, next));
+router.put('/me', (req: Request, res: Response, next: NextFunction) => organizationController.updateCurrent(req, res, next));
+router.put('/me/settings', (req: Request, res: Response, next: NextFunction) => organizationController.updateSettings(req, res, next));
 
 // AFIP configuration
-router.post('/me/afip', (req, res, next) => organizationController.configureAFIP(req, res, next));
-router.get('/me/afip/status', (req, res, next) => organizationController.getAFIPStatus(req, res, next));
+router.post('/me/afip', (req: Request, res: Response, next: NextFunction) => organizationController.configureAFIP(req, res, next));
+router.get('/me/afip/status', (req: Request, res: Response, next: NextFunction) => organizationController.getAFIPStatus(req, res, next));
 
 // By ID (admin only)
-router.get('/:id', (req, res, next) => organizationController.getById(req, res, next));
+router.get('/:id', (req: Request, res: Response, next: NextFunction) => organizationController.getById(req, res, next));
 
 // Error handler
 router.use(organizationErrorHandler);

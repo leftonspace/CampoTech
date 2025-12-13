@@ -91,11 +91,7 @@ export class CustomerOTPService {
    */
   private async hashCode(code: string): Promise<string> {
     const salt = crypto.randomBytes(SCRYPT_SALT_LENGTH);
-    const hash = await scryptAsync(code, salt, SCRYPT_KEY_LENGTH, {
-      N: SCRYPT_N,
-      r: SCRYPT_R,
-      p: SCRYPT_P,
-    }) as Buffer;
+    const hash = await scryptAsync(code, salt, SCRYPT_KEY_LENGTH) as Buffer;
     return `${salt.toString('hex')}$${hash.toString('hex')}`;
   }
 
@@ -111,11 +107,7 @@ export class CustomerOTPService {
     const salt = Buffer.from(saltHex, 'hex');
     const expectedHash = Buffer.from(hashHex, 'hex');
 
-    const actualHash = await scryptAsync(code, salt, SCRYPT_KEY_LENGTH, {
-      N: SCRYPT_N,
-      r: SCRYPT_R,
-      p: SCRYPT_P,
-    }) as Buffer;
+    const actualHash = await scryptAsync(code, salt, SCRYPT_KEY_LENGTH) as Buffer;
 
     // Use timing-safe comparison to prevent timing attacks
     if (actualHash.length !== expectedHash.length) {

@@ -174,6 +174,7 @@ export interface PreferenceResponse {
   backUrls?: PreferenceBackUrls;
   notificationUrl?: string;
   collectorId: number;
+  expirationDateTo?: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

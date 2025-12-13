@@ -354,6 +354,7 @@ export interface BusinessPublicProfile {
   isVisible: boolean;
   isFeatured: boolean;
   isSuspended: boolean;
+  isActive?: boolean;
 
   // Timestamps
   createdAt: Date;
@@ -531,6 +532,7 @@ export interface ServiceRequestSearchParams {
 export interface BusinessQuote {
   id: string;
   serviceRequestId: string;
+  requestId?: string; // Alias for serviceRequestId
   businessProfileId: string;
   orgId: string;
   quoteNumber: string;
@@ -540,9 +542,12 @@ export interface BusinessQuote {
   priceAmount?: number;
   priceMin?: number;
   priceMax?: number;
+  estimatedPriceMin?: number; // Alias for priceMin
+  estimatedPriceMax?: number; // Alias for priceMax
   hourlyRate?: number;
   estimatedHours?: number;
   currency: string;
+  validUntil?: Date; // Quote validity deadline
 
   // Price breakdown
   laborCost?: number;
@@ -640,9 +645,11 @@ export interface ConsumerReview {
   // Content
   title?: string;
   reviewText?: string;
+  comment?: string; // Alias for reviewText
   pros?: string;
   cons?: string;
   photoUrls: string[];
+  photos?: string[]; // Alias for photoUrls
 
   // Service details
   serviceCategory?: ServiceCategory;
