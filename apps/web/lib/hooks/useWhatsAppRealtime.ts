@@ -206,7 +206,7 @@ export function useWhatsAppRealtime({
 
   return {
     subscribeToConversation,
-    isConnected: !!pusherRef.current?.connection.state === 'connected',
+    isConnected: pusherRef.current?.connection.state === 'connected',
   };
 }
 
