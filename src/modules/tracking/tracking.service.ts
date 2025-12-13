@@ -284,11 +284,10 @@ export async function getCustomerTrackingView(token: string): Promise<CustomerTr
     include: {
       job: {
         include: {
-          assignedTo: {
+          technician: {
             select: {
               name: true,
-              profilePhoto: true,
-              rating: true,
+              avatar: true,
             },
           },
           organization: {
@@ -308,9 +307,9 @@ export async function getCustomerTrackingView(token: string): Promise<CustomerTr
   }
 
   return {
-    technicianName: session.job.assignedTo?.name || 'Técnico',
-    technicianPhoto: session.job.assignedTo?.profilePhoto || undefined,
-    technicianRating: session.job.assignedTo?.rating || undefined,
+    technicianName: session.job.technician?.name || 'Técnico',
+    technicianPhoto: session.job.technician?.avatar || undefined,
+    technicianRating: undefined, // Rating is on Review model, not User
     currentPosition:
       session.currentLat && session.currentLng
         ? { lat: Number(session.currentLat), lng: Number(session.currentLng) }

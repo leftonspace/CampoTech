@@ -169,12 +169,12 @@ async function processReminder(reminder: ScheduledReminder): Promise<void> {
     where: { id: reminder.jobId },
     include: {
       customer: { select: { name: true } },
-      assignedTo: { select: { id: true, name: true } },
+      technician: { select: { id: true, name: true } },
       organization: { select: { id: true, businessName: true } },
     },
   });
 
-  if (!job || job.status !== 'scheduled') {
+  if (!job || job.status === 'COMPLETED' || job.status === 'CANCELLED') {
     // Job no longer needs reminder (completed, cancelled, etc.)
     await db.scheduledReminder.update({
       where: { id: reminder.id },
@@ -198,10 +198,10 @@ async function processReminder(reminder: ScheduledReminder): Promise<void> {
     entityId: job.id,
     templateName,
     templateParams: {
-      '1': job.assignedTo?.name || 'Técnico',
+      '1': job.technician?.name || 'Técnico',
       '2': job.customer?.name || 'Cliente',
       '3': job.description || 'Servicio técnico',
-      '4': formatJobTime(job.scheduledAt),
+      '4': formatJobTime(job.scheduledDate),
     },
   });
 
