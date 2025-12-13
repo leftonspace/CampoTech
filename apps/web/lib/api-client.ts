@@ -406,6 +406,8 @@ export const api = {
         return apiRequest<unknown[]>(`/whatsapp/conversations${query}`);
       },
       get: (id: string) => apiRequest<unknown>(`/whatsapp/conversations/${id}`),
+      update: (id: string, data: { action: string; assignToId?: string }) =>
+        apiRequest(`/whatsapp/conversations/${id}`, { method: 'PATCH', body: data }),
     },
     messages: {
       list: (conversationId: string) =>
