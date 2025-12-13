@@ -543,7 +543,11 @@ async function updateDimensions(organizationId: string): Promise<DimensionCounts
   for (const customer of customers) {
     segmentCounts[customer.segment] = (segmentCounts[customer.segment] || 0) + 1;
   }
-  await redis.hset(`${baseKey}:customer_segments`, segmentCounts as Record<string, string>);
+  const segmentCountsStr: Record<string, string> = {};
+  for (const [key, value] of Object.entries(segmentCounts)) {
+    segmentCountsStr[key] = String(value);
+  }
+  await redis.hset(`${baseKey}:customer_segments`, segmentCountsStr);
 
   // Update technician dimensions
   const technicians = await getTechnicianDimension(organizationId);
