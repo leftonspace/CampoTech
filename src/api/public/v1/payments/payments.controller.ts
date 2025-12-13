@@ -99,7 +99,7 @@ export function createPaymentsController(pool: Pool): Router {
 
   router.get(
     '/',
-    requireScopes(readScope('payments')),
+    readScope('payments'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -276,7 +276,7 @@ export function createPaymentsController(pool: Pool): Router {
 
   router.get(
     '/:id',
-    requireScopes(readScope('payments')),
+    readScope('payments'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -356,7 +356,7 @@ export function createPaymentsController(pool: Pool): Router {
 
   router.post(
     '/',
-    requireScopes(writeScope('payments')),
+    writeScope('payments'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -484,7 +484,7 @@ export function createPaymentsController(pool: Pool): Router {
 
   router.patch(
     '/:id',
-    requireScopes(writeScope('payments')),
+    writeScope('payments'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -576,7 +576,7 @@ export function createPaymentsController(pool: Pool): Router {
 
   router.delete(
     '/:id',
-    requireScopes(deleteScope('payments')),
+    deleteScope('payments'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -628,7 +628,7 @@ export function createPaymentsController(pool: Pool): Router {
   // Refund payment
   router.post(
     '/:id/refund',
-    requireScopes(writeScope('payments')),
+    writeScope('payments'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -733,7 +733,7 @@ export function createPaymentsController(pool: Pool): Router {
   // Cancel payment
   router.post(
     '/:id/cancel',
-    requireScopes(writeScope('payments')),
+    writeScope('payments'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -787,7 +787,7 @@ export function createPaymentsController(pool: Pool): Router {
 
   router.post(
     '/batch',
-    requireScopes(writeScope('payments')),
+    writeScope('payments'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -888,7 +888,7 @@ export function createPaymentsController(pool: Pool): Router {
 
   router.get(
     '/summary/stats',
-    requireScopes(readScope('payments')),
+    readScope('payments'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;

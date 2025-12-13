@@ -76,7 +76,7 @@ export function createMercadoPagoController(pool: Pool): Router {
 
   router.post(
     '/preference',
-    requireScopes(writeScope('payments')),
+    writeScope('payments'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -276,7 +276,7 @@ export function createMercadoPagoController(pool: Pool): Router {
 
   router.get(
     '/:id/link',
-    requireScopes(readScope('payments')),
+    readScope('payments'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -527,7 +527,7 @@ export function createMercadoPagoController(pool: Pool): Router {
 
   router.get(
     '/reconcile',
-    requireScopes(readScope('payments')),
+    readScope('payments'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -663,7 +663,7 @@ export function createMercadoPagoController(pool: Pool): Router {
 
   router.post(
     '/:id/mp-refund',
-    requireScopes(writeScope('payments')),
+    writeScope('payments'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;

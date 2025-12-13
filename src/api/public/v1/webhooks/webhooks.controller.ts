@@ -147,7 +147,7 @@ export function createWebhooksController(pool: Pool): Router {
 
   router.get(
     '/',
-    requireScopes(readScope('webhooks')),
+    readScope('webhooks'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -238,7 +238,7 @@ export function createWebhooksController(pool: Pool): Router {
 
   router.get(
     '/:id',
-    requireScopes(readScope('webhooks')),
+    readScope('webhooks'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -273,7 +273,7 @@ export function createWebhooksController(pool: Pool): Router {
 
   router.post(
     '/',
-    requireScopes(writeScope('webhooks')),
+    writeScope('webhooks'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -350,7 +350,7 @@ export function createWebhooksController(pool: Pool): Router {
 
   router.patch(
     '/:id',
-    requireScopes(writeScope('webhooks')),
+    writeScope('webhooks'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -452,7 +452,7 @@ export function createWebhooksController(pool: Pool): Router {
 
   router.delete(
     '/:id',
-    requireScopes(deleteScope('webhooks')),
+    deleteScope('webhooks'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -488,7 +488,7 @@ export function createWebhooksController(pool: Pool): Router {
   // Test webhook
   router.post(
     '/:id/test',
-    requireScopes(writeScope('webhooks')),
+    writeScope('webhooks'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -634,7 +634,7 @@ export function createWebhooksController(pool: Pool): Router {
   // Rotate secret
   router.post(
     '/:id/rotate-secret',
-    requireScopes(writeScope('webhooks')),
+    writeScope('webhooks'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -689,7 +689,7 @@ export function createWebhooksController(pool: Pool): Router {
   // Enable/disable webhook
   router.post(
     '/:id/enable',
-    requireScopes(writeScope('webhooks')),
+    writeScope('webhooks'),
     async (req: Request, res: Response) => {
       await toggleWebhook(pool, req, res, true);
     }
@@ -697,7 +697,7 @@ export function createWebhooksController(pool: Pool): Router {
 
   router.post(
     '/:id/disable',
-    requireScopes(writeScope('webhooks')),
+    writeScope('webhooks'),
     async (req: Request, res: Response) => {
       await toggleWebhook(pool, req, res, false);
     }
@@ -709,7 +709,7 @@ export function createWebhooksController(pool: Pool): Router {
 
   router.get(
     '/:id/deliveries',
-    requireScopes(readScope('webhooks')),
+    readScope('webhooks'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -813,7 +813,7 @@ export function createWebhooksController(pool: Pool): Router {
   // Retry a failed delivery
   router.post(
     '/:id/deliveries/:deliveryId/retry',
-    requireScopes(writeScope('webhooks')),
+    writeScope('webhooks'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;

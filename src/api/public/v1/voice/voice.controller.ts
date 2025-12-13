@@ -74,7 +74,7 @@ export function createVoiceController(pool: Pool): Router {
 
   router.post(
     '/process',
-    requireScopes(writeScope('voice')),
+    writeScope('voice'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -201,7 +201,7 @@ export function createVoiceController(pool: Pool): Router {
 
   router.get(
     '/queue',
-    requireScopes(readScope('voice')),
+    readScope('voice'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -312,7 +312,7 @@ export function createVoiceController(pool: Pool): Router {
 
   router.get(
     '/:id',
-    requireScopes(readScope('voice')),
+    readScope('voice'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -403,7 +403,7 @@ export function createVoiceController(pool: Pool): Router {
 
   router.post(
     '/review/:id',
-    requireScopes(writeScope('voice')),
+    writeScope('voice'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -565,7 +565,7 @@ export function createVoiceController(pool: Pool): Router {
 
   router.get(
     '/stats',
-    requireScopes(readScope('voice')),
+    readScope('voice'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;

@@ -72,7 +72,7 @@ export function createOrganizationsController(pool: Pool): Router {
 
   router.get(
     '/',
-    requireScopes(readScope('organizations')),
+    readScope('organizations'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -153,7 +153,7 @@ export function createOrganizationsController(pool: Pool): Router {
 
   router.patch(
     '/',
-    requireScopes(writeScope('organizations')),
+    writeScope('organizations'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -258,7 +258,7 @@ export function createOrganizationsController(pool: Pool): Router {
 
   router.post(
     '/afip/cert',
-    requireScopes(writeScope('organizations')),
+    writeScope('organizations'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -371,7 +371,7 @@ export function createOrganizationsController(pool: Pool): Router {
 
   router.get(
     '/afip/status',
-    requireScopes(readScope('organizations')),
+    readScope('organizations'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -431,7 +431,7 @@ export function createOrganizationsController(pool: Pool): Router {
 
   router.post(
     '/mp/connect',
-    requireScopes(writeScope('organizations')),
+    writeScope('organizations'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -595,7 +595,7 @@ export function createOrganizationsController(pool: Pool): Router {
 
   router.post(
     '/whatsapp/verify',
-    requireScopes(writeScope('organizations')),
+    writeScope('organizations'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;

@@ -64,7 +64,7 @@ export function createInvoicesAfipController(pool: Pool): Router {
 
   router.post(
     '/:id/cae',
-    requireScopes(writeScope('invoices')),
+    writeScope('invoices'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -280,7 +280,7 @@ export function createInvoicesAfipController(pool: Pool): Router {
 
   router.get(
     '/:id/pdf',
-    requireScopes(readScope('invoices')),
+    readScope('invoices'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -411,7 +411,7 @@ export function createInvoicesAfipController(pool: Pool): Router {
 
   router.get(
     '/queue',
-    requireScopes(readScope('invoices')),
+    readScope('invoices'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
@@ -509,7 +509,7 @@ export function createInvoicesAfipController(pool: Pool): Router {
 
   router.post(
     '/:id/cae/retry',
-    requireScopes(writeScope('invoices')),
+    writeScope('invoices'),
     async (req: Request, res: Response) => {
       try {
         const apiContext = (req as any).apiContext as ApiRequestContext;
