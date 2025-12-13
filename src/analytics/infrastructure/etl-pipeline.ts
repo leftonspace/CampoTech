@@ -25,6 +25,23 @@ import { aggregateMetrics } from '../collectors/metrics-aggregator';
 import { flushEvents } from '../collectors/event-collector';
 import { DateRange, TimeGranularity } from '../analytics.types';
 
+// Local type for building points with metric before grouping
+type MetricPoint = TimeSeriesPoint & { metric: string };
+
+// Helper to write points grouped by metric
+async function writeMetricPoints(organizationId: string, points: MetricPoint[]): Promise<void> {
+  const grouped = new Map<string, TimeSeriesPoint[]>();
+  for (const point of points) {
+    const { metric, ...rest } = point;
+    const existing = grouped.get(metric) || [];
+    existing.push(rest);
+    grouped.set(metric, existing);
+  }
+  for (const [metric, metricPoints] of grouped) {
+    await writePoints(organizationId, metric, metricPoints);
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // ETL CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -260,7 +277,7 @@ async function processJobFacts(organizationId: string, dateRange: DateRange): Pr
   const enrichedFacts = await enrichJobFacts(organizationId, facts);
 
   // Store job metrics in time series
-  const points: TimeSeriesPoint[] = [];
+  const points: MetricPoint[] = [];
 
   for (const fact of enrichedFacts) {
     const timestamp = fact.createdAt.getTime();
@@ -291,7 +308,7 @@ async function processJobFacts(organizationId: string, dateRange: DateRange): Pr
     }
 
     // Actual revenue when completed
-    if (fact.status === 'completado' && fact.actualAmount > 0) {
+    if (fact.status === 'COMPLETED' && fact.actualAmount > 0) {
       points.push({
         metric: 'jobs_actual_revenue',
         timestamp: fact.completedAt?.getTime() || timestamp,
@@ -328,13 +345,13 @@ async function processJobFacts(organizationId: string, dateRange: DateRange): Pr
   }
 
   if (points.length > 0) {
-    await writePoints(points);
+    await writeMetricPoints(organizationId, points);
   }
 
   // Store fact summary in Redis hash for quick lookups
   await storeFactSummary(organizationId, 'jobs', {
     total: facts.length,
-    completed: facts.filter(f => f.status === 'completado').length,
+    completed: facts.filter(f => f.status === 'COMPLETED').length,
     dateRange: { start: dateRange.start.toISOString(), end: dateRange.end.toISOString() },
     lastUpdated: new Date().toISOString(),
   });
@@ -345,7 +362,7 @@ async function processJobFacts(organizationId: string, dateRange: DateRange): Pr
 
 async function processInvoiceFacts(organizationId: string, dateRange: DateRange): Promise<number> {
   const facts = await getInvoiceFacts(organizationId, dateRange);
-  const points: TimeSeriesPoint[] = [];
+  const points: MetricPoint[] = [];
 
   for (const fact of facts) {
     const timestamp = fact.createdAt.getTime();
@@ -408,7 +425,7 @@ async function processInvoiceFacts(organizationId: string, dateRange: DateRange)
   }
 
   if (points.length > 0) {
-    await writePoints(points);
+    await writeMetricPoints(organizationId, points);
   }
 
   await storeFactSummary(organizationId, 'invoices', {
@@ -425,7 +442,7 @@ async function processInvoiceFacts(organizationId: string, dateRange: DateRange)
 
 async function processPaymentFacts(organizationId: string, dateRange: DateRange): Promise<number> {
   const facts = await getPaymentFacts(organizationId, dateRange);
-  const points: TimeSeriesPoint[] = [];
+  const points: MetricPoint[] = [];
 
   for (const fact of facts) {
     const timestamp = fact.receivedAt.getTime();
@@ -478,7 +495,7 @@ async function processPaymentFacts(organizationId: string, dateRange: DateRange)
   }
 
   if (points.length > 0) {
-    await writePoints(points);
+    await writeMetricPoints(organizationId, points);
   }
 
   await storeFactSummary(organizationId, 'payments', {
