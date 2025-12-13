@@ -76,28 +76,28 @@ export async function GET(request: NextRequest) {
     ] = await Promise.all([
       prisma.waMessage.count({
         where: {
-          conversation: { organizationId },
+          organizationId,
           createdAt: { gte: startDate },
         },
       }),
       prisma.waMessage.count({
         where: {
-          conversation: { organizationId },
-          direction: 'INBOUND',
+          organizationId,
+          direction: 'inbound',
           createdAt: { gte: startDate },
         },
       }),
       prisma.waMessage.count({
         where: {
-          conversation: { organizationId },
-          direction: 'OUTBOUND',
+          organizationId,
+          direction: 'outbound',
           createdAt: { gte: startDate },
         },
       }),
       prisma.waMessage.count({
         where: {
-          conversation: { organizationId },
-          status: 'FAILED',
+          organizationId,
+          status: 'failed',
           createdAt: { gte: startDate },
         },
       }),
@@ -107,17 +107,17 @@ export async function GET(request: NextRequest) {
     const [deliveredMessages, readMessages] = await Promise.all([
       prisma.waMessage.count({
         where: {
-          conversation: { organizationId },
-          direction: 'OUTBOUND',
-          status: { in: ['DELIVERED', 'READ'] },
+          organizationId,
+          direction: 'outbound',
+          status: { in: ['delivered', 'read'] },
           createdAt: { gte: startDate },
         },
       }),
       prisma.waMessage.count({
         where: {
-          conversation: { organizationId },
-          direction: 'OUTBOUND',
-          status: 'READ',
+          organizationId,
+          direction: 'outbound',
+          status: 'read',
           createdAt: { gte: startDate },
         },
       }),
@@ -133,8 +133,8 @@ export async function GET(request: NextRequest) {
       }),
       prisma.waMessage.count({
         where: {
-          conversation: { organizationId },
-          messageType: 'TEMPLATE',
+          organizationId,
+          type: 'template',
           createdAt: { gte: startDate },
         },
       }),
@@ -143,8 +143,8 @@ export async function GET(request: NextRequest) {
     // Get media statistics
     const mediaMessages = await prisma.waMessage.count({
       where: {
-        conversation: { organizationId },
-        messageType: { in: ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'] },
+        organizationId,
+        type: { in: ['image', 'video', 'audio', 'document'] },
         createdAt: { gte: startDate },
       },
     });
