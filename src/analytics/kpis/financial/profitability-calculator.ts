@@ -116,9 +116,9 @@ export async function calculateProfitability(
     },
     select: {
       id: true,
-      actualStart: true,
+      startedAt: true,
       completedAt: true,
-      actualTotal: true,
+      invoice: { select: { total: true } },
     },
   });
 
@@ -129,8 +129,8 @@ export async function calculateProfitability(
   // Calculate total hours worked
   let totalHours = 0;
   for (const job of jobs) {
-    if (job.actualStart && job.completedAt) {
-      const hours = (job.completedAt.getTime() - job.actualStart.getTime()) / (1000 * 60 * 60);
+    if (job.startedAt && job.completedAt) {
+      const hours = (job.completedAt.getTime() - job.startedAt.getTime()) / (1000 * 60 * 60);
       totalHours += hours;
     }
   }
@@ -236,8 +236,8 @@ export async function getProfitabilityByServiceType(
     },
     select: {
       serviceType: true,
-      actualTotal: true,
-      actualStart: true,
+      invoice: { select: { total: true } },
+      startedAt: true,
       completedAt: true,
     },
   });
@@ -256,12 +256,12 @@ export async function getProfitabilityByServiceType(
       totalHours: 0,
     };
 
-    current.revenue += job.actualTotal?.toNumber() || 0;
+    current.revenue += job.invoice?.total?.toNumber() || 0;
     current.jobCount++;
 
-    if (job.actualStart && job.completedAt) {
+    if (job.startedAt && job.completedAt) {
       current.totalHours +=
-        (job.completedAt.getTime() - job.actualStart.getTime()) / (1000 * 60 * 60);
+        (job.completedAt.getTime() - job.startedAt.getTime()) / (1000 * 60 * 60);
     }
 
     serviceData.set(serviceType, current);
@@ -328,10 +328,10 @@ export async function getProfitabilityByTechnician(
         gte: dateRange.start,
         lte: dateRange.end,
       },
-      assignedToId: { not: null },
+      technicianId: { not: null },
     },
     include: {
-      assignedTo: {
+      technician: {
         select: { id: true, name: true },
       },
     },
@@ -346,27 +346,27 @@ export async function getProfitabilityByTechnician(
   }>();
 
   for (const job of jobs) {
-    if (!job.assignedTo) continue;
+    if (!job.technician) continue;
 
-    const current = techData.get(job.assignedTo.id) || {
-      name: job.assignedTo.name,
+    const current = techData.get(job.technician.id) || {
+      name: job.technician.name,
       revenue: 0,
       jobCount: 0,
       totalHours: 0,
       workDays: new Set(),
     };
 
-    current.revenue += job.actualTotal?.toNumber() || 0;
+    current.revenue += job.invoice?.total?.toNumber() || 0;
     current.jobCount++;
 
-    if (job.actualStart && job.completedAt) {
+    if (job.startedAt && job.completedAt) {
       const hours =
-        (job.completedAt.getTime() - job.actualStart.getTime()) / (1000 * 60 * 60);
+        (job.completedAt.getTime() - job.startedAt.getTime()) / (1000 * 60 * 60);
       current.totalHours += hours;
       current.workDays.add(job.completedAt.toISOString().slice(0, 10));
     }
 
-    techData.set(job.assignedTo.id, current);
+    techData.set(job.technician.id, current);
   }
 
   const results: ProfitabilityByTechnician[] = [];
