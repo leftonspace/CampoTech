@@ -4,6 +4,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import type {
   StockReservation,
   CreateReservationInput,
@@ -43,7 +44,7 @@ export async function createReservation(
   }
 
   // Create reservation in a transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     // Create reservation
     const reservation = await tx.stockReservation.create({
       data: {
@@ -183,7 +184,7 @@ export async function fulfillReservation(
   }
 
   // Update in transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     // Update reservation status
     const updated = await tx.stockReservation.update({
       where: { id: reservationId },
@@ -244,7 +245,7 @@ export async function cancelReservation(
   }
 
   // Update in transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     // Update reservation status
     const updated = await tx.stockReservation.update({
       where: { id: reservationId },
@@ -344,7 +345,7 @@ export async function updateReservationQuantity(
   }
 
   // Update in transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const updated = await tx.stockReservation.update({
       where: { id: reservationId },
       data: { quantity: newQuantity },

@@ -292,8 +292,8 @@ export class QuoteService {
     if (enrichedQuotes.length >= 2) {
       // Best value: lowest average price with good rating
       const sortedByValue = [...enrichedQuotes].sort((a, b) => {
-        const priceA = (a.estimatedPriceMin + a.estimatedPriceMax) / 2;
-        const priceB = (b.estimatedPriceMin + b.estimatedPriceMax) / 2;
+        const priceA = ((a.estimatedPriceMin ?? 0) + (a.estimatedPriceMax ?? 0)) / 2;
+        const priceB = ((b.estimatedPriceMin ?? 0) + (b.estimatedPriceMax ?? 0)) / 2;
         const ratingA = a.business?.overallRating || 0;
         const ratingB = b.business?.overallRating || 0;
         return (priceA / (ratingA + 1)) - (priceB / (ratingB + 1));
@@ -352,7 +352,7 @@ export class QuoteService {
       throw new QuoteError('INVALID_STATUS', `Cannot accept quote with status: ${quote.status}`);
     }
 
-    if (quote.validUntil < new Date()) {
+    if (quote.validUntil && quote.validUntil < new Date()) {
       throw new QuoteError('QUOTE_EXPIRED', 'This quote has expired');
     }
 
@@ -567,7 +567,7 @@ export class QuoteService {
     const consumer = consumerResult.rows[0];
     if (!consumer) return;
 
-    const avgPrice = (quote.estimatedPriceMin + quote.estimatedPriceMax) / 2;
+    const avgPrice = ((quote.estimatedPriceMin ?? 0) + (quote.estimatedPriceMax ?? 0)) / 2;
 
     // WhatsApp notification
     if (consumer.contact_preference !== 'push_only' && consumer.phone) {
