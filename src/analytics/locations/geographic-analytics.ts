@@ -265,11 +265,11 @@ export async function generateResponseTimeHeatmap(
     where: {
       organizationId,
       createdAt: { gte: dateRange.start, lte: dateRange.end },
-      actualStart: { not: null },
+      startedAt: { not: null },
     },
     select: {
       createdAt: true,
-      actualStart: true,
+      startedAt: true,
       customer: {
         select: {
           latitude: true,
@@ -282,9 +282,9 @@ export async function generateResponseTimeHeatmap(
   const pointResponseTimes = new Map<string, { lat: number; lng: number; times: number[] }>();
 
   for (const job of jobs) {
-    if (job.customer?.latitude && job.customer?.longitude && job.actualStart) {
+    if (job.customer?.latitude && job.customer?.longitude && job.startedAt) {
       const key = `${job.customer.latitude.toFixed(3)},${job.customer.longitude.toFixed(3)}`;
-      const responseTime = (job.actualStart.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60); // hours
+      const responseTime = (job.startedAt.getTime() - job.createdAt.getTime()) / (1000 * 60 * 60); // hours
       const existing = pointResponseTimes.get(key) || {
         lat: job.customer.latitude,
         lng: job.customer.longitude,
@@ -360,7 +360,7 @@ export async function getGeographicPerformance(
           id: true,
           status: true,
           createdAt: true,
-          actualStart: true,
+          startedAt: true,
           customerId: true,
         },
       }),
@@ -379,13 +379,13 @@ export async function getGeographicPerformance(
     ]);
 
     const uniqueCustomers = new Set(jobs.map((j) => j.customerId));
-    const completedJobs = jobs.filter((j) => j.status === 'completado').length;
+    const completedJobs = jobs.filter((j) => j.status === 'COMPLETED').length;
 
     // Calculate avg response time
-    const jobsWithResponse = jobs.filter((j) => j.actualStart);
+    const jobsWithResponse = jobs.filter((j) => j.startedAt);
     const avgResponseTime = jobsWithResponse.length > 0
       ? jobsWithResponse.reduce((sum, j) => {
-          return sum + (j.actualStart!.getTime() - j.createdAt.getTime()) / (1000 * 60 * 60);
+          return sum + (j.startedAt!.getTime() - j.createdAt.getTime()) / (1000 * 60 * 60);
         }, 0) / jobsWithResponse.length
       : 0;
 
@@ -460,7 +460,7 @@ export async function generateServiceDensityMap(
     select: {
       id: true,
       createdAt: true,
-      actualStart: true,
+      startedAt: true,
       customer: {
         select: {
           id: true,
@@ -546,10 +546,10 @@ export async function generateServiceDensityMap(
         cellRevenue += customerRevenue.get(customerId) || 0;
       }
 
-      const jobsWithResponse = cellJobs.filter((j) => j.actualStart);
+      const jobsWithResponse = cellJobs.filter((j) => j.startedAt);
       const avgResponseTime = jobsWithResponse.length > 0
         ? jobsWithResponse.reduce((sum, j) => {
-            return sum + (j.actualStart!.getTime() - j.createdAt.getTime()) / (1000 * 60 * 60);
+            return sum + (j.startedAt!.getTime() - j.createdAt.getTime()) / (1000 * 60 * 60);
           }, 0) / jobsWithResponse.length
         : 0;
 

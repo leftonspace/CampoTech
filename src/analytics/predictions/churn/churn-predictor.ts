@@ -69,7 +69,9 @@ export async function predictChurn(organizationId: string): Promise<ChurnAnalysi
           status: true,
           createdAt: true,
           completedAt: true,
-          actualTotal: true,
+          invoice: {
+            select: { total: true },
+          },
         },
         orderBy: { createdAt: 'desc' },
       },
@@ -117,7 +119,7 @@ function calculateChurnPrediction(
       status: string;
       createdAt: Date;
       completedAt: Date | null;
-      actualTotal: { toNumber(): number } | null;
+      invoice: { total: { toNumber(): number } | null } | null;
     }[];
   },
   now: Date
@@ -159,10 +161,10 @@ function calculateChurnPrediction(
   let spendDeclineScore = 0;
   if (completedJobs.length >= 3) {
     const recentAvg = completedJobs.slice(0, 3).reduce(
-      (sum, j) => sum + (j.actualTotal?.toNumber() || 0), 0
+      (sum, j) => sum + (j.invoice?.total?.toNumber() || 0), 0
     ) / 3;
     const olderAvg = completedJobs.slice(-3).reduce(
-      (sum, j) => sum + (j.actualTotal?.toNumber() || 0), 0
+      (sum, j) => sum + (j.invoice?.total?.toNumber() || 0), 0
     ) / Math.min(3, completedJobs.length);
 
     if (olderAvg > 0 && recentAvg < olderAvg * 0.7) {
@@ -180,7 +182,7 @@ function calculateChurnPrediction(
   });
 
   // Factor 4: Cancelled jobs (0-10 points)
-  const cancelledJobs = customer.jobs.filter((j) => j.status === 'cancelado').length;
+  const cancelledJobs = customer.jobs.filter((j) => j.status === 'CANCELLED').length;
   const cancelRate = customer.jobs.length > 0 ? cancelledJobs / customer.jobs.length : 0;
   const cancelScore = cancelRate > 0.3 ? 10 : cancelRate > 0.15 ? 5 : 0;
   factors.push({
@@ -216,7 +218,7 @@ function calculateChurnPrediction(
 
   // Calculate potential revenue loss
   const avgJobValue = completedJobs.length > 0
-    ? completedJobs.reduce((sum, j) => sum + (j.actualTotal?.toNumber() || 0), 0) / completedJobs.length
+    ? completedJobs.reduce((sum, j) => sum + (j.invoice?.total?.toNumber() || 0), 0) / completedJobs.length
     : 0;
   const potentialRevenueLoss = avgJobValue * Math.max(1, avgJobsPerMonth * 12);
 

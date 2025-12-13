@@ -74,7 +74,7 @@ export async function startReminderWorker(): Promise<Worker> {
           where: { id: jobId },
           include: {
             customer: true,
-            assignedTo: true,
+            technician: true,
             organization: true,
           },
         });
@@ -86,7 +86,7 @@ export async function startReminderWorker(): Promise<Worker> {
         }
 
         // Check if job is still scheduled (not completed/cancelled)
-        if (['completado', 'cancelado'].includes(jobRecord.status)) {
+        if (['COMPLETED', 'CANCELLED'].includes(jobRecord.status)) {
           log.debug('Job already completed/cancelled', { jobId, status: jobRecord.status });
           await markReminderSent(reminderId);
           return { success: true, skipped: true };
@@ -108,7 +108,7 @@ export async function startReminderWorker(): Promise<Worker> {
             jobId,
             reminderType,
             intervalMinutes,
-            scheduledStart: jobRecord.scheduledStart?.toISOString(),
+            scheduledDate: jobRecord.scheduledDate?.toISOString(),
           },
         });
 
@@ -167,14 +167,14 @@ function buildReminderContent(
   intervalMinutes: number
 ): { title: string; body: string } {
   const timeLabel = formatIntervalLabel(intervalMinutes);
-  const scheduledTime = job.scheduledStart
-    ? new Date(job.scheduledStart).toLocaleTimeString('es-AR', {
+  const scheduledTime = job.scheduledDate
+    ? new Date(job.scheduledDate).toLocaleTimeString('es-AR', {
         hour: '2-digit',
         minute: '2-digit',
       })
     : '';
-  const scheduledDate = job.scheduledStart
-    ? new Date(job.scheduledStart).toLocaleDateString('es-AR', {
+  const scheduledDateStr = job.scheduledDate
+    ? new Date(job.scheduledDate).toLocaleDateString('es-AR', {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
@@ -184,14 +184,14 @@ function buildReminderContent(
   if (reminderType === 'customer') {
     return {
       title: `Recordatorio: Visita en ${timeLabel}`,
-      body: `Tu visita de ${job.serviceType || 'servicio'} está programada para ${scheduledDate} a las ${scheduledTime}. Dirección: ${job.address || 'A confirmar'}`,
+      body: `Tu visita de ${job.serviceType || 'servicio'} está programada para ${scheduledDateStr} a las ${scheduledTime}. Dirección: ${job.address || 'A confirmar'}`,
     };
   }
 
   // Technician reminder
   return {
     title: `Trabajo en ${timeLabel}`,
-    body: `Tenés un trabajo programado: ${job.serviceType || 'Servicio'} - ${job.customer?.name || 'Cliente'}. ${scheduledDate} ${scheduledTime}. Dirección: ${job.address || 'Ver detalles'}`,
+    body: `Tenés un trabajo programado: ${job.serviceType || 'Servicio'} - ${job.customer?.name || 'Cliente'}. ${scheduledDateStr} ${scheduledTime}. Dirección: ${job.address || 'Ver detalles'}`,
   };
 }
 

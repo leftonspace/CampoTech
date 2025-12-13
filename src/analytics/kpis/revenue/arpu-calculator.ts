@@ -76,7 +76,7 @@ export async function calculateARPUMetrics(
         gte: dateRange.start,
         lte: dateRange.end,
       },
-      status: { in: ['paid', 'partial'] },
+      status: 'PAID',
     },
     select: {
       total: true,
@@ -158,7 +158,7 @@ async function calculatePreviousPeriodARPU(
         gte: dateRange.start,
         lte: dateRange.end,
       },
-      status: { in: ['paid', 'partial'] },
+      status: 'PAID',
     },
     select: {
       total: true,
@@ -203,7 +203,7 @@ export async function getARPUBySegment(
             gte: dateRange.start,
             lte: dateRange.end,
           },
-          status: { in: ['paid', 'partial'] },
+          status: 'PAID',
         },
         select: {
           total: true,
@@ -310,7 +310,9 @@ export async function getARPUByServiceType(
     select: {
       serviceType: true,
       customerId: true,
-      actualTotal: true,
+      invoice: {
+        select: { total: true },
+      },
     },
   });
 
@@ -327,7 +329,7 @@ export async function getARPUByServiceType(
       customers: new Set(),
     };
 
-    current.revenue += job.actualTotal?.toNumber() || 0;
+    current.revenue += job.invoice?.total?.toNumber() || 0;
     if (job.customerId) {
       current.customers.add(job.customerId);
     }
@@ -380,7 +382,7 @@ export async function getARPUTrend(
         gte: dateRange.start,
         lte: dateRange.end,
       },
-      status: { in: ['paid', 'partial'] },
+      status: 'PAID',
     },
     select: {
       total: true,
@@ -453,7 +455,7 @@ export async function getCustomerRevenueDistribution(
         gte: dateRange.start,
         lte: dateRange.end,
       },
-      status: { in: ['paid', 'partial'] },
+      status: 'PAID',
     },
     select: {
       total: true,
