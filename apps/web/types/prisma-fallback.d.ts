@@ -20,6 +20,10 @@ declare module '@prisma/client' {
     $transaction<T>(operations: Promise<T>[]): Promise<T[]>;
     $use(middleware: any): void;
     $extends(extension: any): any;
+    $queryRaw<T = unknown>(query: TemplateStringsArray | any, ...values: any[]): Promise<T>;
+    $queryRawUnsafe<T = unknown>(query: string, ...values: any[]): Promise<T>;
+    $executeRaw(query: TemplateStringsArray | any, ...values: any[]): Promise<number>;
+    $executeRawUnsafe(query: string, ...values: any[]): Promise<number>;
     [key: string]: any;
   }
 
