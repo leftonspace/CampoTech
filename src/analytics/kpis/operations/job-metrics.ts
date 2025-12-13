@@ -72,15 +72,15 @@ export async function calculateJobMetrics(
       id: true,
       status: true,
       createdAt: true,
-      scheduledStart: true,
-      actualStart: true,
+      scheduledDate: true,
+      startedAt: true,
       completedAt: true,
     },
   });
 
   const totalJobs = jobs.length;
-  const completedJobs = jobs.filter((j) => j.status === 'completado').length;
-  const cancelledJobs = jobs.filter((j) => j.status === 'cancelado').length;
+  const completedJobs = jobs.filter((j) => j.status === 'COMPLETED').length;
+  const cancelledJobs = jobs.filter((j) => j.status === 'CANCELLED').length;
   const pendingJobs = jobs.filter((j) => j.status === 'pendiente').length;
   const inProgressJobs = jobs.filter((j) => j.status === 'en_progreso').length;
 
@@ -89,9 +89,9 @@ export async function calculateJobMetrics(
   const cancellationRate = totalJobs > 0 ? (cancelledJobs / totalJobs) * 100 : 0;
 
   // Calculate average duration (for completed jobs)
-  const jobsWithDuration = jobs.filter((j) => j.actualStart && j.completedAt);
+  const jobsWithDuration = jobs.filter((j) => j.startedAt && j.completedAt);
   const totalDuration = jobsWithDuration.reduce((sum, j) => {
-    const duration = j.completedAt!.getTime() - j.actualStart!.getTime();
+    const duration = j.completedAt!.getTime() - j.startedAt!.getTime();
     return sum + duration;
   }, 0);
   const averageDuration = jobsWithDuration.length > 0
@@ -99,9 +99,9 @@ export async function calculateJobMetrics(
     : 0;
 
   // Calculate average response time (time from creation to start)
-  const jobsWithResponse = jobs.filter((j) => j.actualStart);
+  const jobsWithResponse = jobs.filter((j) => j.startedAt);
   const totalResponse = jobsWithResponse.reduce((sum, j) => {
-    const response = j.actualStart!.getTime() - j.createdAt.getTime();
+    const response = j.startedAt!.getTime() - j.createdAt.getTime();
     return sum + response;
   }, 0);
   const averageResponseTime = jobsWithResponse.length > 0
@@ -110,11 +110,11 @@ export async function calculateJobMetrics(
 
   // Calculate on-time completion rate
   const scheduledCompletedJobs = jobs.filter(
-    (j) => j.status === 'completado' && j.scheduledStart && j.completedAt
+    (j) => j.status === 'COMPLETED' && j.scheduledDate && j.completedAt
   );
   const onTimeJobs = scheduledCompletedJobs.filter((j) => {
     // Consider on-time if completed within 2 hours of scheduled time
-    const scheduledEnd = new Date(j.scheduledStart!.getTime() + 2 * 60 * 60 * 1000);
+    const scheduledEnd = new Date(j.scheduledDate!.getTime() + 2 * 60 * 60 * 1000);
     return j.completedAt! <= scheduledEnd;
   });
   const onTimeCompletionRate = scheduledCompletedJobs.length > 0
@@ -164,8 +164,8 @@ export async function getJobTrend(
     const period = formatPeriod(job.createdAt, granularity);
     const current = periodMap.get(period) || { total: 0, completed: 0, cancelled: 0 };
     current.total++;
-    if (job.status === 'completado') current.completed++;
-    if (job.status === 'cancelado') current.cancelled++;
+    if (job.status === 'COMPLETED') current.completed++;
+    if (job.status === 'CANCELLED') current.cancelled++;
     periodMap.set(period, current);
   }
 
@@ -202,7 +202,7 @@ export async function getJobsByServiceType(
     select: {
       serviceType: true,
       status: true,
-      actualStart: true,
+      startedAt: true,
       completedAt: true,
     },
   });
@@ -225,10 +225,10 @@ export async function getJobsByServiceType(
     };
 
     current.count++;
-    if (job.status === 'completado') current.completed++;
+    if (job.status === 'COMPLETED') current.completed++;
 
-    if (job.actualStart && job.completedAt) {
-      const duration = (job.completedAt.getTime() - job.actualStart.getTime()) / (1000 * 60);
+    if (job.startedAt && job.completedAt) {
+      const duration = (job.completedAt.getTime() - job.startedAt.getTime()) / (1000 * 60);
       current.totalDuration += duration;
       current.durationCount++;
     }
@@ -287,13 +287,13 @@ export async function getJobsByDayOfWeek(
   const jobs = await db.job.findMany({
     where: {
       organizationId,
-      scheduledStart: {
+      scheduledDate: {
         gte: dateRange.start,
         lte: dateRange.end,
       },
     },
     select: {
-      scheduledStart: true,
+      scheduledDate: true,
     },
   });
 
@@ -301,8 +301,8 @@ export async function getJobsByDayOfWeek(
   const dayCounts = new Array(7).fill(0);
 
   for (const job of jobs) {
-    if (job.scheduledStart) {
-      const day = job.scheduledStart.getDay();
+    if (job.scheduledDate) {
+      const day = job.scheduledDate.getDay();
       dayCounts[day]++;
     }
   }
@@ -324,21 +324,21 @@ export async function getJobsByHourOfDay(
   const jobs = await db.job.findMany({
     where: {
       organizationId,
-      scheduledStart: {
+      scheduledDate: {
         gte: dateRange.start,
         lte: dateRange.end,
       },
     },
     select: {
-      scheduledStart: true,
+      scheduledDate: true,
     },
   });
 
   const hourCounts = new Array(24).fill(0);
 
   for (const job of jobs) {
-    if (job.scheduledStart) {
-      const hour = job.scheduledStart.getHours();
+    if (job.scheduledDate) {
+      const hour = job.scheduledDate.getHours();
       hourCounts[hour]++;
     }
   }
