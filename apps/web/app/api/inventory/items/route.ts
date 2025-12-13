@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
 
     const stats = {
       totalItems: items.length,
-      lowStockItems: itemsWithTotals.filter((item) => item.isLowStock).length,
+      lowStockItems: itemsWithTotals.filter((item: typeof itemsWithTotals[number]) => item.isLowStock).length,
       categories: uniqueCategories,
     };
 

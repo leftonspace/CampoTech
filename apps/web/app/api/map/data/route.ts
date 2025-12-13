@@ -272,7 +272,7 @@ export async function GET(request: NextRequest) {
             hasActiveJob,
           };
         })
-        .filter((c): c is CustomerLocation => c !== null);
+        .filter((c: CustomerLocation | null): c is CustomerLocation => c !== null);
     }
 
     // Fetch technicians with their current locations
@@ -415,7 +415,7 @@ export async function GET(request: NextRequest) {
             } : null,
           };
         })
-        .filter((t): t is TechnicianLocation => t !== null);
+        .filter((t: TechnicianLocation | null): t is TechnicianLocation => t !== null);
     }
 
     // Fetch today's jobs

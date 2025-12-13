@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build where clause for list
-    const where: Prisma.PurchaseOrderWhereInput = {
+    const where: Record<string, unknown> = {
       organizationId: session.organizationId,
     };
 
@@ -579,7 +579,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const updateData: Prisma.PurchaseOrderUpdateInput = {};
+    const updateData: Record<string, unknown> = {};
 
     if (body.expectedDate !== undefined || body.expectedDeliveryDate !== undefined) {
       updateData.expectedDate = (body.expectedDate || body.expectedDeliveryDate) ? new Date(body.expectedDate || body.expectedDeliveryDate) : null;

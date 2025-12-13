@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       const warehouseId = searchParams.get('warehouseId');
       const lowStockOnly = searchParams.get('lowStock') === 'true';
 
-      const where: Prisma.InventoryLevelWhereInput = {
+      const where: Record<string, unknown> = {
         organizationId: session.organizationId,
       };
 
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
       let filteredLevels = levels;
       if (lowStockOnly) {
         filteredLevels = levels.filter(
-          (level) =>
+          (level: typeof levels[number]) =>
             level.product.trackInventory &&
             level.quantityOnHand <= level.product.minStockLevel
         );
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       const page = parseInt(searchParams.get('page') || '1', 10);
       const pageSize = parseInt(searchParams.get('pageSize') || '50', 10);
 
-      const where: Prisma.StockMovementWhereInput = {
+      const where: Record<string, unknown> = {
         organizationId: session.organizationId,
       };
 
@@ -127,10 +127,10 @@ export async function GET(request: NextRequest) {
       if (startDate || endDate) {
         where.performedAt = {};
         if (startDate) {
-          where.performedAt.gte = new Date(startDate);
+          (where.performedAt as any).gte = new Date(startDate);
         }
         if (endDate) {
-          where.performedAt.lte = new Date(endDate);
+          (where.performedAt as any).lte = new Date(endDate);
         }
       }
 
@@ -177,17 +177,17 @@ export async function GET(request: NextRequest) {
       const startDate = searchParams.get('startDate');
       const endDate = searchParams.get('endDate');
 
-      const where: Prisma.StockMovementWhereInput = {
+      const where: Record<string, unknown> = {
         organizationId: session.organizationId,
       };
 
       if (startDate || endDate) {
         where.performedAt = {};
         if (startDate) {
-          where.performedAt.gte = new Date(startDate);
+          (where.performedAt as any).gte = new Date(startDate);
         }
         if (endDate) {
-          where.performedAt.lte = new Date(endDate);
+          (where.performedAt as any).lte = new Date(endDate);
         }
       }
 
@@ -262,7 +262,7 @@ export async function GET(request: NextRequest) {
       const page = parseInt(searchParams.get('page') || '1', 10);
       const pageSize = parseInt(searchParams.get('pageSize') || '20', 10);
 
-      const where: Prisma.InventoryCountWhereInput = {
+      const where: Record<string, unknown> = {
         organizationId: session.organizationId,
       };
 
@@ -512,7 +512,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Execute transfer in a transaction
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: typeof prisma) => {
         // Reduce source
         await tx.inventoryLevel.update({
           where: { id: sourceLevel.id },
@@ -599,7 +599,7 @@ export async function POST(request: NextRequest) {
       const countNumber = `CNT-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
 
       // Get products to count
-      const where: Prisma.ProductWhereInput = {
+      const where: Record<string, unknown> = {
         organizationId: session.organizationId,
         isActive: true,
         trackInventory: true,

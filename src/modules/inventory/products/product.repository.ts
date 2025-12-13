@@ -72,7 +72,7 @@ export async function createProduct(input: CreateProductInput): Promise<Product>
       maxStockLevel: input.maxStockLevel ?? null,
       reorderQty: input.reorderQty ?? null,
       weight: input.weight ?? null,
-      dimensions: input.dimensions as Prisma.InputJsonValue ?? null,
+      dimensions: input.dimensions as unknown ?? null,
       imageUrl: input.imageUrl || null,
       images: input.images || [],
       isActive: input.isActive ?? true,
@@ -216,7 +216,7 @@ export async function updateProduct(
       maxStockLevel: input.maxStockLevel,
       reorderQty: input.reorderQty,
       weight: input.weight,
-      dimensions: input.dimensions as Prisma.InputJsonValue,
+      dimensions: input.dimensions as unknown,
       imageUrl: input.imageUrl,
       images: input.images,
       isActive: input.isActive,
@@ -417,7 +417,7 @@ export async function listProducts(
       } as unknown as ProductWithInventory;
     });
   } else {
-    productsWithInventory = products.map(p => ({
+    productsWithInventory = products.map((p: typeof products[number]) => ({
       ...p,
       totalOnHand: 0,
       totalReserved: 0,

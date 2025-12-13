@@ -194,7 +194,7 @@ async function fetchPendingMessages(): Promise<OutboundMessage[]> {
     take: BATCH_SIZE * 5, // Fetch more to allow for rate limiting
   });
 
-  return messages.map((m) => ({
+  return messages.map((m: typeof messages[number]) => ({
     id: m.id,
     organizationId: m.organizationId,
     customerId: m.customerId,

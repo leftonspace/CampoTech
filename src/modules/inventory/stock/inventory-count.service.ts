@@ -154,13 +154,13 @@ export async function getInventoryCountWithDetails(
   if (!count) return null;
 
   // Get product details for items
-  const productIds = count.items.map((i) => i.productId);
+  const productIds = count.items.map((i: typeof count.items[number]) => i.productId);
   const products = await prisma.product.findMany({
     where: { id: { in: productIds } },
     select: { id: true, name: true, sku: true, barcode: true },
   });
 
-  const productMap = new Map(products.map((p) => [p.id, p]));
+  const productMap = new Map(products.map((p: typeof products[number]) => [p.id, p]));
 
   const itemsWithProducts = count.items.map((item: typeof count.items[number]) => ({
     ...item,

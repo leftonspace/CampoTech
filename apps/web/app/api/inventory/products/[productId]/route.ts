@@ -187,7 +187,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Build update data
-    const updateData: Prisma.ProductUpdateInput = {};
+    const updateData: Record<string, unknown> = {};
 
     // Only update fields that are provided
     if (body.sku !== undefined) updateData.sku = body.sku;

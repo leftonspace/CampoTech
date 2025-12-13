@@ -63,11 +63,11 @@ export class TrackingWebSocketServer {
   }
 
   private setupServer(): void {
-    this.wss.on('connection', (socket, request) => {
+    this.wss.on('connection', (socket: WebSocket, request: IncomingMessage) => {
       this.handleConnection(socket, request);
     });
 
-    this.wss.on('error', (error) => {
+    this.wss.on('error', (error: Error) => {
       console.error('[Tracking WS] Server error:', error);
     });
   }
@@ -81,7 +81,7 @@ export class TrackingWebSocketServer {
     const requestedJobId = jobIdMatch?.[1];
 
     // Set up initial message handler for authentication
-    socket.once('message', async (data) => {
+    socket.once('message', async (data: Buffer | ArrayBuffer | Buffer[]) => {
       try {
         const message = JSON.parse(data.toString()) as WSMessage;
 

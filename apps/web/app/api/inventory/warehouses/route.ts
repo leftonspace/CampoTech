@@ -81,7 +81,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const where: Prisma.WarehouseWhereInput = {
+    const where: Record<string, unknown> = {
       organizationId: session.organizationId,
     };
 
@@ -315,7 +315,7 @@ export async function PATCH(request: NextRequest) {
       });
     }
 
-    const updateData: Prisma.WarehouseUpdateInput = {};
+    const updateData: Record<string, unknown> = {};
 
     if (body.code !== undefined) updateData.code = body.code.toUpperCase();
     if (body.name !== undefined) updateData.name = body.name;

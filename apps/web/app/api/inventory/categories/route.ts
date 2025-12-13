@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const includeInactive = searchParams.get('includeInactive') === 'true';
     const flat = searchParams.get('flat') === 'true';
 
-    const where: Prisma.ProductCategoryWhereInput = {
+    const where: Record<string, unknown> = {
       organizationId: session.organizationId,
     };
 

@@ -424,7 +424,7 @@ export class CapacityManager {
 
       const totalJobs = jobs.length;
       const completedJobs = jobs.filter(
-        (j) => j.status === JobStatus.COMPLETED
+        (j: typeof jobs[number]) => j.status === JobStatus.COMPLETED
       ).length;
 
       // Count jobs per day

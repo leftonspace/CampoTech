@@ -106,7 +106,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const { name, description, type, price, unit, taxRate, isActive } = body;
 
     // Build update data
-    const updateData: Prisma.PriceItemUpdateInput = {};
+    const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (type !== undefined) updateData.type = type.toUpperCase() as 'SERVICE' | 'PRODUCT';

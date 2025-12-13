@@ -147,7 +147,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build where clause for main list
-    const where: Prisma.ProductWhereInput = {
+    const where: Record<string, unknown> = {
       organizationId: session.organizationId,
     };
 
@@ -176,7 +176,7 @@ export async function GET(request: NextRequest) {
     const total = await prisma.product.count({ where });
 
     // Build orderBy
-    const orderBy: Prisma.ProductOrderByWithRelationInput = {};
+    const orderBy: Record<string, unknown> = {};
     if (sortBy === 'name') {
       orderBy.name = sortOrder as 'asc' | 'desc';
     } else if (sortBy === 'sku') {

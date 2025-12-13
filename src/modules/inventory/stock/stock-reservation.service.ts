@@ -183,7 +183,7 @@ export async function fulfillReservation(
   }
 
   // Update in transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: typeof prisma) => {
     // Update reservation status
     const updated = await tx.stockReservation.update({
       where: { id: reservationId },
@@ -244,7 +244,7 @@ export async function cancelReservation(
   }
 
   // Update in transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: typeof prisma) => {
     // Update reservation status
     const updated = await tx.stockReservation.update({
       where: { id: reservationId },
@@ -344,7 +344,7 @@ export async function updateReservationQuantity(
   }
 
   // Update in transaction
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await prisma.$transaction(async (tx: typeof prisma) => {
     const updated = await tx.stockReservation.update({
       where: { id: reservationId },
       data: { quantity: newQuantity },

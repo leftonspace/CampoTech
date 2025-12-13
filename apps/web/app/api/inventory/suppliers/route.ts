@@ -87,9 +87,9 @@ export async function GET(request: NextRequest) {
       });
 
       const totalOrders = orders.length;
-      const completedOrders = orders.filter((o) => o.status === 'RECEIVED').length;
+      const completedOrders = orders.filter((o: typeof orders[number]) => o.status === 'RECEIVED').length;
       const onTimeOrders = orders.filter(
-        (o) =>
+        (o: typeof orders[number]) =>
           o.status === 'RECEIVED' &&
           o.receivedDate &&
           o.expectedDate &&
@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build where clause for list
-    const where: Prisma.SupplierWhereInput = {
+    const where: Record<string, unknown> = {
       organizationId: session.organizationId,
     };
 
@@ -387,7 +387,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updateData: Prisma.SupplierUpdateInput = {};
+    const updateData: Record<string, unknown> = {};
 
     if (body.code !== undefined) updateData.code = body.code.toUpperCase();
     if (body.name !== undefined) updateData.name = body.name;

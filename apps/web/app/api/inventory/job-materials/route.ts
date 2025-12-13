@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
       const profitMargin = total > 0 ? (profit / total) * 100 : 0;
 
       const hasPendingMaterials = materials.some(
-        (m) => m.estimatedQty > m.usedQty + m.returnedQty
+        (m: typeof materials[number]) => m.estimatedQty > m.usedQty + m.returnedQty
       );
 
       return NextResponse.json({

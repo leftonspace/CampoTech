@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type');
     const activeOnly = searchParams.get('activeOnly') !== 'false';
 
-    const where: Prisma.PriceItemWhereInput = {
+    const where: Record<string, unknown> = {
       organizationId: session.organizationId,
     };
 
