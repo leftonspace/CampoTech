@@ -130,21 +130,21 @@ export {
 
 // Dimension Tables
 export {
-  getCustomerDimensionById,
-  getAllCustomerDimensions,
-  getTechnicianDimensionById,
-  getAllTechnicianDimensions,
-  getServiceDimensionByType,
-  getAllServiceDimensions,
-  getLocationDimensionById,
-  getAllLocationDimensions,
-  getTimeDimension,
+  generateTimeDimension,
+  getTimeDimensionForDate,
+  getCustomerDimension,
+  getCustomerById,
+  getCustomersBySegment,
+  getTechnicianDimension,
+  getTechnicianById,
+  getTechniciansByEfficiency,
+  getServiceDimension,
+  getServiceByType,
+  getLocationDimension,
   refreshAllDimensions,
-  type CachedCustomerDimension,
-  type CachedTechnicianDimension,
-  type CachedServiceDimension,
-  type CachedLocationDimension,
-  type TimeDimension,
+  clearDimensionCache,
+  type LocationDimension,
+  type DimensionRefreshResult,
 } from './models/dimension-tables';
 
 // Fact Tables
