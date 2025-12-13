@@ -30,7 +30,14 @@
     },
     "typeRoots": ["./node_modules/@types", "../../node_modules/@types"]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "../../src/**/*.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "../../src/integrations/whatsapp/**/*.ts",
+    "../../src/modules/whatsapp/**/*.ts"
+  ],
   "exclude": [
     "node_modules",
     "dist",
