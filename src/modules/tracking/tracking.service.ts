@@ -98,7 +98,7 @@ export async function createTrackingSession(
       destinationLat: destination?.lat,
       destinationLng: destination?.lng,
       destinationAddress: formatAddress(job.address as any),
-      status: 'active',
+      status: 'ACTIVE',
       startedAt: new Date(),
     },
   });
@@ -166,7 +166,7 @@ export async function markArrived(sessionId: string): Promise<void> {
   await db.trackingSession.update({
     where: { id: sessionId },
     data: {
-      status: 'arrived',
+      status: 'ARRIVED',
       arrivedAt: new Date(),
     },
   });
@@ -179,9 +179,9 @@ export async function markArrived(sessionId: string): Promise<void> {
  */
 export async function completeSession(jobId: string): Promise<void> {
   await db.trackingSession.updateMany({
-    where: { jobId, status: { in: ['active', 'arrived'] } },
+    where: { jobId, status: { in: ['ACTIVE', 'ARRIVED'] } },
     data: {
-      status: 'completed',
+      status: 'COMPLETED',
       completedAt: new Date(),
     },
   });
@@ -192,9 +192,9 @@ export async function completeSession(jobId: string): Promise<void> {
  */
 export async function cancelSession(jobId: string): Promise<void> {
   await db.trackingSession.updateMany({
-    where: { jobId, status: 'active' },
+    where: { jobId, status: 'ACTIVE' },
     data: {
-      status: 'cancelled',
+      status: 'CANCELLED',
       completedAt: new Date(),
     },
   });
@@ -414,7 +414,7 @@ async function checkArrival(sessionId: string, lat: number, lng: number): Promis
   );
 
   // Consider arrived if within 100 meters
-  if (distance <= 0.1 && session.status === 'active') {
+  if (distance <= 0.1 && session.status === 'ACTIVE') {
     await markArrived(sessionId);
   }
 }
