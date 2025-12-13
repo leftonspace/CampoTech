@@ -63,7 +63,7 @@ export async function calculateMRR(
         gte: threeMonthsAgo,
         lte: referenceDate,
       },
-      status: { in: ['paid', 'partial'] },
+      status: 'PAID',
     },
     include: {
       customer: true,
