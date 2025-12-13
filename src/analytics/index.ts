@@ -21,9 +21,8 @@ export {
   getJobFacts,
   getInvoiceFacts,
   getPaymentFacts,
-  getCustomerDimension,
-  getTechnicianDimension,
-  getServiceDimension,
+  // Note: getCustomerDimension, getTechnicianDimension, getServiceDimension
+  // are exported from ./models/dimension-tables to avoid duplicates
   getAggregatedRevenue,
   getAggregatedJobs,
 } from './infrastructure/data-warehouse';
