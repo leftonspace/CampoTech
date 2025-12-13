@@ -5,8 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+import { prisma, TransactionClient } from '@/lib/prisma';
 
 /**
  * GET /api/inventory/purchase-orders
@@ -267,7 +266,7 @@ export async function POST(request: NextRequest) {
 
       const hasVariance = receivingItems.some((item: typeof receivingItems[number]) => item.quantityExpected !== item.quantityReceived);
 
-      await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      await prisma.$transaction(async (tx: TransactionClient) => {
         // Create receiving record
         await tx.purchaseReceiving.create({
           data: {

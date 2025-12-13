@@ -247,7 +247,7 @@ export class WhatsAppClient {
     filename: string
   ): Promise<MediaUploadResponse> {
     const formData = new FormData();
-    formData.append('file', new Blob([file], { type: mimeType }), filename);
+    formData.append('file', new Blob([new Uint8Array(file)], { type: mimeType }), filename);
     formData.append('messaging_product', 'whatsapp');
     formData.append('type', mimeType);
 
@@ -273,10 +273,10 @@ export class WhatsAppClient {
    * Download media content
    */
   async downloadMedia(mediaUrl: string): Promise<Buffer> {
-    const response = await axios.get(mediaUrl, {
+    const response = await this.client.get(mediaUrl, {
       responseType: 'arraybuffer',
       headers: {
-        Authorization: this.client.defaults.headers.Authorization,
+        Authorization: this.client.defaults.headers.Authorization as string,
       },
     });
     return Buffer.from(response.data);

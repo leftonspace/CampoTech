@@ -53,7 +53,7 @@ export function extractAudioInfo(message: InboundMessage): AudioMessageInfo | nu
     id: message.audio.id,
     mimeType: message.audio.mimeType || 'audio/ogg',
     sha256: message.audio.sha256,
-    voice: message.audio.voice,
+    voice: (message.audio as { voice?: boolean }).voice,
   };
 }
 
@@ -61,7 +61,7 @@ export function extractAudioInfo(message: InboundMessage): AudioMessageInfo | nu
  * Check if message is a voice message (vs audio file)
  */
 export function isVoiceMessage(message: InboundMessage): boolean {
-  return message.type === 'audio' && (message.audio?.voice === true || false);
+  return message.type === 'audio' && ((message.audio as { voice?: boolean })?.voice === true || false);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

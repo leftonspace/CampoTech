@@ -127,7 +127,7 @@ export class MessageAggregatorService {
         if (triggerResult.shouldTrigger) {
           // Process immediately
           await this.clearBuffer(bufferKey);
-          return this.processBuffer(organizationId, phone, existingBuffer, triggerResult.reason);
+          return this.processBuffer(organizationId, phone, existingBuffer, triggerResult.reason ?? 'unknown');
         }
 
         // Update buffer and reset timer
@@ -148,7 +148,7 @@ export class MessageAggregatorService {
       const triggerResult = this.checkTrigger(newBuffer);
 
       if (triggerResult.shouldTrigger) {
-        return this.processBuffer(organizationId, phone, newBuffer, triggerResult.reason);
+        return this.processBuffer(organizationId, phone, newBuffer, triggerResult.reason ?? 'unknown');
       }
 
       // Save buffer with TTL

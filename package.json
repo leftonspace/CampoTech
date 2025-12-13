@@ -31,7 +31,8 @@
   "dependencies": {
     "bullmq": "^4.0.0",
     "ioredis": "^5.0.0",
-    "pg": "^8.0.0"
+    "pg": "^8.0.0",
+    "pusher": "^5.2.0"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

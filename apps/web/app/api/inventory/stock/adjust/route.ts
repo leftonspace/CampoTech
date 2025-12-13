@@ -5,8 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+import { prisma, TransactionClient } from '@/lib/prisma';
 
 /**
  * POST /api/inventory/stock/adjust
@@ -126,7 +125,7 @@ export async function POST(request: NextRequest) {
     const movementNumber = `ADJ-${datePrefix}-${(count + 1).toString().padStart(4, '0')}`;
 
     // Perform adjustment in transaction
-    const result = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const result = await prisma.$transaction(async (tx: TransactionClient) => {
       // Update or create inventory level
       if (inventoryLevel) {
         inventoryLevel = await tx.inventoryLevel.update({
