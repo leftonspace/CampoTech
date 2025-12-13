@@ -384,7 +384,7 @@ async function recalculateOrderTotals(orderId: string): Promise<void> {
   let subtotal = 0;
   let taxAmount = 0;
 
-  for (const item of items) {
+  for (const item of items as typeof items) {
     const discount = Number(item.discount);
     const taxRate = Number(item.taxRate);
     const lineSubtotal = item.quantity * Number(item.unitPrice) * (1 - discount / 100);
@@ -502,7 +502,7 @@ export async function markAsSent(
     where: { purchaseOrderId: orderId },
   });
 
-  for (const item of items) {
+  for (const item of items as typeof items) {
     await prisma.inventoryLevel.updateMany({
       where: {
         organizationId,
@@ -541,7 +541,7 @@ export async function cancelPurchaseOrder(
 
   // If order was sent, reduce on order quantities
   if (['SENT', 'PARTIAL'].includes(order.status)) {
-    for (const item of order.items) {
+    for (const item of order.items as typeof order.items) {
       const pendingQty = item.quantity - item.quantityReceived;
       if (pendingQty > 0) {
         await prisma.inventoryLevel.updateMany({
@@ -680,10 +680,10 @@ export async function getPurchasingStats(
   });
 
   const totalOrders = orders.length;
-  const pendingOrders = orders.filter((o) =>
+  const pendingOrders = orders.filter((o: typeof orders[number]) =>
     ['DRAFT', 'PENDING', 'APPROVED', 'SENT', 'PARTIAL'].includes(o.status)
   ).length;
-  const totalValue = orders.reduce((sum, o) => sum + Number(o.total), 0);
+  const totalValue = orders.reduce((sum: number, o: typeof orders[number]) => sum + Number(o.total), 0);
   const averageOrderValue = totalOrders > 0 ? totalValue / totalOrders : 0;
 
   // By status
@@ -697,7 +697,7 @@ export async function getPurchasingStats(
     CANCELLED: 0,
   };
 
-  for (const order of orders) {
+  for (const order of orders as typeof orders) {
     byStatus[order.status as POStatus]++;
   }
 
@@ -716,13 +716,13 @@ export async function getPurchasingStats(
   }
 
   const topSuppliers = (Object.entries(supplierTotals) as [string, { name: string; count: number; value: number }][])
-    .map(([supplierId, data]) => ({
+    .map(([supplierId, data]: [string, { name: string; count: number; value: number }]) => ({
       supplierId,
       supplierName: data.name,
       orderCount: data.count,
       totalValue: data.value,
     }))
-    .sort((a, b) => b.totalValue - a.totalValue)
+    .sort((a: { totalValue: number }, b: { totalValue: number }) => b.totalValue - a.totalValue)
     .slice(0, 5);
 
   return {

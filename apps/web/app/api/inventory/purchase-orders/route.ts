@@ -267,7 +267,7 @@ export async function POST(request: NextRequest) {
 
       const hasVariance = receivingItems.some((item: typeof receivingItems[number]) => item.quantityExpected !== item.quantityReceived);
 
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: typeof prisma) => {
         // Create receiving record
         await tx.purchaseReceiving.create({
           data: {
@@ -282,7 +282,7 @@ export async function POST(request: NextRequest) {
 
         // Process each received item
         for (const item of items) {
-          const orderItem = order.items.find((i) => i.id === item.itemId);
+          const orderItem = order.items.find((i: typeof order.items[number]) => i.id === item.itemId);
           if (!orderItem) continue;
 
           const receivedQty = parseInt(item.quantity, 10);
@@ -357,8 +357,9 @@ export async function POST(request: NextRequest) {
           include: { items: true },
         });
 
-        const allReceived = updatedOrder?.items.every((i: typeof updatedOrder.items[number]) => i.quantityReceived >= i.quantity);
-        const anyReceived = updatedOrder?.items.some((i: typeof updatedOrder.items[number]) => i.quantityReceived > 0);
+        type UpdatedOrderItem = typeof updatedOrder.items[number];
+        const allReceived = updatedOrder?.items.every((i: UpdatedOrderItem) => i.quantityReceived >= i.quantity);
+        const anyReceived = updatedOrder?.items.some((i: UpdatedOrderItem) => i.quantityReceived > 0);
 
         let newStatus = order.status;
         if (allReceived) {

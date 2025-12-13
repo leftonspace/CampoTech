@@ -154,12 +154,12 @@ export async function GET(request: NextRequest) {
 
     // Calculate distances and filter
     const techniciansWithDistance = technicians
-      .map((tech) => {
+      .map((tech: typeof technicians[number]) => {
         const location = tech.currentLocation;
         const isOnline = location && location.lastSeen > onlineThreshold;
         const isAvailable = tech.assignedJobs.length === 0;
         const isBusy = tech.assignedJobs.some(
-          (j) => j.status === 'EN_ROUTE' || j.status === 'IN_PROGRESS'
+          (j: typeof tech.assignedJobs[number]) => j.status === 'EN_ROUTE' || j.status === 'IN_PROGRESS'
         );
 
         // Skip if we want available only and technician is busy
@@ -197,7 +197,7 @@ export async function GET(request: NextRequest) {
         };
       })
       .filter(Boolean)
-      .sort((a, b) => {
+      .sort((a: typeof technicians[number], b: typeof technicians[number]) => {
         // Sort by availability first, then by distance
         if (a!.isAvailable !== b!.isAvailable) {
           return a!.isAvailable ? -1 : 1;

@@ -52,7 +52,7 @@ export async function GET(
     const now = new Date();
     const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    const documentsWithStatus = documents.map((doc) => {
+    const documentsWithStatus = documents.map((doc: typeof documents[number]) => {
       let expiryStatus: 'valid' | 'expiring_soon' | 'expired' | 'no_expiry' = 'no_expiry';
 
       if (doc.expiryDate) {

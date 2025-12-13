@@ -552,11 +552,11 @@ export async function getAllEmailTemplates(organizationId: string): Promise<Emai
     where: { organizationId },
   });
 
-  const customTypes = new Set(customTemplates.map((t) => t.type));
+  const customTypes = new Set(customTemplates.map((t: typeof customTemplates[number]) => t.type));
   const allTemplates: EmailTemplate[] = [];
 
   // Add custom templates
-  for (const t of customTemplates) {
+  for (const t of customTemplates as typeof customTemplates) {
     allTemplates.push({
       id: t.id,
       organizationId: t.organizationId,
@@ -572,7 +572,7 @@ export async function getAllEmailTemplates(organizationId: string): Promise<Emai
   }
 
   // Add defaults for missing types
-  for (const [type, defaultTemplate] of Object.entries(DEFAULT_TEMPLATES)) {
+  for (const [type, defaultTemplate] of Object.entries(DEFAULT_TEMPLATES) as [EmailTemplateType, { subject: string; htmlBody: string; textBody: string }][]) {
     if (!customTypes.has(type)) {
       allTemplates.push({
         id: `default-${type}`,
@@ -609,7 +609,7 @@ function extractVariables(template: string): string[] {
  * Simple template interpolation
  */
 function interpolate(template: string, context: Record<string, any>): string {
-  return template.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+  return template.replace(/\{\{(\w+)\}\}/g, (match: string, key: string) => {
     return context[key] !== undefined ? String(context[key]) : match;
   });
 }

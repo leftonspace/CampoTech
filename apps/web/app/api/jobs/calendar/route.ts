@@ -238,7 +238,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Calendar jobs error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Calendar jobs error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error obteniendo trabajos' },
       { status: 500 }

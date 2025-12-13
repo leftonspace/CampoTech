@@ -113,7 +113,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Jobs list error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Jobs list error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error fetching jobs' },
       { status: 500 }
@@ -222,7 +223,8 @@ export async function POST(request: NextRequest) {
       data: job,
     });
   } catch (error) {
-    console.error('Create job error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Create job error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error creating job' },
       { status: 500 }

@@ -77,9 +77,9 @@ export async function GET(request: NextRequest) {
       }
 
       // Calculate totals
-      const totalOnHand = filteredLevels.reduce((sum, l) => sum + l.quantityOnHand, 0);
-      const totalReserved = filteredLevels.reduce((sum, l) => sum + l.quantityReserved, 0);
-      const totalAvailable = filteredLevels.reduce((sum, l) => sum + l.quantityAvailable, 0);
+      const totalOnHand = filteredLevels.reduce((sum: number, l: typeof filteredLevels[number]) => sum + l.quantityOnHand, 0);
+      const totalReserved = filteredLevels.reduce((sum: number, l: typeof filteredLevels[number]) => sum + l.quantityReserved, 0);
+      const totalAvailable = filteredLevels.reduce((sum: number, l: typeof filteredLevels[number]) => sum + l.quantityAvailable, 0);
 
       return NextResponse.json({
         success: true,
@@ -240,9 +240,9 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      const totalReserved = reservations.reduce((sum, r) => sum + r.quantity, 0);
+      const totalReserved = reservations.reduce((sum: number, r: typeof reservations[number]) => sum + r.quantity, 0);
       const reservedValue = reservations.reduce(
-        (sum, r) => sum + r.quantity * Number(r.product.salePrice),
+        (sum: number, r: typeof reservations[number]) => sum + r.quantity * Number(r.product.salePrice),
         0
       );
 
@@ -629,7 +629,7 @@ export async function POST(request: NextRequest) {
           totalItems: products.length,
           notes,
           items: {
-            create: products.map((product) => ({
+            create: products.map((product: typeof products[number]) => ({
               productId: product.id,
               expectedQty: product.inventoryLevels[0]?.quantityOnHand || 0,
             })),

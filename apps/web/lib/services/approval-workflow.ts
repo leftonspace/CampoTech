@@ -145,7 +145,7 @@ export class ApprovalWorkflowService {
         ORDER BY pa.requested_at DESC
       `;
 
-      return result.map(row => this.mapToApproval(row));
+      return result.map((row: typeof result[number]) => this.mapToApproval(row));
     } catch (error) {
       console.error('Error getting pending approvals:', error);
       return [];
@@ -308,7 +308,7 @@ export class ApprovalWorkflowService {
         ORDER BY pa.requested_at DESC
       `;
 
-      return result.map(row => this.mapToApproval(row));
+      return result.map((row: typeof result[number]) => this.mapToApproval(row));
     } catch (error) {
       console.error('Error getting entity approval history:', error);
       return [];
@@ -398,7 +398,7 @@ export class ApprovalWorkflowService {
       });
 
       // Create notifications for each owner
-      for (const owner of owners) {
+      for (const owner of owners as typeof owners) {
         await prisma.$executeRaw`
           INSERT INTO user_notifications (
             user_id, org_id, type, title, message, reference_type, reference_id, action_url

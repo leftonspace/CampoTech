@@ -318,7 +318,7 @@ export function subscribeToStockAlerts(
   );
 
   return () => {
-    unsubscribers.forEach((unsub) => unsub());
+    unsubscribers.forEach((unsub: typeof unsubscribers[number]) => unsub());
   };
 }
 

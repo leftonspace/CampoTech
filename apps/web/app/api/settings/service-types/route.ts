@@ -93,7 +93,8 @@ export async function GET(request: NextRequest) {
       data: serviceTypes,
     });
   } catch (error) {
-    console.error('Get service types error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Get service types error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error obteniendo tipos de servicio' },
       { status: 500 }
@@ -189,7 +190,8 @@ export async function POST(request: NextRequest) {
       throw createError;
     }
   } catch (error) {
-    console.error('Create service type error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Create service type error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error creando tipo de servicio' },
       { status: 500 }

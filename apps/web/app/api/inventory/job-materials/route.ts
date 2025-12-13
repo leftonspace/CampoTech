@@ -295,7 +295,7 @@ export async function GET(request: NextRequest) {
               totalRevenue: data.revenue,
               jobCount: data.jobs.size,
             }))
-            .sort((a: { productId: string; productName: string; quantityUsed: number; totalCost: number; totalRevenue: number; jobCount: number }, b: { productId: string; productName: string; quantityUsed: number; totalCost: number; totalRevenue: number; jobCount: number }) => b.totalRevenue - a.totalRevenue),
+            .sort((a, b) => b.totalRevenue - a.totalRevenue),
           byTechnician: Object.entries(byTechnician)
             .map(([technicianId, data]: [string, typeof byTechnician[string]]) => ({
               technicianId,
@@ -305,7 +305,7 @@ export async function GET(request: NextRequest) {
               totalRevenue: data.revenue,
               jobCount: data.jobs.size,
             }))
-            .sort((a: { technicianId: string; technicianName: string; totalMaterials: number; totalCost: number; totalRevenue: number; jobCount: number }, b: { technicianId: string; technicianName: string; totalMaterials: number; totalCost: number; totalRevenue: number; jobCount: number }) => b.totalRevenue - a.totalRevenue),
+            .sort((a, b) => b.totalRevenue - a.totalRevenue),
         },
       });
     }

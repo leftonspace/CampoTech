@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
 
     const activeTechnicians = technicians.length;
     const totalJobs = jobs.length;
-    const completedJobs = jobs.filter((j) => j.status === 'COMPLETED').length;
+    const completedJobs = jobs.filter((j: typeof jobs[number]) => j.status === 'COMPLETED').length;
     const avgJobsPerTech = activeTechnicians > 0 ? totalJobs / activeTechnicians : 0;
 
     // Calculate per-technician stats
@@ -100,10 +100,11 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    type TechPerformance = typeof technicianPerformance[number];
     const topTechnicians = [...technicianPerformance]
-      .sort((a: typeof technicianPerformance[number], b: typeof technicianPerformance[number]) => b.completedJobs - a.completedJobs)
+      .sort((a: TechPerformance, b: TechPerformance) => b.completedJobs - a.completedJobs)
       .slice(0, 10)
-      .map((tech: typeof technicianPerformance[number]) => ({
+      .map((tech: TechPerformance) => ({
         id: tech.id,
         name: tech.name,
         value: tech.completedJobs,
@@ -120,7 +121,7 @@ export async function GET(req: NextRequest) {
         utilization: { value: 0, change: 0 },
       },
       topTechnicians,
-      technicianPerformance: technicianPerformance.sort((a: typeof technicianPerformance[number], b: typeof technicianPerformance[number]) => b.completedJobs - a.completedJobs),
+      technicianPerformance: technicianPerformance.sort((a: TechPerformance, b: TechPerformance) => b.completedJobs - a.completedJobs),
       performanceTrend: [],
       workloadDistribution: [],
       ratingDistribution: [],

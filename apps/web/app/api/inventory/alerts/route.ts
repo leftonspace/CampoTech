@@ -165,7 +165,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Inventory alerts error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Inventory alerts error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error obteniendo alertas de inventario' },
       { status: 500 }

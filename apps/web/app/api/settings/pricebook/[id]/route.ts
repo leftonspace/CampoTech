@@ -73,7 +73,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    console.error('Get price item error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Get price item error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error obteniendo item' },
       { status: 500 }
@@ -161,7 +162,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    console.error('Update price item error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Update price item error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error actualizando item' },
       { status: 500 }
@@ -225,7 +227,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: 'Item eliminado exitosamente',
     });
   } catch (error) {
-    console.error('Delete price item error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Delete price item error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error eliminando item' },
       { status: 500 }

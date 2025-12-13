@@ -92,7 +92,8 @@ export async function GET(request: NextRequest) {
       data: transformedItems,
     });
   } catch (error) {
-    console.error('Get pricebook error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Get pricebook error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error obteniendo lista de precios' },
       { status: 500 }
@@ -171,7 +172,8 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Create price item error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Create price item error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error creando item de precio' },
       { status: 500 }

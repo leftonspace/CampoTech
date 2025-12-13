@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
 
     // Filter by low stock if requested
     const filteredItems = lowStock
-      ? itemsWithTotals.filter((item) => item.isLowStock)
+      ? itemsWithTotals.filter((item: typeof itemsWithTotals[number]) => item.isLowStock)
       : itemsWithTotals;
 
     // Calculate stats

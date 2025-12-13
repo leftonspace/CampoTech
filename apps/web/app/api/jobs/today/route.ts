@@ -59,11 +59,11 @@ export async function GET(request: NextRequest) {
     // Get summary stats
     const summary = {
       total: jobs.length,
-      pending: jobs.filter((j) => j.status === 'PENDING').length,
-      assigned: jobs.filter((j) => j.status === 'ASSIGNED').length,
-      enRoute: jobs.filter((j) => j.status === 'EN_ROUTE').length,
-      inProgress: jobs.filter((j) => j.status === 'IN_PROGRESS').length,
-      completed: jobs.filter((j) => j.status === 'COMPLETED').length,
+      pending: jobs.filter((j: typeof jobs[number]) => j.status === 'PENDING').length,
+      assigned: jobs.filter((j: typeof jobs[number]) => j.status === 'ASSIGNED').length,
+      enRoute: jobs.filter((j: typeof jobs[number]) => j.status === 'EN_ROUTE').length,
+      inProgress: jobs.filter((j: typeof jobs[number]) => j.status === 'IN_PROGRESS').length,
+      completed: jobs.filter((j: typeof jobs[number]) => j.status === 'COMPLETED').length,
     };
 
     return NextResponse.json({

@@ -225,7 +225,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Perform transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: typeof prisma) => {
       // Decrease stock from source location
       if (fromLocationId) {
         const sourceStock = await tx.inventoryStock.findFirst({

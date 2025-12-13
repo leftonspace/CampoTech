@@ -173,7 +173,8 @@ export async function GET(request: NextRequest) {
       _fieldMeta: fieldMeta,
     });
   } catch (error) {
-    console.error('Get vehicles error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Get vehicles error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error obteniendo vehículos' },
       { status: 500 }
@@ -277,7 +278,8 @@ export async function POST(request: NextRequest) {
         { status: 503 }
       );
     }
-    console.error('Create vehicle error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Create vehicle error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error creando vehículo' },
       { status: 500 }

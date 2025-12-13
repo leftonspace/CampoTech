@@ -358,7 +358,7 @@ export class CapacityManager {
     let totalCapacity = 0;
     let totalScheduled = 0;
 
-    for (const location of locations) {
+    for (const location of locations as typeof locations) {
       const capacity = await this.getLocationCapacity(organizationId, location.id, date);
       locationCapacities.push(capacity);
       totalCapacity += capacity.maxJobsPerDay;
@@ -406,7 +406,7 @@ export class CapacityManager {
       (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
     );
 
-    for (const location of locations) {
+    for (const location of locations as typeof locations) {
       const jobs = await this.prisma.job.findMany({
         where: {
           locationId: location.id,
@@ -429,7 +429,7 @@ export class CapacityManager {
 
       // Count jobs per day
       const jobsByDay = new Map<string, number>();
-      for (const job of jobs) {
+      for (const job of jobs as typeof jobs) {
         if (job.scheduledDate) {
           const dayKey = job.scheduledDate.toISOString().split('T')[0];
           jobsByDay.set(dayKey, (jobsByDay.get(dayKey) || 0) + 1);
@@ -440,9 +440,9 @@ export class CapacityManager {
       const avgJobsPerDay = totalJobs / daysDiff;
 
       // Find peak and low days
-      const sortedDays = dailyCounts.sort((a, b) => b[1] - a[1]);
-      const peakDays = sortedDays.slice(0, 3).map(([day]) => new Date(day));
-      const lowDays = sortedDays.slice(-3).map(([day]) => new Date(day));
+      const sortedDays = dailyCounts.sort((a: [string, number], b: [string, number]) => b[1] - a[1]);
+      const peakDays = sortedDays.slice(0, 3).map(([day]: [string, number]) => new Date(day));
+      const lowDays = sortedDays.slice(-3).map(([day]: [string, number]) => new Date(day));
 
       locationStats.push({
         locationId: location.id,
@@ -588,8 +588,8 @@ export class CapacityManager {
     const slots = DEFAULT_TIME_SLOTS;
     const maxJobsPerSlot = Math.max(1, Math.ceil(technicianCount * 0.8));
 
-    return slots.map((slot) => {
-      const scheduledInSlot = jobs.filter((job) => {
+    return slots.map((slot: typeof slots[number]) => {
+      const scheduledInSlot = jobs.filter((job: typeof jobs[number]) => {
         const timeSlot = job.scheduledTimeSlot as { start?: string; end?: string } | null;
         return timeSlot?.start === slot.start;
       }).length;
@@ -611,7 +611,7 @@ export class CapacityManager {
   ): Promise<CapacityBottleneck[]> {
     const bottlenecks: CapacityBottleneck[] = [];
 
-    for (const capacity of capacities) {
+    for (const capacity of capacities as typeof capacities) {
       // Over capacity
       if (capacity.isOverCapacity) {
         bottlenecks.push({
@@ -659,9 +659,9 @@ export class CapacityManager {
   private calculateSlotVariance(slots: TimeSlotCapacity[]): number {
     if (slots.length === 0) return 0;
 
-    const avg = slots.reduce((sum, s) => sum + s.scheduledJobs, 0) / slots.length;
+    const avg = slots.reduce((sum: number, s: typeof slots[number]) => sum + s.scheduledJobs, 0) / slots.length;
     const variance =
-      slots.reduce((sum, s) => sum + Math.pow(s.scheduledJobs - avg, 2), 0) /
+      slots.reduce((sum: number, s: typeof slots[number]) => sum + Math.pow(s.scheduledJobs - avg, 2), 0) /
       slots.length;
 
     return Math.sqrt(variance) / (avg || 1);
@@ -681,8 +681,8 @@ export class CapacityManager {
       recommendations.push('Low overall utilization - review marketing or consolidate resources');
     }
 
-    const overCapacity = capacities.filter((c) => c.isOverCapacity);
-    const underUtilized = capacities.filter((c) => c.utilizationRate < 0.3);
+    const overCapacity = capacities.filter((c: typeof capacities[number]) => c.isOverCapacity);
+    const underUtilized = capacities.filter((c: typeof capacities[number]) => c.utilizationRate < 0.3);
 
     if (overCapacity.length > 0 && underUtilized.length > 0) {
       recommendations.push(
@@ -700,14 +700,14 @@ export class CapacityManager {
 
     // Sort by average jobs per day
     const sorted = [...locationStats].sort(
-      (a, b) => b.averageJobsPerDay - a.averageJobsPerDay
+      (a: typeof locationStats[number], b: typeof locationStats[number]) => b.averageJobsPerDay - a.averageJobsPerDay
     );
 
-    const overloaded = sorted.filter((l) => l.averageJobsPerDay > sorted[0].averageJobsPerDay * 0.8);
-    const underloaded = sorted.filter((l) => l.averageJobsPerDay < sorted[0].averageJobsPerDay * 0.3);
+    const overloaded = sorted.filter((l: typeof sorted[number]) => l.averageJobsPerDay > sorted[0].averageJobsPerDay * 0.8);
+    const underloaded = sorted.filter((l: typeof sorted[number]) => l.averageJobsPerDay < sorted[0].averageJobsPerDay * 0.3);
 
-    for (const from of overloaded) {
-      for (const to of underloaded) {
+    for (const from of overloaded as typeof overloaded) {
+      for (const to of underloaded as typeof underloaded) {
         const transferCount = Math.floor(
           (from.averageJobsPerDay - to.averageJobsPerDay) / 2
         );

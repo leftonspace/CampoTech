@@ -179,7 +179,7 @@ export class DocumentVersioningService {
         ORDER BY version_number DESC
       `;
 
-      return result.map(doc => this.mapToDocumentVersion(doc));
+      return result.map((doc: typeof result[number]) => this.mapToDocumentVersion(doc));
     } catch (error) {
       console.error('Error getting document history:', error);
       return [];
@@ -206,7 +206,7 @@ export class DocumentVersioningService {
         ORDER BY document_type
       `;
 
-      return result.map(doc => this.mapToDocumentVersion(doc));
+      return result.map((doc: typeof result[number]) => this.mapToDocumentVersion(doc));
     } catch (error) {
       console.error('Error getting all documents:', error);
       return [];
@@ -243,7 +243,7 @@ export class DocumentVersioningService {
         ORDER BY dv.expires_at ASC
       `;
 
-      return result.map(doc => this.mapToDocumentVersion(doc));
+      return result.map((doc: typeof result[number]) => this.mapToDocumentVersion(doc));
     } catch (error) {
       console.error('Error getting expiring documents:', error);
       return [];
@@ -272,7 +272,7 @@ export class DocumentVersioningService {
         ORDER BY dv.expires_at DESC
       `;
 
-      return result.map(doc => this.mapToDocumentVersion(doc));
+      return result.map((doc: typeof result[number]) => this.mapToDocumentVersion(doc));
     } catch (error) {
       console.error('Error getting expired documents:', error);
       return [];

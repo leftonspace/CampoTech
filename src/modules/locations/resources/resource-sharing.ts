@@ -542,10 +542,10 @@ export class ResourceSharingService {
 
     // Count by status
     const activeShares = transfers.filter(
-      (t) => t.status === TransferStatus.APPROVED
+      (t: typeof transfers[number]) => t.status === TransferStatus.APPROVED
     ).length;
     const completedShares = transfers.filter(
-      (t) => t.status === TransferStatus.COMPLETED
+      (t: typeof transfers[number]) => t.status === TransferStatus.COMPLETED
     ).length;
 
     // Count by resource type
@@ -674,16 +674,16 @@ export class ResourceSharingService {
     });
 
     const borrowedTechnicians = borrowedTransfers.filter(
-      (t) => t.transferType === TransferType.TECHNICIAN_LOAN
+      (t: typeof borrowedTransfers[number]) => t.transferType === TransferType.TECHNICIAN_LOAN
     ).length;
     const borrowedEquipment = borrowedTransfers.filter(
-      (t) => t.transferType === TransferType.EQUIPMENT_LOAN
+      (t: typeof borrowedTransfers[number]) => t.transferType === TransferType.EQUIPMENT_LOAN
     ).length;
     const lentTechnicians = lentTransfers.filter(
-      (t) => t.transferType === TransferType.TECHNICIAN_LOAN
+      (t: typeof lentTransfers[number]) => t.transferType === TransferType.TECHNICIAN_LOAN
     ).length;
     const lentEquipment = lentTransfers.filter(
-      (t) => t.transferType === TransferType.EQUIPMENT_LOAN
+      (t: typeof lentTransfers[number]) => t.transferType === TransferType.EQUIPMENT_LOAN
     ).length;
 
     return {

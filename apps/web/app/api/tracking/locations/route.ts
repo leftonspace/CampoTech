@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
 
     // Transform data
     const locations = technicians
-      .map((tech) => {
+      .map((tech: typeof technicians[number]) => {
         const location = tech.currentLocation;
         const isOnline = location && location.lastSeen > onlineThreshold;
 
@@ -149,10 +149,10 @@ export async function GET(request: NextRequest) {
     // Get summary stats
     const stats = {
       total: technicians.length,
-      online: locations.filter((l) => l?.isOnline).length,
-      enRoute: locations.filter((l) => l?.currentJob?.status === 'EN_ROUTE').length,
-      working: locations.filter((l) => l?.currentJob?.status === 'IN_PROGRESS').length,
-      available: locations.filter((l) => l?.isOnline && !l?.currentJob).length,
+      online: locations.filter((l: typeof locations[number]) => l?.isOnline).length,
+      enRoute: locations.filter((l: typeof locations[number]) => l?.currentJob?.status === 'EN_ROUTE').length,
+      working: locations.filter((l: typeof locations[number]) => l?.currentJob?.status === 'IN_PROGRESS').length,
+      available: locations.filter((l: typeof locations[number]) => l?.isOnline && !l?.currentJob).length,
     };
 
     return NextResponse.json({

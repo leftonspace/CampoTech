@@ -96,7 +96,8 @@ export async function GET(request: NextRequest) {
       data: { categories: rootCategories },
     });
   } catch (error) {
-    console.error('Categories list error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Categories list error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error listing categories' },
       { status: 500 }
@@ -196,7 +197,8 @@ export async function POST(request: NextRequest) {
       message: 'Categoría creada exitosamente',
     });
   } catch (error) {
-    console.error('Category creation error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Category creation error:', err.message);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
@@ -267,7 +269,8 @@ export async function PATCH(request: NextRequest) {
       message: 'Categorías actualizadas exitosamente',
     });
   } catch (error) {
-    console.error('Categories update error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Categories update error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error updating categories' },
       { status: 500 }

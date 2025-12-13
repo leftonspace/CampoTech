@@ -76,7 +76,7 @@ export async function receivePurchaseOrder(
     notes?: string;
   }> = [];
 
-  for (const item of items) {
+  for (const item of items as typeof items) {
     const orderItem = orderItemMap.get(item.productId);
     if (!orderItem) {
       throw new Error(`Producto ${item.productId} no está en la orden de compra`);
@@ -99,7 +99,7 @@ export async function receivePurchaseOrder(
 
   // Check for variance
   const hasVariance = receivingItems.some(
-    (i) => i.quantityReceived !== i.quantityExpected
+    (i: typeof receivingItems[number]) => i.quantityReceived !== i.quantityExpected
   );
 
   // Generate receiving number
@@ -119,7 +119,7 @@ export async function receivePurchaseOrder(
   });
 
   // Update PO items with received quantities
-  for (const item of receivingItems) {
+  for (const item of receivingItems as typeof receivingItems) {
     await prisma.purchaseOrderItem.updateMany({
       where: {
         purchaseOrderId,
@@ -155,7 +155,7 @@ export async function receivePurchaseOrder(
   );
 
   // Update supplier last purchase date
-  for (const item of inventoryItems) {
+  for (const item of inventoryItems as typeof inventoryItems) {
     await prisma.supplierProduct.updateMany({
       where: {
         supplierId: order.supplierId,
@@ -321,8 +321,8 @@ export async function quickReceiveOrder(
 
   // Build items to receive (all pending quantities)
   const items: ReceivingItemInput[] = order.items
-    .filter((i) => i.quantity > i.quantityReceived)
-    .map((i) => ({
+    .filter((i: typeof order.items[number]) => i.quantity > i.quantityReceived)
+    .map((i: typeof order.items[number]) => ({
       productId: i.productId,
       quantityReceived: i.quantity - i.quantityReceived,
     }));
@@ -405,13 +405,13 @@ export async function getReceivingSummary(
   }
 
   const bySupplier = (Object.entries(supplierStats) as [string, { name: string; receivingCount: number; itemCount: number }][])
-    .map(([supplierId, data]) => ({
+    .map(([supplierId, data]: [string, { name: string; receivingCount: number; itemCount: number }]) => ({
       supplierId,
       supplierName: data.name,
       receivingCount: data.receivingCount,
       itemCount: data.itemCount,
     }))
-    .sort((a, b) => b.itemCount - a.itemCount);
+    .sort((a: { itemCount: number }, b: { itemCount: number }) => b.itemCount - a.itemCount);
 
   return {
     totalReceivings: receivings.length,

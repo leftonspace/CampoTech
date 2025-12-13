@@ -85,7 +85,7 @@ export async function calculateReorderPoint(
   const stockLevels = await prisma.inventoryLevel.findMany({
     where: { productId, organizationId },
   });
-  const currentStock = stockLevels.reduce((sum, l) => sum + l.quantityAvailable, 0);
+  const currentStock = stockLevels.reduce((sum: number, l: typeof stockLevels[number]) => sum + l.quantityAvailable, 0);
 
   // Calculate average daily usage from stock movements
   const usageStartDate = new Date();
@@ -161,7 +161,7 @@ export async function getProductsAtReorderPoint(
 
   const results: ReorderPointCalculation[] = [];
 
-  for (const product of products) {
+  for (const product of products as typeof products) {
     try {
       const calc = await calculateReorderPoint(organizationId, product.id, settings);
       if (calc.isAtReorderPoint) {
@@ -173,7 +173,7 @@ export async function getProductsAtReorderPoint(
   }
 
   // Sort by priority (critical first, then by days until reorder)
-  return results.sort((a, b) => {
+  return results.sort((a: typeof results[number], b: typeof results[number]) => {
     if (a.isCritical && !b.isCritical) return -1;
     if (!a.isCritical && b.isCritical) return 1;
     return (a.daysUntilReorder || 0) - (b.daysUntilReorder || 0);
@@ -190,7 +190,7 @@ export async function generateReorderSuggestions(
   const productsAtReorder = await getProductsAtReorderPoint(organizationId, settings);
   const suggestions: ReorderSuggestion[] = [];
 
-  for (const product of productsAtReorder) {
+  for (const product of productsAtReorder as typeof productsAtReorder) {
     // Find preferred supplier
     const supplierProduct = await prisma.supplierProduct.findFirst({
       where: {
@@ -243,7 +243,7 @@ export async function generateReorderSuggestions(
 
   // Sort by priority
   const priorityOrder = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
-  return suggestions.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
+  return suggestions.sort((a: typeof suggestions[number], b: typeof suggestions[number]) => priorityOrder[a.priority] - priorityOrder[b.priority]);
 }
 
 /**
@@ -264,12 +264,12 @@ export async function autoCreatePurchaseOrders(
 
   const suggestions = await generateReorderSuggestions(organizationId);
   const filteredSuggestions = suggestions.filter(
-    s => priorityOrder[s.priority] <= minPriorityValue && s.supplierId
+    (s: typeof suggestions[number]) => priorityOrder[s.priority] <= minPriorityValue && s.supplierId
   );
 
   // Group by supplier
   const bySupplier = new Map<string, ReorderSuggestion[]>();
-  for (const suggestion of filteredSuggestions) {
+  for (const suggestion of filteredSuggestions as typeof filteredSuggestions) {
     if (suggestion.supplierId) {
       const existing = bySupplier.get(suggestion.supplierId) || [];
       existing.push(suggestion);
@@ -282,8 +282,8 @@ export async function autoCreatePurchaseOrders(
   let totalValue = 0;
 
   // Create PO for each supplier
-  for (const [supplierId, items] of bySupplier.entries()) {
-    const subtotal = items.reduce((sum, i) => sum + i.estimatedCost, 0);
+  for (const [supplierId, items] of bySupplier.entries() as IterableIterator<[string, ReorderSuggestion[]]>) {
+    const subtotal = items.reduce((sum: number, i: typeof items[number]) => sum + i.estimatedCost, 0);
 
     // Generate order number
     const lastOrder = await prisma.purchaseOrder.findFirst({
@@ -308,7 +308,7 @@ export async function autoCreatePurchaseOrders(
         totalAmount: subtotal,
         notes: 'Auto-generado por sistema de reorden automático',
         items: {
-          create: items.map(item => ({
+          create: items.map((item: typeof items[number]) => ({
             productId: item.productId,
             quantity: item.suggestedQuantity,
             receivedQty: 0,
@@ -404,9 +404,9 @@ export async function getReorderDashboard(
 }> {
   const suggestions = await generateReorderSuggestions(organizationId);
 
-  const criticalCount = suggestions.filter(s => s.priority === 'CRITICAL').length;
+  const criticalCount = suggestions.filter((s: typeof suggestions[number]) => s.priority === 'CRITICAL').length;
   const atReorderCount = suggestions.length;
-  const totalEstimatedCost = suggestions.reduce((sum, s) => sum + s.estimatedCost, 0);
+  const totalEstimatedCost = suggestions.reduce((sum: number, s: typeof suggestions[number]) => sum + s.estimatedCost, 0);
 
   return {
     criticalCount,

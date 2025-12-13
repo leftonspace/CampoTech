@@ -260,7 +260,8 @@ export function createMercadoPagoController(pool: Pool): Router {
           },
         });
       } catch (error) {
-        log.error('[Payments API] Create preference error:', { error });
+        const err = error instanceof Error ? error : new Error('Unknown error');
+        log.error('[Payments API] Create preference error:', { error: err });
         res.status(500).json({
           success: false,
           error: { code: 'SERVER_ERROR', message: 'Failed to create payment preference' },
@@ -350,7 +351,8 @@ export function createMercadoPagoController(pool: Pool): Router {
           },
         });
       } catch (error) {
-        log.error('[Payments API] Get link error:', { error });
+        const err = error instanceof Error ? error : new Error('Unknown error');
+        log.error('[Payments API] Get link error:', { error: err });
         res.status(500).json({
           success: false,
           error: { code: 'SERVER_ERROR', message: 'Failed to get payment link' },
@@ -512,7 +514,8 @@ export function createMercadoPagoController(pool: Pool): Router {
 
       res.status(200).json({ received: true, status: 'processed' });
     } catch (error) {
-      log.error('[Payments API] Webhook error:', { error });
+      const err = error instanceof Error ? error : new Error('Unknown error');
+      log.error('[Payments API] Webhook error:', { error: err });
       // Return 200 to prevent retry storms
       res.status(200).json({ received: true, error: 'Internal processing error' });
     }
@@ -644,7 +647,8 @@ export function createMercadoPagoController(pool: Pool): Router {
           },
         });
       } catch (error) {
-        log.error('[Payments API] Reconcile error:', { error });
+        const err = error instanceof Error ? error : new Error('Unknown error');
+        log.error('[Payments API] Reconcile error:', { error: err });
         res.status(500).json({
           success: false,
           error: { code: 'SERVER_ERROR', message: 'Failed to reconcile payments' },
@@ -853,7 +857,8 @@ export function createMercadoPagoController(pool: Pool): Router {
           },
         });
       } catch (error) {
-        log.error('[Payments API] MP refund error:', { error });
+        const err = error instanceof Error ? error : new Error('Unknown error');
+        log.error('[Payments API] MP refund error:', { error: err });
         res.status(500).json({
           success: false,
           error: { code: 'SERVER_ERROR', message: 'Failed to process refund' },

@@ -200,12 +200,12 @@ export async function GET(request: NextRequest) {
             ? ((totalRetailValue - totalCostValue) / totalRetailValue) * 100
             : 0,
         },
-        items: groupBy === 'product' ? items.sort((a, b) => b.costValue - a.costValue) : undefined,
+        items: groupBy === 'product' ? items.sort((a: typeof items[number], b: typeof items[number]) => b.costValue - a.costValue) : undefined,
         grouped,
         abcAnalysis: {
-          A: abcAnalysis.filter((i) => i.classification === 'A').length,
-          B: abcAnalysis.filter((i) => i.classification === 'B').length,
-          C: abcAnalysis.filter((i) => i.classification === 'C').length,
+          A: abcAnalysis.filter((i: typeof abcAnalysis[number]) => i.classification === 'A').length,
+          B: abcAnalysis.filter((i: typeof abcAnalysis[number]) => i.classification === 'B').length,
+          C: abcAnalysis.filter((i: typeof abcAnalysis[number]) => i.classification === 'C').length,
           items: abcAnalysis.slice(0, 20), // Top 20 items
         },
         generatedAt: new Date().toISOString(),

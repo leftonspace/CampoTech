@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
     const movementNumber = `TRF-${datePrefix}-${(count + 1).toString().padStart(4, '0')}`;
 
     // Perform transfer in transaction
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: typeof prisma) => {
       // Reduce source inventory
       const updatedSource = await tx.inventoryLevel.update({
         where: { id: sourceLevel.id },

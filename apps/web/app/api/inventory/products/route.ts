@@ -262,7 +262,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Products list error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Products list error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error listing products' },
       { status: 500 }
@@ -403,7 +404,8 @@ export async function POST(request: NextRequest) {
       message: 'Producto creado exitosamente',
     });
   } catch (error) {
-    console.error('Product creation error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Product creation error:', err.message);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {

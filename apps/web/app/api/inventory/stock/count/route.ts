@@ -326,7 +326,7 @@ export async function POST(request: NextRequest) {
       const today = new Date();
       const datePrefix = today.toISOString().slice(0, 10).replace(/-/g, '');
 
-      await prisma.$transaction(async (tx) => {
+      await prisma.$transaction(async (tx: typeof prisma) => {
         // Apply adjustments if requested
         if (applyAdjustments !== false) {
           let movementCount = await tx.stockMovement.count({
@@ -339,6 +339,7 @@ export async function POST(request: NextRequest) {
             },
           });
 
+          type CountItem = typeof count.items[number];
           for (const item of count.items) {
             if (item.variance && item.variance !== 0) {
               const direction = item.variance > 0 ? 'IN' : 'OUT';

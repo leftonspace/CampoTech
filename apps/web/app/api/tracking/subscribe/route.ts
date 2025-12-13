@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
 
           const onlineThreshold = new Date(Date.now() - 5 * 60 * 1000);
 
-          for (const loc of locations) {
+          for (const loc of locations as typeof locations) {
             const lastLoc = lastLocations.get(loc.userId);
             const currentLat = Number(loc.latitude);
             const currentLng = Number(loc.longitude);
@@ -126,8 +126,8 @@ export async function GET(request: NextRequest) {
           }
 
           // Check for offline technicians
-          const currentIds = new Set(locations.map((l) => l.userId));
-          for (const [userId] of Array.from(lastLocations.entries())) {
+          const currentIds = new Set(locations.map((l: typeof locations[number]) => l.userId));
+          for (const [userId] of Array.from(lastLocations.entries()) as [string, { lat: number; lng: number; updatedAt: Date }][]) {
             if (!currentIds.has(userId)) {
               // Technician went offline
               controller.enqueue(

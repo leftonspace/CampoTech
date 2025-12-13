@@ -74,7 +74,7 @@ if (process.env.NODE_ENV === 'development') {
  */
 export function createCorsMiddleware(): RequestHandler {
   return cors({
-    origin: (origin, callback) => {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
       // Allow requests with no origin (mobile apps, Postman, etc.)
       if (!origin) {
         callback(null, true);
@@ -129,16 +129,16 @@ export function createRateLimiter(
     },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: config.keyGenerator || ((req) => {
+    keyGenerator: config.keyGenerator || ((req: Request) => {
       // Use user ID if authenticated, otherwise IP
       const userId = (req as any).user?.id;
       return userId || req.ip || 'anonymous';
     }),
-    skip: (req) => {
+    skip: (req: Request) => {
       // Skip rate limiting for health checks
       return req.path === '/health' || req.path === '/ready' || req.path === '/live';
     },
-    handler: (req, res) => {
+    handler: (req: Request, res: Response) => {
       res.status(429).json({
         error: config.message || 'Too many requests',
         retryAfter: Math.ceil(config.windowMs / 1000),
@@ -210,7 +210,7 @@ export function sanitizeRequest(): RequestHandler {
 function sanitizeObject(obj: Record<string, unknown>): Record<string, unknown> {
   const sanitized: Record<string, unknown> = {};
 
-  for (const [key, value] of Object.entries(obj)) {
+  for (const [key, value] of Object.entries(obj) as [string, unknown][]) {
     // Remove keys starting with $ (MongoDB operators)
     if (key.startsWith('$')) {
       continue;
@@ -272,7 +272,7 @@ export function validateTrustedProxy(trustedProxies: string[]): RequestHandler {
         : forwardedFor.split(',')[0].trim();
 
       // Log suspicious requests from unknown sources
-      if (!trustedProxies.some((proxy) => clientIp.startsWith(proxy))) {
+      if (!trustedProxies.some((proxy: string) => clientIp.startsWith(proxy))) {
         console.warn(`Request from untrusted proxy: ${clientIp}`);
       }
     }

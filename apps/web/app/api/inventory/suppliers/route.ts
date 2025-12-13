@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
           totalOrders,
           completedOrders,
           onTimeDeliveryRate: completedOrders > 0 ? (onTimeOrders / completedOrders) * 100 : 0,
-          totalSpent: orders.reduce((sum, o) => sum + Number(o.total), 0),
+          totalSpent: orders.reduce((sum: number, o: typeof orders[number]) => sum + Number(o.total), 0),
         },
       });
     }
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         success: true,
         data: {
-          suppliers: suppliers.map((s) => ({
+          suppliers: suppliers.map((s: typeof suppliers[number]) => ({
             ...s,
             orderCount: s._count.purchaseOrders,
             _count: undefined,
@@ -182,7 +182,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        suppliers: suppliers.map((s) => ({
+        suppliers: suppliers.map((s: typeof suppliers[number]) => ({
           ...s,
           orderCount: s._count.purchaseOrders,
           productCount: s._count.supplierProducts,
@@ -197,7 +197,8 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Suppliers list error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Suppliers list error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error listing suppliers' },
       { status: 500 }
@@ -319,7 +320,8 @@ export async function POST(request: NextRequest) {
       message: 'Proveedor creado exitosamente',
     });
   } catch (error) {
-    console.error('Supplier creation error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Supplier creation error:', err.message);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
@@ -419,7 +421,8 @@ export async function PUT(request: NextRequest) {
       message: 'Proveedor actualizado exitosamente',
     });
   } catch (error) {
-    console.error('Supplier update error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Supplier update error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error updating supplier' },
       { status: 500 }
@@ -515,7 +518,8 @@ export async function DELETE(request: NextRequest) {
       message: 'Proveedor eliminado exitosamente',
     });
   } catch (error) {
-    console.error('Supplier deletion error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Supplier deletion error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error deleting supplier' },
       { status: 500 }

@@ -185,7 +185,8 @@ export async function GET(
       _fieldMeta: fieldMeta,
     });
   } catch (error) {
-    console.error('Get vehicle error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Get vehicle error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error obteniendo vehículo' },
       { status: 500 }
@@ -308,7 +309,8 @@ export async function PUT(
       data: vehicle,
     });
   } catch (error) {
-    console.error('Update vehicle error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Update vehicle error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error actualizando vehículo' },
       { status: 500 }
@@ -363,7 +365,8 @@ export async function DELETE(
       message: 'Vehículo eliminado correctamente',
     });
   } catch (error) {
-    console.error('Delete vehicle error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Delete vehicle error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error eliminando vehículo' },
       { status: 500 }

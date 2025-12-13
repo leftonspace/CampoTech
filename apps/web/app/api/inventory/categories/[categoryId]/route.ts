@@ -61,7 +61,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    console.error('Category detail error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Category detail error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error fetching category' },
       { status: 500 }
@@ -163,7 +164,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       message: 'Categoría actualizada exitosamente',
     });
   } catch (error) {
-    console.error('Category update error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Category update error:', err.message);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
@@ -270,7 +272,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: 'Categoría eliminada exitosamente',
     });
   } catch (error) {
-    console.error('Category delete error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Category delete error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error deleting category' },
       { status: 500 }

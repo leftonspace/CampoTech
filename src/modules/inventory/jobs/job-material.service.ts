@@ -190,7 +190,7 @@ export async function removeJobMaterial(
     },
   });
 
-  for (const res of reservations) {
+  for (const res of reservations as typeof reservations) {
     await cancelReservation(organizationId, res.id);
   }
 
@@ -370,7 +370,7 @@ export async function getJobMaterialSummary(
   let totalDiscount = 0;
   let totalCost = 0;
 
-  for (const m of materials) {
+  for (const m of materials as typeof materials) {
     totalEstimated += m.estimatedQty;
     totalUsed += m.usedQty;
     totalReturned += m.returnedQty;
@@ -444,7 +444,7 @@ export async function getMaterialEstimates(
       const levels = await prisma.inventoryLevel.findMany({
         where: { productId: product.id },
       });
-      availableQty = levels.reduce((sum, l) => sum + l.quantityAvailable, 0);
+      availableQty = levels.reduce((sum: number, l: typeof levels[number]) => sum + l.quantityAvailable, 0);
     }
 
     estimates.push({
@@ -473,7 +473,7 @@ export async function addMaterialsFromEstimate(
 ): Promise<JobMaterial[]> {
   const materials: JobMaterial[] = [];
 
-  for (const est of estimates) {
+  for (const est of estimates as typeof estimates) {
     const material = await addJobMaterial(organizationId, {
       jobId,
       productId: est.productId,
@@ -511,7 +511,7 @@ export async function getMaterialsForInvoice(
     },
   });
 
-  return materials.map((m) => ({
+  return materials.map((m: typeof materials[number]) => ({
     description: `${(m.product as any)?.name || 'Material'} (${(m.product as any)?.sku})`,
     quantity: m.usedQty,
     unitPrice: Number(m.unitPrice),
@@ -570,11 +570,11 @@ export async function generateMaterialUsageReport(
   const byProduct: Record<string, { name: string; qty: number; cost: number; revenue: number; jobs: Set<string> }> = {};
   const byTechnician: Record<string, { name: string; materials: number; cost: number; revenue: number; jobs: Set<string> }> = {};
 
-  for (const job of jobs) {
+  for (const job of jobs as typeof jobs) {
     const techId = job.technicianId;
     const techName = (job.technician as any)?.name || 'Sin asignar';
 
-    for (const mat of job.materials) {
+    for (const mat of job.materials as typeof job.materials) {
       const cost = mat.usedQty * Number(mat.unitCost);
       const revenue = Number(mat.lineTotal);
 
@@ -669,7 +669,7 @@ export async function getJobProfitabilityReport(
   let materialRevenue = 0;
   let materialCost = 0;
 
-  for (const mat of job.materials) {
+  for (const mat of job.materials as typeof job.materials) {
     materialRevenue += Number(mat.lineTotal);
     materialCost += mat.usedQty * Number(mat.unitCost);
   }

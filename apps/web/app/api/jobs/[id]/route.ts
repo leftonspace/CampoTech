@@ -107,7 +107,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       _fieldMeta: fieldMeta,
     });
   } catch (error) {
-    console.error('Get job error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Get job error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error fetching job' },
       { status: 500 }
@@ -223,7 +224,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       data: job,
     });
   } catch (error) {
-    console.error('Update job error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Update job error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error updating job' },
       { status: 500 }

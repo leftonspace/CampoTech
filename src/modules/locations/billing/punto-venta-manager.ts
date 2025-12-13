@@ -248,7 +248,7 @@ export class PuntoVentaManager {
     invoiceType: InvoiceType | NotaCreditoType
   ): Promise<NextInvoiceNumber> {
     // Use transaction to ensure atomicity
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.$transaction(async (tx: typeof this.prisma) => {
       const location = await tx.location.findFirst({
         where: {
           id: locationId,
@@ -432,7 +432,7 @@ export class PuntoVentaManager {
     }
 
     // Find the highest punto de venta and suggest next
-    const maxPdv = Math.max(...configs.map((c: typeof configs[number]) => c.puntoDeVenta));
+    const maxPdv = Math.max(...configs.map((c: typeof configs[number]) => c.puntoDeVenta) as number[]);
     return maxPdv + 1;
   }
 

@@ -507,7 +507,7 @@ export async function getSupplierPerformance(
   });
 
   const totalOrders = orders.length;
-  const totalValue = orders.reduce((sum, o) => sum + Number(o.total), 0);
+  const totalValue = orders.reduce((sum: number, o: typeof orders[number]) => sum + Number(o.total), 0);
 
   // Calculate average lead time (order date to received date)
   let totalLeadTime = 0;
@@ -586,6 +586,6 @@ export async function getTopSuppliers(
   type StatType = typeof supplierStats[number];
   return supplierStats
     .filter((s: StatType) => s.orderCount > 0)
-    .sort((a, b) => b.totalValue - a.totalValue)
+    .sort((a: typeof supplierStats[number], b: typeof supplierStats[number]) => b.totalValue - a.totalValue)
     .slice(0, limit);
 }

@@ -117,7 +117,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
     });
   } catch (error) {
-    console.error('Product detail error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Product detail error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error fetching product' },
       { status: 500 }
@@ -234,7 +235,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       message: 'Producto actualizado exitosamente',
     });
   } catch (error) {
-    console.error('Product update error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Product update error:', err.message);
 
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') {
@@ -327,7 +329,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: 'Producto eliminado exitosamente',
     });
   } catch (error) {
-    console.error('Product delete error:', error);
+    const err = error instanceof Error ? error : new Error('Unknown error');
+    console.error('Product delete error:', err.message);
     return NextResponse.json(
       { success: false, error: 'Error deleting product' },
       { status: 500 }
