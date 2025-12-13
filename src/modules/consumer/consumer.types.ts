@@ -354,6 +354,7 @@ export interface BusinessPublicProfile {
   isVisible: boolean;
   isFeatured: boolean;
   isSuspended: boolean;
+  isActive?: boolean;
 
   // Timestamps
   createdAt: Date;

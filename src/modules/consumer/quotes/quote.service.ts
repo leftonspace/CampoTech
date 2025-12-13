@@ -190,7 +190,7 @@ export class QuoteService {
     await this.repository.updateStatus(quote.id, QuoteStatus.SENT);
 
     // Update request status and quote count
-    await this.requestRepository.incrementQuoteCount(input.requestId);
+    await this.requestRepository.incrementQuotesReceived(input.requestId);
 
     // Send notification to consumer
     await this.notifyConsumerNewQuote(request, business, quote);

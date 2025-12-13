@@ -573,7 +573,7 @@ export function createMercadoPagoController(pool: Pool): Router {
 
         if (searchResult.success) {
           const mpPayments = new Map(
-            searchResult.data.results.map((p: any) => [String(p.id), p])
+            (searchResult.data as any).results.map((p: any) => [String(p.id), p])
           );
 
           // Check local payments against MP
@@ -591,26 +591,26 @@ export function createMercadoPagoController(pool: Pool): Router {
               });
             } else {
               // Check status match
-              const expectedStatus = mapPaymentStatus(mpPayment.status);
+              const expectedStatus = mapPaymentStatus((mpPayment as any).status);
               if (expectedStatus !== local.status) {
                 discrepancies.push({
                   type: 'status_mismatch',
                   local_id: local.id,
                   mp_id: local.external_transaction_id,
                   local_status: local.status,
-                  mp_status: mpPayment.status,
+                  mp_status: (mpPayment as any).status,
                   expected_status: expectedStatus,
                 });
               }
 
               // Check amount match
-              if (Number(local.amount) !== mpPayment.transaction_amount) {
+              if (Number(local.amount) !== (mpPayment as any).transaction_amount) {
                 discrepancies.push({
                   type: 'amount_mismatch',
                   local_id: local.id,
                   mp_id: local.external_transaction_id,
                   local_amount: local.amount,
-                  mp_amount: mpPayment.transaction_amount,
+                  mp_amount: (mpPayment as any).transaction_amount,
                 });
               }
             }
@@ -624,13 +624,13 @@ export function createMercadoPagoController(pool: Pool): Router {
           );
 
           for (const [mpId, mpPayment] of mpPayments) {
-            if (!localMpIds.has(mpId) && mpPayment.status === 'approved') {
+            if (!localMpIds.has(mpId) && (mpPayment as any).status === 'approved') {
               discrepancies.push({
                 type: 'missing_locally',
                 mp_id: mpId,
-                mp_amount: mpPayment.transaction_amount,
-                mp_status: mpPayment.status,
-                external_reference: mpPayment.external_reference,
+                mp_amount: (mpPayment as any).transaction_amount,
+                mp_status: (mpPayment as any).status,
+                external_reference: (mpPayment as any).external_reference,
               });
             }
           }
@@ -641,7 +641,7 @@ export function createMercadoPagoController(pool: Pool): Router {
           data: {
             period: { from: fromDate, to: toDate },
             local_count: localPayments.rows.length,
-            mp_count: searchResult.success ? searchResult.data.results.length : 0,
+            mp_count: searchResult.success ? (searchResult.data as any).results.length : 0,
             discrepancies,
             needs_attention: discrepancies.length > 0,
           },
