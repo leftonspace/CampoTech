@@ -77,7 +77,7 @@ export async function calculateCustomerMetrics(
         select: {
           id: true,
           completedAt: true,
-          actualTotal: true,
+          invoice: { select: { total: true } },
         },
       },
     },
@@ -116,7 +116,7 @@ export async function calculateCustomerMetrics(
 
     // Revenue and jobs
     const customerRevenue = customer.jobs.reduce(
-      (sum, j) => sum + (j.actualTotal?.toNumber() || 0),
+      (sum, j) => sum + (j.invoice?.total?.toNumber() || 0),
       0
     );
     totalRevenue += customerRevenue;
@@ -170,7 +170,7 @@ export async function calculateIndividualCLV(
     include: {
       jobs: {
         select: {
-          actualTotal: true,
+          invoice: { select: { total: true } },
           completedAt: true,
         },
       },
@@ -183,7 +183,7 @@ export async function calculateIndividualCLV(
 
   const completedJobs = customer.jobs.filter((j) => j.completedAt);
   const totalRevenue = completedJobs.reduce(
-    (sum, j) => sum + (j.actualTotal?.toNumber() || 0),
+    (sum, j) => sum + (j.invoice?.total?.toNumber() || 0),
     0
   );
 
@@ -227,7 +227,7 @@ export async function getCLVBySegment(
     include: {
       jobs: {
         select: {
-          actualTotal: true,
+          invoice: { select: { total: true } },
           completedAt: true,
         },
       },
@@ -249,7 +249,7 @@ export async function getCLVBySegment(
     const completedJobs = customer.jobs.filter((j) => j.completedAt);
     const totalJobs = completedJobs.length;
     const totalRevenue = completedJobs.reduce(
-      (sum, j) => sum + (j.actualTotal?.toNumber() || 0),
+      (sum, j) => sum + (j.invoice?.total?.toNumber() || 0),
       0
     );
     const lastJobAt = completedJobs
@@ -305,7 +305,7 @@ export async function getCohortAnalysis(
     include: {
       jobs: {
         select: {
-          actualTotal: true,
+          invoice: { select: { total: true } },
           completedAt: true,
         },
       },
@@ -338,7 +338,7 @@ export async function getCohortAnalysis(
     }
 
     const revenue = completedJobs.reduce(
-      (sum, j) => sum + (j.actualTotal?.toNumber() || 0),
+      (sum, j) => sum + (j.invoice?.total?.toNumber() || 0),
       0
     );
     current.revenue += revenue;
@@ -385,7 +385,7 @@ export async function getChurnRiskCustomers(
       jobs: {
         select: {
           completedAt: true,
-          actualTotal: true,
+          invoice: { select: { total: true } },
         },
       },
     },
@@ -409,7 +409,7 @@ export async function getChurnRiskCustomers(
     if (daysSinceLastJob < 30) continue;
 
     const totalRevenue = completedJobs.reduce(
-      (sum, j) => sum + (j.actualTotal?.toNumber() || 0),
+      (sum, j) => sum + (j.invoice?.total?.toNumber() || 0),
       0
     );
 
@@ -466,7 +466,7 @@ export async function getTopCustomersByCLV(
     include: {
       jobs: {
         select: {
-          actualTotal: true,
+          invoice: { select: { total: true } },
           completedAt: true,
         },
       },
@@ -476,7 +476,7 @@ export async function getTopCustomersByCLV(
   const customerCLVs = customers.map((customer) => {
     const completedJobs = customer.jobs.filter((j) => j.completedAt);
     const totalRevenue = completedJobs.reduce(
-      (sum, j) => sum + (j.actualTotal?.toNumber() || 0),
+      (sum, j) => sum + (j.invoice?.total?.toNumber() || 0),
       0
     );
 
