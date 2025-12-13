@@ -14,7 +14,15 @@ const nextConfig = {
     },
   },
   webpack: (config) => {
+    // Add alias for root src directory
     config.resolve.alias['@/src'] = path.resolve(__dirname, '../../src');
+
+    // Ensure modules from root src can find dependencies in apps/web/node_modules
+    config.resolve.modules = [
+      path.resolve(__dirname, 'node_modules'),
+      'node_modules',
+    ];
+
     return config;
   },
   async headers() {
