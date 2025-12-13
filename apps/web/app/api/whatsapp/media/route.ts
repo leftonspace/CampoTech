@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     const mediaBuffer = await client.downloadMedia(mediaInfo.url);
 
     // Return media with appropriate content type
-    return new NextResponse(mediaBuffer, {
+    return new NextResponse(new Uint8Array(mediaBuffer), {
       headers: {
         'Content-Type': mediaInfo.mimeType || 'application/octet-stream',
         'Content-Length': String(mediaBuffer.length),
