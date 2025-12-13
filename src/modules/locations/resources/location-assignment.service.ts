@@ -592,7 +592,7 @@ export class LocationAssignmentService {
             averageDistanceToJobs: 0, // Would need customer coordinates
             locationCapacity: bestLocation.technicians.length,
             teamBalance: locations.length > 0
-              ? bestLocation.technicians.length / (locations.reduce((sum, l) => sum + l.technicians.length, 0) / locations.length)
+              ? bestLocation.technicians.length / (locations.reduce((sum: number, l: typeof locations[number]) => sum + l.technicians.length, 0) / locations.length)
               : 1,
           },
         });

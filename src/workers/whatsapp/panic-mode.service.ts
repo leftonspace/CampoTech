@@ -282,7 +282,7 @@ export class PanicModeService {
       },
     });
 
-    return panics.map((p) => ({
+    return panics.map((p: typeof panics[number]) => ({
       active: p.active,
       integration: p.integration as IntegrationType,
       reason: p.reason as PanicReason,
@@ -310,7 +310,7 @@ export class PanicModeService {
       take: limit,
     });
 
-    return panics.map((p) => ({
+    return panics.map((p: typeof panics[number]) => ({
       active: p.active,
       integration: p.integration as IntegrationType,
       reason: p.reason as PanicReason,

@@ -262,6 +262,7 @@ export interface ReportTemplate {
   sections: ReportSection[];
   defaultFilters: ReportFilter[];
   supportedFormats: ReportFormat[];
+  availableFormats?: ReportFormat[];
   defaultDateRange?: 'week' | 'month' | 'quarter' | 'year';
   defaultGranularity?: 'day' | 'week' | 'month';
 }

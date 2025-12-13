@@ -163,7 +163,7 @@ export class ZoneManager {
     ]);
 
     return {
-      zones: zones.map(z => this.mapToZoneWithRelations(z)),
+      zones: zones.map((z: typeof zones[number]) => this.mapToZoneWithRelations(z)),
       total,
       page,
       limit,
@@ -349,7 +349,7 @@ export class ZoneManager {
       orderBy: { priority: 'desc' },
     });
 
-    return zones.map(z => this.mapToZoneWithRelations(z));
+    return zones.map((z: typeof zones[number]) => this.mapToZoneWithRelations(z));
   }
 
   /**
@@ -360,7 +360,7 @@ export class ZoneManager {
     updates: Array<{ zoneId: string; priority: number }>
   ): Promise<void> {
     // Verify all zones belong to organization
-    const zoneIds = updates.map(u => u.zoneId);
+    const zoneIds = updates.map((u: typeof updates[number]) => u.zoneId);
     const zones = await this.prisma.zone.findMany({
       where: {
         id: { in: zoneIds },
@@ -376,7 +376,7 @@ export class ZoneManager {
 
     // Update priorities in transaction
     await this.prisma.$transaction(
-      updates.map(({ zoneId, priority }) =>
+      updates.map(({ zoneId, priority }: typeof updates[number]) =>
         this.prisma.zone.update({
           where: { id: zoneId },
           data: { priority },

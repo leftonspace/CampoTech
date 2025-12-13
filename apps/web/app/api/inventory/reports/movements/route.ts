@@ -157,12 +157,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Format grouped data
-    const typeData = Object.entries(byType)
-      .map(([type, data]) => ({ type, ...data }))
-      .sort((a, b) => b.quantity - a.quantity);
+    type TypeDataEntry = { type: string; quantity: number; value: number };
+    const typeData = (Object.entries(byType) as [string, { quantity: number; value: number }][])
+      .map(([type, data]): TypeDataEntry => ({ type, ...data }))
+      .sort((a: TypeDataEntry, b: TypeDataEntry) => b.quantity - a.quantity);
 
-    const productData = Object.entries(byProduct)
-      .map(([productId, data]) => ({
+    type ProductDataEntry = { productId: string; productName: string; totalIn: number; totalOut: number; netChange: number; valueIn: number; valueOut: number };
+    const productData = (Object.entries(byProduct) as [string, { name: string; in: number; out: number; valueIn: number; valueOut: number }][])
+      .map(([productId, data]): ProductDataEntry => ({
         productId,
         productName: data.name,
         totalIn: data.in,
@@ -171,10 +173,11 @@ export async function GET(request: NextRequest) {
         valueIn: data.valueIn,
         valueOut: data.valueOut,
       }))
-      .sort((a, b) => (b.totalIn + b.totalOut) - (a.totalIn + a.totalOut));
+      .sort((a: ProductDataEntry, b: ProductDataEntry) => (b.totalIn + b.totalOut) - (a.totalIn + a.totalOut));
 
-    const warehouseData = Object.entries(byWarehouse)
-      .map(([warehouseId, data]) => ({
+    type WarehouseDataEntry = { warehouseId: string; warehouseName: string; totalIn: number; totalOut: number; netChange: number; valueIn: number; valueOut: number };
+    const warehouseData = (Object.entries(byWarehouse) as [string, { name: string; in: number; out: number; valueIn: number; valueOut: number }][])
+      .map(([warehouseId, data]): WarehouseDataEntry => ({
         warehouseId,
         warehouseName: data.name,
         totalIn: data.in,
@@ -183,15 +186,16 @@ export async function GET(request: NextRequest) {
         valueIn: data.valueIn,
         valueOut: data.valueOut,
       }))
-      .sort((a, b) => (b.totalIn + b.totalOut) - (a.totalIn + a.totalOut));
+      .sort((a: WarehouseDataEntry, b: WarehouseDataEntry) => (b.totalIn + b.totalOut) - (a.totalIn + a.totalOut));
 
-    const dailyData = Object.entries(byDay)
-      .map(([date, data]) => ({
+    type DailyDataEntry = { date: string; in: number; out: number; valueIn: number; valueOut: number; netChange: number };
+    const dailyData = (Object.entries(byDay) as [string, { in: number; out: number; valueIn: number; valueOut: number }][])
+      .map(([date, data]): DailyDataEntry => ({
         date,
         ...data,
         netChange: data.in - data.out,
       }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+      .sort((a: DailyDataEntry, b: DailyDataEntry) => a.date.localeCompare(b.date));
 
     return NextResponse.json({
       success: true,
@@ -210,7 +214,7 @@ export async function GET(request: NextRequest) {
         byProduct: productData.slice(0, 20), // Top 20
         byWarehouse: warehouseData,
         daily: dailyData,
-        recentMovements: movements.slice(0, 50).map((m) => ({
+        recentMovements: movements.slice(0, 50).map((m: typeof movements[number]) => ({
           id: m.id,
           movementNumber: m.movementNumber,
           movementType: m.movementType,

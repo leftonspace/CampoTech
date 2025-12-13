@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
     let totalUnits = 0;
     let totalSKUs = new Set<string>();
 
-    const items = inventoryLevels.map((level) => {
+    const items = inventoryLevels.map((level: typeof inventoryLevels[number]) => {
       const costValue = level.quantityOnHand * Number(level.product.costPrice);
       const retailValue = level.quantityOnHand * Number(level.product.salePrice);
       const potentialProfit = retailValue - costValue;
@@ -132,7 +132,8 @@ export async function GET(request: NextRequest) {
         byCategory[key].itemCount++;
       }
 
-      grouped = Object.values(byCategory).sort((a, b) => b.costValue - a.costValue);
+      type CategoryGroupItem = typeof byCategory[string];
+      grouped = Object.values(byCategory).sort((a: CategoryGroupItem, b: CategoryGroupItem) => b.costValue - a.costValue);
     } else if (groupBy === 'warehouse') {
       const byWarehouse: Record<string, {
         warehouseId: string;
@@ -161,18 +162,19 @@ export async function GET(request: NextRequest) {
         byWarehouse[key].itemCount++;
       }
 
-      grouped = Object.values(byWarehouse).sort((a, b) => b.costValue - a.costValue);
+      type WarehouseGroupItem = typeof byWarehouse[string];
+      grouped = Object.values(byWarehouse).sort((a: WarehouseGroupItem, b: WarehouseGroupItem) => b.costValue - a.costValue);
     }
 
     // Get ABC analysis (top 20% by value = A, next 30% = B, rest = C)
-    const sortedByValue = [...items].sort((a, b) => b.costValue - a.costValue);
-    const cumulativeValue = sortedByValue.reduce((acc, item, index) => {
+    const sortedByValue = [...items].sort((a: typeof items[number], b: typeof items[number]) => b.costValue - a.costValue);
+    const cumulativeValue = sortedByValue.reduce((acc: number[], item: typeof sortedByValue[number], index: number) => {
       const cumValue = (acc[index - 1] || 0) + item.costValue;
       acc.push(cumValue);
       return acc;
     }, [] as number[]);
 
-    const abcAnalysis = sortedByValue.map((item, index) => {
+    const abcAnalysis = sortedByValue.map((item: typeof sortedByValue[number], index: number) => {
       const cumPercent = totalCostValue > 0 ? (cumulativeValue[index] / totalCostValue) * 100 : 0;
       let classification: 'A' | 'B' | 'C';
       if (cumPercent <= 80) {
