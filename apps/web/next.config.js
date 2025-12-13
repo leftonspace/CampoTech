@@ -1,3 +1,5 @@
+const path = require('path');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -10,6 +12,10 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '2mb',
     },
+  },
+  webpack: (config) => {
+    config.resolve.alias['@/src'] = path.resolve(__dirname, '../../src');
+    return config;
   },
   async headers() {
     return [
