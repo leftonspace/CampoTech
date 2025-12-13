@@ -170,10 +170,14 @@ export async function segmentCustomers(
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
+  type SegmentCustomerType = typeof customers[number];
+  type SegmentInvoiceType = SegmentCustomerType['invoices'][number];
+  type SegmentJobType = SegmentCustomerType['jobs'][number];
+
   // Calculate revenue percentiles for VIP identification
-  const customerRevenues = customers.map((c) => ({
+  const customerRevenues = customers.map((c: SegmentCustomerType) => ({
     id: c.id,
-    revenue: c.invoices.reduce((sum, inv) => sum + (inv.total?.toNumber() || 0), 0),
+    revenue: c.invoices.reduce((sum: number, inv: SegmentInvoiceType) => sum + (inv.total?.toNumber() || 0), 0),
   }));
   const sortedRevenues = customerRevenues.map((c) => c.revenue).sort((a, b) => b - a);
   const vipThreshold = sortedRevenues[Math.floor(sortedRevenues.length * 0.1)] || Infinity;
@@ -193,17 +197,17 @@ export async function segmentCustomers(
   for (const customer of customers) {
     const totalJobs = customer.jobs.length;
     const totalRevenue = customer.invoices.reduce(
-      (sum, inv) => sum + (inv.total?.toNumber() || 0),
+      (sum: number, inv: SegmentInvoiceType) => sum + (inv.total?.toNumber() || 0),
       0
     );
 
     const lastJobAt = customer.jobs
-      .filter((j) => j.completedAt)
-      .sort((a, b) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
+      .filter((j: SegmentJobType) => j.completedAt)
+      .sort((a: SegmentJobType, b: SegmentJobType) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
       ?.completedAt;
 
     const firstJobAt = customer.jobs
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0]
+      .sort((a: SegmentJobType, b: SegmentJobType) => a.createdAt.getTime() - b.createdAt.getTime())[0]
       ?.createdAt;
 
     // Determine segment
@@ -294,10 +298,13 @@ export async function calculateRFMScores(
 
   const now = new Date();
 
+  type RFMCustomerType = typeof customers[number];
+  type RFMInvoiceType = RFMCustomerType['invoices'][number];
+
   // Calculate raw RFM values
-  const rfmData = customers.map((customer) => {
+  const rfmData = customers.map((customer: RFMCustomerType) => {
     const lastInvoice = customer.invoices
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+      .sort((a: RFMInvoiceType, b: RFMInvoiceType) => b.createdAt.getTime() - a.createdAt.getTime())[0];
 
     const recencyDays = lastInvoice
       ? (now.getTime() - lastInvoice.createdAt.getTime()) / (1000 * 60 * 60 * 24)
@@ -305,7 +312,7 @@ export async function calculateRFMScores(
 
     const frequency = customer.invoices.length;
     const monetary = customer.invoices.reduce(
-      (sum, inv) => sum + (inv.total?.toNumber() || 0),
+      (sum: number, inv: RFMInvoiceType) => sum + (inv.total?.toNumber() || 0),
       0
     );
 
@@ -424,14 +431,16 @@ export async function getSegmentTrend(
 
     // Determine segment at invoice time (simplified)
     const customer = invoice.customer;
+    type TrendJobType = typeof customer.jobs[number];
+
     const jobsBeforeInvoice = customer.jobs.filter(
-      (j) => j.createdAt && j.createdAt <= invoiceDate
+      (j: TrendJobType) => j.createdAt && j.createdAt <= invoiceDate
     ).length;
 
     const thirtyDaysBeforeInvoice = new Date(invoiceDate.getTime() - 30 * 24 * 60 * 60 * 1000);
     const lastJobBefore = customer.jobs
-      .filter((j) => j.completedAt && j.completedAt <= invoiceDate)
-      .sort((a, b) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0];
+      .filter((j: TrendJobType) => j.completedAt && j.completedAt <= invoiceDate)
+      .sort((a: TrendJobType, b: TrendJobType) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0];
 
     let segment: CustomerSegment;
     if (jobsBeforeInvoice <= 1) {
@@ -499,9 +508,13 @@ export async function getCustomerProfiles(
   const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
+  type ProfileCustomerType = typeof customers[number];
+  type ProfileInvoiceType = ProfileCustomerType['invoices'][number];
+  type ProfileJobType = ProfileCustomerType['jobs'][number];
+
   // Calculate VIP threshold
-  const revenues = customers.map((c) =>
-    c.invoices.reduce((sum, inv) => sum + (inv.total?.toNumber() || 0), 0)
+  const revenues = customers.map((c: ProfileCustomerType) =>
+    c.invoices.reduce((sum: number, inv: ProfileInvoiceType) => sum + (inv.total?.toNumber() || 0), 0)
   );
   const sortedRevenues = revenues.sort((a, b) => b - a);
   const vipThreshold = sortedRevenues[Math.floor(sortedRevenues.length * 0.1)] || Infinity;
@@ -511,17 +524,17 @@ export async function getCustomerProfiles(
   for (const customer of customers) {
     const totalJobs = customer.jobs.length;
     const totalRevenue = customer.invoices.reduce(
-      (sum, inv) => sum + (inv.total?.toNumber() || 0),
+      (sum: number, inv: ProfileInvoiceType) => sum + (inv.total?.toNumber() || 0),
       0
     );
 
     const lastJobAt = customer.jobs
-      .filter((j) => j.completedAt)
-      .sort((a, b) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
+      .filter((j: ProfileJobType) => j.completedAt)
+      .sort((a: ProfileJobType, b: ProfileJobType) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
       ?.completedAt || null;
 
     const firstJobAt = customer.jobs
-      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())[0]
+      .sort((a: ProfileJobType, b: ProfileJobType) => a.createdAt.getTime() - b.createdAt.getTime())[0]
       ?.createdAt;
 
     const daysSinceLastJob = lastJobAt

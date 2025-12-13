@@ -44,7 +44,7 @@ export async function getJobFacts(
     },
   });
 
-  return jobs.map((job) => ({
+  return jobs.map((job: typeof jobs[number]) => ({
     id: `job_${job.id}`,
     organizationId: job.organizationId,
     jobId: job.id,
@@ -87,7 +87,7 @@ export async function getInvoiceFacts(
     },
   });
 
-  return invoices.map((invoice) => {
+  return invoices.map((invoice: typeof invoices[number]) => {
     const paidAt = invoice.payments.length > 0
       ? invoice.payments[0].createdAt
       : null;
@@ -134,7 +134,7 @@ export async function getPaymentFacts(
     },
   });
 
-  return payments.map((payment) => {
+  return payments.map((payment: typeof payments[number]) => {
     const amount = payment.amount?.toNumber() || 0;
     return {
       id: `pay_${payment.id}`,
@@ -182,15 +182,18 @@ export async function getCustomerDimension(
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
-  return customers.map((customer) => {
+  type CustomerType = typeof customers[number];
+  type JobType = CustomerType['jobs'][number];
+
+  return customers.map((customer: CustomerType) => {
     const totalJobs = customer.jobs.length;
     const totalRevenue = customer.jobs.reduce(
-      (sum, job) => sum + (job.invoice?.total?.toNumber() || 0),
+      (sum: number, job: JobType) => sum + (job.invoice?.total?.toNumber() || 0),
       0
     );
     const lastJobAt = customer.jobs
-      .filter((j) => j.completedAt)
-      .sort((a, b) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
+      .filter((j: JobType) => j.completedAt)
+      .sort((a: JobType, b: JobType) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
       ?.completedAt || null;
 
     // Determine segment
@@ -250,15 +253,18 @@ export async function getTechnicianDimension(
     },
   });
 
-  return technicians.map((tech) => {
+  type TechType = typeof technicians[number];
+  type AssignedJobType = TechType['assignedJobs'][number];
+
+  return technicians.map((tech: TechType) => {
     const totalJobs = tech.assignedJobs.length;
-    const completedJobs = tech.assignedJobs.filter((j) => j.status === 'COMPLETED').length;
+    const completedJobs = tech.assignedJobs.filter((j: AssignedJobType) => j.status === 'COMPLETED').length;
 
     // Calculate efficiency (jobs per working day in last 30 days)
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const recentJobs = tech.assignedJobs.filter(
-      (j) => j.completedAt && j.completedAt >= thirtyDaysAgo
+      (j: AssignedJobType) => j.completedAt && j.completedAt >= thirtyDaysAgo
     );
     const efficiency = recentJobs.length / 22; // Assuming 22 working days per month
 

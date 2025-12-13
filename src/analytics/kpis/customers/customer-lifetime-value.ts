@@ -83,6 +83,9 @@ export async function calculateCustomerMetrics(
     },
   });
 
+  type CustomerType = typeof customers[number];
+  type JobType = CustomerType['jobs'][number];
+
   const totalCustomers = customers.length;
 
   // Calculate metrics
@@ -94,9 +97,9 @@ export async function calculateCustomerMetrics(
   let totalCustomerAge = 0;
 
   for (const customer of customers) {
-    const completedJobs = customer.jobs.filter((j) => j.completedAt);
+    const completedJobs = customer.jobs.filter((j: JobType) => j.completedAt);
     const lastJobAt = completedJobs
-      .sort((a, b) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
+      .sort((a: JobType, b: JobType) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
       ?.completedAt || null;
 
     // New customers (created in date range)
@@ -116,7 +119,7 @@ export async function calculateCustomerMetrics(
 
     // Revenue and jobs
     const customerRevenue = customer.jobs.reduce(
-      (sum, j) => sum + (j.invoice?.total?.toNumber() || 0),
+      (sum: number, j: JobType) => sum + (j.invoice?.total?.toNumber() || 0),
       0
     );
     totalRevenue += customerRevenue;
@@ -132,7 +135,7 @@ export async function calculateCustomerMetrics(
   const avgJobsPerCustomer = totalCustomers > 0 ? totalJobs / totalCustomers : 0;
 
   // Churn rate (churned / total with at least one job)
-  const customersWithJobs = customers.filter((c) => c.jobs.length > 0).length;
+  const customersWithJobs = customers.filter((c: CustomerType) => c.jobs.length > 0).length;
   const churnRate = customersWithJobs > 0 ? (churnedCustomers / customersWithJobs) * 100 : 0;
   const retentionRate = 100 - churnRate;
 
@@ -181,9 +184,11 @@ export async function calculateIndividualCLV(
     throw new Error('Customer not found');
   }
 
-  const completedJobs = customer.jobs.filter((j) => j.completedAt);
+  type IndividualJobType = NonNullable<typeof customer>['jobs'][number];
+
+  const completedJobs = customer.jobs.filter((j: IndividualJobType) => j.completedAt);
   const totalRevenue = completedJobs.reduce(
-    (sum, j) => sum + (j.invoice?.total?.toNumber() || 0),
+    (sum: number, j: IndividualJobType) => sum + (j.invoice?.total?.toNumber() || 0),
     0
   );
 
@@ -238,6 +243,9 @@ export async function getCLVBySegment(
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
+  type SegmentCustomerType = typeof customers[number];
+  type SegmentJobType = SegmentCustomerType['jobs'][number];
+
   // Segment customers
   const segments = new Map<string, {
     customers: number;
@@ -246,14 +254,14 @@ export async function getCLVBySegment(
   }>();
 
   for (const customer of customers) {
-    const completedJobs = customer.jobs.filter((j) => j.completedAt);
+    const completedJobs = customer.jobs.filter((j: SegmentJobType) => j.completedAt);
     const totalJobs = completedJobs.length;
     const totalRevenue = completedJobs.reduce(
-      (sum, j) => sum + (j.invoice?.total?.toNumber() || 0),
+      (sum: number, j: SegmentJobType) => sum + (j.invoice?.total?.toNumber() || 0),
       0
     );
     const lastJobAt = completedJobs
-      .sort((a, b) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
+      .sort((a: SegmentJobType, b: SegmentJobType) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
       ?.completedAt || null;
 
     // Determine segment
@@ -315,6 +323,9 @@ export async function getCohortAnalysis(
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
+  type CohortCustomerType = typeof customers[number];
+  type CohortJobType = CohortCustomerType['jobs'][number];
+
   // Group by cohort (month of customer creation)
   const cohorts = new Map<string, {
     total: number;
@@ -328,9 +339,9 @@ export async function getCohortAnalysis(
 
     current.total++;
 
-    const completedJobs = customer.jobs.filter((j) => j.completedAt);
+    const completedJobs = customer.jobs.filter((j: CohortJobType) => j.completedAt);
     const lastJobAt = completedJobs
-      .sort((a, b) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
+      .sort((a: CohortJobType, b: CohortJobType) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
       ?.completedAt || null;
 
     if (lastJobAt && lastJobAt >= thirtyDaysAgo) {
@@ -338,7 +349,7 @@ export async function getCohortAnalysis(
     }
 
     const revenue = completedJobs.reduce(
-      (sum, j) => sum + (j.invoice?.total?.toNumber() || 0),
+      (sum: number, j: CohortJobType) => sum + (j.invoice?.total?.toNumber() || 0),
       0
     );
     current.revenue += revenue;
@@ -391,12 +402,15 @@ export async function getChurnRiskCustomers(
     },
   });
 
+  type ChurnCustomerType = typeof customers[number];
+  type ChurnJobType = ChurnCustomerType['jobs'][number];
+
   const atRiskCustomers: ChurnRiskCustomer[] = [];
 
   for (const customer of customers) {
-    const completedJobs = customer.jobs.filter((j) => j.completedAt);
+    const completedJobs = customer.jobs.filter((j: ChurnJobType) => j.completedAt);
     const lastJobAt = completedJobs
-      .sort((a, b) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
+      .sort((a: ChurnJobType, b: ChurnJobType) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0]
       ?.completedAt || null;
 
     if (!lastJobAt) continue;
@@ -409,7 +423,7 @@ export async function getChurnRiskCustomers(
     if (daysSinceLastJob < 30) continue;
 
     const totalRevenue = completedJobs.reduce(
-      (sum, j) => sum + (j.invoice?.total?.toNumber() || 0),
+      (sum: number, j: ChurnJobType) => sum + (j.invoice?.total?.toNumber() || 0),
       0
     );
 
@@ -473,10 +487,13 @@ export async function getTopCustomersByCLV(
     },
   });
 
-  const customerCLVs = customers.map((customer) => {
-    const completedJobs = customer.jobs.filter((j) => j.completedAt);
+  type TopCustomerType = typeof customers[number];
+  type TopJobType = TopCustomerType['jobs'][number];
+
+  const customerCLVs = customers.map((customer: TopCustomerType) => {
+    const completedJobs = customer.jobs.filter((j: TopJobType) => j.completedAt);
     const totalRevenue = completedJobs.reduce(
-      (sum, j) => sum + (j.invoice?.total?.toNumber() || 0),
+      (sum: number, j: TopJobType) => sum + (j.invoice?.total?.toNumber() || 0),
       0
     );
 
