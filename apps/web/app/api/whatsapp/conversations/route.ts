@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = parseInt(searchParams.get('offset') || '0', 10);
 
-    const conversations = await listConversations(session.user.organizationId, {
+    const conversations = await listConversations(session.organizationId, {
       filter,
       limit,
       offset,

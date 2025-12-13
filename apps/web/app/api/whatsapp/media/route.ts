@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get WhatsApp config
-    const config = await getWhatsAppConfig(session.user.organizationId);
+    const config = await getWhatsAppConfig(session.organizationId);
     if (!config) {
       return NextResponse.json(
         { success: false, error: 'WhatsApp not configured' },
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get WhatsApp config
-    const config = await getWhatsAppConfig(session.user.organizationId);
+    const config = await getWhatsAppConfig(session.organizationId);
     if (!config) {
       return NextResponse.json(
         { success: false, error: 'WhatsApp not configured' },

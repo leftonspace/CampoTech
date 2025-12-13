@@ -30,7 +30,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const organizationId = session.user.organizationId;
+    const organizationId = session.organizationId;
     const body = await request.json();
 
     const {

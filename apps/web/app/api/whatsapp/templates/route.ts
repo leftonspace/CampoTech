@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const organizationId = session.user.organizationId;
+    const organizationId = session.organizationId;
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const category = searchParams.get('category');
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const organizationId = session.user.organizationId;
+    const organizationId = session.organizationId;
     const body = await request.json();
 
     const { name, language, category, headerType, headerContent, bodyText, footerText, buttons } = body;
