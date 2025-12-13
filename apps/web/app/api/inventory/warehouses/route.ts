@@ -135,7 +135,7 @@ export async function GET(request: NextRequest) {
         },
       });
       vehicleMap = Object.fromEntries(
-        warehousesWithVehicles.map((w) => [w.id, w.vehicle])
+        warehousesWithVehicles.map((w: typeof warehousesWithVehicles[number]) => [w.id, w.vehicle])
       );
     } catch {
       // vehicleId column may not exist yet - migration not run
