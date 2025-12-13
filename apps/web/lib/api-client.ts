@@ -422,6 +422,17 @@ export const api = {
       send: (data: { templateName: string; phone: string; params: Record<string, string> }) =>
         apiRequest('/whatsapp/templates/send', { method: 'POST', body: data }),
     },
+    contacts: {
+      search: (params?: { q?: string; limit?: number }) => {
+        const searchParams = new URLSearchParams();
+        if (params?.q) searchParams.set('q', params.q);
+        if (params?.limit) searchParams.set('limit', String(params.limit));
+        const query = searchParams.toString() ? `?${searchParams.toString()}` : '';
+        return apiRequest<unknown[]>(`/whatsapp/contacts${query}`);
+      },
+      create: (data: { phone: string; name?: string; customerId?: string }) =>
+        apiRequest('/whatsapp/contacts', { method: 'POST', body: data }),
+    },
     stats: () => apiRequest<unknown>('/whatsapp/stats'),
   },
 
