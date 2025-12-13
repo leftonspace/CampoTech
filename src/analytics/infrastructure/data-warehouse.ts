@@ -134,18 +134,21 @@ export async function getPaymentFacts(
     },
   });
 
-  return payments.map((payment) => ({
-    id: `pay_${payment.id}`,
-    organizationId: payment.organizationId,
-    paymentId: payment.id,
-    invoiceId: payment.invoiceId,
-    customerId: payment.invoice?.customerId || '',
-    receivedAt: payment.createdAt,
-    amount: payment.amount?.toNumber() || 0,
-    method: payment.method || 'other',
-    processingFee: payment.processingFee?.toNumber() || 0,
-    netAmount: (payment.amount?.toNumber() || 0) - (payment.processingFee?.toNumber() || 0),
-  }));
+  return payments.map((payment) => {
+    const amount = payment.amount?.toNumber() || 0;
+    return {
+      id: `pay_${payment.id}`,
+      organizationId: payment.organizationId,
+      paymentId: payment.id,
+      invoiceId: payment.invoiceId,
+      customerId: payment.invoice?.customerId || '',
+      receivedAt: payment.paidAt || payment.createdAt,
+      amount,
+      method: payment.method || 'other',
+      processingFee: 0, // Not tracked in current schema
+      netAmount: amount,
+    };
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
