@@ -2,6 +2,18 @@
 
 This document describes the business self-registration flow for CampoTech.
 
+## Implementation Status
+
+| Component | Status | Location |
+|-----------|--------|----------|
+| Register API | ✅ Implemented | `apps/web/app/api/auth/register/route.ts` |
+| Verify API | ✅ Implemented | `apps/web/app/api/auth/register/verify/route.ts` |
+| OTP Request | ✅ Implemented | `apps/web/app/api/auth/otp/request/route.ts` |
+| OTP Verify | ✅ Implemented | `apps/web/app/api/auth/otp/verify/route.ts` |
+| PendingRegistration Model | ✅ Implemented | `apps/web/prisma/schema.prisma` |
+| CUIT Validation | ✅ Implemented | `apps/web/lib/cuit.ts` |
+| Signup UI | ✅ Implemented | `apps/web/app/(auth)/signup/` |
+
 ## Overview
 
 CampoTech allows businesses to self-register through a 3-step process:
@@ -123,7 +135,7 @@ Verifies OTP and completes registration.
       "name": "Juan Pérez",
       "email": "juan@miempresa.com",
       "phone": "+5491155551234",
-      "role": "ADMIN",
+      "role": "OWNER",
       "organization": {
         "id": "org_...",
         "name": "Mi Empresa SRL"
