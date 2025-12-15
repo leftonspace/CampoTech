@@ -10,6 +10,22 @@ This roadmap outlines the complete implementation plan for CampoTech, organized 
 
 ---
 
+## Implementation Status Overview
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| **apps/web - Core** | ✅ 80% | Dashboard, Jobs, Customers, Invoices working |
+| **apps/web - Auth** | ✅ Complete | Login, Signup, OTP, Registration flow |
+| **apps/web - Landing** | ❌ Missing | Blocks production deployment |
+| **apps/web - Rating** | ❌ Missing | High priority |
+| **apps/mobile** | ⚠️ 70% | Technician features exist, needs cleanup |
+| **apps/mobile - Consumer** | ⚠️ Remove | Should be in consumer-mobile |
+| **apps/consumer-mobile** | ⚠️ 30% | Has screens, needs app structure |
+| **apps/admin** | ❌ Not Started | Your internal dashboard |
+| **apps/developer-portal** | ⚠️ Partial | Exists but incomplete |
+
+---
+
 ## Phase Summary
 
 | Phase | Name | Goal | Dependencies |
@@ -30,9 +46,11 @@ This roadmap outlines the complete implementation plan for CampoTech, organized 
 
 **Reference Document**: `docs/APPS-WEB-CORRECTIONS.md`
 
+**Status**: ⚠️ In Progress - Some auth/core features complete, key items pending
+
 ### Tasks
 
-#### 1.1 Create Landing Page
+#### 1.1 Create Landing Page ❌ NOT STARTED
 - [ ] Create `apps/web/app/page.tsx`
 - [ ] Hero section with CampoTech value proposition
 - [ ] Features overview section
@@ -41,7 +59,7 @@ This roadmap outlines the complete implementation plan for CampoTech, organized 
 - [ ] Footer with legal links
 - [ ] Mobile responsive design
 
-#### 1.2 Update Tier Pricing
+#### 1.2 Update Tier Pricing ❌ NOT STARTED
 - [ ] Modify `apps/web/lib/config/tier-limits.ts`
 - [ ] Change BASICO from $12 → $25
 - [ ] Change PROFESIONAL from $18 → $55
@@ -49,7 +67,7 @@ This roadmap outlines the complete implementation plan for CampoTech, organized 
 - [ ] Rename "Básico" → "Inicial" in display
 - [ ] Update tier limits per vision document
 
-#### 1.3 Simplify Role System
+#### 1.3 Simplify Role System ❌ NOT STARTED
 - [ ] Create database migration for role changes
 - [ ] Update `apps/web/prisma/schema.prisma` (3 roles only)
 - [ ] Update `apps/web/types/index.ts`
@@ -57,7 +75,7 @@ This roadmap outlines the complete implementation plan for CampoTech, organized 
 - [ ] Update all UI components showing role selections
 - [ ] Test role-based access throughout app
 
-#### 1.4 Create Rating System
+#### 1.4 Create Rating System ❌ NOT STARTED
 - [ ] Add Rating model to Prisma schema
 - [ ] Run database migration
 - [ ] Create `apps/web/app/rate/[token]/page.tsx`
@@ -179,19 +197,23 @@ This roadmap outlines the complete implementation plan for CampoTech, organized 
 
 **Dependencies**: Phase 2 complete
 
+**Status**: ⚠️ Partial - Core exists, needs cleanup and consumer removal
+
 ### Tasks
 
-#### 3.1 Review Existing Code
-- [ ] Audit `apps/mobile` codebase
+#### 3.1 Review Existing Code ✅ ANALYZED
+- [x] Audit `apps/mobile` codebase - WatermelonDB implemented, offline sync exists
 - [ ] List missing features
 - [ ] Identify bugs/issues
 - [ ] Check API integrations
 
-#### 3.2 Remove Consumer Features
-- [ ] Remove `(consumer)` route group
+#### 3.2 Remove Consumer Features ❌ NOT STARTED (HIGH PRIORITY)
+- [ ] Remove `apps/mobile/app/(consumer)/` folder entirely
+- [ ] Remove `apps/mobile/lib/consumer/` if exists
 - [ ] Keep only technician features in `(tabs)`
 - [ ] Update navigation
 - [ ] Clean up unused code
+- [ ] Test technician-only app flow
 
 #### 3.3 Core Features
 - [ ] Today's jobs view
@@ -343,15 +365,19 @@ This roadmap outlines the complete implementation plan for CampoTech, organized 
 
 **Dependencies**: Phase 3 complete, Phase 4 complete
 
+**Status**: ⚠️ 30% - Has screens in src/screens, needs proper app structure
+
 ### Tasks
 
-#### 5.1 Fix Package Configuration
+#### 5.1 Fix Package Configuration ❌ NOT STARTED
 - [ ] Update `apps/consumer-mobile/package.json`
 - [ ] Add all required dependencies
 - [ ] Add scripts (dev, build, etc.)
 - [ ] Configure Expo/React Native
+- [ ] Create `apps/consumer-mobile/app/` folder with Expo Router
+- [ ] Move screens from `src/screens/` to `app/` routes
 
-#### 5.2 Review Existing Screens
+#### 5.2 Review Existing Screens ✅ ANALYZED
 - [ ] HomeScreen - categories, featured businesses
 - [ ] SearchScreen - search/filter
 - [ ] BusinessProfileScreen - business details

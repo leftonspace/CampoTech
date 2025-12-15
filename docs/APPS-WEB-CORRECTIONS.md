@@ -4,6 +4,22 @@
 
 ---
 
+## Implementation Status Summary
+
+| Category | Implemented | Pending |
+|----------|-------------|---------|
+| Authentication APIs | ✅ Complete | - |
+| Registration Flow | ✅ Complete | - |
+| OTP System | ✅ Complete | - |
+| Dashboard Core | ✅ Complete | - |
+| Landing Page | ❌ | HIGH PRIORITY |
+| Rating System | ❌ | HIGH PRIORITY |
+| Tier Pricing | ⚠️ Needs Update | Values incorrect |
+| Role System | ⚠️ Needs Update | Simplify to 3 roles |
+| PDF Watermark | ❌ | MEDIUM |
+
+---
+
 ## Overview
 
 This document details all corrections, additions, and modifications needed for `apps/web` to align with the CampoTech vision.
@@ -423,13 +439,38 @@ interface PdfTemplateSettings {
 
 ## Files to Delete
 
-None identified. All existing files are functional.
+None identified in apps/web.
 
 ---
 
-## Files to Move
+## Files to Move/Remove (Other Apps)
 
-None identified. Current structure is appropriate.
+### apps/mobile - Remove Consumer Features
+
+The `apps/mobile/(consumer)/` folder should be **REMOVED**. Consumer features belong in `apps/consumer-mobile/`, not in the technician app.
+
+**Files to Remove from apps/mobile:**
+```
+apps/mobile/app/(consumer)/_layout.tsx
+apps/mobile/app/(consumer)/index.tsx
+apps/mobile/app/(consumer)/search/
+apps/mobile/app/(consumer)/request/
+apps/mobile/app/(consumer)/jobs/
+apps/mobile/app/(consumer)/profile/
+apps/mobile/app/(consumer)/business/
+apps/mobile/app/(consumer)/reviews/
+apps/mobile/lib/consumer/   (if exists)
+```
+
+**Reason:** Per CampoTech vision, technician app and consumer app are separate applications.
+
+### apps/consumer-mobile - Needs Proper App Structure
+
+Currently has screens but no proper Expo Router app structure. Needs:
+- [ ] Add `apps/consumer-mobile/app/` folder with Expo Router structure
+- [ ] Move screens from `src/screens/` to `app/` routes
+- [ ] Add `app.json` or `expo.json` configuration
+- [ ] Add proper navigation layout
 
 ---
 
