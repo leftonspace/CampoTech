@@ -65,9 +65,9 @@ This document outlines the comprehensive plan for building CampoTech's public-fa
 
 ### 1.2 Hero Section
 
-**Headline:** "Gestión completa para empresas de climatización"
+**Headline:** "Gestión completa para servicios técnicos"
 
-**Subheadline:** "Organizá trabajos, facturá con AFIP, cobrá con MercadoPago. Todo en un solo lugar."
+**Subheadline:** "Plomeros, electricistas, gasistas y más. Organizá trabajos, facturá con AFIP, cobrá con MercadoPago. Todo en un solo lugar."
 
 **CTA Buttons:**
 - Primary: "Empezar gratis" → `/signup`
@@ -140,7 +140,8 @@ Ahora mis técnicos tienen todo en el celular."
 │ ─────────────────────────────────────────────────────────────  │
 │ Métodos de pago:  [MP] [Visa] [MC] [USDT] [Transfer]           │
 │                                                                │
-│ © 2024 CampoTech. Hecho en Argentina 🇦🇷                        │
+│ © 2025 CampoTech. Hecho en Argentina 🇦🇷                        │
+│ "Powered by CampoTech"                                         │
 │ Instagram | LinkedIn | Twitter                                 │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -153,9 +154,8 @@ Ahora mis técnicos tienen todo en el celular."
 
 | Feature | INICIAL | PROFESIONAL | EMPRESA |
 |---------|---------|-------------|---------|
-| **Precio mensual** | $15.000 ARS | $25.000 ARS | $45.000 ARS |
-| **Precio anual** (20% dto) | $144.000/año | $240.000/año | $432.000/año |
-| **USD equivalente** | ~$15/mes | ~$25/mes | ~$45/mes |
+| **Precio mensual (USD)** | $25/mes | $55/mes | $120/mes |
+| **Precio anual** (20% dto) | $240/año | $528/año | $1,152/año |
 | | | | |
 | Usuarios | 1 | 5 | Ilimitados |
 | Trabajos/mes | 50 | 200 | Ilimitados |
@@ -164,13 +164,20 @@ Ahora mis técnicos tienen todo en el celular."
 | Facturación AFIP | ✅ | ✅ | ✅ |
 | MercadoPago | ✅ | ✅ | ✅ |
 | App técnicos | ✅ | ✅ | ✅ |
+| Inventario básico | ✅ | ✅ completo | ✅ completo |
 | | | | |
-| WhatsApp Business | ❌ | ✅ | ✅ |
-| Reportes avanzados | ❌ | ✅ | ✅ |
-| Voice AI | ❌ | ❌ | ✅ |
+| WhatsApp manual | ✅ | ✅ | ✅ |
+| WhatsApp AI | ❌ | ✅ (100 conv/mes) | ✅ (ilimitado) |
+| Reportes voz | ❌ | ✅ | ✅ |
+| Analytics avanzado | ❌ | ✅ básico | ✅ completo |
+| Marketplace listing | ❌ | ✅ | ✅ |
 | API Access | ❌ | ❌ | ✅ |
 | Soporte prioritario | ❌ | ❌ | ✅ |
-| Onboarding dedicado | ❌ | ❌ | ✅ |
+
+**Notas:**
+- Todos los planes incluyen: Backup de datos, Actualizaciones, Soporte WhatsApp
+- 50% descuento primeros 3 meses para early adopters
+- Marketplace disponible para todos los planes cuando se lance (sin ventaja por tier)
 
 ### 2.2 Trial & Conversion
 
@@ -360,10 +367,11 @@ export async function createSubscription(
   plan: 'INICIAL' | 'PROFESIONAL' | 'EMPRESA',
   billingCycle: 'MONTHLY' | 'YEARLY'
 ) {
-  const prices = {
-    INICIAL: { MONTHLY: 15000, YEARLY: 144000 },
-    PROFESIONAL: { MONTHLY: 25000, YEARLY: 240000 },
-    EMPRESA: { MONTHLY: 45000, YEARLY: 432000 },
+  // Prices in USD - convert to ARS at checkout if needed
+  const pricesUSD = {
+    INICIAL: { MONTHLY: 25, YEARLY: 240 },
+    PROFESIONAL: { MONTHLY: 55, YEARLY: 528 },
+    EMPRESA: { MONTHLY: 120, YEARLY: 1152 },
   };
 
   const preference = new Preference(client);
@@ -375,8 +383,8 @@ export async function createSubscription(
         title: `CampoTech ${plan}`,
         description: `Suscripción ${billingCycle === 'MONTHLY' ? 'mensual' : 'anual'}`,
         quantity: 1,
-        unit_price: prices[plan][billingCycle],
-        currency_id: 'ARS',
+        unit_price: pricesUSD[plan][billingCycle],
+        currency_id: 'USD', // Or convert to ARS at current rate
       }],
       back_urls: {
         success: `${process.env.NEXT_PUBLIC_URL}/subscription/success`,
@@ -926,4 +934,6 @@ This plan covers everything needed to launch CampoTech's public presence and sub
 ---
 
 *Document created: December 2024*
-*Last updated: December 2024*
+*Last updated: December 2025*
+
+*Powered by CampoTech*
