@@ -36,7 +36,8 @@
     "bullmq": "^5.1.0",
     "ioredis": "^5.0.0",
     "pg": "^8.0.0",
-    "pusher": "^5.2.0"
+    "pusher": "^5.2.0",
+    "react-native-worklets": "^0.5.1"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
