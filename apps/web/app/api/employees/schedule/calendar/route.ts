@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
       orderBy: { name: 'asc' },
     });
 
-    const employeeIdList = employees.map(e => e.id);
+    const employeeIdList = employees.map((e: { id: string }) => e.id);
 
     // Fetch all schedules for these employees
     const schedules = await prisma.employeeSchedule.findMany({
@@ -120,7 +120,7 @@ export async function GET(request: NextRequest) {
       data: {
         employees,
         schedules,
-        exceptions: exceptions.map(e => ({
+        exceptions: exceptions.map((e: { id: string; userId: string; date: Date; isAvailable: boolean; startTime: string | null; endTime: string | null; reason: string | null }) => ({
           ...e,
           date: e.date.toISOString(),
         })),
@@ -136,3 +136,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
