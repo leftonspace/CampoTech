@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowLeft, Search, Calendar, Clock, Users, MapPin, X, Check, Wrench } from 'lucide-react';
+import { ArrowLeft, Search, Calendar, Clock, Users, MapPin, X, Check, Wrench, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import AddressAutocomplete, { ParsedAddress } from '@/components/ui/AddressAutocomplete';
 
@@ -134,8 +134,66 @@ export default function NewJobPage() {
     queryFn: () => api.users.list(),
   });
 
+  // Fetch availability when date is selected
+  const { data: availabilityData } = useQuery({
+    queryKey: ['employee-availability', formData.scheduledDate, convertTo24h(formData.scheduledTimeStart, startPeriod)],
+    queryFn: async () => {
+      const params = new URLSearchParams({ date: formData.scheduledDate });
+      const timeStr = convertTo24h(formData.scheduledTimeStart, startPeriod);
+      if (timeStr) params.append('time', timeStr);
+      const res = await fetch(`/api/employees/availability?${params}`);
+      return res.json();
+    },
+    enabled: !!formData.scheduledDate,
+  });
+
   const customers = customersData?.data as Customer[] | undefined;
   const teamMembers = usersData?.data as Array<{ id: string; name: string; role: string }> | undefined;
+
+  // Build availability map for quick lookup
+  interface AvailableEmployee {
+    id: string;
+    name: string;
+    isAvailable: boolean;
+    currentJobCount: number;
+  }
+  const availabilityMap = new Map<string, AvailableEmployee>();
+  if (availabilityData?.data?.employees) {
+    (availabilityData.data.employees as AvailableEmployee[]).forEach((emp) => {
+      availabilityMap.set(emp.id, emp);
+    });
+  }
+
+  // Get availability status for a team member
+  const getAvailabilityStatus = (memberId: string) => {
+    const avail = availabilityMap.get(memberId);
+    if (!avail) return null;
+    return {
+      isAvailable: avail.isAvailable,
+      jobCount: avail.currentJobCount,
+    };
+  };
+
+  // Sort team members by availability
+  const getSortedTeamMembers = () => {
+    if (!teamMembers) return [];
+
+    if (availabilityMap.size === 0) return teamMembers;
+
+    return [...teamMembers].sort((a, b) => {
+      const aAvail = availabilityMap.get(a.id);
+      const bAvail = availabilityMap.get(b.id);
+
+      // Available first
+      if (aAvail?.isAvailable && !bAvail?.isAvailable) return -1;
+      if (!aAvail?.isAvailable && bAvail?.isAvailable) return 1;
+
+      // Then by job count (less busy first)
+      const aJobs = aAvail?.currentJobCount || 0;
+      const bJobs = bAvail?.currentJobCount || 0;
+      return aJobs - bJobs;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -447,6 +505,14 @@ export default function NewJobPage() {
             Asignar a (múltiples técnicos)
           </label>
 
+          {/* Availability warning */}
+          {formData.scheduledDate && availabilityData?.data?.availableCount === 0 && (
+            <div className="mb-2 flex items-center gap-2 rounded-md bg-amber-50 p-2 text-sm text-amber-700">
+              <AlertTriangle className="h-4 w-4" />
+              <span>No hay técnicos disponibles para esta fecha/hora</span>
+            </div>
+          )}
+
           {/* Selected technicians display */}
           {formData.assignedToIds.length > 0 && (
             <div className="mb-2 flex flex-wrap gap-2">
@@ -501,66 +567,91 @@ export default function NewJobPage() {
               <div className="absolute z-20 mt-1 w-full rounded-md border bg-white shadow-lg">
                 <div className="max-h-60 overflow-auto py-1">
                   {/* Current user option */}
-                  {currentUser && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const isSelected = formData.assignedToIds.includes(currentUser.id);
-                        setFormData({
-                          ...formData,
-                          assignedToIds: isSelected
-                            ? formData.assignedToIds.filter((id) => id !== currentUser.id)
-                            : [...formData.assignedToIds, currentUser.id],
-                        });
-                      }}
-                      className="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-gray-50"
-                    >
-                      <span className={`flex h-4 w-4 items-center justify-center rounded border ${
-                        formData.assignedToIds.includes(currentUser.id)
-                          ? 'border-primary-600 bg-primary-600 text-white'
-                          : 'border-gray-300'
-                      }`}>
-                        {formData.assignedToIds.includes(currentUser.id) && (
-                          <Check className="h-3 w-3" />
-                        )}
-                      </span>
-                      <span className="font-medium">Yo ({currentUser.name})</span>
-                    </button>
-                  )}
-
-                  {/* Team members */}
-                  {teamMembers
-                    ?.filter((member) => member.id !== currentUser?.id)
-                    .map((member) => (
+                  {currentUser && (() => {
+                    const status = getAvailabilityStatus(currentUser.id);
+                    return (
                       <button
-                        key={member.id}
                         type="button"
                         onClick={() => {
-                          const isSelected = formData.assignedToIds.includes(member.id);
+                          const isSelected = formData.assignedToIds.includes(currentUser.id);
                           setFormData({
                             ...formData,
                             assignedToIds: isSelected
-                              ? formData.assignedToIds.filter((id) => id !== member.id)
-                              : [...formData.assignedToIds, member.id],
+                              ? formData.assignedToIds.filter((id) => id !== currentUser.id)
+                              : [...formData.assignedToIds, currentUser.id],
                           });
                         }}
                         className="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-gray-50"
                       >
                         <span className={`flex h-4 w-4 items-center justify-center rounded border ${
-                          formData.assignedToIds.includes(member.id)
+                          formData.assignedToIds.includes(currentUser.id)
                             ? 'border-primary-600 bg-primary-600 text-white'
                             : 'border-gray-300'
                         }`}>
-                          {formData.assignedToIds.includes(member.id) && (
+                          {formData.assignedToIds.includes(currentUser.id) && (
                             <Check className="h-3 w-3" />
                           )}
                         </span>
-                        <span className="font-medium">{member.name}</span>
-                        <span className="text-sm text-gray-500">
-                          {member.role === 'TECHNICIAN' ? '(Técnico)' : member.role === 'DISPATCHER' ? '(Despachador)' : ''}
+                        <span className="flex-1">
+                          <span className="font-medium">Yo ({currentUser.name})</span>
                         </span>
+                        {status && (
+                          <span className={`text-xs ${status.isAvailable ? 'text-green-600' : 'text-amber-600'}`}>
+                            {status.isAvailable
+                              ? status.jobCount > 0 ? `✓ ${status.jobCount} trabajo(s)` : '✓ Disponible'
+                              : '⚠ No disponible'}
+                          </span>
+                        )}
                       </button>
-                    ))}
+                    );
+                  })()}
+
+                  {/* Team members */}
+                  {getSortedTeamMembers()
+                    .filter((member) => member.id !== currentUser?.id)
+                    .map((member) => {
+                      const status = getAvailabilityStatus(member.id);
+                      return (
+                        <button
+                          key={member.id}
+                          type="button"
+                          onClick={() => {
+                            const isSelected = formData.assignedToIds.includes(member.id);
+                            setFormData({
+                              ...formData,
+                              assignedToIds: isSelected
+                                ? formData.assignedToIds.filter((id) => id !== member.id)
+                                : [...formData.assignedToIds, member.id],
+                            });
+                          }}
+                          className="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-gray-50"
+                        >
+                          <span className={`flex h-4 w-4 items-center justify-center rounded border ${
+                            formData.assignedToIds.includes(member.id)
+                              ? 'border-primary-600 bg-primary-600 text-white'
+                              : 'border-gray-300'
+                          }`}>
+                            {formData.assignedToIds.includes(member.id) && (
+                              <Check className="h-3 w-3" />
+                            )}
+                          </span>
+                          <span className="flex-1">
+                            <span className="font-medium">{member.name}</span>
+                            <span className="ml-1 text-sm text-gray-500">
+                              {member.role === 'TECHNICIAN' ? '(Técnico)' : member.role === 'DISPATCHER' ? '(Despachador)' : ''}
+                            </span>
+                          </span>
+                          {/* Availability indicator */}
+                          {status && (
+                            <span className={`text-xs ${status.isAvailable ? 'text-green-600' : 'text-amber-600'}`}>
+                              {status.isAvailable
+                                ? status.jobCount > 0 ? `✓ ${status.jobCount} trabajo(s)` : '✓ Disponible'
+                                : '⚠ No disponible'}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
 
                   {(!teamMembers || teamMembers.length === 0) && !currentUser && (
                     <div className="px-4 py-2 text-sm text-gray-500">
@@ -583,12 +674,20 @@ export default function NewJobPage() {
             )}
           </div>
 
-          <Link
-            href="/dashboard/settings/team"
-            className="mt-2 inline-block text-sm text-primary-600 hover:underline"
-          >
-            + Agregar nuevo miembro al equipo
-          </Link>
+          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+            <Link
+              href="/dashboard/settings/team"
+              className="text-primary-600 hover:underline"
+            >
+              + Agregar nuevo miembro al equipo
+            </Link>
+            {formData.scheduledDate && (
+              <span className="text-gray-500">
+                Disponibilidad para el {new Date(formData.scheduledDate + 'T12:00:00').toLocaleDateString('es-AR')}
+                {formData.scheduledTimeStart && ` a las ${formData.scheduledTimeStart} ${startPeriod}`}
+              </span>
+            )}
+          </div>
         </div>
 
         {error && <p className="text-sm text-danger-500">{error}</p>}

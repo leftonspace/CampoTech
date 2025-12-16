@@ -34,8 +34,24 @@ import {
   Play,
   Pause,
   XCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { Job, User as UserType, Customer } from '@/types';
+
+// Availability data from API
+interface AvailableEmployee {
+  id: string;
+  name: string;
+  phone: string;
+  isAvailable: boolean;
+  scheduleInfo: {
+    startTime: string;
+    endTime: string;
+    isException: boolean;
+    exceptionReason?: string;
+  } | null;
+  currentJobCount: number;
+}
 
 const PRIORITY_LABELS: Record<string, string> = {
   low: 'Baja',
@@ -93,6 +109,21 @@ export default function JobDetailPage() {
     queryFn: () => api.customers.list(),
   });
 
+  // Fetch availability when job has a scheduled date
+  const scheduledDateStr = data?.data?.scheduledDate?.split('T')[0];
+  const scheduledTimeStr = data?.data?.scheduledTimeStart;
+
+  const { data: availabilityData } = useQuery({
+    queryKey: ['employee-availability', scheduledDateStr, scheduledTimeStr],
+    queryFn: async () => {
+      const params = new URLSearchParams({ date: scheduledDateStr! });
+      if (scheduledTimeStr) params.append('time', scheduledTimeStr);
+      const res = await fetch(`/api/employees/availability?${params}`);
+      return res.json();
+    },
+    enabled: !!scheduledDateStr,
+  });
+
   const updateMutation = useMutation({
     mutationFn: (data: Partial<Job>) => api.jobs.update(jobId, data),
     onSuccess: () => {
@@ -126,6 +157,42 @@ export default function JobDetailPage() {
   const teamMembers = usersData?.data as UserType[] | undefined;
   const customers = customersData?.data as Customer[] | undefined;
 
+  // Build availability map for quick lookup
+  const availabilityMap = new Map<string, AvailableEmployee>();
+  if (availabilityData?.data?.employees) {
+    (availabilityData.data.employees as AvailableEmployee[]).forEach((emp) => {
+      availabilityMap.set(emp.id, emp);
+    });
+  }
+
+  // Get team members sorted by availability
+  const getSortedTeamMembers = () => {
+    if (!teamMembers) return [];
+
+    const filtered = teamMembers.filter(
+      (member) => !job?.assignments?.some((a) => a.technicianId === member.id)
+    );
+
+    // If we have availability data, sort by it
+    if (availabilityMap.size > 0) {
+      return filtered.sort((a, b) => {
+        const aAvail = availabilityMap.get(a.id);
+        const bAvail = availabilityMap.get(b.id);
+
+        // Available first
+        if (aAvail?.isAvailable && !bAvail?.isAvailable) return -1;
+        if (!aAvail?.isAvailable && bAvail?.isAvailable) return 1;
+
+        // Then by job count (less busy first)
+        const aJobs = aAvail?.currentJobCount || 0;
+        const bJobs = bAvail?.currentJobCount || 0;
+        return aJobs - bJobs;
+      });
+    }
+
+    return filtered;
+  };
+
   const handleEdit = () => {
     if (job) {
       setEditData({
@@ -154,6 +221,24 @@ export default function JobDetailPage() {
   };
 
   const handleAssign = (userId: string) => {
+    const availability = availabilityMap.get(userId);
+    const member = teamMembers?.find((m) => m.id === userId);
+
+    // If not available, show warning and ask for confirmation
+    if (availability && !availability.isAvailable) {
+      const reason = availability.scheduleInfo?.isException
+        ? availability.scheduleInfo.exceptionReason || 'Día libre'
+        : 'Fuera de horario de trabajo';
+
+      if (
+        !confirm(
+          `⚠️ ${member?.name || 'Este técnico'} no está disponible.\n\nMotivo: ${reason}\n\n¿Deseas asignarlo de todos modos?`
+        )
+      ) {
+        return;
+      }
+    }
+
     assignMutation.mutate(userId);
   };
 
@@ -651,6 +736,12 @@ export default function JobDetailPage() {
             {!isEditing && job.status !== 'completed' && job.status !== 'cancelled' && (
               <div className="mt-4">
                 <label className="label mb-1 block text-sm">Agregar/cambiar asignación:</label>
+                {job.scheduledDate && availabilityData?.data?.availableCount === 0 && (
+                  <div className="mb-2 flex items-center gap-2 rounded-md bg-amber-50 p-2 text-sm text-amber-700">
+                    <AlertTriangle className="h-4 w-4" />
+                    <span>No hay técnicos disponibles para esta fecha/hora</span>
+                  </div>
+                )}
                 <select
                   value=""
                   onChange={(e) => e.target.value && handleAssign(e.target.value)}
@@ -658,16 +749,34 @@ export default function JobDetailPage() {
                   className="input"
                 >
                   <option value="">Seleccionar técnico...</option>
-                  {teamMembers
-                    ?.filter((member) =>
-                      !job.assignments?.some((a) => a.technicianId === member.id)
-                    )
-                    .map((member) => (
+                  {getSortedTeamMembers().map((member) => {
+                    const availability = availabilityMap.get(member.id);
+                    const isAvailable = availability?.isAvailable ?? true;
+                    const jobCount = availability?.currentJobCount || 0;
+
+                    // Build status indicator
+                    let status = '';
+                    if (availability) {
+                      if (isAvailable) {
+                        status = jobCount > 0 ? ` ✓ (${jobCount} trabajos)` : ' ✓ Disponible';
+                      } else {
+                        status = ' ⚠ No disponible';
+                      }
+                    }
+
+                    return (
                       <option key={member.id} value={member.id}>
-                        {member.name} ({member.role})
+                        {member.name}{status}
                       </option>
-                    ))}
+                    );
+                  })}
                 </select>
+                {job.scheduledDate && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Disponibilidad para {formatDate(job.scheduledDate)}
+                    {job.scheduledTimeStart && ` a las ${job.scheduledTimeStart}`}
+                  </p>
+                )}
               </div>
             )}
           </div>
