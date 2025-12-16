@@ -179,19 +179,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Build availability result
-    const scheduleMap = new Map(schedules.map((s) => [s.userId, s]));
-    const exceptionMap = new Map(exceptions.map((e) => [e.userId, e]));
+    const scheduleMap = new Map(schedules.map((s: { userId: string; startTime: string; endTime: string }) => [s.userId, s]));
+    const exceptionMap = new Map(exceptions.map((e: { userId: string; isAvailable: boolean; startTime: string | null; endTime: string | null; reason: string | null }) => [e.userId, e]));
 
     // Count jobs per employee
     const jobCountMap = new Map<string, number>();
-    assignedJobs.forEach((assignment) => {
+    assignedJobs.forEach((assignment: { jobId: string; technicianId: string; job: { scheduledDate: Date | null; scheduledTimeStart: string | null; scheduledTimeEnd: string | null; estimatedDuration: number | null } }) => {
       const count = jobCountMap.get(assignment.technicianId) || 0;
       jobCountMap.set(assignment.technicianId, count + 1);
     });
 
-    const availableEmployees: AvailableEmployee[] = employees.map((employee) => {
-      const schedule = scheduleMap.get(employee.id);
-      const exception = exceptionMap.get(employee.id);
+    const availableEmployees: AvailableEmployee[] = employees.map((employee: { id: string; name: string; specialty: string | null; phone: string | null; avatar: string | null; skillLevel: string | null }) => {
+      const schedule = scheduleMap.get(employee.id) as { userId: string; startTime: string; endTime: string } | undefined;
+      const exception = exceptionMap.get(employee.id) as { userId: string; isAvailable: boolean; startTime: string | null; endTime: string | null; reason: string | null } | undefined;
       const location = locations.get(employee.id);
       const jobCount = jobCountMap.get(employee.id) || 0;
 
@@ -231,7 +231,7 @@ export async function GET(request: NextRequest) {
 
       // Check for job conflicts at the requested time
       if (isAvailable) {
-        const conflictingJobs = assignedJobs.filter((a) => {
+        const conflictingJobs = assignedJobs.filter((a: { jobId: string; technicianId: string; job: { scheduledDate: Date | null; scheduledTimeStart: string | null; scheduledTimeEnd: string | null; estimatedDuration: number | null } }) => {
           if (a.technicianId !== employee.id) return false;
           if (!a.job.scheduledTimeStart) return false;
 
@@ -296,3 +296,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
+
