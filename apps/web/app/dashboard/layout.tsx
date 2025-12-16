@@ -72,9 +72,9 @@ const allNavigation: NavItemDef[] = [
 
 const TIER_NAMES: Record<SubscriptionTier, string> = {
   FREE: 'Gratis',
-  BASICO: 'Basico',
+  BASICO: 'Inicial',
   PROFESIONAL: 'Profesional',
-  EMPRESARIAL: 'Empresarial',
+  EMPRESARIAL: 'Empresa',
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

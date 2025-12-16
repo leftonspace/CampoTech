@@ -7,9 +7,9 @@
  *
  * Pricing in USD (converted to ARS at checkout via Mercado Pago):
  * - FREE: $0/month - Trial/limited functionality
- * - BASICO: $12/month - Small business essentials
- * - PROFESIONAL: $18/month - Growing teams with advanced features
- * - EMPRESARIAL: $25/month - Full-featured for larger operations
+ * - BASICO (Inicial): $25/month - For independent workers
+ * - PROFESIONAL: $55/month - For small businesses (2-5 employees)
+ * - EMPRESARIAL: $120/month - For medium businesses (6+ employees)
  */
 
 export type SubscriptionTier = 'FREE' | 'BASICO' | 'PROFESIONAL' | 'EMPRESARIAL';
@@ -75,51 +75,51 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
   },
 
   BASICO: {
-    maxUsers: 3,
-    maxJobsPerMonth: 150,
-    maxCustomers: 300,
-    maxInvoicesPerMonth: 100,
-    maxVehicles: 3,
-    maxProducts: 100,
-    maxStorageBytes: 200 * BYTES_PER_MB, // 200MB
+    maxUsers: 1,
+    maxJobsPerMonth: 50,
+    maxCustomers: 100,
+    maxInvoicesPerMonth: 50,
+    maxVehicles: 1,
+    maxProducts: 50,
+    maxStorageBytes: 100 * BYTES_PER_MB, // 100MB
     maxPhotosPerJob: 5,
-    maxDocumentUploads: 50,
-    maxWhatsAppMessagesPerMonth: 500,
+    maxDocumentUploads: 25,
+    maxWhatsAppMessagesPerMonth: 0, // Manual WhatsApp only (no AI)
     maxApiCallsPerDay: 0,
-    priceUsd: 12,
-    priceDisplay: '$12/mes',
+    priceUsd: 25,
+    priceDisplay: '$25/mes',
   },
 
   PROFESIONAL: {
-    maxUsers: 8,
-    maxJobsPerMonth: 500,
-    maxCustomers: 1000,
-    maxInvoicesPerMonth: 400,
-    maxVehicles: 10,
-    maxProducts: 500,
+    maxUsers: 5,
+    maxJobsPerMonth: 200,
+    maxCustomers: 500,
+    maxInvoicesPerMonth: 200,
+    maxVehicles: 5,
+    maxProducts: 200,
     maxStorageBytes: 500 * BYTES_PER_MB, // 500MB
     maxPhotosPerJob: 10,
-    maxDocumentUploads: 200,
-    maxWhatsAppMessagesPerMonth: 2000,
+    maxDocumentUploads: 100,
+    maxWhatsAppMessagesPerMonth: 100, // WhatsApp AI conversations/month
     maxApiCallsPerDay: 0,
-    priceUsd: 18,
-    priceDisplay: '$18/mes',
+    priceUsd: 55,
+    priceDisplay: '$55/mes',
   },
 
   EMPRESARIAL: {
-    maxUsers: 20,
+    maxUsers: UNLIMITED,
     maxJobsPerMonth: UNLIMITED,
-    maxCustomers: 5000,
+    maxCustomers: UNLIMITED,
     maxInvoicesPerMonth: UNLIMITED,
-    maxVehicles: 30,
-    maxProducts: 2000,
-    maxStorageBytes: 1 * BYTES_PER_GB, // 1GB
-    maxPhotosPerJob: 20,
-    maxDocumentUploads: 500,
-    maxWhatsAppMessagesPerMonth: 10000,
-    maxApiCallsPerDay: 5000,
-    priceUsd: 25,
-    priceDisplay: '$25/mes',
+    maxVehicles: UNLIMITED,
+    maxProducts: UNLIMITED,
+    maxStorageBytes: 5 * BYTES_PER_GB, // 5GB
+    maxPhotosPerJob: 50,
+    maxDocumentUploads: UNLIMITED,
+    maxWhatsAppMessagesPerMonth: UNLIMITED, // Unlimited WhatsApp AI
+    maxApiCallsPerDay: 10000,
+    priceUsd: 120,
+    priceDisplay: '$120/mes',
   },
 };
 
@@ -131,26 +131,26 @@ export const TIER_CONFIGS: TierConfig[] = [
   {
     id: 'FREE',
     name: 'Gratis',
-    description: 'Para empezar a organizar tu negocio',
+    description: 'Para probar la plataforma',
     limits: TIER_LIMITS.FREE,
     isDefault: true,
   },
   {
     id: 'BASICO',
-    name: 'Básico',
-    description: 'Para pequeños negocios en crecimiento',
+    name: 'Inicial',
+    description: 'Para trabajadores independientes',
     limits: TIER_LIMITS.BASICO,
   },
   {
     id: 'PROFESIONAL',
     name: 'Profesional',
-    description: 'Para equipos que necesitan más herramientas',
+    description: 'Para pequeñas empresas (2-5 empleados)',
     limits: TIER_LIMITS.PROFESIONAL,
   },
   {
     id: 'EMPRESARIAL',
-    name: 'Empresarial',
-    description: 'Para operaciones a gran escala',
+    name: 'Empresa',
+    description: 'Para empresas medianas (6+ empleados)',
     limits: TIER_LIMITS.EMPRESARIAL,
   },
 ];

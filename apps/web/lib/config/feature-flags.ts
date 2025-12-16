@@ -430,8 +430,8 @@ export function getTierComparison(currentTier: SubscriptionTier): Array<{
     .filter(tier => getTierOrder(tier) > currentIndex)
     .map(tier => ({
       tier,
-      name: tier === 'BASICO' ? 'Básico' :
-            tier === 'PROFESIONAL' ? 'Profesional' : 'Empresarial',
+      name: tier === 'BASICO' ? 'Inicial' :
+            tier === 'PROFESIONAL' ? 'Profesional' : 'Empresa',
       newFeatures: getUnlockableFeatures(currentTier, tier),
     }));
 }
@@ -461,9 +461,9 @@ export function createFeatureNotAvailableError(
 
   const tierNames: Record<SubscriptionTier, string> = {
     FREE: 'Gratis',
-    BASICO: 'Básico',
+    BASICO: 'Inicial',
     PROFESIONAL: 'Profesional',
-    EMPRESARIAL: 'Empresarial',
+    EMPRESARIAL: 'Empresa',
   };
 
   return {
