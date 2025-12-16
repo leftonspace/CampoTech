@@ -4,8 +4,66 @@
  *
  * Mock implementation for web platform.
  * WatermelonDB uses native SQLite which doesn't work on web.
- * This provides a basic localStorage-based alternative.
+ * This provides a basic localStorage-based alternative with
+ * a compatible API surface.
  */
+
+// Observable mock for reactive queries
+class MockObservable<T> {
+  private value: T;
+
+  constructor(value: T) {
+    this.value = value;
+  }
+
+  subscribe(callback: (value: T) => void) {
+    // Call immediately with current value
+    callback(this.value);
+    // Return unsubscribe function
+    return {
+      unsubscribe: () => {},
+    };
+  }
+
+  pipe() {
+    return this;
+  }
+}
+
+// Query builder mock
+class WebQuery<T> {
+  private collection: WebCollection<T>;
+  private filters: Array<(item: T) => boolean> = [];
+
+  constructor(collection: WebCollection<T>) {
+    this.collection = collection;
+  }
+
+  extend(...conditions: unknown[]): WebQuery<T> {
+    // Mock query conditions - in real implementation would filter
+    return this;
+  }
+
+  async fetch(): Promise<T[]> {
+    const data = this.collection.getData();
+    return this.filters.length > 0
+      ? data.filter((item) => this.filters.every((f) => f(item)))
+      : data;
+  }
+
+  async fetchCount(): Promise<number> {
+    const data = await this.fetch();
+    return data.length;
+  }
+
+  observe(): MockObservable<T[]> {
+    return new MockObservable(this.collection.getData());
+  }
+
+  observeCount(): MockObservable<number> {
+    return new MockObservable(this.collection.getData().length);
+  }
+}
 
 // Simple collection interface for web
 class WebCollection<T = Record<string, unknown>> {
@@ -19,8 +77,9 @@ class WebCollection<T = Record<string, unknown>> {
     return `campotech_${this.tableName}`;
   }
 
-  private getData(): T[] {
+  getData(): T[] {
     try {
+      if (typeof localStorage === 'undefined') return [];
       const data = localStorage.getItem(this.getStorageKey());
       return data ? JSON.parse(data) : [];
     } catch {
@@ -29,13 +88,17 @@ class WebCollection<T = Record<string, unknown>> {
   }
 
   private setData(data: T[]): void {
-    localStorage.setItem(this.getStorageKey(), JSON.stringify(data));
+    try {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(this.getStorageKey(), JSON.stringify(data));
+      }
+    } catch {
+      // Ignore storage errors
+    }
   }
 
-  async query(): Promise<{ fetch: () => Promise<T[]> }> {
-    return {
-      fetch: async () => this.getData(),
-    };
+  query(...conditions: unknown[]): WebQuery<T> {
+    return new WebQuery<T>(this);
   }
 
   async find(id: string): Promise<T | null> {
@@ -44,13 +107,26 @@ class WebCollection<T = Record<string, unknown>> {
   }
 
   async create(writer: (record: Partial<T>) => void): Promise<T> {
-    const record: Partial<T> & { id: string } = {
+    const record: Partial<T> & { id: string; _status: string; _changed: string } = {
       id: `web_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      _status: 'created',
+      _changed: '',
     };
     writer(record);
     const data = this.getData();
     data.push(record as T);
     this.setData(data);
+    return record as T;
+  }
+
+  // Alias for prepareCreate used in some patterns
+  prepareCreate(writer: (record: Partial<T>) => void): T {
+    const record: Partial<T> & { id: string; _status: string; _changed: string } = {
+      id: `web_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      _status: 'created',
+      _changed: '',
+    };
+    writer(record);
     return record as T;
   }
 }
@@ -66,12 +142,25 @@ class WebDatabase {
     return this.collections.get(tableName) as WebCollection<T>;
   }
 
+  // Batch operations
   async write<T>(callback: () => Promise<T>): Promise<T> {
     return callback();
   }
 
   async read<T>(callback: () => Promise<T>): Promise<T> {
     return callback();
+  }
+
+  batch(...records: unknown[]): Promise<void> {
+    // Mock batch - records are already prepared
+    return Promise.resolve();
+  }
+
+  // For compatibility with WatermelonDB patterns
+  get collections() {
+    return {
+      get: <T>(tableName: string) => this.get<T>(tableName),
+    };
   }
 }
 
