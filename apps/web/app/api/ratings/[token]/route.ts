@@ -33,6 +33,12 @@ export async function GET(request: NextRequest, { params }: Params) {
             name: true,
             logo: true,
             phone: true,
+            // Also get WhatsApp phone from business account if available
+            whatsappBusinessAccount: {
+              select: {
+                displayPhoneNumber: true,
+              },
+            },
           },
         },
         job: {
@@ -85,12 +91,18 @@ export async function GET(request: NextRequest, { params }: Params) {
       ? serviceTypeMap[review.job.serviceType] || review.job.serviceType
       : 'Servicio';
 
+    // Get phone number: prefer WhatsApp display number, fall back to org phone
+    const organizationPhone =
+      review.organization.whatsappBusinessAccount?.displayPhoneNumber ||
+      review.organization.phone ||
+      null;
+
     return NextResponse.json({
       success: true,
       data: {
         organizationName: review.organization.name,
         organizationLogo: review.organization.logo,
-        organizationPhone: review.organization.phone,
+        organizationPhone,
         serviceType,
         jobDescription: review.job?.description || '',
         technicianName: review.job?.technician?.name,

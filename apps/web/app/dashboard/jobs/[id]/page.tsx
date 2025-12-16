@@ -299,21 +299,45 @@ export default function JobDetailPage() {
       </div>
 
       {/* Status actions */}
-      {nextActions.length > 0 && !isEditing && (
+      {!isEditing && (
         <div className="card p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm font-medium text-gray-700">Acciones:</span>
-            {nextActions.map(({ status, label, icon: Icon, color }) => (
-              <button
-                key={status}
-                onClick={() => handleStatusChange(status)}
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Direct status dropdown */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700">Estado:</span>
+              <select
+                value={job.status}
+                onChange={(e) => handleStatusChange(e.target.value)}
                 disabled={statusMutation.isPending}
-                className={cn('inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-medium', color)}
+                className="input w-auto py-1.5 text-sm"
               >
-                <Icon className="h-4 w-4" />
-                {label}
-              </button>
-            ))}
+                <option value="pending">Pendiente</option>
+                <option value="scheduled">Programado</option>
+                <option value="en_camino">En camino</option>
+                <option value="working">En trabajo</option>
+                <option value="completed">Completado</option>
+                <option value="cancelled">Cancelado</option>
+              </select>
+            </div>
+
+            {/* Quick action buttons for common transitions */}
+            {nextActions.length > 0 && (
+              <>
+                <span className="text-gray-300">|</span>
+                <span className="text-sm text-gray-500">Acciones rápidas:</span>
+                {nextActions.map(({ status, label, icon: Icon, color }) => (
+                  <button
+                    key={status}
+                    onClick={() => handleStatusChange(status)}
+                    disabled={statusMutation.isPending}
+                    className={cn('inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium', color)}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </button>
+                ))}
+              </>
+            )}
           </div>
         </div>
       )}

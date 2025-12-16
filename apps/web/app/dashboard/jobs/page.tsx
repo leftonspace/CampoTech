@@ -228,8 +228,14 @@ export default function JobsPage() {
                     <span className="text-sm">#{job.jobNumber || job.id.slice(0, 4)}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="truncate font-medium text-gray-900">
+                    {/* Job title as main heading */}
+                    {job.title && (
+                      <p className="truncate font-semibold text-gray-900">
+                        {job.title}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                      <p className="truncate text-sm text-gray-600">
                         {job.customer?.name || 'Sin cliente'}
                       </p>
                       <span className="text-gray-400">•</span>
