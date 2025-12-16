@@ -13,8 +13,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import TeamCalendar from '@/components/schedule/TeamCalendar';
+
+type TabType = 'my-schedule' | 'team-calendar';
 
 // Day of week names in Spanish
 const DAYS_OF_WEEK = [
@@ -158,6 +162,7 @@ function TimeInput({ value, onChange, disabled }: TimeInputProps) {
 export default function SchedulePage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<TabType>('my-schedule');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [showExceptionModal, setShowExceptionModal] = useState(false);
   const [exceptionDate, setExceptionDate] = useState('');
@@ -346,14 +351,14 @@ export default function SchedulePage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mi Horario</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Horarios</h1>
           <p className="text-gray-500">
             {isTechnician
-              ? 'Visualiza tu disponibilidad semanal y días libres'
-              : 'Configura tu disponibilidad semanal y días libres'}
+              ? 'Visualiza tu disponibilidad y la de tu equipo'
+              : 'Gestiona horarios y disponibilidad del equipo'}
           </p>
         </div>
-        {canEdit && (
+        {canEdit && activeTab === 'my-schedule' && (
           <button
             onClick={() => setShowExceptionModal(true)}
             className="btn-primary"
@@ -364,38 +369,73 @@ export default function SchedulePage() {
         )}
       </div>
 
-      {/* Read-only notice for technicians */}
-      {isTechnician && (
-        <div className="flex items-center gap-2 p-4 bg-blue-50 rounded-lg text-blue-700">
-          <AlertCircle className="h-5 w-5 flex-shrink-0" />
-          <p className="text-sm">
-            Tu horario es administrado por tu supervisor. Contacta a tu supervisor para solicitar cambios.
-          </p>
-        </div>
-      )}
-
-      {/* Team member selector for owners/dispatchers */}
-      {isOwnerOrDispatcher && teamMembers.length > 0 && (
-        <div className="card p-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Ver horario de:
-          </label>
-          <select
-            value={selectedUserId || user?.id || ''}
-            onChange={(e) => setSelectedUserId(e.target.value || null)}
-            className="input w-full sm:w-auto"
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex gap-6" aria-label="Tabs">
+          <button
+            onClick={() => setActiveTab('my-schedule')}
+            className={cn(
+              'flex items-center gap-2 py-3 px-1 border-b-2 font-medium text-sm transition-colors',
+              activeTab === 'my-schedule'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            )}
           >
-            <option value={user?.id}>Mi horario</option>
-            {teamMembers
-              .filter((m: any) => m.id !== user?.id)
-              .map((member: any) => (
-                <option key={member.id} value={member.id}>
-                  {member.name} ({member.role === 'TECHNICIAN' ? 'Técnico' : member.role === 'DISPATCHER' ? 'Despachador' : 'Propietario'})
-                </option>
-              ))}
-          </select>
-        </div>
-      )}
+            <Clock className="h-4 w-4" />
+            Mi Horario
+          </button>
+          <button
+            onClick={() => setActiveTab('team-calendar')}
+            className={cn(
+              'flex items-center gap-2 py-3 px-1 border-b-2 font-medium text-sm transition-colors',
+              activeTab === 'team-calendar'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            )}
+          >
+            <Users className="h-4 w-4" />
+            Calendario del Equipo
+          </button>
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'team-calendar' ? (
+        <TeamCalendar canEdit={canEdit} />
+      ) : (
+        <>
+          {/* Read-only notice for technicians */}
+          {isTechnician && (
+            <div className="flex items-center gap-2 p-4 bg-blue-50 rounded-lg text-blue-700">
+              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              <p className="text-sm">
+                Tu horario es administrado por tu supervisor. Contacta a tu supervisor para solicitar cambios.
+              </p>
+            </div>
+          )}
+
+          {/* Team member selector for owners/dispatchers */}
+          {isOwnerOrDispatcher && teamMembers.length > 0 && (
+            <div className="card p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ver horario de:
+              </label>
+              <select
+                value={selectedUserId || user?.id || ''}
+                onChange={(e) => setSelectedUserId(e.target.value || null)}
+                className="input w-full sm:w-auto"
+              >
+                <option value={user?.id}>Mi horario</option>
+                {teamMembers
+                  .filter((m: any) => m.id !== user?.id)
+                  .map((member: any) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name} ({member.role === 'TECHNICIAN' ? 'Técnico' : member.role === 'DISPATCHER' ? 'Despachador' : 'Propietario'})
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
 
       {/* Weekly schedule */}
       <div className="card overflow-hidden">
@@ -690,6 +730,8 @@ export default function SchedulePage() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
