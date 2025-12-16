@@ -52,3 +52,6 @@ coverage/
 all-errors.txt
 errors.txt
 build-errors.txt
+
+# Expo
+.expo/
