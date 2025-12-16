@@ -127,8 +127,8 @@ export default function JobDetailPage() {
 
   // Fetch availability when job has a scheduled date
   const scheduledDateStr = jobData?.scheduledDate?.split('T')[0];
-  // Extract start time from scheduledTimeSlot JSON: { start: "09:00", end: "11:00" }
-  const scheduledTimeStr = jobData?.scheduledTimeSlot?.start;
+  // Use separate time field from Prisma schema
+  const scheduledTimeStr = jobData?.scheduledTimeStart;
 
   const { data: availabilityData } = useQuery({
     queryKey: ['employee-availability', scheduledDateStr, scheduledTimeStr],
@@ -212,8 +212,6 @@ export default function JobDetailPage() {
 
   const handleEdit = () => {
     if (job) {
-      // Extract time from scheduledTimeSlot JSON
-      const timeSlotData = job.scheduledTimeSlot as { start?: string; end?: string } | null;
       setEditData({
         description: job.description || '',
         address: formatAddress(job.address || job.customer?.address),
@@ -221,24 +219,16 @@ export default function JobDetailPage() {
         serviceType: job.serviceType || '',
         customerId: job.customerId,
         scheduledDate: job.scheduledDate?.split('T')[0] || '',
-        scheduledTimeStart: timeSlotData?.start || '',
-        scheduledTimeEnd: timeSlotData?.end || '',
+        scheduledTimeStart: job.scheduledTimeStart || '',
+        scheduledTimeEnd: job.scheduledTimeEnd || '',
       });
       setIsEditing(true);
     }
   };
 
   const handleSave = () => {
-    // Convert form data to API format
-    const { scheduledTimeStart, scheduledTimeEnd, ...rest } = editData;
-    const updateData: Partial<Job> = {
-      ...rest,
-      // Convert separate time fields to scheduledTimeSlot JSON
-      scheduledTimeSlot: (scheduledTimeStart || scheduledTimeEnd)
-        ? { start: scheduledTimeStart, end: scheduledTimeEnd }
-        : undefined,
-    };
-    updateMutation.mutate(updateData);
+    // Pass form data directly - API uses separate time fields
+    updateMutation.mutate(editData as Partial<Job>);
   };
 
   const handleStatusChange = (newStatus: string) => {
@@ -576,11 +566,11 @@ export default function JobDetailPage() {
                   <div className="flex items-center gap-3">
                     <Calendar className="h-5 w-5 text-gray-400" />
                     <span className="text-gray-700">{formatDate(job.scheduledDate)}</span>
-                    {(job.scheduledTimeSlot?.start || job.scheduledTimeSlot?.end) && (
+                    {(job.scheduledTimeStart || job.scheduledTimeEnd) && (
                       <>
                         <Clock className="ml-2 h-5 w-5 text-gray-400" />
                         <span className="text-gray-700">
-                          {job.scheduledTimeSlot?.start || '--:--'} - {job.scheduledTimeSlot?.end || '--:--'}
+                          {job.scheduledTimeStart || '--:--'} - {job.scheduledTimeEnd || '--:--'}
                         </span>
                       </>
                     )}
@@ -793,7 +783,7 @@ export default function JobDetailPage() {
                 {job.scheduledDate && (
                   <p className="mt-1 text-xs text-gray-500">
                     Disponibilidad para {formatDate(job.scheduledDate)}
-                    {job.scheduledTimeSlot?.start && ` a las ${job.scheduledTimeSlot.start}`}
+                    {job.scheduledTimeStart && ` a las ${job.scheduledTimeStart}`}
                   </p>
                 )}
               </div>

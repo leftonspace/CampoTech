@@ -93,8 +93,8 @@ function DispatchContent() {
 
     // Sort jobs by time
     const sortByTime = (a: Job, b: Job) => {
-      const timeA = a.scheduledTimeSlot?.start || '23:59';
-      const timeB = b.scheduledTimeSlot?.start || '23:59';
+      const timeA = a.scheduledTimeStart || '23:59';
+      const timeB = b.scheduledTimeStart || '23:59';
       return timeA.localeCompare(timeB);
     };
 
@@ -400,10 +400,10 @@ function JobCard({
             <p className="truncate text-sm text-gray-500">{job.customer.name}</p>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-400">
-            {job.scheduledTimeSlot?.start && (
+            {job.scheduledTimeStart && (
               <span className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                {job.scheduledTimeSlot.start}
+                {job.scheduledTimeStart}
               </span>
             )}
             <span

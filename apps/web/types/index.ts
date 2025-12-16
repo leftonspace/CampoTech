@@ -132,8 +132,9 @@ export interface Job {
   description?: string;
   address: string;
   scheduledDate?: string;
-  // Time slot as JSON: { start: "09:00", end: "11:00" }
-  scheduledTimeSlot?: { start?: string; end?: string } | null;
+  // Separate time fields (HH:MM format)
+  scheduledTimeStart?: string | null;
+  scheduledTimeEnd?: string | null;
   startedAt?: string;
   completedAt?: string;
   resolution?: string;
