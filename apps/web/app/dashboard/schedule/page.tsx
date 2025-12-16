@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -63,6 +63,97 @@ interface ScheduleData {
 // Default schedule times
 const DEFAULT_START = '09:00';
 const DEFAULT_END = '18:00';
+
+// Convert 24h to 12h format
+const to12h = (time24: string): { time: string; period: 'AM' | 'PM' } => {
+  if (!time24) return { time: '', period: 'AM' };
+  const [hours, minutes] = time24.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const h12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+  return { time: `${h12}:${String(minutes).padStart(2, '0')}`, period };
+};
+
+// Convert 12h to 24h format
+const to24h = (time12: string, period: 'AM' | 'PM'): string => {
+  if (!time12) return '';
+  const [hours, minutes] = time12.split(':').map(Number);
+  let h = hours;
+  if (period === 'PM' && hours !== 12) h += 12;
+  if (period === 'AM' && hours === 12) h = 0;
+  return `${String(h).padStart(2, '0')}:${String(minutes || 0).padStart(2, '0')}`;
+};
+
+// Time input component with AM/PM toggle
+interface TimeInputProps {
+  value: string; // 24h format
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}
+
+function TimeInput({ value, onChange, disabled }: TimeInputProps) {
+  const { time: initialTime, period: initialPeriod } = to12h(value);
+  const [localTime, setLocalTime] = useState(initialTime);
+  const [localPeriod, setLocalPeriod] = useState<'AM' | 'PM'>(initialPeriod);
+
+  // Update local state when prop changes
+  useEffect(() => {
+    const { time: t, period: p } = to12h(value);
+    setLocalTime(t);
+    setLocalPeriod(p);
+  }, [value]);
+
+  const handleTimeChange = (newTime: string) => {
+    // Allow only numbers and colon, format as HH:MM
+    let val = newTime.replace(/[^0-9:]/g, '');
+    if (val.length === 2 && !val.includes(':')) val += ':';
+    if (val.length > 5) val = val.slice(0, 5);
+    setLocalTime(val);
+
+    // Only update parent if we have a valid time
+    if (val.match(/^\d{1,2}:\d{2}$/)) {
+      onChange(to24h(val, localPeriod));
+    }
+  };
+
+  const handlePeriodToggle = () => {
+    const newPeriod = localPeriod === 'AM' ? 'PM' : 'AM';
+    setLocalPeriod(newPeriod);
+    if (localTime.match(/^\d{1,2}:\d{2}$/)) {
+      onChange(to24h(localTime, newPeriod));
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative flex-1">
+        <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          placeholder="9:00"
+          value={localTime}
+          onChange={(e) => handleTimeChange(e.target.value)}
+          disabled={disabled}
+          className={cn(
+            'input w-full pl-10 text-sm',
+            disabled && 'cursor-not-allowed bg-gray-50'
+          )}
+          maxLength={5}
+        />
+      </div>
+      <button
+        type="button"
+        onClick={handlePeriodToggle}
+        disabled={disabled}
+        className={cn(
+          'flex h-[38px] w-14 items-center justify-center rounded-lg border-2 border-primary-500 bg-primary-50 font-semibold text-primary-700 transition-all hover:bg-primary-100 active:scale-95',
+          disabled && 'cursor-not-allowed opacity-50'
+        )}
+      >
+        {localPeriod}
+      </button>
+    </div>
+  );
+}
 
 export default function SchedulePage() {
   const { user } = useAuth();
@@ -327,45 +418,43 @@ export default function SchedulePage() {
                   !isAvailable && 'bg-gray-50'
                 )}
               >
-                <div className="flex items-center gap-4">
-                  {/* Toggle */}
+                {/* Day name and toggle */}
+                <div className="flex items-center gap-3 min-w-[160px]">
+                  {/* Toggle switch */}
                   <button
                     onClick={() => canEdit && handleToggleDay(day.id, schedule)}
                     disabled={!canEdit || updateScheduleMutation.isPending}
                     className={cn(
-                      'w-12 h-6 rounded-full transition-colors relative flex-shrink-0',
+                      'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
                       isAvailable ? 'bg-green-500' : 'bg-gray-300',
                       !canEdit && 'cursor-not-allowed opacity-70'
                     )}
                   >
                     <span
                       className={cn(
-                        'absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform',
-                        isAvailable ? 'translate-x-6' : 'translate-x-0.5'
+                        'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                        isAvailable ? 'translate-x-5' : 'translate-x-0'
                       )}
                     />
                   </button>
-                  <span className={cn('font-medium w-24', !isAvailable && 'text-gray-400')}>
+                  <span className={cn('font-medium', !isAvailable && 'text-gray-400')}>
                     {day.name}
                   </span>
                 </div>
 
+                {/* Time inputs */}
                 {isAvailable ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="time"
+                  <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+                    <TimeInput
                       value={schedule?.startTime || DEFAULT_START}
-                      onChange={(e) => canEdit && handleTimeChange(day.id, 'startTime', e.target.value)}
+                      onChange={(value) => canEdit && handleTimeChange(day.id, 'startTime', value)}
                       disabled={!canEdit}
-                      className={cn('input w-32 text-sm', !canEdit && 'cursor-not-allowed bg-gray-50')}
                     />
-                    <span className="text-gray-500">a</span>
-                    <input
-                      type="time"
+                    <span className="text-gray-500 hidden sm:inline">a</span>
+                    <TimeInput
                       value={schedule?.endTime || DEFAULT_END}
-                      onChange={(e) => canEdit && handleTimeChange(day.id, 'endTime', e.target.value)}
+                      onChange={(value) => canEdit && handleTimeChange(day.id, 'endTime', value)}
                       disabled={!canEdit}
-                      className={cn('input w-32 text-sm', !canEdit && 'cursor-not-allowed bg-gray-50')}
                     />
                   </div>
                 ) : (
@@ -557,23 +646,19 @@ export default function SchedulePage() {
             </div>
 
             {exceptionIsAvailable && (
-              <div className="flex items-center gap-2">
-                <div className="flex-1">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
-                  <input
-                    type="time"
+                  <TimeInput
                     value={exceptionStartTime}
-                    onChange={(e) => setExceptionStartTime(e.target.value)}
-                    className="input w-full"
+                    onChange={(value) => setExceptionStartTime(value)}
                   />
                 </div>
-                <div className="flex-1">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
-                  <input
-                    type="time"
+                  <TimeInput
                     value={exceptionEndTime}
-                    onChange={(e) => setExceptionEndTime(e.target.value)}
-                    className="input w-full"
+                    onChange={(value) => setExceptionEndTime(value)}
                   />
                 </div>
               </div>
