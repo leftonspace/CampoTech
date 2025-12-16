@@ -93,8 +93,8 @@ function DispatchContent() {
 
     // Sort jobs by time
     const sortByTime = (a: Job, b: Job) => {
-      const timeA = a.scheduledTimeStart || '23:59';
-      const timeB = b.scheduledTimeStart || '23:59';
+      const timeA = a.scheduledTimeSlot?.start || '23:59';
+      const timeB = b.scheduledTimeSlot?.start || '23:59';
       return timeA.localeCompare(timeB);
     };
 
@@ -329,23 +329,23 @@ function DispatchContent() {
         <div className="flex flex-wrap gap-6 text-sm">
           <div className="flex items-center gap-2">
             <div className="h-3 w-3 rounded-full bg-yellow-500" />
-            <span>Pendiente: {jobs.filter((j) => j.status === 'pending').length}</span>
+            <span>Pendiente: {jobs.filter((j) => j.status === 'PENDING').length}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="h-3 w-3 rounded-full bg-blue-500" />
-            <span>Programado: {jobs.filter((j) => j.status === 'scheduled').length}</span>
+            <span>Asignado: {jobs.filter((j) => j.status === 'ASSIGNED').length}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="h-3 w-3 rounded-full bg-purple-500" />
-            <span>En camino: {jobs.filter((j) => j.status === 'en_camino').length}</span>
+            <span>En camino: {jobs.filter((j) => j.status === 'EN_ROUTE').length}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="h-3 w-3 rounded-full bg-orange-500" />
-            <span>Trabajando: {jobs.filter((j) => j.status === 'working').length}</span>
+            <span>Trabajando: {jobs.filter((j) => j.status === 'IN_PROGRESS').length}</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="h-3 w-3 rounded-full bg-green-500" />
-            <span>Completado: {jobs.filter((j) => j.status === 'completed').length}</span>
+            <span>Completado: {jobs.filter((j) => j.status === 'COMPLETED').length}</span>
           </div>
         </div>
       </div>
@@ -394,16 +394,16 @@ function JobCard({
             className="block truncate font-medium text-gray-900 hover:text-primary-600"
             onClick={(e) => e.stopPropagation()}
           >
-            {job.title}
+            {job.serviceType?.replace(/_/g, ' ') || job.description || 'Trabajo'}
           </Link>
           {job.customer && (
             <p className="truncate text-sm text-gray-500">{job.customer.name}</p>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-gray-400">
-            {job.scheduledTimeStart && (
+            {job.scheduledTimeSlot?.start && (
               <span className="flex items-center gap-1">
                 <Clock className="h-3 w-3" />
-                {job.scheduledTimeStart}
+                {job.scheduledTimeSlot.start}
               </span>
             )}
             <span
