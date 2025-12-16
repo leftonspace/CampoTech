@@ -35,6 +35,7 @@ import {
   UsersRound,
   Lock,
   Eye,
+  Clock,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo } from 'react';
 
@@ -58,6 +59,7 @@ const allNavigation: NavItemDef[] = [
   { name: 'Flota', href: '/dashboard/fleet', icon: Truck, module: 'fleet' },
   { name: 'Inventario', href: '/dashboard/inventory', icon: Package, module: 'inventory' },
   { name: 'Equipo', href: '/dashboard/settings/team', icon: UsersRound, module: 'team' },
+  { name: 'Horarios', href: '/dashboard/schedule', icon: Clock, module: 'schedule' },
   { name: 'Facturas', href: '/dashboard/invoices', icon: FileText, module: 'invoices' },
   { name: 'Pagos', href: '/dashboard/payments', icon: CreditCard, module: 'payments' },
   { name: 'Analytics', href: '/dashboard/analytics/overview', icon: BarChart3, module: 'analytics' },

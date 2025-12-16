@@ -67,14 +67,14 @@ const PRIORITY_COLORS: Record<string, string> = {
   urgent: 'bg-red-100 text-red-800',
 };
 
-// Valid status transitions
+// Valid status transitions (using database enum values)
 const STATUS_TRANSITIONS: Record<string, string[]> = {
-  pending: ['scheduled', 'cancelled'],
-  scheduled: ['en_camino', 'pending', 'cancelled'],
-  en_camino: ['working', 'scheduled'],
-  working: ['completed', 'en_camino'],
-  completed: [],
-  cancelled: ['pending'],
+  PENDING: ['ASSIGNED', 'CANCELLED'],
+  ASSIGNED: ['EN_ROUTE', 'PENDING', 'CANCELLED'],
+  EN_ROUTE: ['IN_PROGRESS', 'ASSIGNED'],
+  IN_PROGRESS: ['COMPLETED', 'EN_ROUTE'],
+  COMPLETED: [],
+  CANCELLED: ['PENDING'],
 };
 
 export default function JobDetailPage() {
@@ -110,8 +110,10 @@ export default function JobDetailPage() {
   });
 
   // Fetch availability when job has a scheduled date
-  const scheduledDateStr = (data?.data as any)?.scheduledDate?.split('T')[0];
-  const scheduledTimeStr = (data?.data as any)?.scheduledTimeStart;
+  const scheduledDateStr = data?.data?.scheduledDate?.split('T')[0];
+  // Extract start time from scheduledTimeSlot JSON: { start: "09:00", end: "11:00" }
+  const timeSlot = data?.data?.scheduledTimeSlot as { start?: string; end?: string } | null | undefined;
+  const scheduledTimeStr = timeSlot?.start;
 
   const { data: availabilityData } = useQuery({
     queryKey: ['employee-availability', scheduledDateStr, scheduledTimeStr],
@@ -195,16 +197,17 @@ export default function JobDetailPage() {
 
   const handleEdit = () => {
     if (job) {
+      // Extract time from scheduledTimeSlot JSON
+      const timeSlotData = job.scheduledTimeSlot as { start?: string; end?: string } | null;
       setEditData({
-        title: job.title,
         description: job.description || '',
         address: formatAddress(job.address || job.customer?.address),
         priority: job.priority,
         serviceType: job.serviceType || '',
         customerId: job.customerId,
         scheduledDate: job.scheduledDate?.split('T')[0] || '',
-        scheduledTimeStart: job.scheduledTimeStart || '',
-        scheduledTimeEnd: job.scheduledTimeEnd || '',
+        scheduledTimeStart: timeSlotData?.start || '',
+        scheduledTimeEnd: timeSlotData?.end || '',
       });
       setIsEditing(true);
     }
@@ -260,17 +263,17 @@ export default function JobDetailPage() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'scheduled':
+      case 'ASSIGNED':
         return Calendar;
-      case 'en_camino':
+      case 'EN_ROUTE':
         return Truck;
-      case 'working':
+      case 'IN_PROGRESS':
         return Wrench;
-      case 'completed':
+      case 'COMPLETED':
         return CheckCircle;
-      case 'cancelled':
+      case 'CANCELLED':
         return XCircle;
-      case 'pending':
+      case 'PENDING':
         return Pause;
       default:
         return Play;
@@ -279,13 +282,13 @@ export default function JobDetailPage() {
 
   const getStatusButtonColor = (status: string) => {
     switch (status) {
-      case 'completed':
+      case 'COMPLETED':
         return 'btn-primary';
-      case 'cancelled':
+      case 'CANCELLED':
         return 'btn-danger';
-      case 'en_camino':
+      case 'EN_ROUTE':
         return 'bg-purple-600 text-white hover:bg-purple-700';
-      case 'working':
+      case 'IN_PROGRESS':
         return 'bg-orange-600 text-white hover:bg-orange-700';
       default:
         return 'btn-outline';
@@ -338,7 +341,9 @@ export default function JobDetailPage() {
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">{job.title}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {job.serviceType?.replace(/_/g, ' ') || job.description || 'Trabajo'}
+            </h1>
             <span
               className={cn(
                 'rounded-full px-3 py-1 text-sm font-medium',
@@ -356,7 +361,7 @@ export default function JobDetailPage() {
               {PRIORITY_LABELS[job.priority]}
             </span>
           </div>
-          <p className="text-gray-500">#{job.jobNumber || job.id.slice(0, 8)}</p>
+          <p className="text-gray-500">Trabajo {job.jobNumber?.replace('JOB-', 'Nº ') || `Nº ${job.id.slice(0, 8)}`}</p>
         </div>
         <div className="flex gap-2">
           {isEditing ? (
@@ -396,12 +401,12 @@ export default function JobDetailPage() {
                 disabled={statusMutation.isPending}
                 className="input w-auto py-1.5 text-sm"
               >
-                <option value="pending">Pendiente</option>
-                <option value="scheduled">Programado</option>
-                <option value="en_camino">En camino</option>
-                <option value="working">En trabajo</option>
-                <option value="completed">Completado</option>
-                <option value="cancelled">Cancelado</option>
+                <option value="PENDING">Pendiente</option>
+                <option value="ASSIGNED">Asignado</option>
+                <option value="EN_ROUTE">En camino</option>
+                <option value="IN_PROGRESS">En trabajo</option>
+                <option value="COMPLETED">Completado</option>
+                <option value="CANCELLED">Cancelado</option>
               </select>
             </div>
 
@@ -437,17 +442,7 @@ export default function JobDetailPage() {
             {isEditing ? (
               <div className="space-y-4">
                 <div>
-                  <label className="label mb-1 block">Título</label>
-                  <input
-                    type="text"
-                    value={editData.title || ''}
-                    onChange={(e) => setEditData({ ...editData, title: e.target.value })}
-                    placeholder="Ej: Instalación de aire acondicionado"
-                    className="input"
-                  />
-                </div>
-                <div>
-                  <label className="label mb-1 block">Descripción</label>
+                  <label className="label mb-1 block">Descripción del trabajo</label>
                   <textarea
                     value={editData.description || ''}
                     onChange={(e) => setEditData({ ...editData, description: e.target.value })}
@@ -580,7 +575,7 @@ export default function JobDetailPage() {
           </div>
 
           {/* Completion info (if completed) */}
-          {job.status === 'completed' && (
+          {job.status === 'COMPLETED' && (
             <div className="card p-6">
               <h2 className="mb-4 font-medium text-gray-900">Información de finalización</h2>
               <div className="space-y-4">
@@ -706,7 +701,7 @@ export default function JobDetailPage() {
                         Asignado: {formatDate(assignment.assignedAt)}
                       </p>
                     </div>
-                    {job.status !== 'completed' && job.status !== 'cancelled' && (
+                    {job.status !== 'COMPLETED' && job.status !== 'CANCELLED' && (
                       <button
                         onClick={() => handleUnassign(assignment.technicianId, assignment.technician?.name || 'técnico')}
                         disabled={unassignMutation.isPending}
@@ -733,7 +728,7 @@ export default function JobDetailPage() {
             ) : (
               <p className="text-gray-500">Sin asignar</p>
             )}
-            {!isEditing && job.status !== 'completed' && job.status !== 'cancelled' && (
+            {!isEditing && job.status !== 'COMPLETED' && job.status !== 'CANCELLED' && (
               <div className="mt-4">
                 <label className="label mb-1 block text-sm">Agregar/cambiar asignación:</label>
                 {job.scheduledDate && availabilityData?.data?.availableCount === 0 && (
@@ -785,7 +780,7 @@ export default function JobDetailPage() {
           <div className="card p-6">
             <h2 className="mb-4 font-medium text-gray-900">Acciones rápidas</h2>
             <div className="space-y-2">
-              {!job.invoiceId && job.status === 'completed' && (
+              {!job.invoiceId && job.status === 'COMPLETED' && (
                 <Link
                   href={`/dashboard/invoices/new?jobId=${job.id}&customerId=${job.customerId}`}
                   className="btn-primary w-full justify-center"

@@ -79,6 +79,9 @@ export default function SchedulePage() {
   // Determine which user's schedule to show
   const targetUserId = selectedUserId || user?.id;
   const isOwnerOrDispatcher = user?.role?.toUpperCase() === 'OWNER' || user?.role?.toUpperCase() === 'DISPATCHER';
+  const isTechnician = user?.role?.toUpperCase() === 'TECHNICIAN';
+  // Technicians can only view their own schedule (read-only)
+  const canEdit = isOwnerOrDispatcher || (isTechnician && targetUserId === user?.id && false); // Technicians can't edit
 
   // Fetch team members if owner/dispatcher
   const { data: teamData } = useQuery({
@@ -253,16 +256,32 @@ export default function SchedulePage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Mi Horario</h1>
-          <p className="text-gray-500">Configura tu disponibilidad semanal y días libres</p>
+          <p className="text-gray-500">
+            {isTechnician
+              ? 'Visualiza tu disponibilidad semanal y días libres'
+              : 'Configura tu disponibilidad semanal y días libres'}
+          </p>
         </div>
-        <button
-          onClick={() => setShowExceptionModal(true)}
-          className="btn-primary"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Agregar día libre
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowExceptionModal(true)}
+            className="btn-primary"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Agregar excepción
+          </button>
+        )}
       </div>
+
+      {/* Read-only notice for technicians */}
+      {isTechnician && (
+        <div className="flex items-center gap-2 p-4 bg-blue-50 rounded-lg text-blue-700">
+          <AlertCircle className="h-5 w-5 flex-shrink-0" />
+          <p className="text-sm">
+            Tu horario es administrado por tu supervisor. Contacta a tu supervisor para solicitar cambios.
+          </p>
+        </div>
+      )}
 
       {/* Team member selector for owners/dispatchers */}
       {isOwnerOrDispatcher && teamMembers.length > 0 && (
@@ -311,11 +330,12 @@ export default function SchedulePage() {
                 <div className="flex items-center gap-4">
                   {/* Toggle */}
                   <button
-                    onClick={() => handleToggleDay(day.id, schedule)}
-                    disabled={updateScheduleMutation.isPending}
+                    onClick={() => canEdit && handleToggleDay(day.id, schedule)}
+                    disabled={!canEdit || updateScheduleMutation.isPending}
                     className={cn(
-                      'w-12 h-6 rounded-full transition-colors relative',
-                      isAvailable ? 'bg-green-500' : 'bg-gray-300'
+                      'w-12 h-6 rounded-full transition-colors relative flex-shrink-0',
+                      isAvailable ? 'bg-green-500' : 'bg-gray-300',
+                      !canEdit && 'cursor-not-allowed opacity-70'
                     )}
                   >
                     <span
@@ -335,15 +355,17 @@ export default function SchedulePage() {
                     <input
                       type="time"
                       value={schedule?.startTime || DEFAULT_START}
-                      onChange={(e) => handleTimeChange(day.id, 'startTime', e.target.value)}
-                      className="input w-32 text-sm"
+                      onChange={(e) => canEdit && handleTimeChange(day.id, 'startTime', e.target.value)}
+                      disabled={!canEdit}
+                      className={cn('input w-32 text-sm', !canEdit && 'cursor-not-allowed bg-gray-50')}
                     />
                     <span className="text-gray-500">a</span>
                     <input
                       type="time"
                       value={schedule?.endTime || DEFAULT_END}
-                      onChange={(e) => handleTimeChange(day.id, 'endTime', e.target.value)}
-                      className="input w-32 text-sm"
+                      onChange={(e) => canEdit && handleTimeChange(day.id, 'endTime', e.target.value)}
+                      disabled={!canEdit}
+                      className={cn('input w-32 text-sm', !canEdit && 'cursor-not-allowed bg-gray-50')}
                     />
                   </div>
                 ) : (
@@ -404,17 +426,17 @@ export default function SchedulePage() {
                 <button
                   key={i}
                   onClick={() => {
-                    if (!isPast) {
+                    if (!isPast && canEdit) {
                       setExceptionDate(date.toISOString().split('T')[0]);
                       setShowExceptionModal(true);
                     }
                   }}
-                  disabled={isPast}
+                  disabled={isPast || !canEdit}
                   className={cn(
                     'aspect-square flex items-center justify-center text-sm rounded-lg transition-colors relative',
                     isToday && 'ring-2 ring-primary-500',
-                    isPast && 'text-gray-300 cursor-not-allowed',
-                    !isPast && !exception && 'hover:bg-gray-100',
+                    (isPast || !canEdit) && 'text-gray-300 cursor-not-allowed',
+                    !isPast && canEdit && !exception && 'hover:bg-gray-100',
                     exception && !exception.isAvailable && 'bg-red-100 text-red-700',
                     exception && exception.isAvailable && 'bg-yellow-100 text-yellow-700'
                   )}
@@ -466,13 +488,15 @@ export default function SchedulePage() {
                       </p>
                     </div>
                   </div>
-                  <button
-                    onClick={() => deleteExceptionMutation.mutate(exception.id)}
-                    disabled={deleteExceptionMutation.isPending}
-                    className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  {canEdit && (
+                    <button
+                      onClick={() => deleteExceptionMutation.mutate(exception.id)}
+                      disabled={deleteExceptionMutation.isPending}
+                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               ))}
             </div>
