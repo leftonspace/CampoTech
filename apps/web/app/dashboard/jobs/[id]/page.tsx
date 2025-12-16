@@ -36,7 +36,20 @@ import {
   XCircle,
   AlertTriangle,
 } from 'lucide-react';
-import { Job, User as UserType, Customer } from '@/types';
+import { Job, User as UserType, Customer, JobPriority } from '@/types';
+
+// Form-specific interface for editing jobs
+// Uses separate time fields for UX, converted to scheduledTimeSlot on save
+interface JobEditFormData {
+  description?: string;
+  address?: string;
+  priority?: JobPriority;
+  serviceType?: string;
+  customerId?: string;
+  scheduledDate?: string;
+  scheduledTimeStart?: string;
+  scheduledTimeEnd?: string;
+}
 
 // Availability data from API
 interface AvailableEmployee {
@@ -85,7 +98,7 @@ export default function JobDetailPage() {
   const jobId = params.id as string;
 
   const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState<Partial<Job>>({});
+  const [editData, setEditData] = useState<JobEditFormData>({});
 
   // Auto-enable edit mode if ?edit=true is present
   useEffect(() => {
@@ -216,7 +229,16 @@ export default function JobDetailPage() {
   };
 
   const handleSave = () => {
-    updateMutation.mutate(editData);
+    // Convert form data to API format
+    const { scheduledTimeStart, scheduledTimeEnd, ...rest } = editData;
+    const updateData: Partial<Job> = {
+      ...rest,
+      // Convert separate time fields to scheduledTimeSlot JSON
+      scheduledTimeSlot: (scheduledTimeStart || scheduledTimeEnd)
+        ? { start: scheduledTimeStart, end: scheduledTimeEnd }
+        : undefined,
+    };
+    updateMutation.mutate(updateData);
   };
 
   const handleStatusChange = (newStatus: string) => {
@@ -494,7 +516,7 @@ export default function JobDetailPage() {
                   <label className="label mb-1 block">Prioridad</label>
                   <select
                     value={editData.priority || 'normal'}
-                    onChange={(e) => setEditData({ ...editData, priority: e.target.value as Job['priority'] })}
+                    onChange={(e) => setEditData({ ...editData, priority: e.target.value as JobPriority })}
                     className="input"
                   >
                     <option value="low">Baja</option>
@@ -554,11 +576,11 @@ export default function JobDetailPage() {
                   <div className="flex items-center gap-3">
                     <Calendar className="h-5 w-5 text-gray-400" />
                     <span className="text-gray-700">{formatDate(job.scheduledDate)}</span>
-                    {(job.scheduledTimeStart || job.scheduledTimeEnd) && (
+                    {(job.scheduledTimeSlot?.start || job.scheduledTimeSlot?.end) && (
                       <>
                         <Clock className="ml-2 h-5 w-5 text-gray-400" />
                         <span className="text-gray-700">
-                          {job.scheduledTimeStart || '--:--'} - {job.scheduledTimeEnd || '--:--'}
+                          {job.scheduledTimeSlot?.start || '--:--'} - {job.scheduledTimeSlot?.end || '--:--'}
                         </span>
                       </>
                     )}
@@ -597,10 +619,10 @@ export default function JobDetailPage() {
                     </span>
                   </div>
                 )}
-                {job.completionNotes && (
+                {job.resolution && (
                   <div className="rounded-md bg-gray-50 p-4">
-                    <p className="text-sm font-medium text-gray-700">Notas de finalización:</p>
-                    <p className="mt-1 text-gray-600">{job.completionNotes}</p>
+                    <p className="text-sm font-medium text-gray-700">Resolución:</p>
+                    <p className="mt-1 text-gray-600">{job.resolution}</p>
                   </div>
                 )}
                 {job.photos && job.photos.length > 0 && (
@@ -628,12 +650,12 @@ export default function JobDetailPage() {
                     </div>
                   </div>
                 )}
-                {job.signatureUrl && (
+                {job.customerSignature && (
                   <div>
                     <p className="mb-2 text-sm font-medium text-gray-700">Firma del cliente:</p>
                     <div className="w-48 rounded-md border bg-white p-2">
                       <img
-                        src={job.signatureUrl}
+                        src={job.customerSignature}
                         alt="Firma"
                         className="h-auto w-full"
                       />
@@ -771,7 +793,7 @@ export default function JobDetailPage() {
                 {job.scheduledDate && (
                   <p className="mt-1 text-xs text-gray-500">
                     Disponibilidad para {formatDate(job.scheduledDate)}
-                    {job.scheduledTimeStart && ` a las ${job.scheduledTimeStart}`}
+                    {job.scheduledTimeSlot?.start && ` a las ${job.scheduledTimeSlot.start}`}
                   </p>
                 )}
               </div>

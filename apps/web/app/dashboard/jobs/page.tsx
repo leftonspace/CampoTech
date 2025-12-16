@@ -52,12 +52,11 @@ export default function JobsPage() {
     if (search) {
       const searchFields = [
         job.jobNumber,
-        job.title,
+        job.serviceType,
         job.description,
         job.customer?.name,
         job.customer?.phone,
         job.address,
-        job.serviceType,
         ...(job.assignments?.map(a => a.technician?.name) || []),
       ];
       if (!searchMatchesAny(searchFields, search)) return false;
