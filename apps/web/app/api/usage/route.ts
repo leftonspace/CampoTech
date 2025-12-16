@@ -39,7 +39,7 @@ export async function GET(): Promise<NextResponse> {
     const { organizationId, role } = session;
 
     // Only OWNER and ADMIN can see full usage details
-    if (!['OWNER', 'ADMIN'].includes(role)) {
+    if (!['OWNER'].includes(role)) {
       return NextResponse.json(
         { error: 'forbidden', message: 'No tienes permisos para ver esta información.' },
         { status: 403 }

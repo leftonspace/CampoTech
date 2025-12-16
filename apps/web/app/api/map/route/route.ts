@@ -332,7 +332,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Only admins, owners, and dispatchers can request routes
-    if (!['ADMIN', 'OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
+    if (!['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para obtener rutas' },
         { status: 403 }

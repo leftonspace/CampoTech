@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check user role
-    if (!['OWNER', 'ADMIN', 'DISPATCHER'].includes(session.role)) {
+    if (!['OWNER', 'DISPATCHER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para gestionar órdenes de compra' },
         { status: 403 }
@@ -546,7 +546,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Check user role
-    if (!['OWNER', 'ADMIN'].includes(session.role)) {
+    if (!['OWNER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para editar órdenes de compra' },
         { status: 403 }

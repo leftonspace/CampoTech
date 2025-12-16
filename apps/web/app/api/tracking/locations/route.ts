@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Only admins, owners, and dispatchers can view all technician locations
-    if (!['ADMIN', 'OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
+    if (!['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para ver ubicaciones' },
         { status: 403 }

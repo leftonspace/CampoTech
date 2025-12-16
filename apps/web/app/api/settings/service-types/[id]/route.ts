@@ -82,7 +82,7 @@ export async function PUT(
       );
     }
 
-    if (!['ADMIN', 'OWNER'].includes(session.role.toUpperCase())) {
+    if (!['OWNER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para modificar tipos de servicio' },
         { status: 403 }
@@ -154,7 +154,7 @@ export async function DELETE(
       );
     }
 
-    if (!['ADMIN', 'OWNER'].includes(session.role.toUpperCase())) {
+    if (!['OWNER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para eliminar tipos de servicio' },
         { status: 403 }

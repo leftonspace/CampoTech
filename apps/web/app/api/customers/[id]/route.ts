@@ -47,7 +47,7 @@ export async function GET(
     }
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Filter data based on user role
     const filteredData = filterEntityByRole(customer, 'customer', userRole);
@@ -99,7 +99,7 @@ export async function PUT(
     }
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Validate that user can edit the fields they're trying to update
     const validation = validateEntityUpdate(body, 'customer', userRole);

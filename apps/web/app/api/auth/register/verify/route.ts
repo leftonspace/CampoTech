@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
           name: pendingReg.adminName,
           phone: cleanPhone,
           email,
-          role: 'ADMIN',
+          role: 'OWNER',
           isActive: true,
           organizationId: org.id,
         },

@@ -88,7 +88,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check user role
-    if (!['OWNER', 'ADMIN'].includes(session.role)) {
+    if (!['OWNER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para editar categorías' },
         { status: 403 }
@@ -201,7 +201,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check user role
-    if (!['OWNER', 'ADMIN'].includes(session.role)) {
+    if (!['OWNER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para eliminar categorías' },
         { status: 403 }

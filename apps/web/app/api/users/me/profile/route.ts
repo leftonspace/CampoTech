@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Filter data based on user role (isSelf = true since viewing own profile)
     const filteredData = filterEntityByRole(user, 'user', userRole, true);
@@ -89,7 +89,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
 
     // Normalize user role
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Validate that user can edit the fields they're trying to update (isSelf = true)
     const validation = validateEntityUpdate(body, 'user', userRole, true);

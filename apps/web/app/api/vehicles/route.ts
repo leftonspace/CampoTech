@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
     };
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Filter data based on user role
     const filteredVehicles = filterEntitiesByRole(vehiclesWithCompliance, 'vehicle', userRole);
@@ -195,7 +195,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!['ADMIN', 'OWNER'].includes(session.role.toUpperCase())) {
+    if (!['OWNER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para crear vehículos' },
         { status: 403 }

@@ -48,7 +48,7 @@ export async function GET(
     }
 
     // Normalize user role and check if viewing self
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
     const isSelf = session.userId === params.id;
 
     // Filter data based on user role
@@ -109,11 +109,11 @@ export async function PUT(
     }
 
     // Normalize user role
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
-    // Only OWNER, ADMIN, and DISPATCHER can update other users
+    // Only OWNER and DISPATCHER can update other users
     const isEditingSelf = session.userId === params.id;
-    if (!isEditingSelf && !['OWNER', 'ADMIN', 'DISPATCHER'].includes(userRole)) {
+    if (!isEditingSelf && !['OWNER', 'DISPATCHER'].includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'Forbidden: insufficient permissions' },
         { status: 403 }
@@ -217,8 +217,8 @@ export async function DELETE(
       );
     }
 
-    // Only OWNER, ADMIN, and DISPATCHER can delete users
-    if (!['OWNER', 'ADMIN', 'DISPATCHER'].includes(session.role)) {
+    // Only OWNER and DISPATCHER can delete users
+    if (!['OWNER', 'DISPATCHER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'Forbidden: insufficient permissions' },
         { status: 403 }

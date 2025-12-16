@@ -204,8 +204,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Only admins, owners, and dispatchers can manage vehicle inventory
-    if (!['ADMIN', 'OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
+    // Only owners and dispatchers can manage vehicle inventory
+    if (!['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para esta operación' },
         { status: 403 }
@@ -407,8 +407,8 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Only admins and owners can remove items
-    if (!['ADMIN', 'OWNER'].includes(session.role.toUpperCase())) {
+    // Only owners can remove items
+    if (!['OWNER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para esta operación' },
         { status: 403 }

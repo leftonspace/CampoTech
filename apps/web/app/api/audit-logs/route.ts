@@ -1,6 +1,6 @@
 /**
  * Audit Logs API
- * GET /api/audit-logs - List audit logs with filters (OWNER/ADMIN only)
+ * GET /api/audit-logs - List audit logs with filters (OWNER only)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -31,9 +31,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Only OWNER and ADMIN can view audit logs
+    // Only OWNER can view audit logs
     const userRole = session.role?.toUpperCase();
-    if (!['OWNER', 'ADMIN'].includes(userRole)) {
+    if (!['OWNER'].includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permisos para ver los registros de auditoria' },
         { status: 403 }

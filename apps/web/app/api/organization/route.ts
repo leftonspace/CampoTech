@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
       : organization.settings || {};
 
     // Normalize user role to uppercase for permission checking
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Build organization data object
     const orgData = {
@@ -101,10 +101,10 @@ export async function PUT(request: NextRequest) {
     }
 
     // Normalize user role
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Only admins and owners can update organization
-    if (!['ADMIN', 'OWNER'].includes(userRole)) {
+    if (!['OWNER'].includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para editar la organizacion' },
         { status: 403 }

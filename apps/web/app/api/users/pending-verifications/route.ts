@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (!['OWNER', 'ADMIN'].includes(session.role)) {
+    if (!['OWNER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'Permisos insuficientes' },
         { status: 403 }
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!['OWNER', 'ADMIN'].includes(session.role)) {
+    if (!['OWNER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'Permisos insuficientes' },
         { status: 403 }

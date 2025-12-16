@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check user role
-    if (!['OWNER', 'ADMIN'].includes(session.role)) {
+    if (!['OWNER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para crear depósitos' },
         { status: 403 }
@@ -303,7 +303,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Check user role
-    if (!['OWNER', 'ADMIN'].includes(session.role)) {
+    if (!['OWNER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para editar depósitos' },
         { status: 403 }
@@ -406,7 +406,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Check user role
-    if (!['OWNER', 'ADMIN'].includes(session.role)) {
+    if (!['OWNER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para eliminar depósitos' },
         { status: 403 }

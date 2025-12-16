@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Only admins and owners can manually set coordinates
-    if (!['ADMIN', 'OWNER'].includes(session.role.toUpperCase())) {
+    if (!['OWNER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para esta acción' },
         { status: 403 }

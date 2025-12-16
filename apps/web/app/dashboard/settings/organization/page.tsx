@@ -70,7 +70,7 @@ export default function OrganizationSettingsPage() {
 
   // Get user role for field permissions
   const userRole = useMemo(() => {
-    return (user?.role?.toUpperCase() || 'VIEWER') as UserRole;
+    return (user?.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
   }, [user?.role]);
 
   // Get field metadata based on user role

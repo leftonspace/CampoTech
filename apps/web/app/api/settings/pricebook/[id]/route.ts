@@ -95,7 +95,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    if (!['ADMIN', 'OWNER'].includes(session.role.toUpperCase())) {
+    if (!['OWNER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para editar items' },
         { status: 403 }
@@ -184,7 +184,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    if (!['ADMIN', 'OWNER'].includes(session.role.toUpperCase())) {
+    if (!['OWNER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para eliminar items' },
         { status: 403 }

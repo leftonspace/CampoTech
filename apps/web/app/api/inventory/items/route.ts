@@ -128,8 +128,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only admins, owners, and dispatchers can create items
-    if (!['ADMIN', 'OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
+    // Only owners and dispatchers can create items
+    if (!['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para esta operación' },
         { status: 403 }

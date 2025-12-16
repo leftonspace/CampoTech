@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check user role
-    if (!['OWNER', 'ADMIN', 'DISPATCHER'].includes(session.role)) {
+    if (!['OWNER', 'DISPATCHER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para crear conteos de inventario' },
         { status: 403 }
@@ -296,7 +296,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Only OWNER or ADMIN can approve
-      if (!['OWNER', 'ADMIN'].includes(session.role)) {
+      if (!['OWNER'].includes(session.role)) {
         return NextResponse.json(
           { success: false, error: 'No tienes permiso para aprobar conteos' },
           { status: 403 }

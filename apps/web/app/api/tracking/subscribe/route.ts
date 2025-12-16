@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Only admins, owners, and dispatchers can subscribe to location updates
-  if (!['ADMIN', 'OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
+  if (!['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
     return new Response('Forbidden', { status: 403 });
   }
 

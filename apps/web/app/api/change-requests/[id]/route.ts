@@ -23,10 +23,10 @@ export async function GET(
       );
     }
 
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Only OWNER and ADMIN can view change requests
-    if (!['OWNER', 'ADMIN'].includes(userRole)) {
+    if (!['OWNER'].includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para ver solicitudes de cambio' },
         { status: 403 }
@@ -81,7 +81,7 @@ export async function PUT(
       );
     }
 
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Only OWNER can approve/reject change requests
     if (userRole !== 'OWNER') {
