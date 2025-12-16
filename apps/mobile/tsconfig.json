@@ -5,7 +5,8 @@
     "paths": {
       "@/*": ["./*"]
     },
-    "experimentalDecorators": true
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false
   },
   "include": [
     "**/*.ts",
