@@ -35,7 +35,7 @@ async function main() {
       phone: '+5491112345678',
       name: 'Admin Demo',
       passwordHash: adminPassword,
-      role: 'ADMIN',
+      role: 'DISPATCHER',
       organizationId: org.id,
     },
   });

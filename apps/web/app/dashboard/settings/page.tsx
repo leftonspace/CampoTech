@@ -27,9 +27,9 @@ interface SettingCard {
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  // Check role case-insensitively
-  const userRole = user?.role?.toLowerCase();
-  const isAdmin = userRole === 'owner' || userRole === 'admin';
+  // Check if user has admin privileges (OWNER or DISPATCHER can configure settings)
+  const userRole = user?.role?.toUpperCase();
+  const isAdmin = userRole === 'OWNER' || userRole === 'DISPATCHER';
 
   const settingCards: SettingCard[] = [
     {

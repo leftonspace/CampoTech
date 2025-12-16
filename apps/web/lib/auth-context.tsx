@@ -187,13 +187,20 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   const { user, isLoading, isAuthenticated } = useAuth();
   const router = useRouter();
 
+  // Helper for case-insensitive role comparison
+  const hasAllowedRole = (role: string | undefined, allowed: string[]) => {
+    if (!role) return false;
+    const roleUpper = role.toUpperCase();
+    return allowed.some(r => r.toUpperCase() === roleUpper);
+  };
+
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push('/login');
     }
 
     if (!isLoading && isAuthenticated && allowedRoles && user) {
-      if (!allowedRoles.includes(user.role)) {
+      if (!hasAllowedRole(user.role, allowedRoles)) {
         router.push('/dashboard');
       }
     }
@@ -211,7 +218,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     return null;
   }
 
-  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+  if (allowedRoles && user && !hasAllowedRole(user.role, allowedRoles)) {
     return null;
   }
 

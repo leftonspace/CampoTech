@@ -86,8 +86,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only admins and owners can trigger infrastructure operations
-    if (!['admin', 'owner'].includes(session.role || '')) {
+    // Only owners can trigger infrastructure operations
+    const roleUpper = session.role?.toUpperCase();
+    if (roleUpper !== 'OWNER') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

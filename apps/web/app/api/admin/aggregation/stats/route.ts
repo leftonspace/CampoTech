@@ -21,8 +21,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if user has admin role
-    if (session.role !== 'admin' && session.role !== 'owner') {
+    // Check if user has owner role
+    const roleUpper = session.role?.toUpperCase();
+    if (roleUpper !== 'OWNER') {
       return NextResponse.json(
         { success: false, error: 'Forbidden - Admin access required' },
         { status: 403 }

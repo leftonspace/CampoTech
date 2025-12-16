@@ -557,7 +557,7 @@ export default function NewJobPage() {
                         </span>
                         <span className="font-medium">{member.name}</span>
                         <span className="text-sm text-gray-500">
-                          {member.role === 'TECHNICIAN' ? '(Técnico)' : member.role === 'ADMIN' ? '(Admin)' : ''}
+                          {member.role === 'TECHNICIAN' ? '(Técnico)' : member.role === 'DISPATCHER' ? '(Despachador)' : ''}
                         </span>
                       </button>
                     ))}

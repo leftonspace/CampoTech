@@ -68,7 +68,7 @@ const RESOLUTION_LABELS: Record<string, string> = {
 
 export default function DisputesPage() {
   return (
-    <ProtectedRoute allowedRoles={['owner', 'admin', 'accountant']}>
+    <ProtectedRoute allowedRoles={['OWNER', 'DISPATCHER']}>
       <DisputesContent />
     </ProtectedRoute>
   );

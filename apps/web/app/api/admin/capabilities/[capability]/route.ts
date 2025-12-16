@@ -27,8 +27,9 @@ export async function PATCH(
       );
     }
 
-    // Check if user has admin role
-    if (session.role !== 'admin' && session.role !== 'owner') {
+    // Check if user has owner role
+    const roleUpper = session.role?.toUpperCase();
+    if (roleUpper !== 'OWNER') {
       return NextResponse.json(
         { success: false, error: 'Acceso denegado - Se requiere rol de administrador' },
         { status: 403 }
@@ -90,8 +91,9 @@ export async function DELETE(
       );
     }
 
-    // Check if user has admin role
-    if (session.role !== 'admin' && session.role !== 'owner') {
+    // Check if user has owner role
+    const deleteRoleUpper = session.role?.toUpperCase();
+    if (deleteRoleUpper !== 'OWNER') {
       return NextResponse.json(
         { success: false, error: 'Acceso denegado - Se requiere rol de administrador' },
         { status: 403 }
