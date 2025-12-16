@@ -161,12 +161,12 @@ export default function JobsPage() {
                   className="input w-auto py-1.5 text-sm"
                 >
                   <option value="">Todos</option>
-                  <option value="pending">Pendiente</option>
-                  <option value="scheduled">Programado</option>
-                  <option value="en_camino">En camino</option>
-                  <option value="working">En trabajo</option>
-                  <option value="completed">Completado</option>
-                  <option value="cancelled">Cancelado</option>
+                  <option value="PENDING">Pendiente</option>
+                  <option value="ASSIGNED">Asignado</option>
+                  <option value="EN_ROUTE">En camino</option>
+                  <option value="IN_PROGRESS">En trabajo</option>
+                  <option value="COMPLETED">Completado</option>
+                  <option value="CANCELLED">Cancelado</option>
                 </select>
               </div>
 
@@ -225,15 +225,13 @@ export default function JobsPage() {
                   className="flex items-center gap-4 p-4 transition-colors hover:bg-gray-50"
                 >
                   <div className="flex h-12 w-16 flex-col items-center justify-center rounded-lg bg-gray-100 text-xs font-medium text-gray-600">
-                    <span className="text-sm">#{job.jobNumber || job.id.slice(0, 4)}</span>
+                    <span className="text-sm">{job.jobNumber?.replace('JOB-', 'Nº ') || `Nº ${job.id.slice(0, 4)}`}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    {/* Job title as main heading */}
-                    {job.title && (
-                      <p className="truncate font-semibold text-gray-900">
-                        {job.title}
-                      </p>
-                    )}
+                    {/* Job service type and description as main heading */}
+                    <p className="truncate font-semibold text-gray-900">
+                      {job.serviceType?.replace(/_/g, ' ') || job.description || 'Trabajo sin descripción'}
+                    </p>
                     <div className="flex items-center gap-2 flex-wrap mt-0.5">
                       <p className="truncate text-sm text-gray-600">
                         {job.customer?.name || 'Sin cliente'}
