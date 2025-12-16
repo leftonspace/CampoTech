@@ -206,7 +206,7 @@ export default function SchedulePage() {
   const schedules = scheduleData?.data?.schedules || [];
   const exceptions = scheduleData?.data?.exceptions || [];
 
-  // Update schedule mutation
+  // Update schedule mutation with optimistic updates
   const updateScheduleMutation = useMutation({
     mutationFn: async (data: { dayOfWeek: number; startTime: string; endTime: string; isAvailable: boolean }) => {
       const res = await fetch('/api/employees/schedule', {
@@ -217,7 +217,60 @@ export default function SchedulePage() {
       if (!res.ok) throw new Error('Error updating schedule');
       return res.json();
     },
-    onSuccess: () => {
+    // Optimistic update - update UI immediately before API responds
+    onMutate: async (newData) => {
+      // Cancel any outgoing refetches to prevent overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['employee-schedule', targetUserId] });
+
+      // Snapshot the previous value
+      const previousData = queryClient.getQueryData<{ success: boolean; data: ScheduleData }>(['employee-schedule', targetUserId]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData<{ success: boolean; data: ScheduleData }>(
+        ['employee-schedule', targetUserId],
+        (old) => {
+          if (!old?.data) return old;
+
+          const existingIndex = old.data.schedules.findIndex(s => s.dayOfWeek === newData.dayOfWeek);
+          const updatedSchedules = [...old.data.schedules];
+
+          if (existingIndex >= 0) {
+            // Update existing schedule
+            updatedSchedules[existingIndex] = {
+              ...updatedSchedules[existingIndex],
+              ...newData,
+            };
+          } else {
+            // Add new schedule
+            updatedSchedules.push({
+              id: `temp-${newData.dayOfWeek}`,
+              ...newData,
+            });
+          }
+
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              schedules: updatedSchedules,
+            },
+          };
+        }
+      );
+
+      // Return context with previous value for rollback
+      return { previousData };
+    },
+    // If mutation fails, rollback to previous value
+    onError: (err, newData, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['employee-schedule', targetUserId], context.previousData);
+      }
+      // Show error toast (if you have a toast system)
+      console.error('Error al actualizar horario:', err);
+    },
+    // Always refetch after error or success to ensure server state
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['employee-schedule', targetUserId] });
     },
   });
