@@ -12,9 +12,8 @@ import * as SplashScreen from 'expo-splash-screen';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { DatabaseProvider } from '@nozbe/watermelondb/react';
 
-import database from '../watermelon/database';
+import { AppDatabaseProvider } from '../lib/providers/DatabaseProvider';
 import { AuthProvider } from '../lib/auth/auth-context';
 
 // Keep splash screen visible while we load resources
@@ -61,7 +60,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <DatabaseProvider database={database}>
+          <AppDatabaseProvider>
             <AuthProvider>
               <StatusBar style="auto" />
               <Stack screenOptions={{ headerShown: false }}>
@@ -69,7 +68,7 @@ export default function RootLayout() {
                 <Stack.Screen name="(tabs)" />
               </Stack>
             </AuthProvider>
-          </DatabaseProvider>
+          </AppDatabaseProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
