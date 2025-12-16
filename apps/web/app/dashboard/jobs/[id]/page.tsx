@@ -110,8 +110,8 @@ export default function JobDetailPage() {
   });
 
   // Fetch availability when job has a scheduled date
-  const scheduledDateStr = data?.data?.scheduledDate?.split('T')[0];
-  const scheduledTimeStr = data?.data?.scheduledTimeStart;
+  const scheduledDateStr = (data?.data as any)?.scheduledDate?.split('T')[0];
+  const scheduledTimeStr = (data?.data as any)?.scheduledTimeStart;
 
   const { data: availabilityData } = useQuery({
     queryKey: ['employee-availability', scheduledDateStr, scheduledTimeStr],
@@ -822,3 +822,5 @@ export default function JobDetailPage() {
     </div>
   );
 }
+
+
