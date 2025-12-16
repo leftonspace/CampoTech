@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
@@ -27,12 +27,31 @@ interface Customer {
 
 export default function NewJobPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user: currentUser } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [useCustomerAddress, setUseCustomerAddress] = useState(true);
+
+  // Get customerId from URL params (from "Nuevo trabajo para cliente" button)
+  const preselectedCustomerId = searchParams.get('customerId');
+
+  // Fetch pre-selected customer if customerId is in URL
+  const { data: preselectedCustomerData } = useQuery({
+    queryKey: ['customer', preselectedCustomerId],
+    queryFn: () => api.customers.get(preselectedCustomerId!),
+    enabled: !!preselectedCustomerId && !selectedCustomer,
+  });
+
+  // Set selected customer when pre-selected data loads
+  useEffect(() => {
+    if (preselectedCustomerData?.data && !selectedCustomer) {
+      setSelectedCustomer(preselectedCustomerData.data as Customer);
+      setUseCustomerAddress(true);
+    }
+  }, [preselectedCustomerData, selectedCustomer]);
 
   const [formData, setFormData] = useState({
     title: '',
