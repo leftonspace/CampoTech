@@ -147,7 +147,8 @@ export async function GET(request: NextRequest) {
         job: {
           select: {
             id: true,
-            scheduledTimeSlot: true,
+            scheduledTimeStart: true,
+            scheduledTimeEnd: true,
             estimatedDuration: true,
           },
         },
@@ -233,13 +234,12 @@ export async function GET(request: NextRequest) {
         const conflictingJobs = assignedJobs.filter((a: { jobId: string; technicianId: string; job: { scheduledDate: Date | null; scheduledTimeStart: string | null; scheduledTimeEnd: string | null; estimatedDuration: number | null } }) => {
           if (a.technicianId !== employee.id) return false;
 
-          // Parse scheduledTimeSlot JSON: { start: "09:00", end: "11:00" }
-          const timeSlot = a.job.scheduledTimeSlot as { start?: string; end?: string } | null;
-          if (!timeSlot || !timeSlot.start) return false;
+          // Use separate time fields from Prisma schema
+          if (!a.job.scheduledTimeStart) return false;
 
-          const jobStart = timeToMinutes(timeSlot.start);
-          const jobEnd = timeSlot.end
-            ? timeToMinutes(timeSlot.end)
+          const jobStart = timeToMinutes(a.job.scheduledTimeStart);
+          const jobEnd = a.job.scheduledTimeEnd
+            ? timeToMinutes(a.job.scheduledTimeEnd)
             : jobStart + (a.job.estimatedDuration || 60);
 
           // Check if target time overlaps with job
