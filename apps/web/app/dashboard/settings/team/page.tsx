@@ -263,7 +263,7 @@ export default function TeamSettingsPage() {
       </div>
 
       {/* Pending verifications */}
-      {['OWNER', 'ADMIN'].includes(currentUser?.role || '') && pendingVerifications.length > 0 && (
+      {['OWNER', 'DISPATCHER'].includes(currentUser?.role?.toUpperCase() || '') && pendingVerifications.length > 0 && (
         <div className="card overflow-hidden border-yellow-200 bg-yellow-50">
           <div
             className="flex cursor-pointer items-center justify-between p-4"

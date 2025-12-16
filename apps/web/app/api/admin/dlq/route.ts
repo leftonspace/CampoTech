@@ -56,7 +56,8 @@ async function requireAdmin(request: NextRequest): Promise<{ user: any } | NextR
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!['owner', 'admin'].includes(session.role)) {
+    const roleUpper = session.role?.toUpperCase();
+    if (roleUpper !== 'OWNER') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

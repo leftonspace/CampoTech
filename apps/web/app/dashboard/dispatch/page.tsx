@@ -32,7 +32,7 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 export default function DispatchPage() {
   return (
-    <ProtectedRoute allowedRoles={['owner', 'admin', 'dispatcher']}>
+    <ProtectedRoute allowedRoles={['OWNER', 'DISPATCHER']}>
       <DispatchContent />
     </ProtectedRoute>
   );

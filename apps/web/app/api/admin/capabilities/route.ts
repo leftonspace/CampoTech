@@ -162,8 +162,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Check if user has admin role
-    if (session.role !== 'admin' && session.role !== 'owner') {
+    // Check if user has owner role
+    const roleUpper = session.role?.toUpperCase();
+    if (roleUpper !== 'OWNER') {
       return NextResponse.json(
         { success: false, error: 'Acceso denegado - Se requiere rol de administrador' },
         { status: 403 }
@@ -244,8 +245,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has admin role
-    if (session.role !== 'admin' && session.role !== 'owner') {
+    // Check if user has owner role
+    const postRoleUpper = session.role?.toUpperCase();
+    if (postRoleUpper !== 'OWNER') {
       return NextResponse.json(
         { success: false, error: 'Acceso denegado - Se requiere rol de administrador' },
         { status: 403 }

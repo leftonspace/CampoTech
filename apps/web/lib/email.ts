@@ -352,10 +352,8 @@ export async function sendWelcomeEmail(
 
   const roleDisplay: Record<string, string> = {
     'OWNER': 'Propietario',
-    'ADMIN': 'Administrador',
     'DISPATCHER': 'Despachador',
-    'TECHNICIAN': 'Tecnico',
-    'CUSTOMER': 'Cliente',
+    'TECHNICIAN': 'Técnico',
   };
 
   const data: WelcomeEmailData = {

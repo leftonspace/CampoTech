@@ -76,7 +76,7 @@ interface QueueStats {
 
 export default function ReviewModerationPage() {
   return (
-    <ProtectedRoute allowedRoles={['owner', 'admin']}>
+    <ProtectedRoute allowedRoles={['OWNER', 'DISPATCHER']}>
       <ModerationContent />
     </ProtectedRoute>
   );

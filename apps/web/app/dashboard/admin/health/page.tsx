@@ -42,7 +42,7 @@ interface SystemHealthDetails {
 
 export default function HealthPage() {
   return (
-    <ProtectedRoute allowedRoles={['owner', 'admin']}>
+    <ProtectedRoute allowedRoles={['OWNER']}>
       <HealthContent />
     </ProtectedRoute>
   );

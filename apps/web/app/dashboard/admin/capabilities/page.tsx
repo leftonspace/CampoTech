@@ -93,7 +93,7 @@ const CAPABILITY_ICONS: Record<string, React.ElementType> = {
 
 export default function CapabilitiesPage() {
   return (
-    <ProtectedRoute allowedRoles={['owner', 'admin']}>
+    <ProtectedRoute allowedRoles={['OWNER']}>
       <CapabilitiesContent />
     </ProtectedRoute>
   );

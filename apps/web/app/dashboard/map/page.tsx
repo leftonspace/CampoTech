@@ -379,8 +379,8 @@ export default function LiveMapPage() {
   const searchParams = useSearchParams();
   const { user, isLoading: authLoading } = useAuth();
 
-  // Role-based access check - only ADMIN, OWNER, DISPATCHER can access full map
-  const allowedRoles = ['ADMIN', 'OWNER', 'DISPATCHER'];
+  // Role-based access check - only OWNER or DISPATCHER can access full map
+  const allowedRoles = ['OWNER', 'DISPATCHER'];
   const hasAccess = user && allowedRoles.includes(user.role.toUpperCase());
   const isTechnician = user?.role.toUpperCase() === 'TECHNICIAN';
 

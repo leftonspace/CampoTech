@@ -56,8 +56,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only admins and owners can trigger ETL
-    if (!['admin', 'owner'].includes(session.role || '')) {
+    // Only owners can trigger ETL
+    const roleUpper = session.role?.toUpperCase();
+    if (roleUpper !== 'OWNER') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

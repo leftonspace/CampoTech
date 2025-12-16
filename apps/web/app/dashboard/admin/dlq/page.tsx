@@ -56,7 +56,7 @@ const QUEUE_ICONS: Record<string, React.ElementType> = {
 
 export default function DLQPage() {
   return (
-    <ProtectedRoute allowedRoles={['owner', 'admin']}>
+    <ProtectedRoute allowedRoles={['OWNER']}>
       <DLQContent />
     </ProtectedRoute>
   );

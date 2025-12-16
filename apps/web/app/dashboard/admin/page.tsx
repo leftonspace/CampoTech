@@ -36,7 +36,7 @@ interface QueueStatus {
 
 export default function AdminPage() {
   return (
-    <ProtectedRoute allowedRoles={['owner', 'admin']}>
+    <ProtectedRoute allowedRoles={['OWNER']}>
       <AdminContent />
     </ProtectedRoute>
   );
