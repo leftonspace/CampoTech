@@ -9,7 +9,7 @@
 // USER & AUTH
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export type UserRole = 'owner' | 'admin' | 'dispatcher' | 'technician' | 'accountant';
+export type UserRole = 'OWNER' | 'DISPATCHER' | 'TECHNICIAN';
 export type SubscriptionTier = 'FREE' | 'BASICO' | 'PROFESIONAL' | 'EMPRESARIAL';
 
 export interface UserOrganization {

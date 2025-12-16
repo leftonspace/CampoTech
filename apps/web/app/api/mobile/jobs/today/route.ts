@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
           lt: tomorrow,
         },
         // For technicians, only show assigned jobs
-        ...(session.role === 'technician' ? { technicianId: session.userId } : {}),
+        ...(session.role === 'TECHNICIAN' ? { technicianId: session.userId } : {}),
         // Exclude cancelled jobs
         status: { not: 'CANCELLED' },
       },

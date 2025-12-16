@@ -54,7 +54,7 @@ function DispatchContent() {
 
   const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ['users-technicians'],
-    queryFn: () => api.users.list({ role: 'technician' }),
+    queryFn: () => api.users.list({ role: 'TECHNICIAN' }),
   });
 
   const assignMutation = useMutation({
