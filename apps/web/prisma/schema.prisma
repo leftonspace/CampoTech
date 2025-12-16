@@ -737,6 +737,9 @@ model Review {
   technicianId   String?
   rating         Int?     // 1-5 star rating
   comment        String?
+  token          String?  @unique // Secure token for public rating link
+  tokenExpiresAt DateTime? // Token expiration (optional)
+  submittedAt    DateTime? // When the rating was submitted
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -748,6 +751,7 @@ model Review {
   @@index([organizationId])
   @@index([technicianId])
   @@index([rating])
+  @@index([token])
   @@map("reviews")
 }
 

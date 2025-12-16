@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import { MapPin, Phone, MessageCircle, User, Clock, Truck } from 'lucide-react';
+import { MapPin, Phone, MessageCircle, User, Clock, Truck, Star, CheckCircle, FileText, Download } from 'lucide-react';
+import Link from 'next/link';
 
 // Dynamically import the map component to avoid SSR issues with Leaflet
 const TrackingMap = dynamic(
@@ -34,6 +35,11 @@ interface TrackingData {
   jobReference: string;
   organizationName: string;
   organizationLogo?: string;
+  organizationPhone?: string;
+  ratingToken?: string;
+  completedAt?: string;
+  invoiceUrl?: string;
+  reportUrl?: string;
 }
 
 export default function TrackingPage() {
@@ -240,6 +246,114 @@ export default function TrackingPage() {
             </div>
           </div>
         </div>
+
+        {/* Completed Job Section */}
+        {trackingData.status === 'completed' && (
+          <div className="space-y-4">
+            {/* Completion Success Message */}
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-green-800">
+                    ¡Servicio completado!
+                  </h3>
+                  {trackingData.completedAt && (
+                    <p className="text-sm text-green-600">
+                      {new Date(trackingData.completedAt).toLocaleDateString('es-AR', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Documents Download */}
+            {(trackingData.invoiceUrl || trackingData.reportUrl) && (
+              <div className="bg-white rounded-xl shadow-sm p-4">
+                <h4 className="text-sm font-medium text-gray-500 mb-3">
+                  Documentos
+                </h4>
+                <div className="space-y-2">
+                  {trackingData.invoiceUrl && (
+                    <a
+                      href={trackingData.invoiceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <FileText className="h-5 w-5 text-primary-600" />
+                      <span className="flex-1 text-gray-900">Factura PDF</span>
+                      <Download className="h-5 w-5 text-gray-400" />
+                    </a>
+                  )}
+                  {trackingData.reportUrl && (
+                    <a
+                      href={trackingData.reportUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                      <FileText className="h-5 w-5 text-primary-600" />
+                      <span className="flex-1 text-gray-900">Reporte de servicio</span>
+                      <Download className="h-5 w-5 text-gray-400" />
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Rating Prompt */}
+            {trackingData.ratingToken && (
+              <div className="bg-white rounded-xl shadow-sm p-4">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                    <Star className="h-5 w-5 text-yellow-500" />
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-900">
+                      ¿Cómo fue tu experiencia?
+                    </h4>
+                    <p className="text-sm text-gray-500">
+                      Tu opinión nos ayuda a mejorar
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href={`/rate/${trackingData.ratingToken}`}
+                  className="w-full block text-center py-3 px-4 bg-primary-600 hover:bg-primary-700 text-white font-medium rounded-xl transition-colors"
+                >
+                  Calificar servicio
+                </Link>
+              </div>
+            )}
+
+            {/* Save WhatsApp Prompt */}
+            {trackingData.organizationPhone && (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+                <p className="text-sm text-green-800 font-medium mb-3">
+                  📱 Guardá este WhatsApp para futuras consultas:
+                </p>
+                <a
+                  href={`https://wa.me/${trackingData.organizationPhone.replace(/\D/g, '')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                >
+                  <MessageCircle className="h-5 w-5" />
+                  {trackingData.organizationPhone}
+                </a>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Footer */}
         <div className="text-center py-4">
