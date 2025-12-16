@@ -2,13 +2,16 @@
  * Web Database Mock
  * =================
  *
- * Mock implementation for web platform.
- * WatermelonDB uses native SQLite which doesn't work on web.
- * This provides a basic localStorage-based alternative with
- * a compatible API surface.
+ * Complete mock for web platform - replaces ALL WatermelonDB functionality.
+ * This file is used as a redirect target for all @nozbe/watermelondb imports on web.
  */
 
-// Observable mock for reactive queries
+import React from 'react';
+
+// ============================================================================
+// Mock Observable
+// ============================================================================
+
 class MockObservable<T> {
   private value: T;
 
@@ -17,63 +20,47 @@ class MockObservable<T> {
   }
 
   subscribe(callback: (value: T) => void) {
-    // Call immediately with current value
     callback(this.value);
-    // Return unsubscribe function
-    return {
-      unsubscribe: () => {},
-    };
+    return { unsubscribe: () => {} };
   }
 
-  pipe() {
+  pipe(...args: unknown[]) {
     return this;
   }
 }
 
-// Query builder mock - all chainable methods return this for WatermelonDB compatibility
+// ============================================================================
+// Mock Query - All chainable methods return this
+// ============================================================================
+
 class WebQuery<T> {
   private collection: WebCollection<T>;
-  private filters: Array<(item: T) => boolean> = [];
 
   constructor(collection: WebCollection<T>) {
     this.collection = collection;
   }
 
-  // Chainable query methods - return this for chaining
-  extend(...conditions: unknown[]): WebQuery<T> {
-    return this;
-  }
-
-  where(...conditions: unknown[]): WebQuery<T> {
-    return this;
-  }
-
-  sortBy(...args: unknown[]): WebQuery<T> {
-    return this;
-  }
-
-  take(count: number): WebQuery<T> {
-    return this;
-  }
-
-  skip(count: number): WebQuery<T> {
-    return this;
-  }
+  // All chainable query methods
+  extend(...args: unknown[]): WebQuery<T> { return this; }
+  where(...args: unknown[]): WebQuery<T> { return this; }
+  sortBy(...args: unknown[]): WebQuery<T> { return this; }
+  take(n: number): WebQuery<T> { return this; }
+  skip(n: number): WebQuery<T> { return this; }
 
   // Data fetching methods
   async fetch(): Promise<T[]> {
-    const data = this.collection.getData();
-    return this.filters.length > 0
-      ? data.filter((item) => this.filters.every((f) => f(item)))
-      : data;
+    return this.collection.getData();
   }
 
   async fetchCount(): Promise<number> {
-    const data = await this.fetch();
-    return data.length;
+    return this.collection.getData().length;
   }
 
-  // Observable methods for reactive queries
+  async fetchIds(): Promise<string[]> {
+    return this.collection.getData().map((item: any) => item.id || '');
+  }
+
+  // Observable methods
   observe(): MockObservable<T[]> {
     return new MockObservable(this.collection.getData());
   }
@@ -81,9 +68,16 @@ class WebQuery<T> {
   observeCount(): MockObservable<number> {
     return new MockObservable(this.collection.getData().length);
   }
+
+  observeWithColumns(columns: string[]): MockObservable<T[]> {
+    return this.observe();
+  }
 }
 
-// Simple collection interface for web
+// ============================================================================
+// Mock Collection
+// ============================================================================
+
 class WebCollection<T = Record<string, unknown>> {
   private tableName: string;
 
@@ -110,22 +104,20 @@ class WebCollection<T = Record<string, unknown>> {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(this.getStorageKey(), JSON.stringify(data));
       }
-    } catch {
-      // Ignore storage errors
-    }
+    } catch {}
   }
 
-  query(...conditions: unknown[]): WebQuery<T> {
+  query(...args: unknown[]): WebQuery<T> {
     return new WebQuery<T>(this);
   }
 
   async find(id: string): Promise<T | null> {
     const data = this.getData();
-    return data.find((item: T & { id?: string }) => item.id === id) || null;
+    return data.find((item: any) => item.id === id) || null;
   }
 
-  async create(writer: (record: Partial<T>) => void): Promise<T> {
-    const record: Partial<T> & { id: string; _status: string; _changed: string } = {
+  async create(writer: (record: any) => void): Promise<T> {
+    const record = {
       id: `web_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       _status: 'created',
       _changed: '',
@@ -137,9 +129,8 @@ class WebCollection<T = Record<string, unknown>> {
     return record as T;
   }
 
-  // Alias for prepareCreate used in some patterns
-  prepareCreate(writer: (record: Partial<T>) => void): T {
-    const record: Partial<T> & { id: string; _status: string; _changed: string } = {
+  prepareCreate(writer: (record: any) => void): T {
+    const record = {
       id: `web_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       _status: 'created',
       _changed: '',
@@ -149,18 +140,20 @@ class WebCollection<T = Record<string, unknown>> {
   }
 }
 
-// Mock database class
+// ============================================================================
+// Mock Database
+// ============================================================================
+
 class WebDatabase {
-  private collections: Map<string, WebCollection> = new Map();
+  private _collections = new Map<string, WebCollection>();
 
   get<T>(tableName: string): WebCollection<T> {
-    if (!this.collections.has(tableName)) {
-      this.collections.set(tableName, new WebCollection<T>(tableName));
+    if (!this._collections.has(tableName)) {
+      this._collections.set(tableName, new WebCollection<T>(tableName));
     }
-    return this.collections.get(tableName) as WebCollection<T>;
+    return this._collections.get(tableName) as WebCollection<T>;
   }
 
-  // Batch operations
   async write<T>(callback: () => Promise<T>): Promise<T> {
     return callback();
   }
@@ -169,23 +162,21 @@ class WebDatabase {
     return callback();
   }
 
-  batch(...records: unknown[]): Promise<void> {
-    // Mock batch - records are already prepared
-    return Promise.resolve();
-  }
+  async batch(...records: unknown[]): Promise<void> {}
 
-  // For compatibility with WatermelonDB patterns
   get collections() {
     return {
-      get: <T>(tableName: string) => this.get<T>(tableName),
+      get: <T>(name: string) => this.get<T>(name),
     };
   }
 }
 
-// Create and export web database instance
+// ============================================================================
+// Database singleton and collections
+// ============================================================================
+
 export const database = new WebDatabase();
 
-// Export mock collections
 export const jobsCollection = database.get('jobs');
 export const customersCollection = database.get('customers');
 export const priceBookCollection = database.get('price_book_items');
@@ -196,5 +187,159 @@ export const userSessionCollection = database.get('user_session');
 export const productsCollection = database.get('products');
 export const vehicleStockCollection = database.get('vehicle_stock');
 export const replenishmentRequestsCollection = database.get('replenishment_requests');
+
+// ============================================================================
+// Mock Q (Query helpers)
+// ============================================================================
+
+export const Q = {
+  where: (...args: unknown[]) => args,
+  eq: (value: unknown) => value,
+  notEq: (value: unknown) => value,
+  gt: (value: unknown) => value,
+  gte: (value: unknown) => value,
+  lt: (value: unknown) => value,
+  lte: (value: unknown) => value,
+  oneOf: (values: unknown[]) => values,
+  notIn: (values: unknown[]) => values,
+  between: (a: unknown, b: unknown) => [a, b],
+  like: (value: string) => value,
+  notLike: (value: string) => value,
+  sanitizeLikeString: (s: string) => s,
+  includes: (value: unknown) => value,
+  on: (...args: unknown[]) => args,
+  or: (...args: unknown[]) => args,
+  and: (...args: unknown[]) => args,
+  sortBy: (column: string, order?: string) => ({ column, order }),
+  take: (n: number) => n,
+  skip: (n: number) => n,
+  experimentalJoinTables: (...args: unknown[]) => args,
+  experimentalNestedJoin: (...args: unknown[]) => args,
+};
+
+// ============================================================================
+// Mock Model class
+// ============================================================================
+
+export class Model {
+  id: string = '';
+  _status: string = '';
+  _changed: string = '';
+  static table: string = '';
+  static associations: Record<string, unknown> = {};
+
+  async update(writer: (record: any) => void): Promise<void> {}
+  async markAsDeleted(): Promise<void> {}
+  async destroyPermanently(): Promise<void> {}
+  observe() { return new MockObservable(this); }
+  prepareUpdate(writer: (record: any) => void) { return this; }
+  prepareMarkAsDeleted() { return this; }
+  prepareDestroyPermanently() { return this; }
+}
+
+// ============================================================================
+// Mock decorators (no-op on web)
+// ============================================================================
+
+export const field = (columnName: string) => (target: any, key: string) => {};
+export const text = (columnName: string) => (target: any, key: string) => {};
+export const json = (columnName: string, sanitizer?: any) => (target: any, key: string) => {};
+export const date = (columnName: string) => (target: any, key: string) => {};
+export const readonly = (target: any, key: string, descriptor?: any) => descriptor || {};
+export const relation = (table: string, columnName: string) => (target: any, key: string) => {};
+export const immutableRelation = (table: string, columnName: string) => (target: any, key: string) => {};
+export const children = (table: string) => (target: any, key: string) => {};
+export const lazy = (target: any, key: string, descriptor?: any) => descriptor || {};
+export const action = (target: any, key: string, descriptor?: any) => descriptor || {};
+export const writer = (target: any, key: string, descriptor?: any) => descriptor || {};
+export const reader = (target: any, key: string, descriptor?: any) => descriptor || {};
+export const nochange = (target: any, key: string) => {};
+
+// ============================================================================
+// Mock schema helpers
+// ============================================================================
+
+export const tableSchema = (schema: any) => schema;
+export const appSchema = (schema: any) => schema;
+export const columnName = (name: string) => name;
+
+// ============================================================================
+// Mock Database class export (for class extension)
+// ============================================================================
+
+export class Database extends WebDatabase {}
+
+// ============================================================================
+// Mock DatabaseProvider component
+// ============================================================================
+
+interface DatabaseProviderProps {
+  database?: any;
+  children: React.ReactNode;
+}
+
+export const DatabaseProvider: React.FC<DatabaseProviderProps> = ({ children }) => {
+  return React.createElement(React.Fragment, null, children);
+};
+
+// ============================================================================
+// Mock withDatabase HOC
+// ============================================================================
+
+export const withDatabase = <P extends object>(
+  Component: React.ComponentType<P>
+): React.ComponentType<Omit<P, 'database'>> => {
+  return Component as any;
+};
+
+// ============================================================================
+// Mock withObservables HOC
+// ============================================================================
+
+export const withObservables = (
+  triggerProps: string[],
+  getObservables: (props: any) => Record<string, any>
+) => <P extends object>(Component: React.ComponentType<P>): React.ComponentType<any> => {
+  return Component as any;
+};
+
+// ============================================================================
+// Mock useDatabase hook
+// ============================================================================
+
+export const useDatabase = () => database;
+
+// ============================================================================
+// Mock model classes (empty implementations for imports)
+// ============================================================================
+
+export class Job extends Model { static table = 'jobs'; }
+export class Customer extends Model { static table = 'customers'; }
+export class PriceBookItem extends Model { static table = 'price_book_items'; }
+export class JobPhoto extends Model { static table = 'job_photos'; }
+export class SyncQueue extends Model { static table = 'sync_queue'; }
+export class SyncConflict extends Model { static table = 'sync_conflicts'; }
+export class UserSession extends Model { static table = 'user_session'; }
+export class Product extends Model { static table = 'products'; }
+export class VehicleStock extends Model { static table = 'vehicle_stock'; }
+export class ReplenishmentRequest extends Model { static table = 'replenishment_requests'; }
+
+// Model classes array for schema
+export const modelClasses = [
+  Job,
+  Customer,
+  PriceBookItem,
+  JobPhoto,
+  SyncQueue,
+  SyncConflict,
+  UserSession,
+  Product,
+  VehicleStock,
+  ReplenishmentRequest,
+];
+
+// ============================================================================
+// Default export
+// ============================================================================
 
 export default database;
