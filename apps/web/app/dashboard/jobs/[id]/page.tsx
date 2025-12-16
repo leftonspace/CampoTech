@@ -109,11 +109,13 @@ export default function JobDetailPage() {
     queryFn: () => api.customers.list(),
   });
 
+  // Cast job data for type safety
+  const jobData = data?.data as Job | undefined;
+
   // Fetch availability when job has a scheduled date
-  const scheduledDateStr = data?.data?.scheduledDate?.split('T')[0];
+  const scheduledDateStr = jobData?.scheduledDate?.split('T')[0];
   // Extract start time from scheduledTimeSlot JSON: { start: "09:00", end: "11:00" }
-  const timeSlot = data?.data?.scheduledTimeSlot as { start?: string; end?: string } | null | undefined;
-  const scheduledTimeStr = timeSlot?.start;
+  const scheduledTimeStr = jobData?.scheduledTimeSlot?.start;
 
   const { data: availabilityData } = useQuery({
     queryKey: ['employee-availability', scheduledDateStr, scheduledTimeStr],
