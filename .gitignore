@@ -47,3 +47,8 @@ coverage/
 
 # Vercel
 .vercel/
+
+# Error logs
+all-errors.txt
+errors.txt
+build-errors.txt
