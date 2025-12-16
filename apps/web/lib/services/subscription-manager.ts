@@ -7,9 +7,9 @@
  *
  * Subscription Tiers:
  * - FREE: No payment required
- * - BASICO: $12/month
- * - PROFESIONAL: $18/month
- * - EMPRESARIAL: $25/month
+ * - BASICO (Inicial): $25/month
+ * - PROFESIONAL: $55/month
+ * - EMPRESARIAL: $120/month
  */
 
 import { prisma } from '@/lib/prisma';
