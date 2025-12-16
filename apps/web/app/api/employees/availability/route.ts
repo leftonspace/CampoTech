@@ -147,8 +147,7 @@ export async function GET(request: NextRequest) {
         job: {
           select: {
             id: true,
-            scheduledTimeStart: true,
-            scheduledTimeEnd: true,
+            scheduledTimeSlot: true,
             estimatedDuration: true,
           },
         },
@@ -233,11 +232,14 @@ export async function GET(request: NextRequest) {
       if (isAvailable) {
         const conflictingJobs = assignedJobs.filter((a) => {
           if (a.technicianId !== employee.id) return false;
-          if (!a.job.scheduledTimeStart) return false;
 
-          const jobStart = timeToMinutes(a.job.scheduledTimeStart);
-          const jobEnd = a.job.scheduledTimeEnd
-            ? timeToMinutes(a.job.scheduledTimeEnd)
+          // Parse scheduledTimeSlot JSON: { start: "09:00", end: "11:00" }
+          const timeSlot = a.job.scheduledTimeSlot as { start?: string; end?: string } | null;
+          if (!timeSlot || !timeSlot.start) return false;
+
+          const jobStart = timeToMinutes(timeSlot.start);
+          const jobEnd = timeSlot.end
+            ? timeToMinutes(timeSlot.end)
             : jobStart + (a.job.estimatedDuration || 60);
 
           // Check if target time overlaps with job

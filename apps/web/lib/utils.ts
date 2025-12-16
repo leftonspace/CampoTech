@@ -170,10 +170,19 @@ export function sleep(ms: number): Promise<void> {
 
 /**
  * Job status display
+ * Supports both lowercase (frontend) and uppercase (database) keys
  */
 export const JOB_STATUS_LABELS: Record<string, string> = {
+  // Database enum values (uppercase)
+  PENDING: 'Pendiente',
+  ASSIGNED: 'Asignado',
+  EN_ROUTE: 'En camino',
+  IN_PROGRESS: 'En trabajo',
+  COMPLETED: 'Completado',
+  CANCELLED: 'Cancelado',
+  // Legacy lowercase keys for backwards compatibility
   pending: 'Pendiente',
-  scheduled: 'Programado',
+  scheduled: 'Asignado',
   en_camino: 'En camino',
   working: 'En trabajo',
   completed: 'Completado',
@@ -181,6 +190,14 @@ export const JOB_STATUS_LABELS: Record<string, string> = {
 };
 
 export const JOB_STATUS_COLORS: Record<string, string> = {
+  // Database enum values (uppercase)
+  PENDING: 'bg-yellow-100 text-yellow-800',
+  ASSIGNED: 'bg-blue-100 text-blue-800',
+  EN_ROUTE: 'bg-purple-100 text-purple-800',
+  IN_PROGRESS: 'bg-orange-100 text-orange-800',
+  COMPLETED: 'bg-green-100 text-green-800',
+  CANCELLED: 'bg-gray-100 text-gray-800',
+  // Legacy lowercase keys for backwards compatibility
   pending: 'bg-yellow-100 text-yellow-800',
   scheduled: 'bg-blue-100 text-blue-800',
   en_camino: 'bg-purple-100 text-purple-800',
