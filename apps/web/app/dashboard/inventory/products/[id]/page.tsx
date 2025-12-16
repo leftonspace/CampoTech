@@ -31,8 +31,8 @@ interface Product {
   categoryName?: string;
   salePrice: number;
   costPrice: number;
-  minStock: number;
-  maxStock?: number;
+  minStockLevel: number;
+  maxStockLevel?: number;
   unitOfMeasure: string;
   isActive: boolean;
   imageUrl?: string;
@@ -65,7 +65,7 @@ export default function ProductDetailPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['product', productId],
     queryFn: async () => {
-      const res = await fetch(`/api/inventory/products?id=${productId}`);
+      const res = await fetch(`/api/inventory/products/${productId}`);
       return res.json();
     },
   });
@@ -89,10 +89,10 @@ export default function ProductDetailPage() {
 
   const updateMutation = useMutation({
     mutationFn: async (data: Partial<Product>) => {
-      const res = await fetch('/api/inventory/products', {
-        method: 'PUT',
+      const res = await fetch(`/api/inventory/products/${productId}`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: productId, ...data }),
+        body: JSON.stringify(data),
       });
       return res.json();
     },
@@ -104,7 +104,7 @@ export default function ProductDetailPage() {
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/inventory/products?id=${productId}`, {
+      const res = await fetch(`/api/inventory/products/${productId}`, {
         method: 'DELETE',
       });
       return res.json();
@@ -114,7 +114,7 @@ export default function ProductDetailPage() {
     },
   });
 
-  const product = data?.data?.product as Product | undefined;
+  const product = data?.data as Product | undefined;
   const stockLevels = stockData?.data?.levels as StockLevel[] | undefined;
   const categories = categoriesData?.data?.categories as Category[] | undefined;
 
@@ -131,8 +131,8 @@ export default function ProductDetailPage() {
         categoryId: product.categoryId || '',
         salePrice: product.salePrice,
         costPrice: product.costPrice,
-        minStock: product.minStock,
-        maxStock: product.maxStock,
+        minStockLevel: product.minStockLevel,
+        maxStockLevel: product.maxStockLevel,
         unitOfMeasure: product.unitOfMeasure,
         isActive: product.isActive,
       });
@@ -444,8 +444,8 @@ export default function ProductDetailPage() {
                   <input
                     type="number"
                     min="0"
-                    value={editData.minStock || 0}
-                    onChange={(e) => setEditData({ ...editData, minStock: parseInt(e.target.value) })}
+                    value={editData.minStockLevel || 0}
+                    onChange={(e) => setEditData({ ...editData, minStockLevel: parseInt(e.target.value) })}
                     className="input"
                   />
                 </div>
@@ -454,8 +454,8 @@ export default function ProductDetailPage() {
                   <input
                     type="number"
                     min="0"
-                    value={editData.maxStock || ''}
-                    onChange={(e) => setEditData({ ...editData, maxStock: parseInt(e.target.value) || undefined })}
+                    value={editData.maxStockLevel || ''}
+                    onChange={(e) => setEditData({ ...editData, maxStockLevel: parseInt(e.target.value) || undefined })}
                     className="input"
                   />
                 </div>
@@ -496,11 +496,11 @@ export default function ProductDetailPage() {
                       <AlertTriangle className="h-4 w-4 text-red-500" />
                       <span className="text-red-600">Sin stock</span>
                     </>
-                  ) : totalStock <= product.minStock ? (
+                  ) : totalStock <= product.minStockLevel ? (
                     <>
                       <AlertTriangle className="h-4 w-4 text-yellow-500" />
                       <span className="text-yellow-600">
-                        Stock bajo (mínimo: {product.minStock})
+                        Stock bajo (mínimo: {product.minStockLevel})
                       </span>
                     </>
                   ) : (
