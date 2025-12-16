@@ -30,7 +30,7 @@ class MockObservable<T> {
   }
 }
 
-// Query builder mock
+// Query builder mock - all chainable methods return this for WatermelonDB compatibility
 class WebQuery<T> {
   private collection: WebCollection<T>;
   private filters: Array<(item: T) => boolean> = [];
@@ -39,11 +39,28 @@ class WebQuery<T> {
     this.collection = collection;
   }
 
+  // Chainable query methods - return this for chaining
   extend(...conditions: unknown[]): WebQuery<T> {
-    // Mock query conditions - in real implementation would filter
     return this;
   }
 
+  where(...conditions: unknown[]): WebQuery<T> {
+    return this;
+  }
+
+  sortBy(...args: unknown[]): WebQuery<T> {
+    return this;
+  }
+
+  take(count: number): WebQuery<T> {
+    return this;
+  }
+
+  skip(count: number): WebQuery<T> {
+    return this;
+  }
+
+  // Data fetching methods
   async fetch(): Promise<T[]> {
     const data = this.collection.getData();
     return this.filters.length > 0
@@ -56,6 +73,7 @@ class WebQuery<T> {
     return data.length;
   }
 
+  // Observable methods for reactive queries
   observe(): MockObservable<T[]> {
     return new MockObservable(this.collection.getData());
   }
