@@ -197,16 +197,17 @@ export default function JobDetailPage() {
 
   const handleEdit = () => {
     if (job) {
+      // Extract time from scheduledTimeSlot JSON
+      const timeSlotData = job.scheduledTimeSlot as { start?: string; end?: string } | null;
       setEditData({
-        title: job.title,
         description: job.description || '',
         address: formatAddress(job.address || job.customer?.address),
         priority: job.priority,
         serviceType: job.serviceType || '',
         customerId: job.customerId,
         scheduledDate: job.scheduledDate?.split('T')[0] || '',
-        scheduledTimeStart: job.scheduledTimeStart || '',
-        scheduledTimeEnd: job.scheduledTimeEnd || '',
+        scheduledTimeStart: timeSlotData?.start || '',
+        scheduledTimeEnd: timeSlotData?.end || '',
       });
       setIsEditing(true);
     }
@@ -340,7 +341,9 @@ export default function JobDetailPage() {
         </Link>
         <div className="flex-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900">{job.title}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">
+              {job.serviceType?.replace(/_/g, ' ') || job.description || 'Trabajo'}
+            </h1>
             <span
               className={cn(
                 'rounded-full px-3 py-1 text-sm font-medium',
@@ -358,7 +361,7 @@ export default function JobDetailPage() {
               {PRIORITY_LABELS[job.priority]}
             </span>
           </div>
-          <p className="text-gray-500">#{job.jobNumber || job.id.slice(0, 8)}</p>
+          <p className="text-gray-500">Trabajo {job.jobNumber?.replace('JOB-', 'Nº ') || `Nº ${job.id.slice(0, 8)}`}</p>
         </div>
         <div className="flex gap-2">
           {isEditing ? (
@@ -439,17 +442,7 @@ export default function JobDetailPage() {
             {isEditing ? (
               <div className="space-y-4">
                 <div>
-                  <label className="label mb-1 block">Título</label>
-                  <input
-                    type="text"
-                    value={editData.title || ''}
-                    onChange={(e) => setEditData({ ...editData, title: e.target.value })}
-                    placeholder="Ej: Instalación de aire acondicionado"
-                    className="input"
-                  />
-                </div>
-                <div>
-                  <label className="label mb-1 block">Descripción</label>
+                  <label className="label mb-1 block">Descripción del trabajo</label>
                   <textarea
                     value={editData.description || ''}
                     onChange={(e) => setEditData({ ...editData, description: e.target.value })}
@@ -582,7 +575,7 @@ export default function JobDetailPage() {
           </div>
 
           {/* Completion info (if completed) */}
-          {job.status === 'completed' && (
+          {job.status === 'COMPLETED' && (
             <div className="card p-6">
               <h2 className="mb-4 font-medium text-gray-900">Información de finalización</h2>
               <div className="space-y-4">
@@ -708,7 +701,7 @@ export default function JobDetailPage() {
                         Asignado: {formatDate(assignment.assignedAt)}
                       </p>
                     </div>
-                    {job.status !== 'completed' && job.status !== 'cancelled' && (
+                    {job.status !== 'COMPLETED' && job.status !== 'CANCELLED' && (
                       <button
                         onClick={() => handleUnassign(assignment.technicianId, assignment.technician?.name || 'técnico')}
                         disabled={unassignMutation.isPending}
@@ -735,7 +728,7 @@ export default function JobDetailPage() {
             ) : (
               <p className="text-gray-500">Sin asignar</p>
             )}
-            {!isEditing && job.status !== 'completed' && job.status !== 'cancelled' && (
+            {!isEditing && job.status !== 'COMPLETED' && job.status !== 'CANCELLED' && (
               <div className="mt-4">
                 <label className="label mb-1 block text-sm">Agregar/cambiar asignación:</label>
                 {job.scheduledDate && availabilityData?.data?.availableCount === 0 && (
@@ -787,7 +780,7 @@ export default function JobDetailPage() {
           <div className="card p-6">
             <h2 className="mb-4 font-medium text-gray-900">Acciones rápidas</h2>
             <div className="space-y-2">
-              {!job.invoiceId && job.status === 'completed' && (
+              {!job.invoiceId && job.status === 'COMPLETED' && (
                 <Link
                   href={`/dashboard/invoices/new?jobId=${job.id}&customerId=${job.customerId}`}
                   className="btn-primary w-full justify-center"
