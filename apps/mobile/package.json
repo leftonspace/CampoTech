@@ -56,7 +56,7 @@
     "react-native-signature-canvas": "^4.6.1",
     "react-native-svg": "15.2.0",
     "react-native-web": "~0.19.10",
-    "react-native-webview": "^13.16.0",
+    "react-native-webview": "13.8.6",
     "zustand": "^4.5.0"
   },
   "devDependencies": {
