@@ -98,12 +98,12 @@ export interface Customer {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export type JobStatus =
-  | 'pending'
-  | 'scheduled'
-  | 'en_camino'
-  | 'working'
-  | 'completed'
-  | 'cancelled';
+  | 'PENDING'
+  | 'ASSIGNED'
+  | 'EN_ROUTE'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'CANCELLED';
 
 export type JobPriority = 'low' | 'normal' | 'high' | 'urgent';
 
@@ -129,16 +129,16 @@ export interface Job {
   assignments?: JobAssignment[];
   status: JobStatus;
   priority: JobPriority;
-  title: string;
   description?: string;
   address: string;
   scheduledDate?: string;
-  scheduledTimeStart?: string;
-  scheduledTimeEnd?: string;
+  // Time slot as JSON: { start: "09:00", end: "11:00" }
+  scheduledTimeSlot?: { start?: string; end?: string } | null;
+  startedAt?: string;
   completedAt?: string;
-  completionNotes?: string;
+  resolution?: string;
   photos?: string[];
-  signatureUrl?: string;
+  customerSignature?: string;
   estimatedDuration?: number;
   actualDuration?: number;
   invoiceId?: string;
