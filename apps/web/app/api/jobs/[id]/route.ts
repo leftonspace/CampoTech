@@ -88,7 +88,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // For technicians, only show their own jobs
     if (userRole === 'TECHNICIAN' && job.technicianId !== session.userId) {
@@ -147,7 +147,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Normalize user role
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Validate that user can edit the fields they're trying to update
     const validation = validateEntityUpdate(body, 'job', userRole);

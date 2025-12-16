@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Only OWNER and ADMIN can sync vehicle storage
-    if (!['OWNER', 'ADMIN'].includes(session.role.toUpperCase())) {
+    if (!['OWNER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para sincronizar almacenes de vehículos' },
         { status: 403 }

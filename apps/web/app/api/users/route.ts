@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Filter data based on user role
     const filteredUsers = filterEntitiesByRole(users, 'user', userRole);
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!['OWNER', 'ADMIN', 'DISPATCHER'].includes(session.role)) {
+    if (!['OWNER', 'DISPATCHER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'Forbidden: insufficient permissions' },
         { status: 403 }

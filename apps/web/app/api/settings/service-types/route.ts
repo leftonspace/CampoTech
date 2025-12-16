@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Only admins can create service types
-    if (!['ADMIN', 'OWNER'].includes(session.role.toUpperCase())) {
+    if (!['OWNER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para crear tipos de servicio' },
         { status: 403 }

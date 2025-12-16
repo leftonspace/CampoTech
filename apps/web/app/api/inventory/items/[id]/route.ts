@@ -87,7 +87,7 @@ export async function GET(
     const isLowStock = totalStock <= (item.minStockLevel || 0);
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Build item data
     const itemData = {
@@ -130,9 +130,9 @@ export async function PUT(
     }
 
     // Normalize user role
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
-    if (!['ADMIN', 'OWNER', 'DISPATCHER'].includes(userRole)) {
+    if (!['OWNER', 'DISPATCHER'].includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para esta operacion' },
         { status: 403 }
@@ -241,7 +241,7 @@ export async function DELETE(
       );
     }
 
-    if (!['ADMIN', 'OWNER'].includes(session.role.toUpperCase())) {
+    if (!['OWNER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para esta operación' },
         { status: 403 }

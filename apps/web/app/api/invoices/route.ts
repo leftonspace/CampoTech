@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Check module access - invoices are hidden from TECHNICIAN
     if (!canAccessModule('invoices', userRole)) {

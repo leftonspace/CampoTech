@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!['ADMIN', 'OWNER'].includes(session.role.toUpperCase())) {
+    if (!['OWNER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para crear items' },
         { status: 403 }

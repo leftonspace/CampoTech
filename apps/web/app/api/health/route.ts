@@ -37,12 +37,12 @@ export async function GET() {
       userCount,
     };
 
-    // Try to find admin user
-    const admin = await prisma.user.findFirst({
-      where: { role: 'ADMIN' },
+    // Try to find owner user
+    const owner = await prisma.user.findFirst({
+      where: { role: 'OWNER' },
       select: { id: true, name: true, phone: true, email: true },
     });
-    checks.adminUser = admin;
+    checks.ownerUser = owner;
 
   } catch (error) {
     checks.database = {

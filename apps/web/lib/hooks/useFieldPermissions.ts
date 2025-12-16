@@ -92,9 +92,9 @@ export function useFieldPermissions(
 ): UseFieldPermissionsResult {
   const { user } = useAuth();
 
-  // Get user role, defaulting to VIEWER
+  // Get user role, defaulting to TECHNICIAN
   const userRole = useMemo(() => {
-    return (user?.role?.toUpperCase() || 'VIEWER') as UserRole;
+    return (user?.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
   }, [user?.role]);
 
   // Get the field config for this entity type

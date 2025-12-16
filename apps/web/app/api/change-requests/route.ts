@@ -20,10 +20,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Only OWNER and ADMIN can view change requests
-    if (!['OWNER', 'ADMIN'].includes(userRole)) {
+    if (!['OWNER'].includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para ver solicitudes de cambio' },
         { status: 403 }

@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Only admins, owners, and dispatchers can find nearest technicians
-    if (!['ADMIN', 'OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
+    if (!['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para esta operación' },
         { status: 403 }

@@ -287,8 +287,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check user role - only OWNER, ADMIN can create products
-    if (!['OWNER', 'ADMIN'].includes(session.role)) {
+    // Check user role - only OWNER can create products
+    if (!['OWNER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para crear productos' },
         { status: 403 }

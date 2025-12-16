@@ -136,12 +136,9 @@ model User {
 }
 
 enum UserRole {
-  OWNER
-  ADMIN
-  DISPATCHER
-  TECHNICIAN
-  ACCOUNTANT
-  VIEWER
+  OWNER       // Dueño - Full access: billing, team, settings, all features
+  DISPATCHER  // Despachador - Jobs, scheduling, customers, WhatsApp, inventory, reports (NO billing)
+  TECHNICIAN  // Técnico - Their assigned jobs only, inventory usage, voice reports
 }
 
 // Valid values for specialty: PLOMERO, ELECTRICISTA, GASISTA, CALEFACCIONISTA, REFRIGERACION, ALBANIL, PINTOR, CARPINTERO, TECHISTA, HERRERO, SOLDADOR, OTRO

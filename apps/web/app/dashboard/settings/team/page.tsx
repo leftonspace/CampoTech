@@ -27,7 +27,7 @@ interface TeamMember {
   name: string;
   phone: string;
   email?: string;
-  role: 'OWNER' | 'ADMIN' | 'DISPATCHER' | 'TECHNICIAN' | 'VIEWER';
+  role: 'OWNER' | 'DISPATCHER' | 'TECHNICIAN';
   specialty?: string;
   skillLevel?: string;
   avatar?: string;
@@ -69,34 +69,22 @@ const TRADE_SPECIALTIES = {
 
 const ROLE_CONFIG = {
   OWNER: {
-    label: 'Propietario',
+    label: 'Dueño',
     icon: Shield,
     color: 'text-purple-600 bg-purple-50',
-    description: 'Acceso completo, no se puede eliminar',
-  },
-  ADMIN: {
-    label: 'Administrador',
-    icon: Shield,
-    color: 'text-blue-600 bg-blue-50',
-    description: 'Acceso completo excepto configuración de propietario',
+    description: 'Acceso completo: facturación, equipo, configuración',
   },
   DISPATCHER: {
     label: 'Despachador',
     icon: Users,
     color: 'text-orange-600 bg-orange-50',
-    description: 'Puede asignar y gestionar trabajos',
+    description: 'Trabajos, clientes, WhatsApp, inventario (sin facturación)',
   },
   TECHNICIAN: {
     label: 'Técnico',
     icon: Wrench,
     color: 'text-green-600 bg-green-50',
-    description: 'Puede ver y gestionar trabajos asignados',
-  },
-  VIEWER: {
-    label: 'Visualizador',
-    icon: Eye,
-    color: 'text-gray-600 bg-gray-50',
-    description: 'Solo puede ver información, sin edición',
+    description: 'Solo sus trabajos asignados, uso de inventario',
   },
 };
 
@@ -121,7 +109,7 @@ export default function TeamSettingsPage() {
       const response = await fetch('/api/users/pending-verifications');
       return response.json();
     },
-    enabled: ['OWNER', 'ADMIN'].includes(currentUser?.role || ''),
+    enabled: currentUser?.role === 'OWNER',
   });
 
   const pendingVerifications = (pendingData?.data as PendingVerification[]) || [];
@@ -378,7 +366,7 @@ export default function TeamSettingsPage() {
                 ))
               ) : members.length ? (
                 members.map((member) => {
-                  const roleConfig = ROLE_CONFIG[member.role] || ROLE_CONFIG.VIEWER;
+                  const roleConfig = ROLE_CONFIG[member.role as keyof typeof ROLE_CONFIG] || ROLE_CONFIG.TECHNICIAN;
                   const RoleIcon = roleConfig.icon;
                   const isCurrentUser = member.id === currentUser?.id;
                   const specialtyConfig = member.specialty ? TRADE_SPECIALTIES[member.specialty as keyof typeof TRADE_SPECIALTIES] : null;
@@ -705,10 +693,8 @@ function TeamMemberModal({
                 className="input"
                 disabled={isOwner}
               >
-                <option value="ADMIN">Administrador</option>
                 <option value="DISPATCHER">Despachador</option>
                 <option value="TECHNICIAN">Técnico</option>
-                <option value="VIEWER">Visualizador</option>
                 {isOwner && <option value="OWNER">Propietario</option>}
               </select>
               {isOwner && (

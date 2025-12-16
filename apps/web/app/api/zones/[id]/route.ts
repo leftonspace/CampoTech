@@ -57,7 +57,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check user has permission (owner or admin)
-    if (!['OWNER', 'ADMIN'].includes(session.role)) {
+    if (!['OWNER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'Insufficient permissions' },
         { status: 403 }
@@ -94,7 +94,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check user has permission (owner or admin)
-    if (!['OWNER', 'ADMIN'].includes(session.role)) {
+    if (!['OWNER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'Insufficient permissions' },
         { status: 403 }

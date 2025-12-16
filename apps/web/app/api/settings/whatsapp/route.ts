@@ -45,7 +45,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    if (!['OWNER', 'ADMIN'].includes(session.role)) {
+    if (!['OWNER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'Insufficient permissions' },
         { status: 403 }

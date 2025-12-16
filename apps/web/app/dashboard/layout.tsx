@@ -123,9 +123,9 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
-  // Get user role, defaulting to VIEWER if not set
+  // Get user role, defaulting to TECHNICIAN if not set
   const userRole = useMemo(() => {
-    return (user?.role?.toUpperCase() || 'VIEWER') as UserRole;
+    return (user?.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
   }, [user?.role]);
 
   // Get organization's subscription tier, defaulting to FREE

@@ -166,7 +166,7 @@ export async function GET(
     });
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Build vehicle data with compliance info
     const vehicleData = {
@@ -210,9 +210,9 @@ export async function PUT(
     }
 
     // Normalize user role
-    const userRole = (session.role?.toUpperCase() || 'VIEWER') as UserRole;
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
-    if (!['ADMIN', 'OWNER'].includes(userRole)) {
+    if (!['OWNER'].includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para editar vehiculos' },
         { status: 403 }
@@ -333,7 +333,7 @@ export async function DELETE(
       );
     }
 
-    if (!['ADMIN', 'OWNER'].includes(session.role.toUpperCase())) {
+    if (!['OWNER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para eliminar vehículos' },
         { status: 403 }

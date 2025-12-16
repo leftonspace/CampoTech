@@ -68,7 +68,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    if (!['OWNER', 'ADMIN'].includes(session.role.toUpperCase())) {
+    if (!['OWNER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para editar configuración MercadoPago' },
         { status: 403 }

@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check user role
-    if (!['OWNER', 'ADMIN', 'DISPATCHER'].includes(session.role)) {
+    if (!['OWNER', 'DISPATCHER'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para realizar ajustes de inventario' },
         { status: 403 }
