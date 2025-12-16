@@ -168,7 +168,7 @@ export async function GET(request: NextRequest) {
           updatedAt: true,
         },
       });
-      techLocations.forEach((loc) => {
+      techLocations.forEach((loc: { technicianId: string; latitude: any; longitude: any; updatedAt: any }) => {
         locations.set(loc.technicianId, {
           lat: loc.latitude,
           lng: loc.longitude,
