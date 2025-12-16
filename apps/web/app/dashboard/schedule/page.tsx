@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -13,8 +13,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Trash2,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import TeamCalendar from '@/components/schedule/TeamCalendar';
+
+type TabType = 'my-schedule' | 'team-calendar';
 
 // Day of week names in Spanish
 const DAYS_OF_WEEK = [
@@ -64,9 +68,101 @@ interface ScheduleData {
 const DEFAULT_START = '09:00';
 const DEFAULT_END = '18:00';
 
+// Convert 24h to 12h format
+const to12h = (time24: string): { time: string; period: 'AM' | 'PM' } => {
+  if (!time24) return { time: '', period: 'AM' };
+  const [hours, minutes] = time24.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const h12 = hours === 0 ? 12 : hours > 12 ? hours - 12 : hours;
+  return { time: `${h12}:${String(minutes).padStart(2, '0')}`, period };
+};
+
+// Convert 12h to 24h format
+const to24h = (time12: string, period: 'AM' | 'PM'): string => {
+  if (!time12) return '';
+  const [hours, minutes] = time12.split(':').map(Number);
+  let h = hours;
+  if (period === 'PM' && hours !== 12) h += 12;
+  if (period === 'AM' && hours === 12) h = 0;
+  return `${String(h).padStart(2, '0')}:${String(minutes || 0).padStart(2, '0')}`;
+};
+
+// Time input component with AM/PM toggle
+interface TimeInputProps {
+  value: string; // 24h format
+  onChange: (value: string) => void;
+  disabled?: boolean;
+}
+
+function TimeInput({ value, onChange, disabled }: TimeInputProps) {
+  const { time: initialTime, period: initialPeriod } = to12h(value);
+  const [localTime, setLocalTime] = useState(initialTime);
+  const [localPeriod, setLocalPeriod] = useState<'AM' | 'PM'>(initialPeriod);
+
+  // Update local state when prop changes
+  useEffect(() => {
+    const { time: t, period: p } = to12h(value);
+    setLocalTime(t);
+    setLocalPeriod(p);
+  }, [value]);
+
+  const handleTimeChange = (newTime: string) => {
+    // Allow only numbers and colon, format as HH:MM
+    let val = newTime.replace(/[^0-9:]/g, '');
+    if (val.length === 2 && !val.includes(':')) val += ':';
+    if (val.length > 5) val = val.slice(0, 5);
+    setLocalTime(val);
+
+    // Only update parent if we have a valid time
+    if (val.match(/^\d{1,2}:\d{2}$/)) {
+      onChange(to24h(val, localPeriod));
+    }
+  };
+
+  const handlePeriodToggle = () => {
+    const newPeriod = localPeriod === 'AM' ? 'PM' : 'AM';
+    setLocalPeriod(newPeriod);
+    if (localTime.match(/^\d{1,2}:\d{2}$/)) {
+      onChange(to24h(localTime, newPeriod));
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative flex-1">
+        <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <input
+          type="text"
+          placeholder="9:00"
+          value={localTime}
+          onChange={(e) => handleTimeChange(e.target.value)}
+          disabled={disabled}
+          className={cn(
+            'input w-full pl-10 text-sm',
+            disabled && 'cursor-not-allowed bg-gray-50'
+          )}
+          maxLength={5}
+        />
+      </div>
+      <button
+        type="button"
+        onClick={handlePeriodToggle}
+        disabled={disabled}
+        className={cn(
+          'flex h-[38px] w-14 items-center justify-center rounded-lg border-2 border-primary-500 bg-primary-50 font-semibold text-primary-700 transition-all hover:bg-primary-100 active:scale-95',
+          disabled && 'cursor-not-allowed opacity-50'
+        )}
+      >
+        {localPeriod}
+      </button>
+    </div>
+  );
+}
+
 export default function SchedulePage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<TabType>('my-schedule');
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [showExceptionModal, setShowExceptionModal] = useState(false);
   const [exceptionDate, setExceptionDate] = useState('');
@@ -110,7 +206,7 @@ export default function SchedulePage() {
   const schedules = scheduleData?.data?.schedules || [];
   const exceptions = scheduleData?.data?.exceptions || [];
 
-  // Update schedule mutation
+  // Update schedule mutation with optimistic updates
   const updateScheduleMutation = useMutation({
     mutationFn: async (data: { dayOfWeek: number; startTime: string; endTime: string; isAvailable: boolean }) => {
       const res = await fetch('/api/employees/schedule', {
@@ -121,7 +217,60 @@ export default function SchedulePage() {
       if (!res.ok) throw new Error('Error updating schedule');
       return res.json();
     },
-    onSuccess: () => {
+    // Optimistic update - update UI immediately before API responds
+    onMutate: async (newData) => {
+      // Cancel any outgoing refetches to prevent overwriting optimistic update
+      await queryClient.cancelQueries({ queryKey: ['employee-schedule', targetUserId] });
+
+      // Snapshot the previous value
+      const previousData = queryClient.getQueryData<{ success: boolean; data: ScheduleData }>(['employee-schedule', targetUserId]);
+
+      // Optimistically update the cache
+      queryClient.setQueryData<{ success: boolean; data: ScheduleData }>(
+        ['employee-schedule', targetUserId],
+        (old) => {
+          if (!old?.data) return old;
+
+          const existingIndex = old.data.schedules.findIndex(s => s.dayOfWeek === newData.dayOfWeek);
+          const updatedSchedules = [...old.data.schedules];
+
+          if (existingIndex >= 0) {
+            // Update existing schedule
+            updatedSchedules[existingIndex] = {
+              ...updatedSchedules[existingIndex],
+              ...newData,
+            };
+          } else {
+            // Add new schedule
+            updatedSchedules.push({
+              id: `temp-${newData.dayOfWeek}`,
+              ...newData,
+            });
+          }
+
+          return {
+            ...old,
+            data: {
+              ...old.data,
+              schedules: updatedSchedules,
+            },
+          };
+        }
+      );
+
+      // Return context with previous value for rollback
+      return { previousData };
+    },
+    // If mutation fails, rollback to previous value
+    onError: (err, newData, context) => {
+      if (context?.previousData) {
+        queryClient.setQueryData(['employee-schedule', targetUserId], context.previousData);
+      }
+      // Show error toast (if you have a toast system)
+      console.error('Error al actualizar horario:', err);
+    },
+    // Always refetch after error or success to ensure server state
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['employee-schedule', targetUserId] });
     },
   });
@@ -255,14 +404,14 @@ export default function SchedulePage() {
       {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mi Horario</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Horarios</h1>
           <p className="text-gray-500">
             {isTechnician
-              ? 'Visualiza tu disponibilidad semanal y días libres'
-              : 'Configura tu disponibilidad semanal y días libres'}
+              ? 'Visualiza tu disponibilidad y la de tu equipo'
+              : 'Gestiona horarios y disponibilidad del equipo'}
           </p>
         </div>
-        {canEdit && (
+        {canEdit && activeTab === 'my-schedule' && (
           <button
             onClick={() => setShowExceptionModal(true)}
             className="btn-primary"
@@ -273,38 +422,73 @@ export default function SchedulePage() {
         )}
       </div>
 
-      {/* Read-only notice for technicians */}
-      {isTechnician && (
-        <div className="flex items-center gap-2 p-4 bg-blue-50 rounded-lg text-blue-700">
-          <AlertCircle className="h-5 w-5 flex-shrink-0" />
-          <p className="text-sm">
-            Tu horario es administrado por tu supervisor. Contacta a tu supervisor para solicitar cambios.
-          </p>
-        </div>
-      )}
-
-      {/* Team member selector for owners/dispatchers */}
-      {isOwnerOrDispatcher && teamMembers.length > 0 && (
-        <div className="card p-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Ver horario de:
-          </label>
-          <select
-            value={selectedUserId || user?.id || ''}
-            onChange={(e) => setSelectedUserId(e.target.value || null)}
-            className="input w-full sm:w-auto"
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex gap-6" aria-label="Tabs">
+          <button
+            onClick={() => setActiveTab('my-schedule')}
+            className={cn(
+              'flex items-center gap-2 py-3 px-1 border-b-2 font-medium text-sm transition-colors',
+              activeTab === 'my-schedule'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            )}
           >
-            <option value={user?.id}>Mi horario</option>
-            {teamMembers
-              .filter((m: any) => m.id !== user?.id)
-              .map((member: any) => (
-                <option key={member.id} value={member.id}>
-                  {member.name} ({member.role === 'TECHNICIAN' ? 'Técnico' : member.role === 'DISPATCHER' ? 'Despachador' : 'Propietario'})
-                </option>
-              ))}
-          </select>
-        </div>
-      )}
+            <Clock className="h-4 w-4" />
+            Mi Horario
+          </button>
+          <button
+            onClick={() => setActiveTab('team-calendar')}
+            className={cn(
+              'flex items-center gap-2 py-3 px-1 border-b-2 font-medium text-sm transition-colors',
+              activeTab === 'team-calendar'
+                ? 'border-primary-500 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            )}
+          >
+            <Users className="h-4 w-4" />
+            Calendario del Equipo
+          </button>
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'team-calendar' ? (
+        <TeamCalendar canEdit={canEdit} />
+      ) : (
+        <>
+          {/* Read-only notice for technicians */}
+          {isTechnician && (
+            <div className="flex items-center gap-2 p-4 bg-blue-50 rounded-lg text-blue-700">
+              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+              <p className="text-sm">
+                Tu horario es administrado por tu supervisor. Contacta a tu supervisor para solicitar cambios.
+              </p>
+            </div>
+          )}
+
+          {/* Team member selector for owners/dispatchers */}
+          {isOwnerOrDispatcher && teamMembers.length > 0 && (
+            <div className="card p-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Ver horario de:
+              </label>
+              <select
+                value={selectedUserId || user?.id || ''}
+                onChange={(e) => setSelectedUserId(e.target.value || null)}
+                className="input w-full sm:w-auto"
+              >
+                <option value={user?.id}>Mi horario</option>
+                {teamMembers
+                  .filter((m: any) => m.id !== user?.id)
+                  .map((member: any) => (
+                    <option key={member.id} value={member.id}>
+                      {member.name} ({member.role === 'TECHNICIAN' ? 'Técnico' : member.role === 'DISPATCHER' ? 'Despachador' : 'Propietario'})
+                    </option>
+                  ))}
+              </select>
+            </div>
+          )}
 
       {/* Weekly schedule */}
       <div className="card overflow-hidden">
@@ -327,45 +511,43 @@ export default function SchedulePage() {
                   !isAvailable && 'bg-gray-50'
                 )}
               >
-                <div className="flex items-center gap-4">
-                  {/* Toggle */}
+                {/* Day name and toggle */}
+                <div className="flex items-center gap-3 min-w-[160px]">
+                  {/* Toggle switch */}
                   <button
                     onClick={() => canEdit && handleToggleDay(day.id, schedule)}
                     disabled={!canEdit || updateScheduleMutation.isPending}
                     className={cn(
-                      'w-12 h-6 rounded-full transition-colors relative flex-shrink-0',
+                      'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
                       isAvailable ? 'bg-green-500' : 'bg-gray-300',
                       !canEdit && 'cursor-not-allowed opacity-70'
                     )}
                   >
                     <span
                       className={cn(
-                        'absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform',
-                        isAvailable ? 'translate-x-6' : 'translate-x-0.5'
+                        'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                        isAvailable ? 'translate-x-5' : 'translate-x-0'
                       )}
                     />
                   </button>
-                  <span className={cn('font-medium w-24', !isAvailable && 'text-gray-400')}>
+                  <span className={cn('font-medium', !isAvailable && 'text-gray-400')}>
                     {day.name}
                   </span>
                 </div>
 
+                {/* Time inputs */}
                 {isAvailable ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="time"
+                  <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+                    <TimeInput
                       value={schedule?.startTime || DEFAULT_START}
-                      onChange={(e) => canEdit && handleTimeChange(day.id, 'startTime', e.target.value)}
+                      onChange={(value) => canEdit && handleTimeChange(day.id, 'startTime', value)}
                       disabled={!canEdit}
-                      className={cn('input w-32 text-sm', !canEdit && 'cursor-not-allowed bg-gray-50')}
                     />
-                    <span className="text-gray-500">a</span>
-                    <input
-                      type="time"
+                    <span className="text-gray-500 hidden sm:inline">a</span>
+                    <TimeInput
                       value={schedule?.endTime || DEFAULT_END}
-                      onChange={(e) => canEdit && handleTimeChange(day.id, 'endTime', e.target.value)}
+                      onChange={(value) => canEdit && handleTimeChange(day.id, 'endTime', value)}
                       disabled={!canEdit}
-                      className={cn('input w-32 text-sm', !canEdit && 'cursor-not-allowed bg-gray-50')}
                     />
                   </div>
                 ) : (
@@ -557,23 +739,19 @@ export default function SchedulePage() {
             </div>
 
             {exceptionIsAvailable && (
-              <div className="flex items-center gap-2">
-                <div className="flex-1">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
-                  <input
-                    type="time"
+                  <TimeInput
                     value={exceptionStartTime}
-                    onChange={(e) => setExceptionStartTime(e.target.value)}
-                    className="input w-full"
+                    onChange={(value) => setExceptionStartTime(value)}
                   />
                 </div>
-                <div className="flex-1">
+                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
-                  <input
-                    type="time"
+                  <TimeInput
                     value={exceptionEndTime}
-                    onChange={(e) => setExceptionEndTime(e.target.value)}
-                    className="input w-full"
+                    onChange={(value) => setExceptionEndTime(value)}
                   />
                 </div>
               </div>
@@ -605,6 +783,8 @@ export default function SchedulePage() {
             </div>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );
