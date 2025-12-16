@@ -2,38 +2,55 @@
  * Tabs Layout
  * ===========
  *
- * Phase 9.10: Mobile-First Architecture
- * Main app navigation with bottom tabs (max 5 tabs per guidelines).
+ * Role-based navigation with bottom tabs.
  *
- * Tab Structure:
- * - Hoy: Today's jobs (primary view for field workers)
- * - Agenda: Calendar/scheduling view
- * - Trabajos: All jobs management
- * - Facturas: Invoicing
- * - Perfil: Profile and access to team/settings
+ * Tab visibility by role:
+ * - OWNER: All tabs (today, jobs, calendar, team, profile)
+ * - DISPATCHER: today, jobs, calendar, customers, profile
+ * - TECHNICIAN: today, inventory, profile
  */
 
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import {
   CalendarDays,
   CalendarClock,
   Briefcase,
-  FileText,
+  Package,
   User,
   WifiOff,
   RefreshCw,
   Users,
+  Map,
+  FileText,
 } from 'lucide-react-native';
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 
 import { useAuth } from '../../lib/auth/auth-context';
 import { useSyncStatus } from '../../lib/hooks/use-sync-status';
 
+type UserRole = 'OWNER' | 'DISPATCHER' | 'TECHNICIAN';
+
 export default function TabsLayout() {
-  const { user, mode } = useAuth();
+  const { user, isLoading } = useAuth();
   const { isOnline, pendingOperations, isSyncing } = useSyncStatus();
   const spinAnim = useRef(new Animated.Value(0)).current;
+
+  // Get user role with fallback
+  const userRole = useMemo(() => {
+    const role = user?.role?.toUpperCase();
+    if (role === 'OWNER' || role === 'DISPATCHER' || role === 'TECHNICIAN') {
+      return role as UserRole;
+    }
+    return 'TECHNICIAN' as UserRole;
+  }, [user?.role]);
+
+  // Check if user has access to specific tabs
+  const canSeeJobs = userRole === 'OWNER' || userRole === 'DISPATCHER';
+  const canSeeCalendar = userRole === 'OWNER' || userRole === 'DISPATCHER';
+  const canSeeTeam = userRole === 'OWNER';
+  const canSeeInvoices = userRole === 'OWNER';
+  const canSeeInventory = userRole === 'TECHNICIAN';
 
   // Animate sync icon
   useEffect(() => {
@@ -54,6 +71,11 @@ export default function TabsLayout() {
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
   });
+
+  // Redirect to login if not authenticated
+  if (!isLoading && !user) {
+    return <Redirect href="/(auth)/login" />;
+  }
 
   return (
     <>
@@ -88,10 +110,10 @@ export default function TabsLayout() {
           tabBarLabelStyle: styles.tabBarLabel,
           headerStyle: styles.header,
           headerTitleStyle: styles.headerTitle,
-          headerShown: false, // Most screens have custom headers
+          headerShown: false,
         }}
       >
-        {/* Today's Jobs - Primary view for field workers */}
+        {/* Today's Jobs - All roles see this */}
         <Tabs.Screen
           name="today"
           options={{
@@ -104,42 +126,61 @@ export default function TabsLayout() {
           }}
         />
 
-        {/* Calendar/Agenda - Scheduling view */}
-        <Tabs.Screen
-          name="calendar"
-          options={{
-            title: 'Agenda',
-            tabBarIcon: ({ color, size }) => (
-              <CalendarClock size={size} color={color} />
-            ),
-          }}
-        />
-
-        {/* All Jobs */}
+        {/* All Jobs - OWNER and DISPATCHER only */}
         <Tabs.Screen
           name="jobs"
           options={{
             title: 'Trabajos',
             headerTitle: 'Todos los Trabajos',
             headerShown: true,
+            href: canSeeJobs ? undefined : null,
             tabBarIcon: ({ color, size }) => (
               <Briefcase size={size} color={color} />
             ),
           }}
         />
 
-        {/* Invoices */}
+        {/* Calendar/Agenda - OWNER and DISPATCHER only */}
         <Tabs.Screen
-          name="invoices"
+          name="calendar"
           options={{
-            title: 'Facturas',
+            title: 'Agenda',
+            href: canSeeCalendar ? undefined : null,
             tabBarIcon: ({ color, size }) => (
-              <FileText size={size} color={color} />
+              <CalendarClock size={size} color={color} />
             ),
           }}
         />
 
-        {/* Profile - Also provides access to Team and Settings */}
+        {/* Inventory - TECHNICIAN only */}
+        <Tabs.Screen
+          name="inventory"
+          options={{
+            title: 'Inventario',
+            headerTitle: 'Mi Inventario',
+            headerShown: true,
+            href: canSeeInventory ? undefined : null,
+            tabBarIcon: ({ color, size }) => (
+              <Package size={size} color={color} />
+            ),
+          }}
+        />
+
+        {/* Team - OWNER only */}
+        <Tabs.Screen
+          name="team"
+          options={{
+            title: 'Equipo',
+            headerTitle: 'Mi Equipo',
+            headerShown: true,
+            href: canSeeTeam ? undefined : null,
+            tabBarIcon: ({ color, size }) => (
+              <Users size={size} color={color} />
+            ),
+          }}
+        />
+
+        {/* Profile - All roles */}
         <Tabs.Screen
           name="profile"
           options={{
@@ -152,14 +193,14 @@ export default function TabsLayout() {
           }}
         />
 
-        {/* Hidden tabs - accessible via navigation but not in tab bar */}
+        {/* Hidden screens - accessible via navigation but not in tab bar */}
         <Tabs.Screen
           name="customers"
           options={{
             title: 'Clientes',
             headerTitle: 'Clientes',
             headerShown: true,
-            href: null, // Hide from tab bar, accessible via navigation
+            href: null,
             tabBarIcon: ({ color, size }) => (
               <Users size={size} color={color} />
             ),
@@ -167,9 +208,14 @@ export default function TabsLayout() {
         />
 
         <Tabs.Screen
-          name="team"
+          name="invoices"
           options={{
-            href: null, // Hide from tab bar, accessible via Profile
+            title: 'Facturas',
+            headerShown: true,
+            href: null,
+            tabBarIcon: ({ color, size }) => (
+              <FileText size={size} color={color} />
+            ),
           }}
         />
       </Tabs>

@@ -259,6 +259,44 @@ export const api = {
     unregister: () =>
       apiRequest('/notifications/unregister', { method: 'POST' }),
   },
+
+  // Employee invites
+  invites: {
+    get: (token: string) =>
+      apiRequest<{
+        organizationName: string;
+        organizationLogo?: string;
+        role: string;
+        invitedBy: string;
+        expiresAt: string;
+      }>(`/invites/${token}`, {
+        auth: false,
+      }),
+
+    requestOtp: (token: string, phone: string) =>
+      apiRequest<{ sent: boolean }>(`/invites/${token}/request-otp`, {
+        method: 'POST',
+        body: { phone },
+        auth: false,
+      }),
+
+    accept: (token: string, phone: string, code: string) =>
+      apiRequest<{
+        accessToken: string;
+        refreshToken: string;
+        user: {
+          id: string;
+          name: string;
+          phone: string;
+          role: string;
+          organizationId: string;
+        };
+      }>(`/invites/${token}/accept`, {
+        method: 'POST',
+        body: { phone, code },
+        auth: false,
+      }),
+  },
 };
 
 export default api;
