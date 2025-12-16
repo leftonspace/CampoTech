@@ -67,14 +67,14 @@ const PRIORITY_COLORS: Record<string, string> = {
   urgent: 'bg-red-100 text-red-800',
 };
 
-// Valid status transitions
+// Valid status transitions (using database enum values)
 const STATUS_TRANSITIONS: Record<string, string[]> = {
-  pending: ['scheduled', 'cancelled'],
-  scheduled: ['en_camino', 'pending', 'cancelled'],
-  en_camino: ['working', 'scheduled'],
-  working: ['completed', 'en_camino'],
-  completed: [],
-  cancelled: ['pending'],
+  PENDING: ['ASSIGNED', 'CANCELLED'],
+  ASSIGNED: ['EN_ROUTE', 'PENDING', 'CANCELLED'],
+  EN_ROUTE: ['IN_PROGRESS', 'ASSIGNED'],
+  IN_PROGRESS: ['COMPLETED', 'EN_ROUTE'],
+  COMPLETED: [],
+  CANCELLED: ['PENDING'],
 };
 
 export default function JobDetailPage() {
@@ -111,7 +111,9 @@ export default function JobDetailPage() {
 
   // Fetch availability when job has a scheduled date
   const scheduledDateStr = data?.data?.scheduledDate?.split('T')[0];
-  const scheduledTimeStr = data?.data?.scheduledTimeStart;
+  // Extract start time from scheduledTimeSlot JSON: { start: "09:00", end: "11:00" }
+  const timeSlot = data?.data?.scheduledTimeSlot as { start?: string; end?: string } | null | undefined;
+  const scheduledTimeStr = timeSlot?.start;
 
   const { data: availabilityData } = useQuery({
     queryKey: ['employee-availability', scheduledDateStr, scheduledTimeStr],
@@ -260,17 +262,17 @@ export default function JobDetailPage() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'scheduled':
+      case 'ASSIGNED':
         return Calendar;
-      case 'en_camino':
+      case 'EN_ROUTE':
         return Truck;
-      case 'working':
+      case 'IN_PROGRESS':
         return Wrench;
-      case 'completed':
+      case 'COMPLETED':
         return CheckCircle;
-      case 'cancelled':
+      case 'CANCELLED':
         return XCircle;
-      case 'pending':
+      case 'PENDING':
         return Pause;
       default:
         return Play;
@@ -279,13 +281,13 @@ export default function JobDetailPage() {
 
   const getStatusButtonColor = (status: string) => {
     switch (status) {
-      case 'completed':
+      case 'COMPLETED':
         return 'btn-primary';
-      case 'cancelled':
+      case 'CANCELLED':
         return 'btn-danger';
-      case 'en_camino':
+      case 'EN_ROUTE':
         return 'bg-purple-600 text-white hover:bg-purple-700';
-      case 'working':
+      case 'IN_PROGRESS':
         return 'bg-orange-600 text-white hover:bg-orange-700';
       default:
         return 'btn-outline';
@@ -396,12 +398,12 @@ export default function JobDetailPage() {
                 disabled={statusMutation.isPending}
                 className="input w-auto py-1.5 text-sm"
               >
-                <option value="pending">Pendiente</option>
-                <option value="scheduled">Programado</option>
-                <option value="en_camino">En camino</option>
-                <option value="working">En trabajo</option>
-                <option value="completed">Completado</option>
-                <option value="cancelled">Cancelado</option>
+                <option value="PENDING">Pendiente</option>
+                <option value="ASSIGNED">Asignado</option>
+                <option value="EN_ROUTE">En camino</option>
+                <option value="IN_PROGRESS">En trabajo</option>
+                <option value="COMPLETED">Completado</option>
+                <option value="CANCELLED">Cancelado</option>
               </select>
             </div>
 

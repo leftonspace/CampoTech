@@ -713,6 +713,8 @@ export const MODULE_ACCESS: Record<string, Record<UserRole, ModuleAccess>> = {
   locations: { OWNER: 'full', DISPATCHER: 'view', TECHNICIAN: 'hidden' },
   // WhatsApp: Owner & Dispatcher manage inbox, Technician hidden
   whatsapp: { OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'hidden' },
+  // Schedule: Owner & Dispatcher manage all schedules, Technician sees own (read-only)
+  schedule: { OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'own' },
 };
 
 // ===========================================
