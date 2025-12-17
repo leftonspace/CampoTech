@@ -6,7 +6,7 @@
  * Handles conflict resolution and offline queuing.
  */
 
-import NetInfo from '@react-native-community/netinfo';
+import { Platform } from 'react-native';
 import {
   database,
   jobsCollection,
@@ -51,17 +51,26 @@ export interface SyncStatus {
 
 let isOnline = true;
 
-NetInfo.addEventListener((state) => {
-  const wasOffline = !isOnline;
-  isOnline = state.isConnected ?? false;
+// Only setup NetInfo listener on native platforms
+if (Platform.OS !== 'web') {
+  // Lazy import to avoid web issues
+  import('@react-native-community/netinfo').then((NetInfo) => {
+    NetInfo.default.addEventListener((state) => {
+      const wasOffline = !isOnline;
+      isOnline = state.isConnected ?? false;
 
-  // Trigger sync when coming back online
-  if (wasOffline && isOnline) {
-    scheduleSyncDebounced();
-  }
+      // Trigger sync when coming back online
+      if (wasOffline && isOnline) {
+        scheduleSyncDebounced();
+      }
 
-  notifyListeners();
-});
+      notifyListeners();
+    });
+  }).catch(() => {
+    // NetInfo not available, assume online
+    isOnline = true;
+  });
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SYNC OPERATIONS
