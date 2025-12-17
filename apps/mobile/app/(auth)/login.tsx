@@ -2,7 +2,7 @@
  * Login Screen
  * ============
  *
- * Phone number OTP authentication.
+ * Phone number OTP authentication with country code selector.
  */
 
 import { useState, useRef } from 'react';
@@ -15,24 +15,43 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Alert,
+  Modal,
+  FlatList,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 
 import { useAuth } from '../../lib/auth/auth-context';
 import { api } from '../../lib/api/client';
 
 type Step = 'phone' | 'otp';
 
+// Country codes for phone input - matches web app
+const COUNTRY_CODES = [
+  { code: '+54', country: 'Argentina', flag: '🇦🇷' },
+  { code: '+1', country: 'USA/Canada', flag: '🇺🇸' },
+  { code: '+52', country: 'México', flag: '🇲🇽' },
+  { code: '+55', country: 'Brasil', flag: '🇧🇷' },
+  { code: '+56', country: 'Chile', flag: '🇨🇱' },
+  { code: '+57', country: 'Colombia', flag: '🇨🇴' },
+  { code: '+58', country: 'Venezuela', flag: '🇻🇪' },
+  { code: '+34', country: 'España', flag: '🇪🇸' },
+];
+
 export default function LoginScreen() {
   const { login } = useAuth();
   const [step, setStep] = useState<Step>('phone');
+  const [countryCode, setCountryCode] = useState('+54'); // Default to Argentina
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
   const otpInputs = useRef<(TextInput | null)[]>([]);
+
+  const selectedCountry = COUNTRY_CODES.find((c) => c.code === countryCode) || COUNTRY_CODES[0];
 
   const formatPhone = (value: string) => {
     const digits = value.replace(/\D/g, '');
@@ -47,9 +66,15 @@ export default function LoginScreen() {
     setError('');
   };
 
+  // Get full phone number with country code
+  const getFullPhone = () => {
+    const phoneDigits = phone.replace(/\D/g, '');
+    return `${countryCode}${phoneDigits}`;
+  };
+
   const handleRequestOtp = async () => {
     const digits = phone.replace(/\D/g, '');
-    if (digits.length < 10) {
+    if (digits.length < 8) {
       setError('Ingresá un número válido');
       return;
     }
@@ -58,7 +83,8 @@ export default function LoginScreen() {
     setError('');
 
     try {
-      const response = await api.auth.requestOtp(digits);
+      const fullPhone = getFullPhone();
+      const response = await api.auth.requestOtp(fullPhone);
       if (response.success) {
         setStep('otp');
         setTimeout(() => otpInputs.current[0]?.focus(), 100);
@@ -109,12 +135,12 @@ export default function LoginScreen() {
   };
 
   const handleVerifyOtp = async (code: string) => {
-    const digits = phone.replace(/\D/g, '');
+    const fullPhone = getFullPhone();
     setIsLoading(true);
     setError('');
 
     try {
-      const result = await login(digits, code);
+      const result = await login(fullPhone, code);
       if (!result.success) {
         setError(result.error || 'Código inválido');
         setOtp(['', '', '', '', '', '']);
@@ -131,6 +157,23 @@ export default function LoginScreen() {
     setOtp(['', '', '', '', '', '']);
     await handleRequestOtp();
   };
+
+  const renderCountryItem = ({ item }: { item: typeof COUNTRY_CODES[0] }) => (
+    <TouchableOpacity
+      style={styles.countryItem}
+      onPress={() => {
+        setCountryCode(item.code);
+        setShowCountryPicker(false);
+      }}
+    >
+      <Text style={styles.countryFlag}>{item.flag}</Text>
+      <Text style={styles.countryName}>{item.country}</Text>
+      <Text style={styles.countryCodeText}>{item.code}</Text>
+      {item.code === countryCode && (
+        <Feather name="check" size={20} color="#16a34a" />
+      )}
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -152,19 +195,31 @@ export default function LoginScreen() {
           {/* Form */}
           {step === 'phone' ? (
             <View style={styles.form}>
-              <View style={styles.inputContainer}>
-                <Text style={styles.countryCode}>+54 9</Text>
-                <TextInput
-                  style={styles.phoneInput}
-                  value={phone}
-                  onChangeText={handlePhoneChange}
-                  placeholder="11 1234-5678"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="phone-pad"
-                  maxLength={13}
-                  autoFocus
-                  editable={!isLoading}
-                />
+              <View style={styles.phoneRow}>
+                {/* Country Code Selector */}
+                <TouchableOpacity
+                  style={styles.countrySelector}
+                  onPress={() => setShowCountryPicker(true)}
+                >
+                  <Text style={styles.countryFlag}>{selectedCountry.flag}</Text>
+                  <Text style={styles.selectedCode}>{countryCode}</Text>
+                  <Feather name="chevron-down" size={16} color="#6b7280" />
+                </TouchableOpacity>
+
+                {/* Phone Input */}
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.phoneInput}
+                    value={phone}
+                    onChangeText={handlePhoneChange}
+                    placeholder="11 1234-5678"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="phone-pad"
+                    maxLength={13}
+                    autoFocus
+                    editable={!isLoading}
+                  />
+                </View>
               </View>
 
               {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -183,6 +238,10 @@ export default function LoginScreen() {
             </View>
           ) : (
             <View style={styles.form}>
+              <Text style={styles.phoneDisplay}>
+                Código enviado a {getFullPhone()}
+              </Text>
+
               <View style={styles.otpContainer}>
                 {otp.map((digit, index) => (
                   <TextInput
@@ -234,6 +293,34 @@ export default function LoginScreen() {
           )}
         </View>
       </KeyboardAvoidingView>
+
+      {/* Country Picker Modal */}
+      <Modal
+        visible={showCountryPicker}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCountryPicker(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setShowCountryPicker(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Seleccionar país</Text>
+              <TouchableOpacity onPress={() => setShowCountryPicker(false)}>
+                <Feather name="x" size={24} color="#374151" />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={COUNTRY_CODES}
+              renderItem={renderCountryItem}
+              keyExtractor={(item) => item.code}
+              ItemSeparatorComponent={() => <View style={styles.separator} />}
+            />
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -269,7 +356,31 @@ const styles = StyleSheet.create({
   form: {
     gap: 16,
   },
+  phoneRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  countrySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 16,
+    backgroundColor: '#f9fafb',
+    gap: 6,
+  },
+  countryFlag: {
+    fontSize: 20,
+  },
+  selectedCode: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
   inputContainer: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
@@ -278,16 +389,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     backgroundColor: '#f9fafb',
   },
-  countryCode: {
-    fontSize: 16,
-    color: '#374151',
-    marginRight: 8,
-  },
   phoneInput: {
     flex: 1,
     fontSize: 16,
     paddingVertical: 16,
     color: '#111827',
+  },
+  phoneDisplay: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 8,
   },
   otpContainer: {
     flexDirection: 'row',
@@ -353,5 +465,50 @@ const styles = StyleSheet.create({
   backText: {
     color: '#6b7280',
     fontSize: 14,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '60%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  countryItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    gap: 12,
+  },
+  countryName: {
+    flex: 1,
+    fontSize: 16,
+    color: '#374151',
+  },
+  countryCodeText: {
+    fontSize: 16,
+    color: '#6b7280',
+    marginRight: 8,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: '#f3f4f6',
   },
 });
