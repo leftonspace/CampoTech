@@ -5,9 +5,6 @@ const path = require('path');
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
-// Add platform-specific extension resolution
-config.resolver.sourceExts = ['web.tsx', 'web.ts', 'web.js', ...config.resolver.sourceExts];
-
 // Exclude WatermelonDB from web builds completely
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   if (platform === 'web') {
