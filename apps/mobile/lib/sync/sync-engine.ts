@@ -7,6 +7,7 @@
  */
 
 import { Platform } from 'react-native';
+import { Q } from '@nozbe/watermelondb';
 import {
   database,
   jobsCollection,
@@ -215,8 +216,7 @@ async function pullServerChanges(): Promise<{ count: number }> {
  */
 async function syncJob(serverJob: any): Promise<void> {
   const existing = await jobsCollection
-    .query()
-    .where('server_id', serverJob.id)
+    .query(Q.where('server_id', serverJob.id))
     .fetchFirst() as Job | null;
 
   if (existing) {
@@ -252,8 +252,7 @@ async function syncJob(serverJob: any): Promise<void> {
  */
 async function syncCustomer(serverCustomer: any): Promise<void> {
   const existing = await customersCollection
-    .query()
-    .where('server_id', serverCustomer.id)
+    .query(Q.where('server_id', serverCustomer.id))
     .fetchFirst() as Customer | null;
 
   if (existing) {
@@ -275,8 +274,7 @@ async function syncCustomer(serverCustomer: any): Promise<void> {
  */
 async function syncPriceBookItem(serverItem: any): Promise<void> {
   const existing = await priceBookCollection
-    .query()
-    .where('server_id', serverItem.id)
+    .query(Q.where('server_id', serverItem.id))
     .fetchFirst();
 
   if (existing) {
@@ -367,8 +365,7 @@ async function createConflict(data: {
   let localData: unknown = null;
   if (data.entityType === 'job') {
     const job = await jobsCollection
-      .query()
-      .where('server_id', data.entityId)
+      .query(Q.where('server_id', data.entityId))
       .fetchFirst();
     localData = job?._raw;
   }
@@ -436,8 +433,7 @@ export async function resolveConflict(
  */
 export async function getUnresolvedConflicts(): Promise<SyncConflict[]> {
   return syncConflictsCollection
-    .query()
-    .where('resolved', false)
+    .query(Q.where('resolved', false))
     .fetch() as Promise<SyncConflict[]>;
 }
 
@@ -522,8 +518,7 @@ export function addSyncListener(listener: (status: SyncStatus) => void): () => v
 async function notifyListeners(): Promise<void> {
   const pendingOps = await syncQueueCollection.query().fetchCount();
   const conflicts = await syncConflictsCollection
-    .query()
-    .where('resolved', false)
+    .query(Q.where('resolved', false))
     .fetchCount();
 
   const status: SyncStatus = {
@@ -540,8 +535,7 @@ async function notifyListeners(): Promise<void> {
 export async function getSyncStatus(): Promise<SyncStatus> {
   const pendingOps = await syncQueueCollection.query().fetchCount();
   const conflicts = await syncConflictsCollection
-    .query()
-    .where('resolved', false)
+    .query(Q.where('resolved', false))
     .fetchCount();
 
   return {
