@@ -3,9 +3,10 @@
  * =========================
  *
  * Camera-based barcode scanner for quick product lookup.
+ * Uses dynamic imports to prevent expo-camera web code from loading on native.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,9 +14,21 @@ import {
   TouchableOpacity,
   Modal,
   Dimensions,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
-import { Camera, CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { Feather } from '@expo/vector-icons';
+
+// Types for expo-camera (defined locally to avoid import-time issues)
+interface BarcodeScanningResult {
+  data: string;
+  type: string;
+}
+
+interface PermissionResponse {
+  granted: boolean;
+  canAskAgain: boolean;
+}
 
 interface BarcodeScannerProps {
   visible: boolean;
@@ -28,16 +41,57 @@ export default function BarcodeScanner({
   onClose,
   onScan,
 }: BarcodeScannerProps) {
-  const [permission, requestPermission] = useCameraPermissions();
+  const [cameraModule, setCameraModule] = useState<any>(null);
+  const [permission, setPermission] = useState<PermissionResponse | null>(null);
   const [scanned, setScanned] = useState(false);
   const [torch, setTorch] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const moduleLoadAttempted = useRef(false);
 
+  // Dynamically load expo-camera only when component mounts
   useEffect(() => {
-    if (visible && !permission?.granted) {
-      requestPermission();
-    }
-  }, [visible, permission, requestPermission]);
+    if (moduleLoadAttempted.current) return;
+    moduleLoadAttempted.current = true;
 
+    // Only load expo-camera on native platforms
+    if (Platform.OS === 'web') {
+      setIsLoading(false);
+      return;
+    }
+
+    import('expo-camera')
+      .then((module) => {
+        setCameraModule(module);
+        setIsLoading(false);
+      })
+      .catch((err) => {
+        console.error('Failed to load expo-camera:', err);
+        setIsLoading(false);
+      });
+  }, []);
+
+  // Request permissions when camera module is loaded and modal becomes visible
+  useEffect(() => {
+    if (!cameraModule || !visible) return;
+
+    const checkAndRequestPermission = async () => {
+      try {
+        const currentPermission = await cameraModule.Camera.getCameraPermissionsAsync();
+        if (currentPermission.granted) {
+          setPermission(currentPermission);
+        } else {
+          const newPermission = await cameraModule.Camera.requestCameraPermissionsAsync();
+          setPermission(newPermission);
+        }
+      } catch (err) {
+        console.error('Permission error:', err);
+      }
+    };
+
+    checkAndRequestPermission();
+  }, [cameraModule, visible]);
+
+  // Reset scanned state when modal opens
   useEffect(() => {
     if (visible) {
       setScanned(false);
@@ -58,8 +112,53 @@ export default function BarcodeScanner({
     setScanned(false);
   }, []);
 
+  const requestPermission = useCallback(async () => {
+    if (!cameraModule) return;
+    try {
+      const newPermission = await cameraModule.Camera.requestCameraPermissionsAsync();
+      setPermission(newPermission);
+    } catch (err) {
+      console.error('Permission request error:', err);
+    }
+  }, [cameraModule]);
+
   if (!visible) return null;
 
+  // Loading state while expo-camera loads
+  if (isLoading) {
+    return (
+      <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+        <View style={styles.container}>
+          <View style={styles.permissionContainer}>
+            <ActivityIndicator size="large" color="#16a34a" />
+            <Text style={styles.permissionTitle}>Cargando cámara...</Text>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  // Web platform fallback
+  if (Platform.OS === 'web' || !cameraModule) {
+    return (
+      <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+        <View style={styles.container}>
+          <View style={styles.permissionContainer}>
+            <Feather name="camera-off" size={64} color="#9ca3af" />
+            <Text style={styles.permissionTitle}>Cámara no disponible</Text>
+            <Text style={styles.permissionText}>
+              El escáner de códigos no está disponible en esta plataforma
+            </Text>
+            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+              <Text style={styles.closeButtonText}>Cerrar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    );
+  }
+
+  // Permission not granted
   if (!permission?.granted) {
     return (
       <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -84,6 +183,8 @@ export default function BarcodeScanner({
       </Modal>
     );
   }
+
+  const CameraView = cameraModule.CameraView;
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
