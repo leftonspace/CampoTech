@@ -29,15 +29,63 @@ type Step = 'phone' | 'otp';
 
 // Country codes for phone input - matches web app
 const COUNTRY_CODES = [
-  { code: '+54', country: 'Argentina', flag: '🇦🇷' },
-  { code: '+1', country: 'USA/Canada', flag: '🇺🇸' },
-  { code: '+52', country: 'México', flag: '🇲🇽' },
-  { code: '+55', country: 'Brasil', flag: '🇧🇷' },
-  { code: '+56', country: 'Chile', flag: '🇨🇱' },
-  { code: '+57', country: 'Colombia', flag: '🇨🇴' },
-  { code: '+58', country: 'Venezuela', flag: '🇻🇪' },
-  { code: '+34', country: 'España', flag: '🇪🇸' },
+  { code: '+54', country: 'Argentina', flag: '🇦🇷', format: '9 11 1234-5678', maxDigits: 12, placeholder: '9 11 1234-5678' },
+  { code: '+1', country: 'USA/Canada', flag: '🇺🇸', format: '(xxx) xxx-xxxx', maxDigits: 10, placeholder: '(555) 123-4567' },
+  { code: '+52', country: 'México', flag: '🇲🇽', format: 'xx xxxx xxxx', maxDigits: 10, placeholder: '55 1234 5678' },
+  { code: '+55', country: 'Brasil', flag: '🇧🇷', format: 'xx xxxxx-xxxx', maxDigits: 11, placeholder: '11 91234-5678' },
+  { code: '+56', country: 'Chile', flag: '🇨🇱', format: 'x xxxx xxxx', maxDigits: 9, placeholder: '9 1234 5678' },
+  { code: '+57', country: 'Colombia', flag: '🇨🇴', format: 'xxx xxx xxxx', maxDigits: 10, placeholder: '310 123 4567' },
+  { code: '+58', country: 'Venezuela', flag: '🇻🇪', format: 'xxx xxx xxxx', maxDigits: 10, placeholder: '412 123 4567' },
+  { code: '+34', country: 'España', flag: '🇪🇸', format: 'xxx xx xx xx', maxDigits: 9, placeholder: '612 34 56 78' },
 ];
+
+// Format phone number based on country
+const formatPhoneByCountry = (value: string, countryCode: string): string => {
+  const digits = value.replace(/\D/g, '');
+
+  switch (countryCode) {
+    case '+54': // Argentina: 9 11 1234-5678
+      if (digits.length <= 1) return digits;
+      if (digits.length <= 3) return `${digits.slice(0, 1)} ${digits.slice(1)}`;
+      if (digits.length <= 7) return `${digits.slice(0, 1)} ${digits.slice(1, 3)} ${digits.slice(3)}`;
+      return `${digits.slice(0, 1)} ${digits.slice(1, 3)} ${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
+
+    case '+1': // USA/Canada: (555) 123-4567
+      if (digits.length <= 3) return digits.length > 0 ? `(${digits}` : '';
+      if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+
+    case '+52': // México: 55 1234 5678
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+      return `${digits.slice(0, 2)} ${digits.slice(2, 6)} ${digits.slice(6, 10)}`;
+
+    case '+55': // Brasil: 11 91234-5678
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 7) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+      return `${digits.slice(0, 2)} ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+
+    case '+56': // Chile: 9 1234 5678
+      if (digits.length <= 1) return digits;
+      if (digits.length <= 5) return `${digits.slice(0, 1)} ${digits.slice(1)}`;
+      return `${digits.slice(0, 1)} ${digits.slice(1, 5)} ${digits.slice(5, 9)}`;
+
+    case '+57': // Colombia: 310 123 4567
+    case '+58': // Venezuela: 412 123 4567
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
+
+    case '+34': // España: 612 34 56 78
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 5) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+      if (digits.length <= 7) return `${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5)}`;
+      return `${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 7)} ${digits.slice(7, 9)}`;
+
+    default:
+      return digits;
+  }
+};
 
 export default function LoginScreen() {
   const { login } = useAuth();
@@ -53,17 +101,17 @@ export default function LoginScreen() {
 
   const selectedCountry = COUNTRY_CODES.find((c) => c.code === countryCode) || COUNTRY_CODES[0];
 
-  const formatPhone = (value: string) => {
-    const digits = value.replace(/\D/g, '');
-    if (digits.length <= 2) return digits;
-    if (digits.length <= 6) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
-    return `${digits.slice(0, 2)} ${digits.slice(2, 6)}-${digits.slice(6, 10)}`;
-  };
-
   const handlePhoneChange = (value: string) => {
-    const formatted = formatPhone(value);
+    const digits = value.replace(/\D/g, '').slice(0, selectedCountry.maxDigits);
+    const formatted = formatPhoneByCountry(digits, countryCode);
     setPhone(formatted);
     setError('');
+  };
+
+  const handleCountryChange = (newCode: string) => {
+    setCountryCode(newCode);
+    setPhone(''); // Clear phone when country changes to avoid format issues
+    setShowCountryPicker(false);
   };
 
   // Get full phone number with country code
@@ -161,10 +209,7 @@ export default function LoginScreen() {
   const renderCountryItem = ({ item }: { item: typeof COUNTRY_CODES[0] }) => (
     <TouchableOpacity
       style={styles.countryItem}
-      onPress={() => {
-        setCountryCode(item.code);
-        setShowCountryPicker(false);
-      }}
+      onPress={() => handleCountryChange(item.code)}
     >
       <Text style={styles.countryFlag}>{item.flag}</Text>
       <Text style={styles.countryName}>{item.country}</Text>
@@ -212,10 +257,10 @@ export default function LoginScreen() {
                     style={styles.phoneInput}
                     value={phone}
                     onChangeText={handlePhoneChange}
-                    placeholder="11 1234-5678"
+                    placeholder={selectedCountry.placeholder}
                     placeholderTextColor="#9ca3af"
                     keyboardType="phone-pad"
-                    maxLength={13}
+                    maxLength={selectedCountry.maxDigits + 5}
                     autoFocus
                     editable={!isLoading}
                   />
