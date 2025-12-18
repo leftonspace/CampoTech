@@ -32,11 +32,31 @@ export async function GET() {
       },
     });
 
+    // Return default config if not found (for new organizations)
     if (!config) {
-      return NextResponse.json(
-        { error: 'Configuración no encontrada' },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        id: null,
+        isEnabled: false,
+        autoResponseEnabled: true,
+        minConfidenceToRespond: 70,
+        minConfidenceToCreateJob: 85,
+        companyName: '',
+        companyDescription: '',
+        servicesOffered: [],
+        businessHours: {},
+        serviceAreas: '',
+        pricingInfo: '',
+        cancellationPolicy: '',
+        paymentMethods: '',
+        warrantyInfo: '',
+        faqItems: [],
+        customInstructions: '',
+        aiTone: 'friendly_professional',
+        greetingMessage: '',
+        awayMessage: '',
+        transferKeywords: [],
+        escalationUserId: '',
+      });
     }
 
     return NextResponse.json({
