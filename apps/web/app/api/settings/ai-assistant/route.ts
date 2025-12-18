@@ -16,7 +16,7 @@ import { prisma } from '@/lib/prisma';
 export async function GET() {
   try {
     const session = await getSession();
-    if (!session?.orgId) {
+    if (!session?.organizationId) {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
@@ -24,7 +24,7 @@ export async function GET() {
     }
 
     const config = await prisma.aIConfiguration.findUnique({
-      where: { organizationId: session.orgId },
+      where: { organizationId: session.organizationId },
       include: {
         escalationUser: {
           select: { id: true, name: true },
@@ -78,7 +78,7 @@ export async function GET() {
 export async function PUT(request: NextRequest) {
   try {
     const session = await getSession();
-    if (!session?.orgId) {
+    if (!session?.organizationId) {
       return NextResponse.json(
         { error: 'No autorizado' },
         { status: 401 }
@@ -102,9 +102,9 @@ export async function PUT(request: NextRequest) {
 
     // Upsert configuration
     const config = await prisma.aIConfiguration.upsert({
-      where: { organizationId: session.orgId },
+      where: { organizationId: session.organizationId },
       create: {
-        organizationId: session.orgId,
+        organizationId: session.organizationId,
         isEnabled: body.isEnabled ?? false,
         autoResponseEnabled: body.autoResponseEnabled ?? true,
         minConfidenceToRespond,
