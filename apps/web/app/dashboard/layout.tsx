@@ -253,10 +253,10 @@ export default function DashboardLayout({
           />
         )}
 
-        {/* Sidebar */}
+        {/* Sidebar - Fixed position, stays locked to viewport */}
         <aside
           className={cn(
-            'fixed inset-y-0 left-0 z-50 flex flex-col gradient-dark border-r border-sidebar-border transition-all duration-300 lg:static',
+            'fixed inset-y-0 left-0 z-50 flex flex-col gradient-dark border-r border-sidebar-border transition-all duration-300',
             sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
             sidebarCollapsed ? 'w-[70px]' : 'w-[260px]'
           )}
@@ -335,8 +335,15 @@ export default function DashboardLayout({
           </div>
         </aside>
 
-        {/* Main content area */}
-        <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
+        {/* Main content area - offset by sidebar width */}
+        <div
+          className={cn(
+            'flex-1 flex flex-col min-h-screen transition-all duration-300',
+            // On mobile, no margin (sidebar is overlay)
+            // On desktop, margin matches sidebar width
+            sidebarCollapsed ? 'lg:ml-[70px]' : 'lg:ml-[260px]'
+          )}
+        >
           {/* Header */}
           <header className="h-16 bg-card border-b border-border px-6 flex items-center justify-between sticky top-0 z-10">
             {/* Mobile menu button */}
