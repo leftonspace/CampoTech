@@ -1,7 +1,8 @@
 'use client';
 
 import { useMemo } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Clock, User } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 export interface CalendarEvent {
   id: string;
@@ -47,14 +48,52 @@ interface CalendarViewProps {
   currentDate: Date;
   view: 'month' | 'week' | 'day';
   onEventClick: (event: CalendarEvent) => void;
+  selectedDate?: Date | null;
+  onDateSelect?: (date: Date) => void;
   isLoading?: boolean;
 }
+
+// Status dot colors matching the design
+const STATUS_DOT_COLORS: Record<string, string> = {
+  PENDING: 'bg-gray-400',
+  ASSIGNED: 'bg-purple-500',
+  EN_ROUTE: 'bg-teal-500',
+  IN_PROGRESS: 'bg-orange-500',
+  COMPLETED: 'bg-green-500',
+  CANCELLED: 'bg-red-400',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Pendiente',
+  ASSIGNED: 'Asignado',
+  EN_ROUTE: 'En Camino',
+  IN_PROGRESS: 'En Progreso',
+  COMPLETED: 'Completado',
+  CANCELLED: 'Cancelado',
+};
+
+const SERVICE_TYPE_LABELS: Record<string, string> = {
+  INSTALACION_SPLIT: 'Instalación Split',
+  REPARACION_SPLIT: 'Reparación Split',
+  MANTENIMIENTO_SPLIT: 'Mantenimiento Split',
+  INSTALACION_CALEFACTOR: 'Instalación Calefactor',
+  REPARACION_CALEFACTOR: 'Reparación Calefactor',
+  MANTENIMIENTO_CALEFACTOR: 'Mantenimiento Calefactor',
+  INSTALACION: 'Instalación',
+  REPARACION: 'Reparación',
+  MANTENIMIENTO: 'Mantenimiento',
+  DIAGNOSTICO: 'Diagnóstico',
+  EMERGENCIA: 'Emergencia',
+  OTRO: 'Otro',
+};
 
 export function CalendarView({
   events,
   currentDate,
   view,
   onEventClick,
+  selectedDate,
+  onDateSelect,
   isLoading,
 }: CalendarViewProps) {
   if (isLoading) {
@@ -71,6 +110,8 @@ export function CalendarView({
       <MonthView
         events={events}
         currentDate={currentDate}
+        selectedDate={selectedDate}
+        onDateSelect={onDateSelect}
         onEventClick={onEventClick}
       />
     );
@@ -95,13 +136,21 @@ export function CalendarView({
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// MONTH VIEW - Lovable-style with dots and side panel support
+// ═══════════════════════════════════════════════════════════════════════════════
+
 function MonthView({
   events,
   currentDate,
+  selectedDate,
+  onDateSelect,
   onEventClick,
 }: {
   events: CalendarEvent[];
   currentDate: Date;
+  selectedDate?: Date | null;
+  onDateSelect?: (date: Date) => void;
   onEventClick: (event: CalendarEvent) => void;
 }) {
   const weeks = useMemo(() => {
@@ -142,72 +191,205 @@ function MonthView({
   };
 
   const today = new Date().toISOString().split('T')[0];
+  const selectedDateStr = selectedDate?.toISOString().split('T')[0];
+  const selectedEvents = selectedDate ? getEventsForDate(selectedDate) : [];
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="grid grid-cols-7 border-b bg-gray-50">
-        {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
-          <div key={day} className="px-2 py-2 text-center text-xs font-semibold text-gray-600">
-            {day}
-          </div>
-        ))}
-      </div>
+    <div className="h-full flex">
+      {/* Calendar Grid */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <div className="grid grid-cols-7 border-b border-gray-100">
+          {['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'].map((day) => (
+            <div key={day} className="px-2 py-3 text-center text-sm font-medium text-gray-500">
+              {day}
+            </div>
+          ))}
+        </div>
 
-      {/* Weeks */}
-      <div className="flex-1 grid grid-rows-6">
-        {weeks.map((week, weekIndex) => (
-          <div key={weekIndex} className="grid grid-cols-7 border-b">
-            {week.map((date, dayIndex) => {
-              const dateStr = date.toISOString().split('T')[0];
-              const isCurrentMonth = date.getMonth() === currentDate.getMonth();
-              const isToday = dateStr === today;
-              const dayEvents = getEventsForDate(date);
+        {/* Weeks Grid */}
+        <div className="flex-1 grid grid-rows-6">
+          {weeks.map((week, weekIndex) => (
+            <div key={weekIndex} className="grid grid-cols-7 border-b border-gray-50">
+              {week.map((date, dayIndex) => {
+                const dateStr = date.toISOString().split('T')[0];
+                const isCurrentMonth = date.getMonth() === currentDate.getMonth();
+                const isToday = dateStr === today;
+                const isSelected = dateStr === selectedDateStr;
+                const dayEvents = getEventsForDate(date);
 
-              return (
-                <div
-                  key={dayIndex}
-                  className={`min-h-[80px] border-r p-1 ${
-                    isCurrentMonth ? 'bg-white' : 'bg-gray-50'
-                  }`}
-                >
-                  <div
-                    className={`mb-1 text-right text-xs font-medium ${
-                      isToday
-                        ? 'inline-block rounded-full bg-primary-600 px-1.5 py-0.5 text-white'
-                        : isCurrentMonth
-                          ? 'text-gray-900'
-                          : 'text-gray-400'
-                    }`}
+                return (
+                  <button
+                    key={dayIndex}
+                    onClick={() => onDateSelect?.(date)}
+                    className={cn(
+                      'min-h-[90px] border-r border-gray-50 p-2 text-left transition-colors hover:bg-gray-50',
+                      isCurrentMonth ? 'bg-white' : 'bg-gray-50/50',
+                      isSelected && 'bg-teal-500 hover:bg-teal-600'
+                    )}
                   >
-                    {date.getDate()}
-                  </div>
-                  <div className="space-y-0.5 overflow-hidden">
-                    {dayEvents.slice(0, 3).map((event) => (
-                      <button
-                        key={event.id}
-                        onClick={() => onEventClick(event)}
-                        className="w-full truncate rounded px-1 py-0.5 text-left text-xs text-white hover:opacity-80"
-                        style={{ backgroundColor: event.backgroundColor }}
+                    {/* Day number */}
+                    <div className="flex justify-end mb-2">
+                      <span
+                        className={cn(
+                          'flex h-7 w-7 items-center justify-center rounded-full text-sm font-medium',
+                          isSelected
+                            ? 'text-white'
+                            : isToday
+                              ? 'bg-teal-500 text-white'
+                              : isCurrentMonth
+                                ? 'text-gray-900'
+                                : 'text-gray-400'
+                        )}
                       >
-                        {event.extendedProps.jobNumber}
-                      </button>
-                    ))}
-                    {dayEvents.length > 3 && (
-                      <div className="text-xs text-gray-500 px-1">
-                        +{dayEvents.length - 3} más
+                        {date.getDate()}
+                      </span>
+                    </div>
+
+                    {/* Event dots */}
+                    {dayEvents.length > 0 && (
+                      <div className="flex items-center justify-center gap-1 flex-wrap">
+                        {dayEvents.slice(0, 4).map((event) => (
+                          <span
+                            key={event.id}
+                            className={cn(
+                              'h-2.5 w-2.5 rounded-full',
+                              isSelected ? 'bg-white/80' : STATUS_DOT_COLORS[event.extendedProps.status] || 'bg-gray-400'
+                            )}
+                          />
+                        ))}
+                        {dayEvents.length > 4 && (
+                          <span className={cn(
+                            'text-xs font-medium',
+                            isSelected ? 'text-white/80' : 'text-gray-500'
+                          )}>
+                            +{dayEvents.length - 4}
+                          </span>
+                        )}
                       </div>
                     )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ))}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
+
+      {/* Side Panel - Selected Day Details */}
+      {selectedDate && (
+        <div className="w-80 border-l border-gray-100 bg-white overflow-y-auto">
+          <div className="p-4 border-b border-gray-100">
+            <h3 className="text-lg font-semibold text-gray-900">
+              {selectedDate.toLocaleDateString('es-AR', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+              })}
+            </h3>
+            <p className="text-sm text-gray-500 mt-0.5">
+              {selectedEvents.length} trabajo{selectedEvents.length !== 1 ? 's' : ''} programado{selectedEvents.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+
+          <div className="p-4 space-y-3">
+            {selectedEvents.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500 text-sm">No hay trabajos para este día</p>
+              </div>
+            ) : (
+              selectedEvents.map((event) => (
+                <SidePanelJobCard
+                  key={event.id}
+                  event={event}
+                  onClick={() => onEventClick(event)}
+                />
+              ))
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SIDE PANEL JOB CARD
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function SidePanelJobCard({
+  event,
+  onClick,
+}: {
+  event: CalendarEvent;
+  onClick: () => void;
+}) {
+  const { extendedProps: job } = event;
+  const startTime = new Date(event.start).toLocaleTimeString('es-AR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+  const statusDotColor = STATUS_DOT_COLORS[job.status] || 'bg-gray-400';
+  const statusLabel = STATUS_LABELS[job.status] || job.status;
+  const serviceLabel = job.serviceType
+    ? SERVICE_TYPE_LABELS[job.serviceType] || job.serviceType
+    : job.description || 'Servicio';
+
+  // Get technician name abbreviation (first name + last initial)
+  const getTechnicianAbbrev = (name: string) => {
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      return `${parts[0]} ${parts[1][0]}.`;
+    }
+    return name;
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left bg-white border border-gray-100 rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow"
+    >
+      {/* Header row: dot + time + status badge */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className={cn('h-2.5 w-2.5 rounded-full', statusDotColor)} />
+          <div className="flex items-center gap-1 text-gray-500">
+            <Clock className="h-3.5 w-3.5" />
+            <span className="text-sm">{startTime}</span>
+          </div>
+        </div>
+        <span className="text-xs font-medium text-gray-600 bg-gray-100 px-2.5 py-1 rounded-full">
+          {statusLabel}
+        </span>
+      </div>
+
+      {/* Service type / description */}
+      <h4 className="font-medium text-gray-900 mb-1.5">{serviceLabel}</h4>
+
+      {/* Technician */}
+      {job.technician ? (
+        <div className="flex items-center gap-1.5 text-gray-500">
+          <User className="h-3.5 w-3.5" />
+          <span className="text-sm">{getTechnicianAbbrev(job.technician.name)}</span>
+        </div>
+      ) : job.assignments && job.assignments.length > 0 && job.assignments[0].technician ? (
+        <div className="flex items-center gap-1.5 text-gray-500">
+          <User className="h-3.5 w-3.5" />
+          <span className="text-sm">{getTechnicianAbbrev(job.assignments[0].technician.name)}</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5 text-amber-600">
+          <User className="h-3.5 w-3.5" />
+          <span className="text-sm">Sin asignar</span>
+        </div>
+      )}
+    </button>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// WEEK VIEW
+// ═══════════════════════════════════════════════════════════════════════════════
 
 function WeekView({
   events,
@@ -231,7 +413,7 @@ function WeekView({
     return days;
   }, [currentDate]);
 
-  const hours = Array.from({ length: 24 }, (_, i) => i); // 0-23 (full 24 hours)
+  const hours = Array.from({ length: 24 }, (_, i) => i);
 
   const getEventsForDateAndHour = (date: Date, hour: number) => {
     const dateStr = date.toISOString().split('T')[0];
@@ -257,15 +439,16 @@ function WeekView({
           return (
             <div
               key={i}
-              className={`px-2 py-2 text-center ${isToday ? 'bg-primary-50' : ''}`}
+              className={cn('px-2 py-2 text-center', isToday && 'bg-teal-50')}
             >
               <div className="text-xs text-gray-500">
                 {day.toLocaleDateString('es-AR', { weekday: 'short' })}
               </div>
               <div
-                className={`text-sm font-semibold ${
-                  isToday ? 'text-primary-600' : 'text-gray-900'
-                }`}
+                className={cn(
+                  'text-sm font-semibold',
+                  isToday ? 'text-teal-600' : 'text-gray-900'
+                )}
               >
                 {day.getDate()}
               </div>
@@ -289,7 +472,7 @@ function WeekView({
               return (
                 <div
                   key={i}
-                  className={`border-r p-0.5 ${isToday ? 'bg-primary-50/50' : ''}`}
+                  className={cn('border-r p-0.5', isToday && 'bg-teal-50/50')}
                 >
                   {hourEvents.map((event) => (
                     <button
@@ -316,6 +499,10 @@ function WeekView({
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// DAY VIEW
+// ═══════════════════════════════════════════════════════════════════════════════
+
 function DayView({
   events,
   currentDate,
@@ -325,7 +512,7 @@ function DayView({
   currentDate: Date;
   onEventClick: (event: CalendarEvent) => void;
 }) {
-  const hours = Array.from({ length: 24 }, (_, i) => i); // 0-23 (full 24 hours)
+  const hours = Array.from({ length: 24 }, (_, i) => i);
   const dateStr = currentDate.toISOString().split('T')[0];
 
   const getEventsForHour = (hour: number) => {
