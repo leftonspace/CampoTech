@@ -57,14 +57,18 @@ interface NavItemDef {
 
 const allNavigation: NavItemDef[] = [
   { name: 'Panel', href: '/dashboard', icon: LayoutDashboard, module: 'dashboard' },
+  { name: 'Mapa', href: '/dashboard/map', icon: MapPin, module: 'map' },
+  { name: 'Agenda', href: '/dashboard/calendar', icon: Calendar, module: 'calendar' },
   { name: 'Trabajos', href: '/dashboard/jobs', icon: Briefcase, module: 'jobs' },
   { name: 'Clientes', href: '/dashboard/customers', icon: Users, module: 'customers' },
-  { name: 'Equipo', href: '/dashboard/settings/team', icon: UsersRound, module: 'team' },
-  { name: 'Agenda', href: '/dashboard/calendar', icon: Calendar, module: 'calendar' },
-  { name: 'Inventario', href: '/dashboard/inventory', icon: Package, module: 'inventory' },
   { name: 'Vehículos', href: '/dashboard/fleet', icon: Truck, module: 'fleet' },
+  { name: 'Inventario', href: '/dashboard/inventory', icon: Package, module: 'inventory' },
+  { name: 'Equipo', href: '/dashboard/settings/team', icon: UsersRound, module: 'team' },
+  { name: 'Horarios', href: '/dashboard/schedule', icon: Clock, module: 'schedule' },
   { name: 'Facturas', href: '/dashboard/invoices', icon: FileText, module: 'invoices' },
+  { name: 'Pagos', href: '/dashboard/payments', icon: CreditCard, module: 'payments' },
   { name: 'Análisis', href: '/dashboard/analytics/overview', icon: BarChart3, module: 'analytics' },
+  { name: 'Zonas', href: '/dashboard/locations', icon: MapPin, module: 'locations' },
   { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle, module: 'whatsapp' },
 ];
 
