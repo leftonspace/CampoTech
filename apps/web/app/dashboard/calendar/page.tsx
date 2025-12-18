@@ -4,18 +4,11 @@ import { useState, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import {
-  Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
   Plus,
   Filter,
   RefreshCw,
-  X,
-  Clock,
-  MapPin,
-  User,
-  Phone,
-  Briefcase,
 } from 'lucide-react';
 import { CalendarView, CalendarEvent } from '@/components/calendar/CalendarView';
 import { JobCard } from '@/components/calendar/JobCard';
@@ -54,9 +47,10 @@ async function fetchCalendarEvents(
 
 export default function CalendarPage() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [view, setView] = useState<'month' | 'week' | 'day'>('week');
+  const [view, setView] = useState<'month' | 'week' | 'day'>('month');
   const [selectedTechnicianId, setSelectedTechnicianId] = useState<string | undefined>();
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [showFilters, setShowFilters] = useState(false);
 
   // Calculate date range based on view
@@ -119,10 +113,15 @@ export default function CalendarPage() {
 
   const handleToday = useCallback(() => {
     setCurrentDate(new Date());
+    setSelectedDate(new Date());
   }, []);
 
   const handleEventClick = useCallback((event: CalendarEvent) => {
     setSelectedEvent(event);
+  }, []);
+
+  const handleDateSelect = useCallback((date: Date) => {
+    setSelectedDate(date);
   }, []);
 
   const events = data?.data?.events || [];
@@ -225,47 +224,45 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Filters panel */}
-      {showFilters && (
-        <div className="mb-4 rounded-lg bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium text-gray-900">Filtrar por técnico</h3>
-            {selectedTechnicianId && (
-              <button
-                onClick={() => setSelectedTechnicianId(undefined)}
-                className="text-sm text-primary-600 hover:underline"
-              >
-                Limpiar filtros
-              </button>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
+      {/* Technician filter pills - always visible */}
+      <div className="mb-4 rounded-lg bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-medium text-gray-900">Filtrar por técnico</h3>
+          {selectedTechnicianId && (
             <button
               onClick={() => setSelectedTechnicianId(undefined)}
+              className="text-sm text-primary-600 hover:underline"
+            >
+              Limpiar filtros
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setSelectedTechnicianId(undefined)}
+            className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+              !selectedTechnicianId
+                ? 'bg-primary-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Todos
+          </button>
+          {technicians.map((tech) => (
+            <button
+              key={tech.id}
+              onClick={() => setSelectedTechnicianId(tech.id)}
               className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-                !selectedTechnicianId
+                selectedTechnicianId === tech.id
                   ? 'bg-primary-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              Todos
+              {tech.name}
             </button>
-            {technicians.map((tech) => (
-              <button
-                key={tech.id}
-                onClick={() => setSelectedTechnicianId(tech.id)}
-                className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-                  selectedTechnicianId === tech.id
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {tech.name}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* Calendar */}
       <div className="flex-1 rounded-lg bg-white shadow-sm overflow-hidden">
@@ -273,6 +270,8 @@ export default function CalendarPage() {
           events={events}
           currentDate={currentDate}
           view={view}
+          selectedDate={view === 'month' ? selectedDate : undefined}
+          onDateSelect={view === 'month' ? handleDateSelect : undefined}
           onEventClick={handleEventClick}
           isLoading={isLoading}
         />
@@ -285,30 +284,6 @@ export default function CalendarPage() {
           onClose={() => setSelectedEvent(null)}
         />
       )}
-
-      {/* Legend */}
-      <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-gray-500">
-        <div className="flex items-center gap-1">
-          <div className="h-3 w-3 rounded bg-gray-400" />
-          <span>Pendiente</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="h-3 w-3 rounded bg-purple-400" />
-          <span>Asignado</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="h-3 w-3 rounded bg-blue-500" />
-          <span>En camino</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="h-3 w-3 rounded bg-amber-500" />
-          <span>En progreso</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="h-3 w-3 rounded bg-green-500" />
-          <span>Completado</span>
-        </div>
-      </div>
     </div>
   );
 }
