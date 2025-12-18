@@ -13,6 +13,7 @@ import {
   Play,
   Download,
   Maximize2,
+  Bot,
 } from 'lucide-react';
 
 export interface Message {
@@ -24,6 +25,12 @@ export interface Message {
   mediaUrl?: string;
   timestamp: string;
   status: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
+  // AI-related fields
+  senderType?: 'customer' | 'ai' | 'human';
+  senderUserId?: string;
+  senderUserName?: string;
+  aiConfidence?: number;
+  aiActionTaken?: string;
 }
 
 interface MessageBubbleProps {
@@ -35,13 +42,28 @@ interface MessageBubbleProps {
 function MessageStatus({ status }: { status: string }) {
   switch (status) {
     case 'sent':
+      return <Check className="h-3.5 w-3.5 text-white/70" />;
+    case 'delivered':
+      return <CheckCheck className="h-3.5 w-3.5 text-white/70" />;
+    case 'read':
+      return <CheckCheck className="h-3.5 w-3.5 text-white" />;
+    case 'failed':
+      return <AlertCircle className="h-3.5 w-3.5 text-red-300" />;
+    default:
+      return <Clock className="h-3.5 w-3.5 text-white/70" />;
+  }
+}
+
+function InboundMessageStatus({ status }: { status: string }) {
+  switch (status) {
+    case 'sent':
       return <Check className="h-3.5 w-3.5 text-gray-400" />;
     case 'delivered':
       return <CheckCheck className="h-3.5 w-3.5 text-gray-400" />;
     case 'read':
-      return <CheckCheck className="h-3.5 w-3.5 text-primary-500" />;
+      return <CheckCheck className="h-3.5 w-3.5 text-teal-500" />;
     case 'failed':
-      return <AlertCircle className="h-3.5 w-3.5 text-danger-500" />;
+      return <AlertCircle className="h-3.5 w-3.5 text-red-500" />;
     default:
       return <Clock className="h-3.5 w-3.5 text-gray-400" />;
   }
@@ -50,6 +72,8 @@ function MessageStatus({ status }: { status: string }) {
 export default function MessageBubble({ message, onImageClick, onMediaDownload }: MessageBubbleProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const isOutbound = message.direction === 'outbound';
+  const isAI = message.senderType === 'ai';
+  const isHuman = message.senderType === 'human';
 
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString('es-AR', {
@@ -109,8 +133,8 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
 
       case 'audio':
         return (
-          <div className="flex items-center gap-3 p-3 bg-gray-100 rounded-lg min-w-[200px]">
-            <button className="p-2 bg-primary-500 text-white rounded-full">
+          <div className={`flex items-center gap-3 p-3 rounded-lg min-w-[200px] ${isOutbound ? 'bg-teal-600/20' : 'bg-gray-100'}`}>
+            <button className="p-2 bg-teal-500 text-white rounded-full">
               <Play className="h-4 w-4" />
             </button>
             {message.mediaUrl ? (
@@ -124,19 +148,19 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
 
       case 'document':
         return (
-          <div className="flex items-center gap-3 p-3 bg-gray-100 rounded-lg">
-            <div className="p-2 bg-primary-100 rounded">
-              <FileText className="h-6 w-6 text-primary-600" />
+          <div className={`flex items-center gap-3 p-3 rounded-lg ${isOutbound ? 'bg-teal-600/20' : 'bg-gray-100'}`}>
+            <div className={`p-2 rounded ${isOutbound ? 'bg-teal-500/20' : 'bg-teal-100'}`}>
+              <FileText className={`h-6 w-6 ${isOutbound ? 'text-white' : 'text-teal-600'}`} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">
+              <p className={`text-sm font-medium truncate ${isOutbound ? 'text-white' : 'text-gray-900'}`}>
                 {message.content || 'Documento'}
               </p>
-              <p className="text-xs text-gray-500">PDF, DOC, XLS...</p>
+              <p className={`text-xs ${isOutbound ? 'text-white/70' : 'text-gray-500'}`}>PDF, DOC, XLS...</p>
             </div>
             <button
               onClick={() => onMediaDownload?.(message.id)}
-              className="p-2 text-gray-500 hover:bg-gray-200 rounded"
+              className={`p-2 rounded ${isOutbound ? 'hover:bg-teal-600/30 text-white' : 'hover:bg-gray-200 text-gray-500'}`}
             >
               <Download className="h-4 w-4" />
             </button>
@@ -145,26 +169,26 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
 
       case 'location':
         return (
-          <div className="flex items-center gap-3 p-3 bg-gray-100 rounded-lg">
-            <div className="p-2 bg-danger-100 rounded">
-              <MapPin className="h-6 w-6 text-danger-600" />
+          <div className={`flex items-center gap-3 p-3 rounded-lg ${isOutbound ? 'bg-teal-600/20' : 'bg-gray-100'}`}>
+            <div className={`p-2 rounded ${isOutbound ? 'bg-red-500/20' : 'bg-red-100'}`}>
+              <MapPin className={`h-6 w-6 ${isOutbound ? 'text-white' : 'text-red-600'}`} />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900">Ubicacion</p>
-              <p className="text-xs text-gray-500 truncate">{message.content}</p>
+              <p className={`text-sm font-medium ${isOutbound ? 'text-white' : 'text-gray-900'}`}>Ubicacion</p>
+              <p className={`text-xs truncate ${isOutbound ? 'text-white/70' : 'text-gray-500'}`}>{message.content}</p>
             </div>
           </div>
         );
 
       case 'contacts':
         return (
-          <div className="flex items-center gap-3 p-3 bg-gray-100 rounded-lg">
-            <div className="p-2 bg-success-100 rounded">
-              <User className="h-6 w-6 text-success-600" />
+          <div className={`flex items-center gap-3 p-3 rounded-lg ${isOutbound ? 'bg-teal-600/20' : 'bg-gray-100'}`}>
+            <div className={`p-2 rounded ${isOutbound ? 'bg-green-500/20' : 'bg-green-100'}`}>
+              <User className={`h-6 w-6 ${isOutbound ? 'text-white' : 'text-green-600'}`} />
             </div>
             <div className="flex-1">
-              <p className="text-sm font-medium text-gray-900">Contacto</p>
-              <p className="text-xs text-gray-500 truncate">{message.content}</p>
+              <p className={`text-sm font-medium ${isOutbound ? 'text-white' : 'text-gray-900'}`}>Contacto</p>
+              <p className={`text-xs truncate ${isOutbound ? 'text-white/70' : 'text-gray-500'}`}>{message.content}</p>
             </div>
           </div>
         );
@@ -206,15 +230,46 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
     );
   }
 
+  // Determine bubble colors based on sender type
+  let bubbleClasses = '';
+  let textClasses = '';
+
+  if (isOutbound) {
+    if (isAI) {
+      // AI message - teal-500
+      bubbleClasses = 'bg-teal-500 text-white rounded-lg rounded-tr-none';
+      textClasses = 'text-white';
+    } else {
+      // Human message - teal-600 (darker)
+      bubbleClasses = 'bg-teal-600 text-white rounded-lg rounded-tr-none';
+      textClasses = 'text-white';
+    }
+  } else {
+    // Inbound (customer) message - white with border
+    bubbleClasses = 'bg-white border border-gray-200 text-gray-900 rounded-lg rounded-tl-none';
+    textClasses = 'text-gray-900';
+  }
+
   return (
     <div className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}>
-      <div
-        className={`max-w-[70%] rounded-lg p-3 ${
-          isOutbound
-            ? 'bg-success-100 text-gray-900'
-            : 'bg-white border text-gray-900'
-        }`}
-      >
+      <div className={`max-w-[70%] p-3 ${bubbleClasses}`}>
+        {/* Sender indicator for outbound messages */}
+        {isOutbound && (isAI || isHuman) && (
+          <div className="flex items-center gap-1 mb-1 text-xs text-white/80">
+            {isAI ? (
+              <>
+                <Bot className="h-3 w-3" />
+                <span>AI</span>
+              </>
+            ) : (
+              <>
+                <User className="h-3 w-3" />
+                <span>{message.senderUserName || 'Vos'}</span>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Media content */}
         {message.type !== 'text' && message.type !== 'template' && (
           <div className="mb-2">{renderMediaContent()}</div>
@@ -222,7 +277,9 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
 
         {/* Template badge */}
         {message.type === 'template' && (
-          <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-200 text-gray-600 text-xs rounded-full mb-2">
+          <div className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full mb-2 ${
+            isOutbound ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'
+          }`}>
             <FileText className="h-3 w-3" />
             Template
           </div>
@@ -230,12 +287,14 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
 
         {/* Text content */}
         {message.content && (
-          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+          <p className={`text-sm whitespace-pre-wrap break-words ${textClasses}`}>{message.content}</p>
         )}
 
         {/* Timestamp and status */}
         <div className="flex items-center justify-end gap-1 mt-1">
-          <span className="text-xs text-gray-500">{formatTime(message.timestamp)}</span>
+          <span className={`text-xs ${isOutbound ? 'text-white/70' : 'text-gray-500'}`}>
+            {formatTime(message.timestamp)}
+          </span>
           {isOutbound && <MessageStatus status={message.status} />}
         </div>
       </div>

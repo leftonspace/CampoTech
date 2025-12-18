@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
+import { useAIAssistant } from '@/lib/ai-assistant-context';
 import {
   ConversationList,
   ChatWindow,
@@ -12,11 +13,16 @@ import {
   NewConversationModal,
   Conversation,
   ConversationFilter,
+  ConversationStats,
   Message,
 } from './components';
 
 export default function WhatsAppPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
+
+  // AI Assistant context
+  const { isEnabled: aiEnabled, isLoading: aiLoading } = useAIAssistant();
 
   // State
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -34,6 +40,28 @@ export default function WhatsAppPage() {
 
   const conversations = (conversationsData?.data || []) as Conversation[];
 
+  // Calculate stats from conversations
+  const stats: ConversationStats = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const todayConversations = conversations.filter((c) => {
+      const msgDate = new Date(c.lastMessage.timestamp);
+      return msgDate >= today;
+    });
+
+    const aiHandled = todayConversations.filter((c) => c.aiHandling).length;
+    const pending = conversations.filter((c) => c.needsAttention || c.unreadCount > 0).length;
+
+    return {
+      totalToday: todayConversations.length,
+      aiResolvedPercent: todayConversations.length > 0
+        ? Math.round((aiHandled / todayConversations.length) * 100)
+        : 0,
+      pendingCount: pending,
+    };
+  }, [conversations]);
+
   // Fetch messages for selected conversation
   const { data: messagesData, isLoading: loadingMessages } = useQuery({
     queryKey: ['whatsapp-messages', selectedConversationId],
@@ -43,6 +71,9 @@ export default function WhatsAppPage() {
   });
 
   const messages = (messagesData?.data || []) as Message[];
+
+  // Get selected conversation
+  const selectedConversation = conversations.find((c) => c.id === selectedConversationId) || null;
 
   // Send message mutation
   const sendMutation = useMutation({
@@ -69,9 +100,6 @@ export default function WhatsAppPage() {
     },
   });
 
-  // Get selected conversation
-  const selectedConversation = conversations.find((c) => c.id === selectedConversationId) || null;
-
   // Handlers
   const handleSelectConversation = useCallback((id: string) => {
     setSelectedConversationId(id);
@@ -86,7 +114,7 @@ export default function WhatsAppPage() {
     setShowTemplateSelector(true);
   }, []);
 
-  const handleTemplateSelect = useCallback((template: any, params: Record<string, string>) => {
+  const handleTemplateSelect = useCallback((template: { name: string }, params: Record<string, string>) => {
     sendTemplateMutation.mutate({
       templateName: template.name,
       params,
@@ -113,6 +141,37 @@ export default function WhatsAppPage() {
     }
   }, [selectedConversationId, queryClient]);
 
+  // AI-related handlers
+  const handleDisableAI = useCallback((minutes: number) => {
+    if (!selectedConversationId) return;
+
+    // Call API to disable AI for this conversation
+    fetch(`/api/whatsapp/conversations/${selectedConversationId}/ai`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'disable', minutes }),
+    }).then(() => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+    });
+  }, [selectedConversationId, queryClient]);
+
+  const handleEnableAI = useCallback(() => {
+    if (!selectedConversationId) return;
+
+    // Call API to re-enable AI for this conversation
+    fetch(`/api/whatsapp/conversations/${selectedConversationId}/ai`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'enable' }),
+    }).then(() => {
+      queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+    });
+  }, [selectedConversationId, queryClient]);
+
+  const handleGoToSettings = useCallback(() => {
+    router.push('/dashboard/settings/ai-assistant');
+  }, [router]);
+
   return (
     <div className="flex h-full -m-6">
       {/* Conversations sidebar */}
@@ -125,6 +184,8 @@ export default function WhatsAppPage() {
         isLoading={loadingConversations}
         onRefresh={handleRefresh}
         onNewConversation={() => setShowNewConversation(true)}
+        isConnected={true}
+        stats={stats}
       />
 
       {/* Chat window */}
@@ -136,6 +197,13 @@ export default function WhatsAppPage() {
         onSendMessage={handleSendMessage}
         onSendTemplate={handleSendTemplate}
         onAction={handleAction}
+        // AI-related props
+        aiEnabled={aiEnabled}
+        aiHandlingConversation={selectedConversation?.aiHandling}
+        aiDisabledUntil={selectedConversation?.aiDisabledUntil}
+        onDisableAI={handleDisableAI}
+        onEnableAI={handleEnableAI}
+        onGoToSettings={handleGoToSettings}
       />
 
       {/* Contact info sidebar */}
