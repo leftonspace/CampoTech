@@ -27,6 +27,16 @@ const config: Config = {
         primary: {
           DEFAULT: 'hsl(var(--primary))',
           foreground: 'hsl(var(--primary-foreground))',
+          50: '#f0fdfa',
+          100: '#ccfbf1',
+          200: '#99f6e4',
+          300: '#5eead4',
+          400: '#2dd4bf',
+          500: '#14b8a6',
+          600: '#0d9488',
+          700: '#0f766e',
+          800: '#115e59',
+          900: '#134e4a',
         },
         secondary: {
           DEFAULT: 'hsl(var(--secondary))',
@@ -55,6 +65,9 @@ const config: Config = {
         success: {
           DEFAULT: 'hsl(var(--success))',
           foreground: 'hsl(var(--success-foreground))',
+          50: '#f0fdf4',
+          500: '#22c55e',
+          700: '#15803d',
         },
         warning: {
           DEFAULT: 'hsl(var(--warning))',
