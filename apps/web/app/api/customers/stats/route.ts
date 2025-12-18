@@ -48,6 +48,9 @@ export async function GET() {
       }),
     ]);
 
+    // VIP count - feature not yet enabled (migration pending)
+    const vipCount = 0;
+
     return NextResponse.json({
       success: true,
       data: {
