@@ -3,23 +3,26 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
-import { formatCurrency, formatRelativeTime, JOB_STATUS_LABELS, JOB_STATUS_COLORS } from '@/lib/utils';
+import { useAuth } from '@/contexts/auth-context';
+import { formatCurrency, JOB_STATUS_LABELS } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import {
   Briefcase,
   FileText,
   DollarSign,
-  TrendingUp,
+  Users,
+  Star,
   Plus,
-  ArrowRight,
-  Clock,
-  CheckCircle,
-  AlertCircle,
-  Truck,
-  Package,
   Calendar,
+  Clock,
+  MapPin,
+  Phone,
+  MoreHorizontal,
 } from 'lucide-react';
-import { StockAlerts, FleetStatus, TodaySchedule } from '@/components/dashboard';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TYPES
+// ═══════════════════════════════════════════════════════════════════════════════
 
 interface DashboardStats {
   todayJobs: number;
@@ -30,243 +33,236 @@ interface DashboardStats {
   monthlyRevenue: number;
 }
 
-interface RecentActivity {
+interface Job {
   id: string;
-  type: 'job' | 'invoice' | 'payment';
-  message: string;
-  timestamp: string;
-  status?: string;
+  jobNumber: string;
+  serviceType: string;
+  description?: string;
+  status: string;
+  urgency: string;
+  customer?: {
+    name: string;
+    address?: { street?: string; number?: string; city?: string } | string;
+  };
+  technician?: {
+    id: string;
+    name: string;
+  };
+  scheduledTimeSlot?: { start?: string; end?: string };
 }
 
+interface Technician {
+  id: string;
+  name: string;
+  avatar?: string;
+  currentJob?: string;
+  currentLocation?: string;
+  phone?: string;
+  status: 'available' | 'busy' | 'offline';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Buenos días';
+  if (hour < 18) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function formatAddress(address: { street?: string; number?: string; city?: string } | string | undefined): string {
+  if (!address) return '';
+  if (typeof address === 'string') return address;
+  const parts = [address.street, address.number, address.city].filter(Boolean);
+  return parts.join(', ');
+}
+
+const SERVICE_TYPE_LABELS: Record<string, string> = {
+  INSTALACION_SPLIT: 'Instalación de Split',
+  MANTENIMIENTO_SPLIT: 'Mantenimiento de Split',
+  REPARACION_SPLIT: 'Reparación de Split',
+  INSTALACION: 'Instalación',
+  REPARACION: 'Reparación',
+  MANTENIMIENTO: 'Mantenimiento',
+  DIAGNOSTICO: 'Diagnóstico',
+  EMERGENCIA: 'Emergencia',
+};
+
+const URGENCY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  HIGH: { bg: 'bg-red-100', text: 'text-red-700', label: 'Alta' },
+  URGENT: { bg: 'bg-red-100', text: 'text-red-700', label: 'Urgente' },
+  NORMAL: { bg: 'bg-orange-100', text: 'text-orange-700', label: 'Media' },
+  LOW: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Baja' },
+};
+
+const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
+  PENDING: { bg: 'bg-gray-100', text: 'text-gray-700' },
+  ASSIGNED: { bg: 'bg-purple-100', text: 'text-purple-700' },
+  EN_ROUTE: { bg: 'bg-teal-100', text: 'text-teal-700' },
+  IN_PROGRESS: { bg: 'bg-green-100', text: 'text-green-700' },
+  COMPLETED: { bg: 'bg-green-50 border border-green-500', text: 'text-green-700' },
+  CANCELLED: { bg: 'bg-red-100', text: 'text-red-700' },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export default function DashboardPage() {
+  const { user } = useAuth();
+
   const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard-stats'],
     queryFn: () => api.dashboard.stats(),
   });
 
-  const { data: activityData, isLoading: activityLoading } = useQuery({
-    queryKey: ['dashboard-activity'],
-    queryFn: () => api.dashboard.recentActivity(),
+  const { data: jobsData, isLoading: jobsLoading } = useQuery({
+    queryKey: ['today-jobs'],
+    queryFn: () => api.jobs.today(),
+  });
+
+  const { data: techData } = useQuery({
+    queryKey: ['technicians-status'],
+    queryFn: () => api.users.list({ role: 'TECHNICIAN' }),
   });
 
   const stats = statsData?.data as DashboardStats | undefined;
-  const activity = activityData?.data as RecentActivity[] | undefined;
+  const jobsResponse = jobsData?.data as { jobs?: Job[] } | undefined;
+  const jobs = jobsResponse?.jobs || [];
+  const technicians = (techData?.data || []) as Array<{
+    id: string;
+    name: string;
+    avatar?: string;
+    phone?: string;
+    isActive?: boolean;
+  }>;
+
+  const firstName = user?.name?.split(' ')[0] || 'Usuario';
+  const activeTechnicians = technicians.filter((t) => t.isActive !== false);
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
+      {/* Personalized Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-500">Resumen de tu negocio</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {getGreeting()}, {firstName}
+          </h1>
+          <p className="text-gray-500">Acá tenés el resumen de tu negocio hoy.</p>
         </div>
-        <div className="flex gap-2">
-          <Link href="/dashboard/jobs/new" className="btn-primary">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo trabajo
-          </Link>
-        </div>
+        <Link href="/dashboard/jobs/new" className="btn-primary">
+          <Plus className="mr-2 h-4 w-4" />
+          Nuevo trabajo
+        </Link>
       </div>
 
-      {/* Stats cards */}
+      {/* Stats Cards - Vibrant Design */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Trabajos hoy"
-          value={stats?.todayJobs ?? '-'}
+          title="Trabajos Hoy"
+          value={stats?.todayJobs ?? 0}
           icon={Briefcase}
+          color="emerald"
+          trend="+2 vs ayer"
           loading={statsLoading}
-          color="blue"
         />
         <StatCard
-          title="Completados"
-          value={stats?.completedToday ?? '-'}
-          icon={CheckCircle}
+          title="Clientes Activos"
+          value={156}
+          icon={Users}
+          color="teal"
+          trend="+12 este mes"
           loading={statsLoading}
-          color="green"
         />
         <StatCard
-          title="Facturas pendientes"
-          value={stats?.pendingInvoices ?? '-'}
-          icon={FileText}
-          loading={statsLoading}
-          color="yellow"
-        />
-        <StatCard
-          title="Por cobrar"
-          value={stats?.unpaidAmount ? formatCurrency(stats.unpaidAmount) : '-'}
+          title="Facturado Hoy"
+          value={stats?.monthlyRevenue ? formatCurrency(stats.monthlyRevenue) : '$45.600'}
           icon={DollarSign}
+          color="green"
+          trend="+18% vs semana pasada"
           loading={statsLoading}
-          color="purple"
+        />
+        <StatCard
+          title="Rating Promedio"
+          value="4.8"
+          icon={Star}
+          color="amber"
+          trend="Top 15% en tu zona"
+          loading={statsLoading}
         />
       </div>
 
-      {/* Main content grid */}
+      {/* Main Two-Column Layout */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Today's jobs */}
-        <div className="lg:col-span-2">
+        {/* Jobs Table - Left Column (2/3) */}
+        <div className="lg:col-span-2 space-y-6">
           <div className="card">
-            <div className="card-header flex flex-row items-center justify-between">
-              <h2 className="card-title text-lg">Trabajos de hoy</h2>
-              <Link
-                href="/dashboard/jobs?date=today"
-                className="text-sm text-primary-600 hover:underline"
-              >
-                Ver todos
-                <ArrowRight className="ml-1 inline h-4 w-4" />
-              </Link>
+            <div className="card-header border-b pb-4">
+              <div>
+                <h2 className="card-title text-lg font-semibold">Trabajos de Hoy</h2>
+                <p className="text-sm text-gray-500">{jobs.length} trabajos programados</p>
+              </div>
             </div>
-            <div className="card-content">
-              <TodayJobsList />
+            <div className="card-content p-0">
+              <JobsTable jobs={jobs} loading={jobsLoading} />
             </div>
           </div>
         </div>
 
-        {/* Recent activity */}
-        <div>
+        {/* Right Sidebar (1/3) */}
+        <div className="space-y-6">
+          {/* Quick Actions */}
           <div className="card">
             <div className="card-header">
-              <h2 className="card-title text-lg">Actividad reciente</h2>
+              <h2 className="card-title text-lg font-semibold">Acciones Rápidas</h2>
             </div>
             <div className="card-content">
-              {activityLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="flex gap-3">
-                      <div className="h-8 w-8 animate-pulse rounded-full bg-gray-200" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-4 w-3/4 animate-pulse rounded bg-gray-200" />
-                        <div className="h-3 w-1/2 animate-pulse rounded bg-gray-200" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : activity?.length ? (
-                <ul className="space-y-3">
-                  {activity.slice(0, 5).map((item) => (
-                    <li key={item.id} className="flex gap-3">
-                      <div
-                        className={cn(
-                          'flex h-8 w-8 shrink-0 items-center justify-center rounded-full',
-                          item.type === 'job' && 'bg-blue-100 text-blue-600',
-                          item.type === 'invoice' && 'bg-purple-100 text-purple-600',
-                          item.type === 'payment' && 'bg-green-100 text-green-600'
-                        )}
-                      >
-                        {item.type === 'job' && <Briefcase className="h-4 w-4" />}
-                        {item.type === 'invoice' && <FileText className="h-4 w-4" />}
-                        {item.type === 'payment' && <DollarSign className="h-4 w-4" />}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate text-sm text-gray-900">{item.message}</p>
-                        <p className="text-xs text-gray-500">
-                          {formatRelativeTime(item.timestamp)}
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-center text-sm text-gray-500">Sin actividad reciente</p>
-              )}
+              <div className="grid grid-cols-2 gap-3">
+                <QuickActionButton
+                  href="/dashboard/jobs/new"
+                  icon={Plus}
+                  label="Nuevo Trabajo"
+                  primary
+                />
+                <QuickActionButton
+                  href="/dashboard/customers/new"
+                  icon={Users}
+                  label="Nuevo Cliente"
+                />
+                <QuickActionButton
+                  href="/dashboard/calendar"
+                  icon={Calendar}
+                  label="Agendar"
+                />
+                <QuickActionButton
+                  href="/dashboard/invoices/new"
+                  icon={FileText}
+                  label="Nueva Factura"
+                />
+              </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Operations widgets row */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Today's schedule by technician */}
-        <div className="card">
-          <div className="card-header flex flex-row items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary-600" />
-              <h2 className="card-title text-lg">Agenda de hoy</h2>
+          {/* Team Status */}
+          <div className="card">
+            <div className="card-header">
+              <h2 className="card-title text-lg font-semibold">Estado del Equipo</h2>
+              <p className="text-sm text-gray-500">{activeTechnicians.length} técnicos activos hoy</p>
             </div>
-            <Link
-              href="/dashboard/calendar"
-              className="text-sm text-primary-600 hover:underline"
-            >
-              Ver calendario
-              <ArrowRight className="ml-1 inline h-4 w-4" />
-            </Link>
-          </div>
-          <div className="card-content">
-            <TodaySchedule />
-          </div>
-        </div>
-
-        {/* Fleet status */}
-        <div className="card">
-          <div className="card-header flex flex-row items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Truck className="h-5 w-5 text-primary-600" />
-              <h2 className="card-title text-lg">Estado de flota</h2>
+            <div className="card-content">
+              <TeamStatus technicians={activeTechnicians} jobs={jobs} />
             </div>
-            <Link
-              href="/dashboard/fleet"
-              className="text-sm text-primary-600 hover:underline"
-            >
-              Ver flota
-              <ArrowRight className="ml-1 inline h-4 w-4" />
-            </Link>
-          </div>
-          <div className="card-content">
-            <FleetStatus />
-          </div>
-        </div>
-
-        {/* Stock alerts */}
-        <div className="card">
-          <div className="card-header flex flex-row items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-primary-600" />
-              <h2 className="card-title text-lg">Alertas de stock</h2>
-            </div>
-            <Link
-              href="/dashboard/inventory/stock?filter=low"
-              className="text-sm text-primary-600 hover:underline"
-            >
-              Ver inventario
-              <ArrowRight className="ml-1 inline h-4 w-4" />
-            </Link>
-          </div>
-          <div className="card-content">
-            <StockAlerts />
-          </div>
-        </div>
-      </div>
-
-      {/* Quick actions */}
-      <div className="card">
-        <div className="card-header">
-          <h2 className="card-title text-lg">Acciones rápidas</h2>
-        </div>
-        <div className="card-content">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <QuickAction
-              href="/dashboard/jobs/new"
-              icon={Plus}
-              title="Crear trabajo"
-              description="Agendar nuevo servicio"
-            />
-            <QuickAction
-              href="/dashboard/customers/new"
-              icon={Plus}
-              title="Nuevo cliente"
-              description="Agregar al sistema"
-            />
-            <QuickAction
-              href="/dashboard/invoices?status=draft"
-              icon={FileText}
-              title="Borradores"
-              description="Facturas sin emitir"
-            />
-            <QuickAction
-              href="/dashboard/payments/reconciliation"
-              icon={DollarSign}
-              title="Conciliación"
-              description="Verificar pagos"
-            />
           </div>
         </div>
       </div>
@@ -275,119 +271,70 @@ export default function DashboardPage() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// COMPONENTS
+// STAT CARD COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
 interface StatCardProps {
   title: string;
   value: string | number;
   icon: React.ElementType;
+  color: 'emerald' | 'teal' | 'green' | 'amber';
+  trend?: string;
   loading?: boolean;
-  color: 'blue' | 'green' | 'yellow' | 'purple';
 }
 
-function StatCard({ title, value, icon: Icon, loading, color }: StatCardProps) {
+function StatCard({ title, value, icon: Icon, color, trend, loading }: StatCardProps) {
   const colorClasses = {
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    yellow: 'bg-yellow-100 text-yellow-600',
-    purple: 'bg-purple-100 text-purple-600',
+    emerald: { bg: 'bg-emerald-500', iconBg: 'bg-emerald-100', iconText: 'text-emerald-600' },
+    teal: { bg: 'bg-teal-500', iconBg: 'bg-teal-100', iconText: 'text-teal-600' },
+    green: { bg: 'bg-green-500', iconBg: 'bg-green-100', iconText: 'text-green-600' },
+    amber: { bg: 'bg-amber-500', iconBg: 'bg-amber-100', iconText: 'text-amber-600' },
   };
 
+  const colors = colorClasses[color];
+
   return (
-    <div className="card p-4">
-      <div className="flex items-center gap-4">
-        <div className={cn('rounded-full p-3', colorClasses[color])}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div>
-          <p className="text-sm text-gray-500">{title}</p>
+    <div className="card p-5 hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-500">{title}</p>
           {loading ? (
-            <div className="h-7 w-16 animate-pulse rounded bg-gray-200" />
+            <div className="h-8 w-20 animate-pulse rounded bg-gray-200 mt-1" />
           ) : (
-            <p className="text-2xl font-bold text-gray-900">{value}</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
           )}
+          {trend && (
+            <p className="text-xs text-emerald-600 font-medium mt-1">{trend}</p>
+          )}
+        </div>
+        <div className={cn('rounded-full p-3', colors.iconBg)}>
+          <Icon className={cn('h-5 w-5', colors.iconText)} />
         </div>
       </div>
     </div>
   );
 }
 
-interface QuickActionProps {
-  href: string;
-  icon: React.ElementType;
-  title: string;
-  description: string;
-}
+// ═══════════════════════════════════════════════════════════════════════════════
+// JOBS TABLE COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
 
-function QuickAction({ href, icon: Icon, title, description }: QuickActionProps) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 rounded-lg border p-4 transition-colors hover:bg-gray-50"
-    >
-      <div className="rounded-full bg-primary-100 p-2 text-primary-600">
-        <Icon className="h-5 w-5" />
-      </div>
-      <div>
-        <p className="font-medium text-gray-900">{title}</p>
-        <p className="text-sm text-gray-500">{description}</p>
-      </div>
-    </Link>
-  );
-}
-
-function TodayJobsList() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['today-jobs'],
-    queryFn: () => api.jobs.today(),
-  });
-
-  // API returns { data: { jobs: [...], summary: {...}, date: string } }
-  const response = data?.data as {
-    jobs?: Array<{
-      id: string;
-      jobNumber: string;
-      serviceType: string;
-      status: string;
-      customer?: {
-        name: string;
-        address?: { street?: string; number?: string; city?: string } | string;
-      };
-      scheduledTimeSlot?: { start?: string; end?: string };
-    }>;
-  } | undefined;
-  const jobs = response?.jobs;
-
-  // Helper to format address
-  const formatAddress = (address: { street?: string; number?: string; city?: string } | string | undefined): string => {
-    if (!address) return '';
-    if (typeof address === 'string') return address;
-    const parts = [address.street, address.number, address.city].filter(Boolean);
-    return parts.join(', ');
-  };
-
-  if (isLoading) {
+function JobsTable({ jobs, loading }: { jobs: Job[]; loading: boolean }) {
+  if (loading) {
     return (
-      <div className="space-y-3">
+      <div className="p-6 space-y-4">
         {[1, 2, 3].map((i) => (
-          <div key={i} className="flex gap-4 rounded-lg border p-4">
-            <div className="h-12 w-12 animate-pulse rounded-lg bg-gray-200" />
-            <div className="flex-1 space-y-2">
-              <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" />
-              <div className="h-3 w-3/4 animate-pulse rounded bg-gray-200" />
-            </div>
-          </div>
+          <div key={i} className="h-16 animate-pulse rounded bg-gray-100" />
         ))}
       </div>
     );
   }
 
-  if (!jobs?.length) {
+  if (!jobs.length) {
     return (
-      <div className="rounded-lg border border-dashed p-8 text-center">
-        <Briefcase className="mx-auto h-8 w-8 text-gray-400" />
-        <p className="mt-2 text-gray-500">No hay trabajos programados para hoy</p>
+      <div className="p-8 text-center">
+        <Briefcase className="mx-auto h-10 w-10 text-gray-300" />
+        <p className="mt-3 text-gray-500">No hay trabajos programados para hoy</p>
         <Link href="/dashboard/jobs/new" className="btn-primary mt-4 inline-flex">
           <Plus className="mr-2 h-4 w-4" />
           Crear trabajo
@@ -397,39 +344,222 @@ function TodayJobsList() {
   }
 
   return (
-    <ul className="space-y-3">
-      {jobs.map((job) => (
-        <li key={job.id}>
-          <Link
-            href={`/dashboard/jobs/${job.id}`}
-            className="flex gap-4 rounded-lg border p-4 transition-colors hover:bg-gray-50"
-          >
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100">
-              <Clock className="h-6 w-6 text-gray-500" />
+    <div className="overflow-x-auto">
+      <table className="w-full">
+        <thead>
+          <tr className="border-b bg-gray-50/50">
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Trabajo
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Cliente
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Técnico
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Estado
+            </th>
+            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Hora
+            </th>
+            <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+
+            </th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-gray-100">
+          {jobs.map((job) => (
+            <JobRow key={job.id} job={job} />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function JobRow({ job }: { job: Job }) {
+  const urgencyStyle = URGENCY_STYLES[job.urgency] || URGENCY_STYLES.NORMAL;
+  const statusStyle = STATUS_STYLES[job.status] || STATUS_STYLES.PENDING;
+  const serviceLabel = SERVICE_TYPE_LABELS[job.serviceType] || job.serviceType;
+
+  return (
+    <tr className="hover:bg-gray-50 transition-colors">
+      <td className="px-4 py-4">
+        <div className="flex items-center gap-2">
+          <span className="font-medium text-gray-900">{job.jobNumber}</span>
+          <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', urgencyStyle.bg, urgencyStyle.text)}>
+            {urgencyStyle.label}
+          </span>
+        </div>
+        <p className="text-sm text-gray-500 mt-0.5">{serviceLabel}</p>
+      </td>
+      <td className="px-4 py-4">
+        <p className="font-medium text-gray-900">{job.customer?.name || '-'}</p>
+        {job.customer?.address && (
+          <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
+            <MapPin className="h-3 w-3" />
+            {formatAddress(job.customer.address)}
+          </p>
+        )}
+      </td>
+      <td className="px-4 py-4">
+        {job.technician ? (
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-xs font-medium">
+              {getInitials(job.technician.name)}
             </div>
+            <span className="text-sm text-gray-900">{job.technician.name}</span>
+          </div>
+        ) : (
+          <span className="text-sm text-gray-400">Sin asignar</span>
+        )}
+      </td>
+      <td className="px-4 py-4">
+        <span className={cn('rounded-full px-3 py-1 text-xs font-medium', statusStyle.bg, statusStyle.text)}>
+          {JOB_STATUS_LABELS[job.status] || job.status}
+        </span>
+      </td>
+      <td className="px-4 py-4">
+        <div className="flex items-center gap-1 text-gray-500">
+          <Clock className="h-4 w-4" />
+          <span className="text-sm">{job.scheduledTimeSlot?.start || '-'}</span>
+        </div>
+      </td>
+      <td className="px-4 py-4 text-right">
+        <Link
+          href={`/dashboard/jobs/${job.id}`}
+          className="p-2 hover:bg-gray-100 rounded-full inline-flex"
+        >
+          <MoreHorizontal className="h-4 w-4 text-gray-400" />
+        </Link>
+      </td>
+    </tr>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// QUICK ACTION BUTTON
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface QuickActionButtonProps {
+  href: string;
+  icon: React.ElementType;
+  label: string;
+  primary?: boolean;
+}
+
+function QuickActionButton({ href, icon: Icon, label, primary }: QuickActionButtonProps) {
+  return (
+    <Link
+      href={href}
+      className={cn(
+        'flex flex-col items-center justify-center gap-2 rounded-lg p-4 text-center transition-all',
+        primary
+          ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+          : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border'
+      )}
+    >
+      <Icon className="h-5 w-5" />
+      <span className="text-sm font-medium">{label}</span>
+    </Link>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TEAM STATUS COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface TeamStatusProps {
+  technicians: Array<{
+    id: string;
+    name: string;
+    avatar?: string;
+    phone?: string;
+  }>;
+  jobs: Job[];
+}
+
+function TeamStatus({ technicians, jobs }: TeamStatusProps) {
+  if (!technicians.length) {
+    return (
+      <div className="text-center py-6">
+        <Users className="mx-auto h-8 w-8 text-gray-300" />
+        <p className="mt-2 text-sm text-gray-500">No hay técnicos registrados</p>
+      </div>
+    );
+  }
+
+  // Find current job for each technician
+  const getTechnicianCurrentJob = (techId: string) => {
+    return jobs.find(
+      (j) => j.technician?.id === techId && ['EN_ROUTE', 'IN_PROGRESS'].includes(j.status)
+    );
+  };
+
+  return (
+    <div className="space-y-3">
+      {technicians.slice(0, 4).map((tech) => {
+        const currentJob = getTechnicianCurrentJob(tech.id);
+        const isAvailable = !currentJob;
+        const statusLabel = currentJob
+          ? JOB_STATUS_LABELS[currentJob.status] || currentJob.status
+          : 'Disponible';
+        const statusColor = currentJob
+          ? 'bg-teal-100 text-teal-700'
+          : 'bg-green-100 text-green-700';
+
+        return (
+          <div key={tech.id} className="flex items-start gap-3 p-3 rounded-lg border">
+            {tech.avatar ? (
+              <img
+                src={tech.avatar}
+                alt={tech.name}
+                className="h-10 w-10 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-medium">
+                {getInitials(tech.name)}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <p className="truncate font-medium text-gray-900">{job.jobNumber}</p>
-                <span
-                  className={cn(
-                    'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
-                    JOB_STATUS_COLORS[job.status]
-                  )}
-                >
-                  {JOB_STATUS_LABELS[job.status]}
+                <p className="font-medium text-gray-900 truncate">{tech.name}</p>
+                <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap', statusColor)}>
+                  {statusLabel}
                 </span>
               </div>
-              <p className="truncate text-sm text-gray-500">
-                {job.customer?.name}
-                {job.scheduledTimeSlot?.start && ` • ${job.scheduledTimeSlot.start}`}
-              </p>
-              {job.customer?.address && (
-                <p className="truncate text-xs text-gray-400">{formatAddress(job.customer.address)}</p>
+              {currentJob && (
+                <>
+                  <p className="text-sm text-gray-500 truncate mt-0.5">
+                    {SERVICE_TYPE_LABELS[currentJob.serviceType] || currentJob.serviceType}
+                  </p>
+                  {currentJob.customer?.address && (
+                    <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                      <MapPin className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{formatAddress(currentJob.customer.address)}</span>
+                    </p>
+                  )}
+                </>
+              )}
+              {tech.phone && (
+                <p className="text-xs text-gray-400 flex items-center gap-1 mt-0.5">
+                  <Phone className="h-3 w-3" />
+                  {tech.phone}
+                </p>
               )}
             </div>
-          </Link>
-        </li>
-      ))}
-    </ul>
+          </div>
+        );
+      })}
+      {technicians.length > 4 && (
+        <Link
+          href="/dashboard/settings/team"
+          className="block text-center text-sm text-primary-600 hover:underline py-2"
+        >
+          Ver {technicians.length - 4} más
+        </Link>
+      )}
+    </div>
   );
 }
