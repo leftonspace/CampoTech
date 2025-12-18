@@ -10,7 +10,7 @@ import {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -22,9 +22,10 @@ export async function GET(
       );
     }
 
+    const { id } = await params;
     const customer = await prisma.customer.findFirst({
       where: {
-        id: params.id,
+        id,
         organizationId: session.organizationId,
       },
       include: {
@@ -69,7 +70,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -81,12 +82,13 @@ export async function PUT(
       );
     }
 
+    const { id } = await params;
     const body = await request.json();
 
     // First verify customer belongs to this organization
     const existing = await prisma.customer.findFirst({
       where: {
-        id: params.id,
+        id,
         organizationId: session.organizationId,
       },
     });
@@ -111,7 +113,7 @@ export async function PUT(
     }
 
     const customer = await prisma.customer.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         name: body.name,
         phone: body.phone,
@@ -136,7 +138,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -148,10 +150,12 @@ export async function DELETE(
       );
     }
 
+    const { id } = await params;
+
     // First verify customer belongs to this organization
     const existing = await prisma.customer.findFirst({
       where: {
-        id: params.id,
+        id,
         organizationId: session.organizationId,
       },
     });
@@ -164,7 +168,7 @@ export async function DELETE(
     }
 
     await prisma.customer.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({

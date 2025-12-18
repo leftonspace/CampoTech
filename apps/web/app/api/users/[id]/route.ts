@@ -10,7 +10,7 @@ import {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -22,9 +22,10 @@ export async function GET(
       );
     }
 
+    const { id } = await params;
     const user = await prisma.user.findFirst({
       where: {
-        id: params.id,
+        id,
         organizationId: session.organizationId,
       },
       select: {
@@ -49,7 +50,7 @@ export async function GET(
 
     // Normalize user role and check if viewing self
     const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
-    const isSelf = session.userId === params.id;
+    const isSelf = session.userId === id;
 
     // Filter data based on user role
     const filteredData = filterEntityByRole(user, 'user', userRole, isSelf);
@@ -71,7 +72,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -91,12 +92,13 @@ export async function PUT(
       );
     }
 
+    const { id } = await params;
     const body = await request.json();
 
     // First verify user belongs to this organization
     const existing = await prisma.user.findFirst({
       where: {
-        id: params.id,
+        id,
         organizationId: session.organizationId,
       },
     });
@@ -112,7 +114,7 @@ export async function PUT(
     const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Only OWNER and DISPATCHER can update other users
-    const isEditingSelf = session.userId === params.id;
+    const isEditingSelf = session.userId === id;
     if (!isEditingSelf && !['OWNER', 'DISPATCHER'].includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'Forbidden: insufficient permissions' },
@@ -151,7 +153,7 @@ export async function PUT(
         where: {
           email: body.email,
           organizationId: session.organizationId,
-          NOT: { id: params.id },
+          NOT: { id },
         },
       });
 
@@ -174,7 +176,7 @@ export async function PUT(
     if (body.avatar !== undefined) updateData.avatar = body.avatar;
 
     const user = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
       select: {
         id: true,
@@ -205,7 +207,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getSession();
@@ -216,6 +218,8 @@ export async function DELETE(
         { status: 401 }
       );
     }
+
+    const { id } = await params;
 
     // Only OWNER and DISPATCHER can delete users
     if (!['OWNER', 'DISPATCHER'].includes(session.role)) {
@@ -228,7 +232,7 @@ export async function DELETE(
     // First verify user belongs to this organization
     const existing = await prisma.user.findFirst({
       where: {
-        id: params.id,
+        id,
         organizationId: session.organizationId,
       },
     });
@@ -249,7 +253,7 @@ export async function DELETE(
     }
 
     // Prevent deleting yourself
-    if (session.userId === params.id) {
+    if (session.userId === id) {
       return NextResponse.json(
         { success: false, error: 'Cannot delete yourself' },
         { status: 400 }
@@ -259,7 +263,7 @@ export async function DELETE(
     // Check if user has assigned jobs
     const assignedJobs = await prisma.job.count({
       where: {
-        technicianId: params.id,
+        technicianId: id,
         status: { in: ['PENDING', 'ASSIGNED', 'EN_ROUTE', 'IN_PROGRESS'] },
       },
     });
@@ -275,7 +279,7 @@ export async function DELETE(
     }
 
     await prisma.user.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({
