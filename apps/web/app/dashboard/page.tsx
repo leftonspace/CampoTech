@@ -350,11 +350,22 @@ function TodayJobsList() {
       jobNumber: string;
       serviceType: string;
       status: string;
-      customer?: { name: string; address?: string };
+      customer?: {
+        name: string;
+        address?: { street?: string; number?: string; city?: string } | string;
+      };
       scheduledTimeSlot?: { start?: string; end?: string };
     }>;
   } | undefined;
   const jobs = response?.jobs;
+
+  // Helper to format address
+  const formatAddress = (address: { street?: string; number?: string; city?: string } | string | undefined): string => {
+    if (!address) return '';
+    if (typeof address === 'string') return address;
+    const parts = [address.street, address.number, address.city].filter(Boolean);
+    return parts.join(', ');
+  };
 
   if (isLoading) {
     return (
@@ -413,7 +424,7 @@ function TodayJobsList() {
                 {job.scheduledTimeSlot?.start && ` • ${job.scheduledTimeSlot.start}`}
               </p>
               {job.customer?.address && (
-                <p className="truncate text-xs text-gray-400">{job.customer.address}</p>
+                <p className="truncate text-xs text-gray-400">{formatAddress(job.customer.address)}</p>
               )}
             </div>
           </Link>
