@@ -30,6 +30,9 @@ import {
   Plus,
   Route,
   History,
+  Wifi,
+  WifiOff,
+  Radio,
 } from 'lucide-react';
 import { MapLayerControls, MapLayerState } from '@/components/maps/MapLayerControls';
 import { MapFiltersPanel, MapFilters } from '@/components/maps/MapFiltersPanel';
@@ -38,6 +41,11 @@ import { ReassignJobDialog } from '@/components/maps/ReassignJobDialog';
 import { CoordinatePickerDialog } from '@/components/maps/CoordinatePickerDialog';
 import { useAuth } from '@/lib/auth-context';
 import { searchMatchesAny } from '@/lib/utils';
+import {
+  useTrackingClient,
+  TechnicianLocationUpdate,
+  JobStatusChangeUpdate,
+} from '@/lib/websocket/tracking-client';
 
 // Types
 interface CustomerLocation {
@@ -523,6 +531,70 @@ export default function LiveMapPage() {
   };
 
   const zones = data?.data?.zones || [];
+
+  // Real-time tracking client for WebSocket/SSE updates
+  const handleLocationUpdate = useCallback((update: TechnicianLocationUpdate) => {
+    // Update technician position in the existing markers
+    const marker = technicianMarkersRef.current.get(update.userId);
+    if (marker && L) {
+      const prevPos = markerPositions.get(update.userId);
+      if (prevPos) {
+        // Animate to new position
+        const startLat = prevPos.lat;
+        const startLng = prevPos.lng;
+        const endLat = update.lat;
+        const endLng = update.lng;
+
+        if (Math.abs(startLat - endLat) > 0.00001 || Math.abs(startLng - endLng) > 0.00001) {
+          const duration = 1000;
+          const startTime = Date.now();
+
+          const animate = () => {
+            const elapsed = Date.now() - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+            const eased = 1 - Math.pow(1 - progress, 3);
+
+            const currentLat = startLat + (endLat - startLat) * eased;
+            const currentLng = startLng + (endLng - startLng) * eased;
+
+            marker.setLatLng([currentLat, currentLng]);
+
+            if (progress < 1) {
+              requestAnimationFrame(animate);
+            }
+          };
+
+          requestAnimationFrame(animate);
+        }
+      }
+      markerPositions.set(update.userId, { lat: update.lat, lng: update.lng });
+    }
+  }, [L]);
+
+  const handleTechnicianOnline = useCallback((userId: string) => {
+    // Refetch to get updated status
+    refetch();
+  }, [refetch]);
+
+  const handleTechnicianOffline = useCallback((userId: string) => {
+    // Refetch to get updated status
+    refetch();
+  }, [refetch]);
+
+  const handleJobStatusChanged = useCallback((update: JobStatusChangeUpdate) => {
+    // Refetch map data when job status changes
+    refetch();
+  }, [refetch]);
+
+  // Initialize tracking client
+  const { isConnected: isTrackingConnected, lastUpdate: lastTrackingUpdate } = useTrackingClient({
+    organizationId: user?.orgId ?? undefined,
+    enabled: Boolean(hasAccess && user?.orgId),
+    onLocationUpdate: handleLocationUpdate,
+    onTechnicianOnline: handleTechnicianOnline,
+    onTechnicianOffline: handleTechnicianOffline,
+    onJobStatusChanged: handleJobStatusChanged,
+  });
 
   // Update URL when filters change
   useEffect(() => {
@@ -1572,7 +1644,34 @@ export default function LiveMapPage() {
       {/* Header */}
       <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mapa en Vivo</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-gray-900">Mapa en Vivo</h1>
+            {/* Live Connection Indicator */}
+            <div
+              className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                isTrackingConnected
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-gray-100 text-gray-500'
+              }`}
+              title={
+                isTrackingConnected
+                  ? `Conectado - Última actualización: ${lastTrackingUpdate?.toLocaleTimeString() || 'N/A'}`
+                  : 'Desconectado - Usando polling'
+              }
+            >
+              {isTrackingConnected ? (
+                <>
+                  <Radio className="h-3 w-3 animate-pulse" />
+                  <span>En vivo</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="h-3 w-3" />
+                  <span>Polling</span>
+                </>
+              )}
+            </div>
+          </div>
           <p className="text-sm text-gray-500">Seguimiento en tiempo real de técnicos</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
