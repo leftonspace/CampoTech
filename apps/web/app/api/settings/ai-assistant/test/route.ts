@@ -121,6 +121,34 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Mensaje requerido' }, { status: 400 });
     }
 
+    // Check if conversation was already transferred - don't respond with AI
+    const wasAlreadyTransferred = conversationHistory.some(
+      (msg) => msg.role === 'assistant' && msg.content.includes('transferir con un representante')
+    );
+
+    if (wasAlreadyTransferred) {
+      return NextResponse.json({
+        success: true,
+        analysis: {
+          intent: 'already_transferred',
+          confidence: 100,
+          extractedEntities: {},
+          suggestedResponse: `Tu consulta ya fue derivada a un representante. En breve alguien se comunicará con vos para asistirte personalmente.`,
+          shouldCreateJob: false,
+          shouldTransfer: true,
+          transferReason: 'Conversación ya transferida anteriormente',
+          suggestedTechnician: null,
+          suggestedTimeSlot: null,
+          warnings: ['Esta conversación ya fue transferida a un humano'],
+        },
+        context: {
+          availableTechnicians: 0,
+          totalTechnicians: 0,
+          availableSlots: 0,
+        },
+      });
+    }
+
     // Check for transfer keywords BEFORE calling AI
     // Also check word stems for Spanish conjugations (e.g., "denuncia" matches "denunciar", "denunciarlos")
     const messageLower = message.toLowerCase();
@@ -142,17 +170,23 @@ export async function POST(request: NextRequest) {
 
     // Check both exact match and stem match
     const messageWords = messageLower.split(/\s+/);
-    const matchedKeyword = transferKeywords.find((keyword) => {
+    const matchedKeyword = transferKeywords.find((keyword: string) => {
       const keywordLower = keyword.toLowerCase();
       const keywordStem = getWordStem(keywordLower);
 
-      // Direct substring match
+      // Direct substring match (handles "denuncia" in "denunciar")
       if (messageLower.includes(keywordLower)) return true;
 
       // Stem match for each word
-      return messageWords.some((word) => {
+      return messageWords.some((word: string) => {
         const wordStem = getWordStem(word);
-        return wordStem === keywordStem || wordStem.includes(keywordStem) || keywordStem.includes(wordStem);
+        // Check if stems match or one contains the other
+        return wordStem === keywordStem ||
+               wordStem.includes(keywordStem) ||
+               keywordStem.includes(wordStem) ||
+               // Also check if keyword is substring of word or vice versa
+               word.includes(keywordLower) ||
+               keywordLower.includes(word);
       });
     });
 
