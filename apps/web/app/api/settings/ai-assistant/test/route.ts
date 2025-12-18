@@ -25,6 +25,19 @@ interface FAQItem {
   answer: string;
 }
 
+interface DataAccessPermissions {
+  companyInfo: boolean;
+  services: boolean;
+  pricing: boolean;
+  businessHours: boolean;
+  serviceAreas: boolean;
+  technicianNames: boolean;
+  technicianAvailability: boolean;
+  scheduleSlots: boolean;
+  faq: boolean;
+  policies: boolean;
+}
+
 interface TestConfig {
   companyName: string;
   companyDescription: string;
@@ -43,6 +56,7 @@ interface TestConfig {
   transferKeywords: string[];
   greetingMessage: string;
   awayMessage: string;
+  dataAccessPermissions?: DataAccessPermissions;
 }
 
 interface TestRequest {
@@ -464,6 +478,20 @@ function buildTestSystemPrompt(
   technicians: TechnicianAvailability[],
   scheduleSlots: ScheduleSlot[]
 ): string {
+  // Get permissions with defaults
+  const perms: DataAccessPermissions = config.dataAccessPermissions || {
+    companyInfo: true,
+    services: true,
+    pricing: true,
+    businessHours: true,
+    serviceAreas: true,
+    technicianNames: false,
+    technicianAvailability: true,
+    scheduleSlots: true,
+    faq: true,
+    policies: true,
+  };
+
   const toneInstructions: Record<string, string> = {
     friendly_professional:
       'Sé amigable pero profesional. Usá "vos" en lugar de "tú". Sé cálido pero eficiente.',
@@ -471,20 +499,51 @@ function buildTestSystemPrompt(
     casual: 'Sé relajado y cercano, como hablando con un vecino. Usá expresiones argentinas.',
   };
 
-  const servicesText =
-    config.servicesOffered.length > 0
-      ? config.servicesOffered
-          .map(
-            (s) =>
-              `- ${s.name}: ${s.description}${s.priceRange ? ` (${s.priceRange})` : ''}`
-          )
-          .join('\n')
-      : 'No hay servicios configurados.';
+  // ─────────────────────────────────────────────────────────────────────────────
+  // APPLY DATA ACCESS PERMISSIONS TO ALL SECTIONS
+  // ─────────────────────────────────────────────────────────────────────────────
 
-  const faqText =
-    config.faqItems.length > 0
-      ? config.faqItems.map((f) => `P: ${f.question}\nR: ${f.answer}`).join('\n\n')
-      : '';
+  // Company info - only show if permitted
+  const companyNameText = perms.companyInfo ? (config.companyName || 'la empresa') : 'la empresa';
+  const companyDescText = perms.companyInfo
+    ? (config.companyDescription || 'Empresa de servicios técnicos.')
+    : '[Descripción de la empresa no disponible]';
+
+  // Services - only include if permitted, and only show prices if pricing permitted
+  const servicesText = perms.services && config.servicesOffered.length > 0
+    ? config.servicesOffered
+        .map(
+          (s) =>
+            `- ${s.name}: ${s.description}${perms.pricing && s.priceRange ? ` (${s.priceRange})` : ''}`
+        )
+        .join('\n')
+    : '[Información de servicios no disponible]';
+
+  // Pricing info - only show if permitted
+  const pricingText = perms.pricing
+    ? (config.pricingInfo || 'Los precios varían según el trabajo.')
+    : '[Información de precios no disponible - consultá con un representante]';
+
+  // FAQ - only show if permitted
+  const faqText = perms.faq && config.faqItems.length > 0
+    ? config.faqItems.map((f) => `P: ${f.question}\nR: ${f.answer}`).join('\n\n')
+    : '';
+
+  // Policies - only show if permitted
+  const cancellationText = perms.policies
+    ? (config.cancellationPolicy || 'Cancelaciones con 24hs de anticipación.')
+    : '[Política de cancelación no disponible]';
+  const paymentText = perms.policies
+    ? (config.paymentMethods || 'Efectivo, transferencia')
+    : '[Métodos de pago no disponibles]';
+  const warrantyText = perms.policies
+    ? (config.warrantyInfo || 'Consultar según servicio.')
+    : '[Información de garantía no disponible]';
+
+  // Service areas - only show if permitted
+  const serviceAreasText = perms.serviceAreas
+    ? (config.serviceAreas || 'Consultar disponibilidad')
+    : '[Zonas de servicio no disponibles]';
 
   // Build business hours text and check current status
   const daysMap: Record<string, string> = {
@@ -532,26 +591,38 @@ function buildTestSystemPrompt(
     openStatus = 'CERRADO HOY';
   }
 
-  const businessHoursText = Object.entries(config.businessHours || {})
-    .filter(([, hours]) => hours !== null)
-    .map(([day, hours]) => {
-      if (!hours) return null;
-      const isToday = day === currentDayKey;
-      return `${daysMap[day] || day}: ${hours.open} - ${hours.close}${isToday ? ' ← HOY' : ''}`;
-    })
-    .filter(Boolean)
-    .join('\n') || 'Horarios no configurados';
+  // Business hours - only show details if permitted (but still check internally for open/closed status)
+  const businessHoursText = perms.businessHours
+    ? (Object.entries(config.businessHours || {})
+        .filter(([, hours]) => hours !== null)
+        .map(([day, hours]) => {
+          if (!hours) return null;
+          const isToday = day === currentDayKey;
+          return `${daysMap[day] || day}: ${hours.open} - ${hours.close}${isToday ? ' ← HOY' : ''}`;
+        })
+        .filter(Boolean)
+        .join('\n') || 'Horarios no configurados')
+    : '[Horarios de atención no disponibles - consultá con un representante]';
 
-  // Build technician status text
+  // Build technician status text - respect technicianNames and technicianAvailability permissions
   const availableTechs = technicians.filter((t) => t.status === 'disponible');
-  const techStatusText =
-    technicians.length > 0
-      ? `
+
+  let techStatusText: string;
+  if (!perms.technicianAvailability) {
+    // Don't show any technician availability info
+    techStatusText = '[Información de disponibilidad de técnicos no disponible]';
+  } else if (technicians.length === 0) {
+    techStatusText = 'No hay técnicos registrados.';
+  } else {
+    // Show availability info, but anonymize names if technicianNames is false
+    techStatusText = `
 TÉCNICOS DISPONIBLES AHORA (${availableTechs.length}/${technicians.length}):
 ${technicians
   .map(
-    (t) =>
-      `- ${t.name} (${t.specialty || 'General'}): ${
+    (t, index) => {
+      // Use real name or anonymous "Técnico N"
+      const displayName = perms.technicianNames ? t.name : `Técnico ${index + 1}`;
+      return `- ${displayName} (${t.specialty || 'General'}): ${
         t.status === 'disponible'
           ? '✅ Disponible'
           : t.status === 'ocupado'
@@ -561,32 +632,38 @@ ${technicians
               : '⚫ Sin conexión'
       }${t.todaysJobs > 0 ? ` - ${t.todaysJobs} trabajos hoy` : ''}${
         t.nextAvailableSlot ? ` - Libre desde ${t.nextAvailableSlot}` : ''
-      }`
+      }`;
+    }
   )
-  .join('\n')}`
-      : 'No hay técnicos registrados.';
+  .join('\n')}`;
+  }
 
-  // Build schedule slots text (next 3 days only for prompt)
-  const slotsText = scheduleSlots
-    .slice(0, 3)
-    .map((day) => {
-      const availableSlots = day.timeSlots.filter((s) => s.available);
-      const dateObj = new Date(day.date);
-      const dayName = dateObj.toLocaleDateString('es-AR', { weekday: 'long' });
-      const dateStr = dateObj.toLocaleDateString('es-AR', {
-        day: 'numeric',
-        month: 'short',
-      });
+  // Build schedule slots text - respect scheduleSlots permission
+  let slotsText: string;
+  if (!perms.scheduleSlots) {
+    slotsText = '[Información de turnos no disponible - consultá con un representante]';
+  } else {
+    slotsText = scheduleSlots
+      .slice(0, 3)
+      .map((day) => {
+        const availableSlots = day.timeSlots.filter((s) => s.available);
+        const dateObj = new Date(day.date);
+        const dayName = dateObj.toLocaleDateString('es-AR', { weekday: 'long' });
+        const dateStr = dateObj.toLocaleDateString('es-AR', {
+          day: 'numeric',
+          month: 'short',
+        });
 
-      if (availableSlots.length === 0) {
-        return `${dayName} ${dateStr}: Sin disponibilidad`;
-      }
+        if (availableSlots.length === 0) {
+          return `${dayName} ${dateStr}: Sin disponibilidad`;
+        }
 
-      return `${dayName} ${dateStr}: ${availableSlots.map((s) => `${s.start}-${s.end}`).join(', ')}`;
-    })
-    .join('\n');
+        return `${dayName} ${dateStr}: ${availableSlots.map((s) => `${s.start}-${s.end}`).join(', ')}`;
+      })
+      .join('\n');
+  }
 
-  return `Sos el asistente virtual de ${config.companyName || 'la empresa'} por WhatsApp.
+  return `Sos el asistente virtual de ${companyNameText} por WhatsApp.
 
 ═══════════════════════════════════════════════════════════
 ⏰ HORA ACTUAL: ${currentTimeStr} (${currentDayName})
@@ -594,7 +671,7 @@ ${technicians
 ═══════════════════════════════════════════════════════════
 
 SOBRE LA EMPRESA:
-${config.companyDescription || 'Empresa de servicios técnicos.'}
+${companyDescText}
 
 SERVICIOS:
 ${servicesText}
@@ -603,19 +680,19 @@ HORARIOS DE ATENCIÓN:
 ${businessHoursText}
 
 ZONAS DE SERVICIO:
-${config.serviceAreas || 'Consultar disponibilidad'}
+${serviceAreasText}
 
 PRECIOS:
-${config.pricingInfo || 'Los precios varían según el trabajo.'}
+${pricingText}
 
 MÉTODOS DE PAGO:
-${config.paymentMethods || 'Efectivo, transferencia'}
+${paymentText}
 
 POLÍTICA DE CANCELACIÓN:
-${config.cancellationPolicy || 'Cancelaciones con 24hs de anticipación.'}
+${cancellationText}
 
 GARANTÍA:
-${config.warrantyInfo || 'Consultar según servicio.'}
+${warrantyText}
 
 ${faqText ? `PREGUNTAS FRECUENTES:\n${faqText}` : ''}
 
