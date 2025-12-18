@@ -11,13 +11,14 @@ import {
   FileText,
   DollarSign,
   Users,
-  Star,
   Plus,
   Calendar,
   Clock,
   MapPin,
   Phone,
   MoreHorizontal,
+  TrendingUp,
+  User,
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -167,13 +168,13 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Stats Cards - Vibrant Design */}
+      {/* Stats Cards - Lovable Design with filled icon backgrounds */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Trabajos Hoy"
           value={stats?.todayJobs ?? 0}
           icon={Briefcase}
-          color="emerald"
+          color="teal"
           trend="+2 vs ayer"
           loading={statsLoading}
         />
@@ -181,7 +182,7 @@ export default function DashboardPage() {
           title="Clientes Activos"
           value={156}
           icon={Users}
-          color="teal"
+          color="coral"
           trend="+12 este mes"
           loading={statsLoading}
         />
@@ -196,8 +197,8 @@ export default function DashboardPage() {
         <StatCard
           title="Rating Promedio"
           value="4.8"
-          icon={Star}
-          color="amber"
+          icon={TrendingUp}
+          color="pink"
           trend="Top 15% en tu zona"
           loading={statsLoading}
         />
@@ -278,20 +279,21 @@ interface StatCardProps {
   title: string;
   value: string | number;
   icon: React.ElementType;
-  color: 'emerald' | 'teal' | 'green' | 'amber';
+  color: 'teal' | 'coral' | 'pink' | 'green';
   trend?: string;
   loading?: boolean;
 }
 
 function StatCard({ title, value, icon: Icon, color, trend, loading }: StatCardProps) {
+  // Lovable design uses filled circular backgrounds with white icons
   const colorClasses = {
-    emerald: { bg: 'bg-emerald-500', iconBg: 'bg-emerald-100', iconText: 'text-emerald-600' },
-    teal: { bg: 'bg-teal-500', iconBg: 'bg-teal-100', iconText: 'text-teal-600' },
-    green: { bg: 'bg-green-500', iconBg: 'bg-green-100', iconText: 'text-green-600' },
-    amber: { bg: 'bg-amber-500', iconBg: 'bg-amber-100', iconText: 'text-amber-600' },
+    teal: 'bg-teal-500',
+    coral: 'bg-orange-500',
+    pink: 'bg-pink-500',
+    green: 'bg-emerald-500',
   };
 
-  const colors = colorClasses[color];
+  const iconBg = colorClasses[color];
 
   return (
     <div className="card p-5 hover:shadow-md transition-shadow">
@@ -307,8 +309,8 @@ function StatCard({ title, value, icon: Icon, color, trend, loading }: StatCardP
             <p className="text-xs text-emerald-600 font-medium mt-1">{trend}</p>
           )}
         </div>
-        <div className={cn('rounded-full p-3', colors.iconBg)}>
-          <Icon className={cn('h-5 w-5', colors.iconText)} />
+        <div className={cn('rounded-full p-3', iconBg)}>
+          <Icon className="h-5 w-5 text-white" />
         </div>
       </div>
     </div>
@@ -386,13 +388,13 @@ function JobRow({ job }: { job: Job }) {
   return (
     <tr className="hover:bg-gray-50 transition-colors">
       <td className="px-4 py-4">
-        <div className="flex items-center gap-2">
-          <span className="font-medium text-gray-900">{job.jobNumber}</span>
-          <span className={cn('rounded-full px-2 py-0.5 text-xs font-medium', urgencyStyle.bg, urgencyStyle.text)}>
+        <div className="space-y-1">
+          <p className="font-medium text-gray-900">{job.jobNumber}</p>
+          <p className="text-sm text-gray-500">{serviceLabel}</p>
+          <span className={cn('inline-block rounded-full px-2 py-0.5 text-xs font-medium', urgencyStyle.bg, urgencyStyle.text)}>
             {urgencyStyle.label}
           </span>
         </div>
-        <p className="text-sm text-gray-500 mt-0.5">{serviceLabel}</p>
       </td>
       <td className="px-4 py-4">
         <p className="font-medium text-gray-900">{job.customer?.name || '-'}</p>
@@ -406,9 +408,7 @@ function JobRow({ job }: { job: Job }) {
       <td className="px-4 py-4">
         {job.technician ? (
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-xs font-medium">
-              {getInitials(job.technician.name)}
-            </div>
+            <User className="h-4 w-4 text-gray-400" />
             <span className="text-sm text-gray-900">{job.technician.name}</span>
           </div>
         ) : (
