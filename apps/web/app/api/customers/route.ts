@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
         by: ['customerId'],
         where: {
           customerId: { in: customerIds },
-          status: { in: ['paid', 'issued', 'sent'] },
+          status: { in: ['PAID', 'SENT'] },
         },
         _sum: { total: true },
       }),
