@@ -51,13 +51,18 @@ export async function GET(request: NextRequest) {
         { name: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search } },
         { email: { contains: search, mode: 'insensitive' } },
-        { customerNumber: { contains: search, mode: 'insensitive' } },
       ];
     }
 
     // Apply filter conditions
+    // Note: VIP filter returns empty since isVip column doesn't exist in database yet
     if (filter === 'vip') {
-      where.isVip = true;
+      // Return empty result for VIP filter until database is migrated
+      return NextResponse.json({
+        success: true,
+        data: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+      });
     } else if (filter === 'new') {
       where.createdAt = { gte: startOfMonth };
     }
