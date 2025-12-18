@@ -40,6 +40,7 @@ import {
   AggregationResult,
 } from './aggregation/message-aggregator.service';
 import { realtimeService } from '../../modules/whatsapp/realtime.service';
+import { processAIResponse } from './ai/ai-responder.integration';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -933,6 +934,17 @@ export async function processInboundMessage(
     await processAutoResponse(organizationId, message, contactName);
   } catch (error) {
     log.error('Error processing auto-response', {
+      organizationId,
+      messageId: message.id,
+      error: error instanceof Error ? error.message : 'Unknown',
+    });
+  }
+
+  // Process AI-powered response if enabled
+  try {
+    await processAIResponse(organizationId, conversationId, message, content, contactName);
+  } catch (error) {
+    log.error('Error processing AI response', {
       organizationId,
       messageId: message.id,
       error: error instanceof Error ? error.message : 'Unknown',
