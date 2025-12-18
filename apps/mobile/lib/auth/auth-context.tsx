@@ -10,6 +10,7 @@ import { useRouter, useSegments } from 'expo-router';
 import * as SecureStore from '../storage/secure-store';
 import { api } from '../api/client';
 import { database, userSessionCollection } from '../../watermelon/database';
+import { performSync } from '../sync/sync-engine';
 
 interface User {
   id: string;
@@ -123,6 +124,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await saveUserSession(userData);
 
       setUser(userData);
+
+      // Trigger initial sync after login to populate local database
+      performSync().catch((error) => {
+        console.warn('Initial sync after login failed:', error);
+      });
+
       return { success: true };
     } catch (error) {
       return {
