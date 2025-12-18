@@ -55,8 +55,15 @@ export async function GET(request: NextRequest) {
     }
 
     // Apply filter conditions
-    // Note: VIP filter disabled until migration is applied
-    if (filter === 'new') {
+    // Note: VIP filter returns empty since isVip column doesn't exist in database yet
+    if (filter === 'vip') {
+      // Return empty result for VIP filter until database is migrated
+      return NextResponse.json({
+        success: true,
+        data: [],
+        pagination: { page, limit, total: 0, totalPages: 0 },
+      });
+    } else if (filter === 'new') {
       where.createdAt = { gte: startOfMonth };
     }
     // 'frequent' filter will be applied after fetching (job count >= 5)

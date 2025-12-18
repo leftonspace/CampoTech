@@ -56,7 +56,7 @@ export async function GET() {
       data: {
         totalCount,
         newThisMonth,
-        vipCount,
+        vipCount: 0, // VIP feature not yet enabled in database
         averageRating: averageRatingResult._avg.rating || 0,
       },
     });
