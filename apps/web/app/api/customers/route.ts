@@ -41,14 +41,12 @@ export async function GET(request: NextRequest) {
         { name: { contains: search, mode: 'insensitive' } },
         { phone: { contains: search } },
         { email: { contains: search, mode: 'insensitive' } },
-        { customerNumber: { contains: search, mode: 'insensitive' } },
       ];
     }
 
     // Apply filter conditions
-    if (filter === 'vip') {
-      where.isVip = true;
-    } else if (filter === 'new') {
+    // Note: VIP filter disabled until migration is applied
+    if (filter === 'new') {
       where.createdAt = { gte: startOfMonth };
     }
     // 'frequent' filter will be applied after fetching (job count >= 5)
@@ -94,7 +92,7 @@ export async function GET(request: NextRequest) {
         by: ['customerId'],
         where: {
           customerId: { in: customerIds },
-          status: { in: ['paid', 'issued', 'sent'] },
+          status: { in: ['PAID', 'SENT'] },
         },
         _sum: { total: true },
       }),
