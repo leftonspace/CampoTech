@@ -15,7 +15,7 @@ import {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { capability: string } }
+  { params }: { params: Promise<{ capability: string }> }
 ) {
   try {
     const session = await getSession();
@@ -40,7 +40,8 @@ export async function PATCH(
     const { enabled, reason, global = false } = body;
 
     // Decode the capability path (it comes URL encoded with dots as %2E)
-    const capabilityPath = decodeURIComponent(params.capability) as CapabilityPath;
+    const { capability } = await params;
+    const capabilityPath = decodeURIComponent(capability) as CapabilityPath;
 
     const service = getCapabilityService();
 
@@ -79,7 +80,7 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { capability: string } }
+  { params }: { params: Promise<{ capability: string }> }
 ) {
   try {
     const session = await getSession();
@@ -104,7 +105,8 @@ export async function DELETE(
     const global = searchParams.get('global') === 'true';
 
     // Decode the capability path
-    const capabilityPath = decodeURIComponent(params.capability) as CapabilityPath;
+    const { capability } = await params;
+    const capabilityPath = decodeURIComponent(capability) as CapabilityPath;
 
     const service = getCapabilityService();
 
