@@ -78,6 +78,7 @@ export type IVACondition =
 export interface Customer {
   id: string;
   orgId: string;
+  customerNumber?: string;
   name: string;
   phone: string;
   email?: string;
@@ -88,9 +89,14 @@ export interface Customer {
   province?: string;
   postalCode?: string;
   notes?: string;
+  isVip?: boolean;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+  // Computed fields from API
+  jobCount?: number;
+  totalSpent?: number;
+  averageRating?: number | null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

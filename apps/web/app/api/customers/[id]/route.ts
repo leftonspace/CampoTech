@@ -112,15 +112,19 @@ export async function PUT(
       );
     }
 
+    // Build update data - only include fields that are provided
+    const updateData: any = {};
+    if (body.name !== undefined) updateData.name = body.name;
+    if (body.phone !== undefined) updateData.phone = body.phone;
+    if (body.email !== undefined) updateData.email = body.email;
+    if (body.address !== undefined) updateData.address = body.address;
+    if (body.notes !== undefined) updateData.notes = body.notes;
+    if (body.isVip !== undefined) updateData.isVip = body.isVip;
+    if (body.customerNumber !== undefined) updateData.customerNumber = body.customerNumber;
+
     const customer = await prisma.customer.update({
       where: { id },
-      data: {
-        name: body.name,
-        phone: body.phone,
-        email: body.email,
-        address: body.address || {},
-        notes: body.notes,
-      },
+      data: updateData,
     });
 
     return NextResponse.json({
