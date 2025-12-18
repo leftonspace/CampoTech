@@ -9,6 +9,9 @@ import * as SecureStore from '../storage/secure-store';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api';
 
+// Debug: Log the API URL on startup
+console.log('[API Client] Using API_BASE_URL:', API_BASE_URL);
+
 interface ApiResponse<T> {
   success: boolean;
   data?: T;
