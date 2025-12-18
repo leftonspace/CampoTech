@@ -4,7 +4,7 @@
   "private": true,
   "description": "Field service management platform for the Argentine market",
   "workspaces": [
-    "apps/*",
+    "apps/web",
     "packages/*"
   ],
   "scripts": {
