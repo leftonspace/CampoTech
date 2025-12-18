@@ -124,10 +124,10 @@ export default function CustomersPage() {
     }
   };
 
-  // Filter tabs
+  // Filter tabs (VIP disabled until migration is applied)
   const filterTabs = [
     { id: 'all' as FilterType, label: 'Todos' },
-    { id: 'vip' as FilterType, label: 'VIP' },
+    // { id: 'vip' as FilterType, label: 'VIP' }, // Disabled - migration pending
     { id: 'new' as FilterType, label: 'Nuevos' },
     { id: 'frequent' as FilterType, label: 'Frecuentes' },
   ];
@@ -327,12 +327,14 @@ function CustomerCard({
                   Nuevo
                 </span>
               )}
+              {/* VIP badge - disabled until migration is applied
               {customer.isVip && (
                 <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
                   <Crown className="h-3 w-3" />
                   VIP
                 </span>
               )}
+              */}
             </div>
             {/* Customer Number */}
             <p className="text-sm text-gray-400">
@@ -394,6 +396,7 @@ function CustomerCard({
                 <History className="h-4 w-4 text-gray-400" />
                 Historial
               </button>
+              {/* VIP toggle - disabled until migration is applied
               <div className="border-t my-1" />
               <button
                 onClick={(e) => {
@@ -405,6 +408,7 @@ function CustomerCard({
                 <Crown className="h-4 w-4 text-amber-500" />
                 {customer.isVip ? 'Quitar VIP' : 'Marcar VIP'}
               </button>
+              */}
             </div>
           )}
         </div>
