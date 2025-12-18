@@ -41,6 +41,8 @@ interface TestConfig {
   minConfidenceToRespond: number;
   minConfidenceToCreateJob: number;
   transferKeywords: string[];
+  greetingMessage: string;
+  awayMessage: string;
 }
 
 interface TestRequest {
@@ -422,6 +424,25 @@ function buildTestSystemPrompt(
       ? config.faqItems.map((f) => `P: ${f.question}\nR: ${f.answer}`).join('\n\n')
       : '';
 
+  // Build business hours text
+  const daysMap: Record<string, string> = {
+    lunes: 'Lunes',
+    martes: 'Martes',
+    miercoles: 'Miércoles',
+    jueves: 'Jueves',
+    viernes: 'Viernes',
+    sabado: 'Sábado',
+    domingo: 'Domingo',
+  };
+  const businessHoursText = Object.entries(config.businessHours || {})
+    .filter(([, hours]) => hours !== null)
+    .map(([day, hours]) => {
+      if (!hours) return null;
+      return `${daysMap[day] || day}: ${hours.open} - ${hours.close}`;
+    })
+    .filter(Boolean)
+    .join('\n') || 'Horarios no configurados';
+
   // Build technician status text
   const availableTechs = technicians.filter((t) => t.status === 'disponible');
   const techStatusText =
@@ -474,6 +495,9 @@ ${config.companyDescription || 'Empresa de servicios técnicos.'}
 SERVICIOS:
 ${servicesText}
 
+HORARIOS DE ATENCIÓN:
+${businessHoursText}
+
 ZONAS DE SERVICIO:
 ${config.serviceAreas || 'Consultar disponibilidad'}
 
@@ -490,6 +514,10 @@ GARANTÍA:
 ${config.warrantyInfo || 'Consultar según servicio.'}
 
 ${faqText ? `PREGUNTAS FRECUENTES:\n${faqText}` : ''}
+
+${config.greetingMessage ? `MENSAJE DE BIENVENIDA (usá esto para saludos iniciales):\n${config.greetingMessage}` : ''}
+
+${config.awayMessage ? `MENSAJE FUERA DE HORARIO (usá esto si preguntan fuera de horario):\n${config.awayMessage}` : ''}
 
 ═══════════════════════════════════════════════════════════
 DATOS EN TIEMPO REAL (USÁLOS PARA DAR RESPUESTAS PRECISAS)
