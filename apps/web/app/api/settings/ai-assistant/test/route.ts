@@ -256,8 +256,8 @@ async function getTechnicianAvailability(
       status,
       currentLocation: tech.currentLocation
         ? {
-            lat: tech.currentLocation.latitude,
-            lng: tech.currentLocation.longitude,
+            lat: Number(tech.currentLocation.latitude),
+            lng: Number(tech.currentLocation.longitude),
           }
         : null,
       todaysJobs: tech.assignedJobs.length,
