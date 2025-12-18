@@ -3139,6 +3139,13 @@ model AIConfiguration {
   minConfidenceToRespond  Int  @default(70)  // Below this, transfer to human
   minConfidenceToCreateJob Int @default(85)  // Below this, ask confirmation
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DATA ACCESS PERMISSIONS - What the AI can see/share with customers
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SYSTEM-BLOCKED (never accessible): worker salaries, client data, financials
+  // OWNER-CONFIGURABLE: JSON object with boolean toggles
+  dataAccessPermissions Json @default("{\"companyInfo\":true,\"services\":true,\"pricing\":true,\"businessHours\":true,\"serviceAreas\":true,\"technicianNames\":false,\"technicianAvailability\":true,\"scheduleSlots\":true,\"faq\":true,\"policies\":true}")
+
   // Company information (used as AI context)
   companyName         String?
   companyDescription  String?  @db.Text  // What the company does
