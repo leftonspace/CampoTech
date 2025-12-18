@@ -156,11 +156,13 @@ enum UserRole {
 
 model Customer {
   id             String   @id @default(cuid())
+  customerNumber String?  // Display ID like CL-001 (auto-generated per organization)
   name           String
   phone          String
   email          String?
   address        Json     // { street, number, floor, apartment, city, postalCode, coordinates }
   notes          String?
+  isVip          Boolean  @default(false) // VIP customer flag
   organizationId String
   locationId     String?  // Primary service location for this customer
   zoneId         String?  // Service zone within the location
