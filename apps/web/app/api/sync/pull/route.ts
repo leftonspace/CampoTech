@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Format jobs for mobile
-    const formattedJobs = jobs.map((job) => ({
+    const formattedJobs = jobs.map((job: typeof jobs[number]) => ({
       id: job.id,
       customerId: job.customerId,
       organizationId: job.organizationId,
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
     }));
 
     // Format customers for mobile
-    const formattedCustomers = customers.map((customer) => ({
+    const formattedCustomers = customers.map((customer: typeof customers[number]) => ({
       id: customer.id,
       organizationId: customer.organizationId,
       name: customer.name,
@@ -139,7 +139,7 @@ export async function GET(request: NextRequest) {
     }));
 
     // Format price book for mobile
-    const formattedPriceBook = priceBook.map((item) => ({
+    const formattedPriceBook = priceBook.map((item: typeof priceBook[number]) => ({
       id: item.id,
       organizationId: item.organizationId,
       name: item.name,
