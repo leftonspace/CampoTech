@@ -27,7 +27,6 @@ import {
   Bell,
   MessageCircle,
   BarChart3,
-  Building2,
   MapPin,
   Calendar,
   Truck,
@@ -36,6 +35,12 @@ import {
   Lock,
   Eye,
   Clock,
+  Search,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Wrench,
+  User,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo } from 'react';
 
@@ -51,21 +56,20 @@ interface NavItemDef {
 }
 
 const allNavigation: NavItemDef[] = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, module: 'dashboard' },
-  { name: 'Mapa', href: '/dashboard/map', icon: MapPin, module: 'map' },
-  { name: 'Calendario', href: '/dashboard/calendar', icon: Calendar, module: 'calendar' },
+  { name: 'Panel', href: '/dashboard', icon: LayoutDashboard, module: 'dashboard' },
   { name: 'Trabajos', href: '/dashboard/jobs', icon: Briefcase, module: 'jobs' },
   { name: 'Clientes', href: '/dashboard/customers', icon: Users, module: 'customers' },
-  { name: 'Flota', href: '/dashboard/fleet', icon: Truck, module: 'fleet' },
-  { name: 'Inventario', href: '/dashboard/inventory', icon: Package, module: 'inventory' },
   { name: 'Equipo', href: '/dashboard/settings/team', icon: UsersRound, module: 'team' },
-  { name: 'Horarios', href: '/dashboard/schedule', icon: Clock, module: 'schedule' },
+  { name: 'Agenda', href: '/dashboard/calendar', icon: Calendar, module: 'calendar' },
+  { name: 'Inventario', href: '/dashboard/inventory', icon: Package, module: 'inventory' },
+  { name: 'Vehículos', href: '/dashboard/fleet', icon: Truck, module: 'fleet' },
   { name: 'Facturas', href: '/dashboard/invoices', icon: FileText, module: 'invoices' },
-  { name: 'Pagos', href: '/dashboard/payments', icon: CreditCard, module: 'payments' },
-  { name: 'Analytics', href: '/dashboard/analytics/overview', icon: BarChart3, module: 'analytics' },
-  { name: 'Zonas', href: '/dashboard/locations', icon: MapPin, module: 'locations' },
+  { name: 'Análisis', href: '/dashboard/analytics/overview', icon: BarChart3, module: 'analytics' },
   { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle, module: 'whatsapp' },
-  { name: 'Configuracion', href: '/dashboard/settings', icon: Settings, module: 'settings' },
+];
+
+const bottomNavigation: NavItemDef[] = [
+  { name: 'Configuración', href: '/dashboard/settings', icon: Settings, module: 'settings' },
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -83,25 +87,16 @@ const TIER_NAMES: Record<SubscriptionTier, string> = {
 // ACCESS HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/**
- * Get role access level for a module
- */
 function getRoleAccess(module: string, role: UserRole): ModuleAccess {
   return MODULE_ACCESS[module]?.[role] || 'hidden';
 }
 
-/**
- * Check if module is tier-locked
- */
 function isModuleTierLocked(module: string, tier: SubscriptionTier): boolean {
   const feature = TIER_GATED_MODULES[module];
   if (!feature) return false;
   return !hasFeatureAccess(tier, feature);
 }
 
-/**
- * Get required tier name for a module
- */
 function getModuleRequiredTier(module: string): string {
   const feature = TIER_GATED_MODULES[module];
   if (!feature) return '';
@@ -115,27 +110,27 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [upgradeModal, setUpgradeModal] = useState<{
     isOpen: boolean;
     moduleName?: string;
     feature?: FeatureId;
   }>({ isOpen: false });
   const notificationRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
-  // Get user role, defaulting to TECHNICIAN if not set
   const userRole = useMemo(() => {
     return (user?.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
   }, [user?.role]);
 
-  // Get organization's subscription tier, defaulting to FREE
   const subscriptionTier = useMemo(() => {
     return (user?.organization?.subscriptionTier || 'FREE') as SubscriptionTier;
   }, [user?.organization?.subscriptionTier]);
 
-  // Build navigation with role and tier access info
   const navigation = useMemo(() => {
     return allNavigation
       .map((item) => {
@@ -152,11 +147,26 @@ export default function DashboardLayout({
           feature,
         };
       })
-      // Filter out role-hidden items (they shouldn't show at all)
       .filter((item) => item.roleAccess !== 'hidden');
   }, [userRole, subscriptionTier]);
 
-  // Handle clicking on a tier-locked item
+  const bottomNav = useMemo(() => {
+    return bottomNavigation.map((item) => {
+      const roleAccess = getRoleAccess(item.module, userRole);
+      const tierLocked = isModuleTierLocked(item.module, subscriptionTier);
+      const requiredTier = getModuleRequiredTier(item.module);
+      const feature = TIER_GATED_MODULES[item.module] as FeatureId | undefined;
+
+      return {
+        ...item,
+        roleAccess,
+        tierLocked,
+        requiredTier,
+        feature,
+      };
+    });
+  }, [userRole, subscriptionTier]);
+
   const handleLockedClick = (name: string, feature?: FeatureId) => {
     setUpgradeModal({
       isOpen: true,
@@ -165,20 +175,73 @@ export default function DashboardLayout({
     });
   };
 
-  // Close notifications dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
         setNotificationsOpen(false);
+      }
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const isActive = (href: string) => {
+    return pathname === href || (href !== '/dashboard' && pathname.startsWith(href));
+  };
+
+  const renderNavItem = (item: typeof navigation[0], index: number) => {
+    const active = isActive(item.href);
+
+    if (item.tierLocked) {
+      return (
+        <button
+          key={item.name}
+          onClick={() => handleLockedClick(item.name, item.feature)}
+          className="group relative flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent transition-all duration-200"
+        >
+          <item.icon className="w-5 h-5 shrink-0" />
+          {!sidebarCollapsed && (
+            <>
+              <span className="flex-1 text-left truncate animate-fade-in">{item.name}</span>
+              <Lock className="w-4 h-4 text-accent shrink-0" />
+            </>
+          )}
+        </button>
+      );
+    }
+
+    const isViewOnly = item.roleAccess === 'view' || item.roleAccess === 'own';
+
+    return (
+      <Link
+        key={item.name}
+        href={item.href}
+        className={cn(
+          'group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
+          active
+            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
+            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+        )}
+        onClick={() => setSidebarOpen(false)}
+        style={{ animationDelay: `${index * 30}ms` }}
+      >
+        <item.icon className={cn('w-5 h-5 shrink-0', active && 'animate-scale-in')} />
+        {!sidebarCollapsed && (
+          <>
+            <span className="flex-1 truncate animate-fade-in">{item.name}</span>
+            {isViewOnly && <Eye className="w-4 h-4 text-sidebar-foreground/50 shrink-0" />}
+          </>
+        )}
+      </Link>
+    );
+  };
+
   return (
     <ProtectedRoute>
-      <div className="flex h-screen overflow-hidden bg-gray-100">
+      <div className="min-h-screen flex w-full bg-background">
         {/* Mobile sidebar overlay */}
         {sidebarOpen && (
           <div
@@ -190,155 +253,200 @@ export default function DashboardLayout({
         {/* Sidebar */}
         <aside
           className={cn(
-            'fixed inset-y-0 left-0 z-50 w-64 transform bg-white shadow-lg transition-transform duration-200 ease-in-out lg:static lg:translate-x-0',
-            sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            'fixed inset-y-0 left-0 z-50 flex flex-col gradient-dark border-r border-sidebar-border transition-all duration-300 lg:static',
+            sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0',
+            sidebarCollapsed ? 'w-[70px]' : 'w-[260px]'
           )}
         >
-          <div className="flex h-full flex-col">
-            {/* Logo */}
-            <div className="flex h-16 items-center justify-between border-b px-4">
-              <Link href="/dashboard" className="text-xl font-bold text-primary-600">
-                CampoTech
-              </Link>
-              <button
-                onClick={() => setSidebarOpen(false)}
-                className="rounded-md p-2 text-gray-500 hover:bg-gray-100 lg:hidden"
-              >
-                <X className="h-5 w-5" />
-              </button>
+          {/* Logo */}
+          <div className="h-16 flex items-center justify-between px-4 border-b border-sidebar-border">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center shadow-glow shrink-0">
+                <Wrench className="w-5 h-5 text-primary-foreground" />
+              </div>
+              {!sidebarCollapsed && (
+                <span className="text-lg font-semibold text-sidebar-foreground animate-fade-in">
+                  CampoTech
+                </span>
+              )}
             </div>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="rounded-md p-2 text-sidebar-foreground hover:bg-sidebar-accent lg:hidden"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
 
-            {/* Navigation */}
-            <nav className="flex-1 overflow-y-auto p-4">
-              <ul className="space-y-1">
-                {navigation.map((item) => {
-                  const isActive =
-                    pathname === item.href ||
-                    (item.href !== '/dashboard' && pathname.startsWith(item.href));
+          {/* Main Navigation */}
+          <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+            {navigation.map((item, index) => renderNavItem(item, index))}
+          </nav>
 
-                  // Tier-locked: Show lock icon, click opens upgrade modal
-                  if (item.tierLocked) {
-                    return (
-                      <li key={item.name}>
-                        <button
-                          onClick={() => handleLockedClick(item.name, item.feature)}
-                          className="group relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-400 hover:bg-gray-50 hover:text-gray-500 transition-colors"
-                        >
-                          <item.icon className="h-5 w-5" />
-                          <span className="flex-1 text-left">{item.name}</span>
-                          <Lock className="h-4 w-4 text-amber-500" />
-                          {/* Tooltip */}
-                          <div className="absolute left-full ml-2 hidden group-hover:block z-50">
-                            <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                              Disponible desde {item.requiredTier}
-                            </div>
-                          </div>
-                        </button>
-                      </li>
-                    );
-                  }
+          {/* Bottom Section */}
+          <div className="py-4 px-3 border-t border-sidebar-border space-y-1">
+            {bottomNav.map((item, index) => renderNavItem(item, index))}
 
-                  // View-only access: Show eye icon badge
-                  const isViewOnly = item.roleAccess === 'view' || item.roleAccess === 'own';
-
-                  return (
-                    <li key={item.name}>
-                      <Link
-                        href={item.href}
-                        className={cn(
-                          'group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
-                          isActive
-                            ? 'bg-primary-50 text-primary-600'
-                            : 'text-gray-700 hover:bg-gray-100'
-                        )}
-                        onClick={() => setSidebarOpen(false)}
-                      >
-                        <item.icon className="h-5 w-5" />
-                        <span className="flex-1">{item.name}</span>
-                        {isViewOnly && (
-                          <>
-                            <Eye className="h-4 w-4 text-gray-400" />
-                            {/* Tooltip for view-only */}
-                            <div className="absolute left-full ml-2 hidden group-hover:block z-50">
-                              <div className="bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
-                                {item.roleAccess === 'own' ? 'Solo datos propios' : 'Solo lectura'}
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-
-            </nav>
+            {/* Collapse Button - Desktop only */}
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="hidden lg:flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent transition-all duration-200 mt-2"
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="w-5 h-5 shrink-0" />
+              ) : (
+                <>
+                  <ChevronLeft className="w-5 h-5 shrink-0" />
+                  <span>Colapsar</span>
+                </>
+              )}
+            </button>
 
             {/* User section */}
-            <div className="border-t p-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-primary-600 font-medium">
+            <div className="pt-2 mt-2 border-t border-sidebar-border">
+              <div className={cn('flex items-center gap-3', sidebarCollapsed && 'justify-center')}>
+                <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-sm font-semibold text-primary-foreground shrink-0">
                   {user ? getInitials(user.name) : '?'}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="truncate text-sm font-medium text-gray-900">
-                    {user?.name}
-                  </p>
-                  <p className="truncate text-xs text-gray-500 capitalize">
-                    {user?.role}
-                  </p>
-                </div>
-                <button
-                  onClick={logout}
-                  className="rounded-md p-2 text-gray-500 hover:bg-gray-100"
-                  title="Cerrar sesión"
-                >
-                  <LogOut className="h-5 w-5" />
-                </button>
+                {!sidebarCollapsed && (
+                  <>
+                    <div className="flex-1 min-w-0 animate-fade-in">
+                      <p className="truncate text-sm font-medium text-sidebar-foreground">
+                        {user?.name}
+                      </p>
+                      <p className="truncate text-xs text-sidebar-foreground/60 capitalize">
+                        {user?.role}
+                      </p>
+                    </div>
+                    <button
+                      onClick={logout}
+                      className="rounded-md p-2 text-sidebar-foreground hover:bg-sidebar-accent shrink-0"
+                      title="Cerrar sesión"
+                    >
+                      <LogOut className="h-4 w-4" />
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
         </aside>
 
-        {/* Main content */}
-        <div className="flex flex-1 flex-col overflow-hidden">
-          {/* Top bar */}
-          <header className="flex h-16 items-center justify-between border-b bg-white px-4 lg:px-6">
+        {/* Main content area */}
+        <div className="flex-1 flex flex-col min-h-screen overflow-hidden">
+          {/* Header */}
+          <header className="h-16 bg-card border-b border-border px-6 flex items-center justify-between sticky top-0 z-10">
+            {/* Mobile menu button */}
             <button
               onClick={() => setSidebarOpen(true)}
-              className="rounded-md p-2 text-gray-500 hover:bg-gray-100 lg:hidden"
+              className="rounded-md p-2 text-muted-foreground hover:bg-muted lg:hidden"
             >
               <Menu className="h-6 w-6" />
             </button>
 
-            <div className="flex-1" />
+            {/* Search */}
+            <div className="relative w-full max-w-md hidden md:block">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <input
+                type="search"
+                placeholder="Buscar trabajos, clientes..."
+                className="w-full pl-10 h-10 bg-secondary border-0 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+            </div>
 
-            <div className="relative flex items-center gap-2" ref={notificationRef}>
-              <button
-                onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="relative rounded-md p-2 text-gray-500 hover:bg-gray-100"
-              >
-                <Bell className="h-5 w-5" />
-              </button>
+            <div className="flex-1 md:hidden" />
 
-              {/* Notifications dropdown */}
-              {notificationsOpen && (
-                <div className="absolute right-0 top-full mt-2 w-80 rounded-lg border bg-white shadow-lg z-50">
-                  <div className="border-b px-4 py-3">
-                    <h3 className="font-medium text-gray-900">Notificaciones</h3>
+            {/* Right Section */}
+            <div className="flex items-center gap-3">
+              {/* Notifications */}
+              <div className="relative" ref={notificationRef}>
+                <button
+                  onClick={() => setNotificationsOpen(!notificationsOpen)}
+                  className="relative rounded-md p-2 text-muted-foreground hover:bg-muted"
+                >
+                  <Bell className="w-5 h-5" />
+                  <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center rounded-full bg-accent text-accent-foreground text-xs font-medium">
+                    3
+                  </span>
+                </button>
+
+                {notificationsOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border bg-card shadow-lg z-50 animate-scale-in">
+                    <div className="border-b px-4 py-3">
+                      <h3 className="font-medium text-foreground">Notificaciones</h3>
+                    </div>
+                    <div className="p-8 text-center">
+                      <Bell className="mx-auto h-8 w-8 text-muted-foreground/30" />
+                      <p className="mt-2 text-sm text-muted-foreground">No hay notificaciones</p>
+                      <p className="text-xs text-muted-foreground/60">Las notificaciones aparecerán aquí</p>
+                    </div>
                   </div>
-                  <div className="p-8 text-center">
-                    <Bell className="mx-auto h-8 w-8 text-gray-300" />
-                    <p className="mt-2 text-sm text-gray-500">No hay notificaciones</p>
-                    <p className="text-xs text-gray-400">Las notificaciones aparecerán aquí</p>
+                )}
+              </div>
+
+              {/* User Menu */}
+              <div className="relative" ref={userMenuRef}>
+                <button
+                  onClick={() => setUserMenuOpen(!userMenuOpen)}
+                  className="flex items-center gap-2 px-2 py-1 rounded-md hover:bg-muted transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                    <User className="w-4 h-4 text-primary-foreground" />
                   </div>
-                </div>
-              )}
+                  <div className="hidden md:block text-left">
+                    <p className="text-sm font-medium">{user?.name || 'Usuario'}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{user?.role || 'Usuario'}</p>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-muted-foreground hidden md:block" />
+                </button>
+
+                {userMenuOpen && (
+                  <div className="absolute right-0 top-full mt-2 w-56 rounded-xl border bg-card shadow-lg z-50 animate-scale-in">
+                    <div className="px-4 py-3 border-b">
+                      <p className="text-sm font-medium">Mi Cuenta</p>
+                    </div>
+                    <div className="p-1">
+                      <Link
+                        href="/dashboard/profile"
+                        className="block px-3 py-2 text-sm rounded-md hover:bg-muted"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        Perfil
+                      </Link>
+                      <Link
+                        href="/dashboard/settings/billing"
+                        className="block px-3 py-2 text-sm rounded-md hover:bg-muted"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        Facturación
+                      </Link>
+                      <Link
+                        href="/dashboard/settings"
+                        className="block px-3 py-2 text-sm rounded-md hover:bg-muted"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        Configuración
+                      </Link>
+                    </div>
+                    <div className="border-t p-1">
+                      <button
+                        onClick={() => {
+                          setUserMenuOpen(false);
+                          logout();
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm rounded-md text-destructive hover:bg-destructive/10"
+                      >
+                        Cerrar Sesión
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </header>
 
           {/* Page content */}
-          <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
+          <main className="flex-1 overflow-auto p-6">{children}</main>
         </div>
 
         {/* Upgrade Modal */}
