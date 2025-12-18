@@ -157,7 +157,7 @@ export default function JobsPage() {
         const hasAssignment = job.assignments?.some(
           (a) => a.technician?.id === technicianFilter
         );
-        if (!hasAssignment && job.technicianId !== technicianFilter) return false;
+        if (!hasAssignment && job.assignedTo?.id !== technicianFilter) return false;
       }
 
       return true;

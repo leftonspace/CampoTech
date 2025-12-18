@@ -36,9 +36,10 @@ export async function GET(request: NextRequest) {
 
     const organizationId = session.organizationId;
 
-    // Start of current month for "new" filter
+    // 30 days ago for "new" filter
     const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
@@ -64,7 +65,8 @@ export async function GET(request: NextRequest) {
         pagination: { page, limit, total: 0, totalPages: 0 },
       });
     } else if (filter === 'new') {
-      where.createdAt = { gte: startOfMonth };
+      // New customers: created within last 30 days
+      where.createdAt = { gte: thirtyDaysAgo };
     }
     // 'frequent' filter will be applied after fetching (job count >= 5)
 

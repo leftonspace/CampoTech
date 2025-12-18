@@ -25,6 +25,7 @@ import {
   Crown,
 } from 'lucide-react';
 import { Customer } from '@/types';
+import CustomerProfileModal from './CustomerProfileModal';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -49,6 +50,7 @@ export default function CustomersPage() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
   // Fetch customers with computed fields
   const { data, isLoading } = useQuery({
@@ -107,7 +109,8 @@ export default function CustomersPage() {
     setMenuOpen(null);
     switch (action) {
       case 'view':
-        router.push(`/dashboard/customers/${customer.id}`);
+        // Open modal instead of navigating
+        setSelectedCustomerId(customer.id);
         break;
       case 'edit':
         router.push(`/dashboard/customers/${customer.id}?edit=true`);
@@ -116,7 +119,8 @@ export default function CustomersPage() {
         router.push(`/dashboard/jobs/new?customerId=${customer.id}`);
         break;
       case 'history':
-        router.push(`/dashboard/customers/${customer.id}?tab=jobs`);
+        // Open modal to the jobs tab
+        setSelectedCustomerId(customer.id);
         break;
       case 'toggle-vip':
         toggleVipMutation.mutate({ id: customer.id, isVip: !customer.isVip });
@@ -124,6 +128,12 @@ export default function CustomersPage() {
     }
   };
 
+  const handleEditCustomer = (customerId: string) => {
+    setSelectedCustomerId(null);
+    router.push(`/dashboard/customers/${customerId}?edit=true`);
+  };
+
+  // Filter tabs
   // Filter tabs (VIP disabled until migration is applied)
   const filterTabs = [
     { id: 'all' as FilterType, label: 'Todos' },
@@ -224,7 +234,7 @@ export default function CustomersPage() {
               menuOpen={menuOpen === customer.id}
               onMenuToggle={() => setMenuOpen(menuOpen === customer.id ? null : customer.id)}
               onMenuAction={(action) => handleMenuAction(action, customer)}
-              onCardClick={() => router.push(`/dashboard/customers/${customer.id}`)}
+              onCardClick={() => setSelectedCustomerId(customer.id)}
             />
           ))}
         </div>
@@ -240,6 +250,13 @@ export default function CustomersPage() {
           </Link>
         </div>
       )}
+
+      {/* Customer Profile Modal */}
+      <CustomerProfileModal
+        customerId={selectedCustomerId}
+        onClose={() => setSelectedCustomerId(null)}
+        onEdit={handleEditCustomer}
+      />
     </div>
   );
 }
