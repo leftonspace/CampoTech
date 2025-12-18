@@ -70,6 +70,36 @@ interface ScheduleSlot {
   }>;
 }
 
+// Prisma query result types
+interface TechnicianJob {
+  id: string;
+  status: string;
+  scheduledTimeSlot: unknown;
+}
+
+interface TechnicianWithJobs {
+  id: string;
+  name: string;
+  phone: string;
+  specialty: string | null;
+  currentLocation: { latitude: unknown; longitude: unknown } | null;
+  assignedJobs: TechnicianJob[];
+}
+
+interface JobWithTechnician {
+  id: string;
+  technicianId: string | null;
+  scheduledTimeSlot: unknown;
+  technician: { id: string; name: string } | null;
+}
+
+interface ScheduleWithUser {
+  userId: string;
+  startTime: string;
+  endTime: string;
+  user: { id: string; name: string };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // POST - Test AI Response
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -194,11 +224,11 @@ async function getTechnicianAvailability(
     },
   });
 
-  return technicians.map((tech) => {
+  return (technicians as TechnicianWithJobs[]).map((tech: TechnicianWithJobs) => {
     // Determine status based on jobs
     let status: TechnicianAvailability['status'] = 'disponible';
     const activeJob = tech.assignedJobs.find(
-      (j) => j.status === 'IN_PROGRESS' || j.status === 'EN_ROUTE'
+      (j: TechnicianJob) => j.status === 'IN_PROGRESS' || j.status === 'EN_ROUTE'
     );
     if (activeJob) {
       status = activeJob.status === 'EN_ROUTE' ? 'en_camino' : 'ocupado';
@@ -297,18 +327,18 @@ async function getAvailableSlots(organizationId: string): Promise<ScheduleSlot[]
       const endTime = `${String(h + 2).padStart(2, '0')}:00`;
 
       // Check if any technician is available for this slot
-      const busyTechs = existingJobs
-        .filter((j) => {
+      const busyTechs = (existingJobs as JobWithTechnician[])
+        .filter((j: JobWithTechnician) => {
           const timeSlot = j.scheduledTimeSlot as { start?: string; end?: string } | null;
           if (!timeSlot?.start) return false;
           const jobStart = timeSlot.start;
           return jobStart >= startTime && jobStart < endTime;
         })
-        .map((j) => j.technicianId)
-        .filter((id): id is string => id !== null);
+        .map((j: JobWithTechnician) => j.technicianId)
+        .filter((id: string | null): id is string => id !== null);
 
-      const availableTech = schedules.find(
-        (s) =>
+      const availableTech = (schedules as ScheduleWithUser[]).find(
+        (s: ScheduleWithUser) =>
           !busyTechs.includes(s.userId) &&
           s.startTime <= startTime &&
           s.endTime >= endTime
