@@ -35,6 +35,12 @@ import {
   Pause,
   XCircle,
   AlertTriangle,
+  MessageCircle,
+  Copy,
+  Printer,
+  Package,
+  DollarSign,
+  Plus,
 } from 'lucide-react';
 import { Job, User as UserType, Customer, JobPriority } from '@/types';
 
@@ -656,6 +662,55 @@ export default function JobDetailPage() {
             </div>
           )}
 
+          {/* Materials Used Section */}
+          {job.status === 'COMPLETED' && (
+            <div className="card p-6">
+              <h2 className="mb-4 flex items-center gap-2 font-medium text-gray-900">
+                <Package className="h-5 w-5" />
+                Materiales Utilizados
+              </h2>
+              {(job as any).materialsUsed && Array.isArray((job as any).materialsUsed) && (job as any).materialsUsed.length > 0 ? (
+                <div>
+                  <table className="min-w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2 font-medium text-gray-700">Producto</th>
+                        <th className="text-center py-2 font-medium text-gray-700">Cant.</th>
+                        <th className="text-right py-2 font-medium text-gray-700">P. Unit.</th>
+                        <th className="text-right py-2 font-medium text-gray-700">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {((job as any).materialsUsed as Array<{name: string; quantity: number; unitPrice: number}>).map((material, idx) => (
+                        <tr key={idx} className="border-b last:border-0">
+                          <td className="py-2">{material.name}</td>
+                          <td className="text-center py-2">{material.quantity}</td>
+                          <td className="text-right py-2">{formatCurrency(material.unitPrice)}</td>
+                          <td className="text-right py-2">{formatCurrency(material.quantity * material.unitPrice)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t font-medium">
+                        <td colSpan={3} className="py-2 text-right">Total Materiales:</td>
+                        <td className="text-right py-2">
+                          {formatCurrency(
+                            ((job as any).materialsUsed as Array<{quantity: number; unitPrice: number}>).reduce(
+                              (sum, m) => sum + m.quantity * m.unitPrice,
+                              0
+                            )
+                          )}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-gray-500 text-sm">No se registraron materiales para este trabajo</p>
+              )}
+            </div>
+          )}
+
           {/* Related invoice */}
           {job.invoiceId && (
             <div className="card p-6">
@@ -688,6 +743,18 @@ export default function JobDetailPage() {
                   <Phone className="h-4 w-4" />
                   <a href={`tel:${job.customer.phone}`} className="hover:underline">
                     {job.customer.phone}
+                  </a>
+                  {/* WhatsApp button */}
+                  <a
+                    href={`https://wa.me/${job.customer.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(
+                      `Hola ${job.customer.name}, le escribimos de CampoTech respecto al trabajo ${job.jobNumber} programado para el ${job.scheduledDate ? formatDate(job.scheduledDate) : 'próximamente'}.`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-2 inline-flex items-center justify-center h-7 w-7 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors"
+                    title="Enviar WhatsApp"
+                  >
+                    <MessageCircle className="h-4 w-4" />
                   </a>
                 </div>
               </div>
@@ -740,7 +807,21 @@ export default function JobDetailPage() {
                 </div>
               </div>
             ) : (
-              <p className="text-gray-500">Sin asignar</p>
+              <div className="flex items-center justify-between">
+                <p className="text-gray-500">Sin asignar</p>
+                {!isEditing && job.status !== 'COMPLETED' && job.status !== 'CANCELLED' && (
+                  <button
+                    onClick={() => {
+                      const select = document.querySelector('#technician-select') as HTMLSelectElement;
+                      if (select) select.focus();
+                    }}
+                    className="btn-outline text-sm py-1.5 px-3"
+                  >
+                    <Plus className="mr-1 h-4 w-4" />
+                    Asignar
+                  </button>
+                )}
+              </div>
             )}
             {!isEditing && job.status !== 'COMPLETED' && job.status !== 'CANCELLED' && (
               <div className="mt-4">
@@ -752,6 +833,7 @@ export default function JobDetailPage() {
                   </div>
                 )}
                 <select
+                  id="technician-select"
                   value=""
                   onChange={(e) => e.target.value && handleAssign(e.target.value)}
                   disabled={assignMutation.isPending}
@@ -803,12 +885,63 @@ export default function JobDetailPage() {
                   Crear factura
                 </Link>
               )}
+
+              {/* WhatsApp button */}
+              {job.customer?.phone && (
+                <a
+                  href={`https://wa.me/${job.customer.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(
+                    `Hola ${job.customer.name}, le escribimos de CampoTech respecto al trabajo ${job.jobNumber} programado para el ${job.scheduledDate ? formatDate(job.scheduledDate) : 'próximamente'}.`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-outline w-full justify-center"
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Enviar WhatsApp
+                </a>
+              )}
+
+              {/* Duplicate job */}
+              <Link
+                href={`/dashboard/jobs/new?customerId=${job.customerId}&serviceType=${job.serviceType}&description=${encodeURIComponent(job.description || '')}`}
+                className="btn-outline w-full justify-center"
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Duplicar trabajo
+              </Link>
+
+              {/* Print order */}
+              <button
+                onClick={() => window.print()}
+                className="btn-outline w-full justify-center"
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Imprimir orden
+              </button>
+
               <Link
                 href={`/dashboard/jobs/new?customerId=${job.customerId}`}
                 className="btn-outline w-full justify-center"
               >
+                <Plus className="mr-2 h-4 w-4" />
                 Nuevo trabajo para cliente
               </Link>
+
+              {/* Cancel job option */}
+              {job.status !== 'COMPLETED' && job.status !== 'CANCELLED' && (
+                <button
+                  onClick={() => {
+                    if (confirm(`¿Estás seguro de cancelar el trabajo ${job.jobNumber}?`)) {
+                      statusMutation.mutate('CANCELLED');
+                    }
+                  }}
+                  disabled={statusMutation.isPending}
+                  className="w-full rounded-lg border border-red-200 px-4 py-2 text-red-600 hover:bg-red-50 flex items-center justify-center"
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Cancelar trabajo
+                </button>
+              )}
             </div>
           </div>
 
