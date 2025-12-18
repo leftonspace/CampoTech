@@ -23,7 +23,6 @@ export async function GET() {
     const [
       totalCount,
       newThisMonth,
-      vipCount,
       averageRatingResult,
     ] = await Promise.all([
       // Total customers
@@ -36,14 +35,6 @@ export async function GET() {
         where: {
           organizationId,
           createdAt: { gte: startOfMonth },
-        },
-      }),
-
-      // VIP customers
-      prisma.customer.count({
-        where: {
-          organizationId,
-          isVip: true,
         },
       }),
 
@@ -62,7 +53,7 @@ export async function GET() {
       data: {
         totalCount,
         newThisMonth,
-        vipCount,
+        vipCount: 0, // VIP feature not yet enabled in database
         averageRating: averageRatingResult._avg.rating || 0,
       },
     });
