@@ -54,12 +54,12 @@ async function getQueue(queueName: string): Promise<{ queue: Queue; connection: 
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { queueName: string } }
+  { params }: { params: Promise<{ queueName: string }> }
 ) {
   const auth = await requireAdmin(request);
   if (auth instanceof NextResponse) return auth;
 
-  const { queueName } = params;
+  const { queueName } = await params;
   const { queue, connection } = await getQueue(queueName);
 
   try {
@@ -123,12 +123,12 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { queueName: string } }
+  { params }: { params: Promise<{ queueName: string }> }
 ) {
   const auth = await requireAdmin(request);
   if (auth instanceof NextResponse) return auth;
 
-  const { queueName } = params;
+  const { queueName } = await params;
   const body = await request.json();
   const { action, jobId, status, age } = body;
 
