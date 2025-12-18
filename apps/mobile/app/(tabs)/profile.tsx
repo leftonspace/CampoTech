@@ -35,7 +35,7 @@ import { useSyncStatus, useForceSync } from '../../lib/hooks/use-sync-status';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();
-  const { status } = useSyncStatus();
+  const status = useSyncStatus();
   const forceSync = useForceSync();
 
   const [advancedMode, setAdvancedMode] = useState(false);

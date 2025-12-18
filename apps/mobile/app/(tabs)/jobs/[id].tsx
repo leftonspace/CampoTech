@@ -18,6 +18,7 @@ import {
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { withObservables } from '@nozbe/watermelondb/react';
+import { switchMap, of } from 'rxjs';
 
 import { jobsCollection, customersCollection } from '../../../watermelon/database';
 import { Job, Customer } from '../../../watermelon/models';
@@ -254,8 +255,10 @@ function JobDetailScreen({ job, customer }: { job: Job; customer: Customer | nul
 // Enhance with WatermelonDB
 const enhance = withObservables(['id'], ({ id }: { id: string }) => ({
   job: jobsCollection.findAndObserve(id),
-  customer: jobsCollection.findAndObserve(id).then((job: Job) =>
-    job.customerId ? customersCollection.findAndObserve(job.customerId) : null
+  customer: jobsCollection.findAndObserve(id).pipe(
+    switchMap((job: Job) =>
+      job.customerId ? customersCollection.findAndObserve(job.customerId) : of(null)
+    )
   ),
 }));
 
