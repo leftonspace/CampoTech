@@ -3,8 +3,8 @@
  * ================
  */
 
-import { useState, useEffect } from 'react';
-import { addSyncListener, getSyncStatus, SyncStatus } from '../sync/sync-engine';
+import { useState, useEffect, useCallback } from 'react';
+import { addSyncListener, getSyncStatus, performSync, SyncStatus } from '../sync/sync-engine';
 
 export function useSyncStatus() {
   const [status, setStatus] = useState<SyncStatus>({
@@ -26,4 +26,24 @@ export function useSyncStatus() {
   }, []);
 
   return status;
+}
+
+/**
+ * Hook to trigger a manual sync
+ */
+export function useForceSync() {
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const forceSync = useCallback(async () => {
+    if (isSyncing) return;
+
+    setIsSyncing(true);
+    try {
+      await performSync();
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [isSyncing]);
+
+  return forceSync;
 }
