@@ -122,11 +122,39 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for transfer keywords BEFORE calling AI
+    // Also check word stems for Spanish conjugations (e.g., "denuncia" matches "denunciar", "denunciarlos")
     const messageLower = message.toLowerCase();
     const transferKeywords = config.transferKeywords || [];
-    const matchedKeyword = transferKeywords.find((keyword) =>
-      messageLower.includes(keyword.toLowerCase())
-    );
+
+    // Helper to get Spanish word stem (simple approach for common verb endings)
+    const getWordStem = (word: string): string => {
+      const w = word.toLowerCase();
+      // Remove common Spanish verb conjugation endings
+      if (w.endsWith('arlos') || w.endsWith('erlos') || w.endsWith('irlos')) return w.slice(0, -5);
+      if (w.endsWith('arlas') || w.endsWith('erlas') || w.endsWith('irlas')) return w.slice(0, -5);
+      if (w.endsWith('arlo') || w.endsWith('erlo') || w.endsWith('irlo')) return w.slice(0, -4);
+      if (w.endsWith('arla') || w.endsWith('erla') || w.endsWith('irla')) return w.slice(0, -4);
+      if (w.endsWith('ando') || w.endsWith('endo') || w.endsWith('iendo')) return w.slice(0, -4);
+      if (w.endsWith('ar') || w.endsWith('er') || w.endsWith('ir')) return w.slice(0, -2);
+      if (w.endsWith('ción') || w.endsWith('cion')) return w.slice(0, -4);
+      return w;
+    };
+
+    // Check both exact match and stem match
+    const messageWords = messageLower.split(/\s+/);
+    const matchedKeyword = transferKeywords.find((keyword) => {
+      const keywordLower = keyword.toLowerCase();
+      const keywordStem = getWordStem(keywordLower);
+
+      // Direct substring match
+      if (messageLower.includes(keywordLower)) return true;
+
+      // Stem match for each word
+      return messageWords.some((word) => {
+        const wordStem = getWordStem(word);
+        return wordStem === keywordStem || wordStem.includes(keywordStem) || keywordStem.includes(wordStem);
+      });
+    });
 
     if (matchedKeyword) {
       // Immediate transfer - don't call AI
@@ -136,7 +164,7 @@ export async function POST(request: NextRequest) {
           intent: 'transfer_keyword',
           confidence: 100,
           extractedEntities: {},
-          suggestedResponse: `[TRANSFERENCIA AUTOMÁTICA] Se detectó la palabra clave "${matchedKeyword}". Transfiriendo a un humano...`,
+          suggestedResponse: `Entiendo tu situación. Te voy a transferir con un representante que te va a ayudar personalmente. En breve alguien se comunicará con vos.`,
           shouldCreateJob: false,
           shouldTransfer: true,
           transferReason: `Palabra clave detectada: "${matchedKeyword}"`,
@@ -424,7 +452,7 @@ function buildTestSystemPrompt(
       ? config.faqItems.map((f) => `P: ${f.question}\nR: ${f.answer}`).join('\n\n')
       : '';
 
-  // Build business hours text
+  // Build business hours text and check current status
   const daysMap: Record<string, string> = {
     lunes: 'Lunes',
     martes: 'Martes',
@@ -434,11 +462,48 @@ function buildTestSystemPrompt(
     sabado: 'Sábado',
     domingo: 'Domingo',
   };
+  const dayKeys = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+
+  // Get current time in Argentina timezone (UTC-3)
+  const now = new Date();
+  const argentinaTime = new Date(now.toLocaleString('en-US', { timeZone: 'America/Argentina/Buenos_Aires' }));
+  const currentHour = argentinaTime.getHours();
+  const currentMinute = argentinaTime.getMinutes();
+  const currentTimeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
+  const currentDayIndex = argentinaTime.getDay();
+  const currentDayKey = dayKeys[currentDayIndex];
+  const currentDayName = daysMap[currentDayKey] || currentDayKey;
+
+  // Check if currently within business hours
+  const todayHours = config.businessHours?.[currentDayKey];
+  let isCurrentlyOpen = false;
+  let openStatus = 'CERRADO';
+
+  if (todayHours && todayHours.open && todayHours.close) {
+    const [openH, openM] = todayHours.open.split(':').map(Number);
+    const [closeH, closeM] = todayHours.close.split(':').map(Number);
+    const currentMinutes = currentHour * 60 + currentMinute;
+    const openMinutes = openH * 60 + openM;
+    const closeMinutes = closeH * 60 + closeM;
+
+    if (currentMinutes >= openMinutes && currentMinutes < closeMinutes) {
+      isCurrentlyOpen = true;
+      openStatus = `ABIERTO (hasta ${todayHours.close})`;
+    } else if (currentMinutes < openMinutes) {
+      openStatus = `CERRADO (abre a las ${todayHours.open})`;
+    } else {
+      openStatus = `CERRADO (cerró a las ${todayHours.close})`;
+    }
+  } else {
+    openStatus = 'CERRADO HOY';
+  }
+
   const businessHoursText = Object.entries(config.businessHours || {})
     .filter(([, hours]) => hours !== null)
     .map(([day, hours]) => {
       if (!hours) return null;
-      return `${daysMap[day] || day}: ${hours.open} - ${hours.close}`;
+      const isToday = day === currentDayKey;
+      return `${daysMap[day] || day}: ${hours.open} - ${hours.close}${isToday ? ' ← HOY' : ''}`;
     })
     .filter(Boolean)
     .join('\n') || 'Horarios no configurados';
@@ -489,6 +554,11 @@ ${technicians
 
   return `Sos el asistente virtual de ${config.companyName || 'la empresa'} por WhatsApp.
 
+═══════════════════════════════════════════════════════════
+⏰ HORA ACTUAL: ${currentTimeStr} (${currentDayName})
+📍 ESTADO: ${openStatus}
+═══════════════════════════════════════════════════════════
+
 SOBRE LA EMPRESA:
 ${config.companyDescription || 'Empresa de servicios técnicos.'}
 
@@ -536,13 +606,15 @@ COMPORTAMIENTO:
 1. ${toneInstructions[config.aiTone] || toneInstructions.friendly_professional}
 2. Respondé SIEMPRE en español argentino.
 3. Sé conciso - mensajes cortos para WhatsApp.
-4. Si quieren agendar:
+4. ${!isCurrentlyOpen ? `⚠️ IMPORTANTE: Estamos FUERA DE HORARIO. ${config.awayMessage ? 'Usá el mensaje de fuera de horario configurado.' : 'Informá al cliente que estamos cerrados y cuándo abrimos.'}` : 'Estamos en horario de atención normal.'}
+5. Si quieren agendar:
    - Consultá los TURNOS DISPONIBLES arriba
    - Sugerí horarios específicos disponibles
    - Pedí: tipo de servicio, dirección, confirmación de horario
-5. Si pregunta por disponibilidad, usá los datos reales de arriba.
-6. Si no hay turnos disponibles pronto, ofrecé lista de espera.
-7. Si el cliente está enojado o el tema es delicado, sugerí transferir a humano.
+6. Si pregunta por disponibilidad, usá los datos reales de arriba.
+7. Si no hay turnos disponibles pronto, ofrecé lista de espera.
+8. Si el cliente está enojado o el tema es delicado, sugerí transferir a humano.
+9. Si estamos CERRADOS, siempre mencioná cuándo abrimos y que un representante se comunicará cuando estemos disponibles.
 
 RESPUESTA JSON:
 {
