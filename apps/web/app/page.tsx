@@ -232,7 +232,7 @@ function PricingSection() {
           {pricing.map((plan) => (
             <div
               key={plan.name}
-              className={`relative rounded-2xl bg-white p-8 shadow-sm ${
+              className={`relative rounded-2xl bg-white p-8 shadow-sm flex flex-col ${
                 plan.popular
                   ? 'ring-2 ring-primary-500 shadow-lg'
                   : 'border'
@@ -255,7 +255,7 @@ function PricingSection() {
                 </div>
               </div>
 
-              <ul className="mt-8 space-y-3">
+              <ul className="mt-8 space-y-3 flex-1">
                 {plan.features.map((feature) => (
                   <li key={feature} className="flex items-start gap-3">
                     <Check className="h-5 w-5 flex-shrink-0 text-success-500" />
