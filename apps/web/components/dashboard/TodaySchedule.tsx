@@ -41,7 +41,9 @@ async function fetchTodaySchedule(): Promise<{ success: boolean; data: Technicia
   // Group jobs by technician
   const technicianMap = new Map<string, TechnicianSchedule>();
 
-  for (const event of data.data || []) {
+  // API returns { data: { events: [...], technicians: [...] } }
+  const events = data.data?.events || [];
+  for (const event of events) {
     const tech = event.extendedProps?.technician;
     if (!tech) continue;
 

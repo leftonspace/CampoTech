@@ -343,15 +343,18 @@ function TodayJobsList() {
     queryFn: () => api.jobs.today(),
   });
 
-  const jobs = data?.data as Array<{
-    id: string;
-    title: string;
-    status: string;
-    customer?: { name: string };
-    scheduledTimeStart?: string;
-    scheduledTimeEnd?: string;
-    address?: string;
-  }> | undefined;
+  // API returns { data: { jobs: [...], summary: {...}, date: string } }
+  const response = data?.data as {
+    jobs?: Array<{
+      id: string;
+      jobNumber: string;
+      serviceType: string;
+      status: string;
+      customer?: { name: string; address?: string };
+      scheduledTimeSlot?: { start?: string; end?: string };
+    }>;
+  } | undefined;
+  const jobs = response?.jobs;
 
   if (isLoading) {
     return (
@@ -395,7 +398,7 @@ function TodayJobsList() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between gap-2">
-                <p className="truncate font-medium text-gray-900">{job.title}</p>
+                <p className="truncate font-medium text-gray-900">{job.jobNumber}</p>
                 <span
                   className={cn(
                     'shrink-0 rounded-full px-2 py-0.5 text-xs font-medium',
@@ -407,10 +410,10 @@ function TodayJobsList() {
               </div>
               <p className="truncate text-sm text-gray-500">
                 {job.customer?.name}
-                {job.scheduledTimeStart && ` • ${job.scheduledTimeStart}`}
+                {job.scheduledTimeSlot?.start && ` • ${job.scheduledTimeSlot.start}`}
               </p>
-              {job.address && (
-                <p className="truncate text-xs text-gray-400">{job.address}</p>
+              {job.customer?.address && (
+                <p className="truncate text-xs text-gray-400">{job.customer.address}</p>
               )}
             </div>
           </Link>
