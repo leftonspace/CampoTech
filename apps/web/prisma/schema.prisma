@@ -80,6 +80,9 @@ model Organization {
   // Employee Scheduling
   employeeSchedules           EmployeeSchedule[]
   scheduleExceptions          ScheduleException[]
+  // AI Assistant
+  aiConfiguration             AIConfiguration?
+  aiConversationLogs          AIConversationLog[]
 
   @@map("organizations")
 }
@@ -134,6 +137,8 @@ model User {
   // Employee Scheduling
   schedules               EmployeeSchedule[]
   scheduleExceptions      ScheduleException[]
+  // AI Assistant
+  aiEscalationConfigs     AIConfiguration[]      @relation("AIEscalationUser")
 
   @@unique([email, organizationId])
   @@index([organizationId])
@@ -3114,4 +3119,100 @@ model ScheduleException {
   @@index([userId])
   @@index([date])
   @@map("schedule_exceptions")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI ASSISTANT CONFIGURATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// AI Configuration per organization - stores company info for AI context
+model AIConfiguration {
+  id             String   @id @default(cuid())
+  organizationId String   @unique
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Feature toggles
+  isEnabled           Boolean  @default(false)  // Master switch for AI responses
+  autoResponseEnabled Boolean  @default(true)   // Auto-respond if confident
+
+  // Confidence thresholds (0-100)
+  minConfidenceToRespond  Int  @default(70)  // Below this, transfer to human
+  minConfidenceToCreateJob Int @default(85)  // Below this, ask confirmation
+
+  // Company information (used as AI context)
+  companyName         String?
+  companyDescription  String?  @db.Text  // What the company does
+  servicesOffered     Json     @default("[]")  // Array of {name, description, priceRange}
+  businessHours       Json     @default("{}")  // {monday: {open: "09:00", close: "18:00"}, ...}
+  serviceAreas        String?  @db.Text  // Geographic areas served
+
+  // Pricing and policies
+  pricingInfo         String?  @db.Text  // General pricing info
+  cancellationPolicy  String?  @db.Text
+  paymentMethods      String?  // "Efectivo, Transferencia, Tarjeta"
+  warrantyInfo        String?  @db.Text
+
+  // FAQ and common responses
+  faqItems            Json     @default("[]")  // Array of {question, answer}
+  customInstructions  String?  @db.Text  // Additional AI behavior instructions
+
+  // Personality settings
+  aiTone              String   @default("friendly_professional")  // friendly_professional, formal, casual
+  greetingMessage     String?  @db.Text  // Custom greeting
+  awayMessage         String?  @db.Text  // Message when outside business hours
+
+  // Transfer settings
+  transferKeywords    Json     @default("[]")  // Words that trigger transfer to human
+  escalationUserId    String?  // Default user to notify on transfer
+  escalationUser      User?    @relation("AIEscalationUser", fields: [escalationUserId], references: [id], onDelete: SetNull)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@map("ai_configurations")
+}
+
+// AI Conversation Log - tracks all AI interactions for review and training
+model AIConversationLog {
+  id                  String   @id @default(cuid())
+  organizationId      String
+  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  conversationId      String   // Reference to WaConversation
+  messageId           String?  // Reference to WaMessage that triggered this
+
+  // Input
+  customerMessage     String   @db.Text  // Original message from customer
+  messageType         String   // "text" | "voice" | "image"
+  transcription       String?  @db.Text  // If voice, the transcription
+
+  // AI Processing
+  detectedIntent      String?  // booking, question, complaint, greeting, other
+  extractedEntities   Json?    // {serviceType, date, address, etc.}
+  confidenceScore     Int      // 0-100
+
+  // AI Response
+  aiResponse          String?  @db.Text  // What AI responded (or would respond)
+  responseStatus      String   // "sent" | "transferred" | "pending_confirmation" | "blocked"
+
+  // Actions taken
+  jobCreated          Boolean  @default(false)
+  jobId               String?  // If a job was created
+  transferredToUserId String?  // If transferred to human
+  transferReason      String?  // Why it was transferred
+
+  // Feedback for training
+  wasHelpful          Boolean? // Admin feedback
+  correctedResponse   String?  @db.Text  // If admin corrected the response
+  feedbackNotes       String?  @db.Text
+  reviewedAt          DateTime?
+  reviewedById        String?
+
+  createdAt           DateTime @default(now())
+
+  @@index([organizationId])
+  @@index([conversationId])
+  @@index([createdAt])
+  @@index([responseStatus])
+  @@index([confidenceScore])
+  @@map("ai_conversation_logs")
 }

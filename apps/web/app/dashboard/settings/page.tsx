@@ -14,6 +14,7 @@ import {
   MessageCircle,
   Bell,
   Wrench,
+  Bot,
 } from 'lucide-react';
 
 interface SettingCard {
@@ -60,6 +61,14 @@ export default function SettingsPage() {
       description: 'Mensajería y notificaciones',
       href: '/dashboard/settings/whatsapp',
       icon: MessageCircle,
+      status: 'not_configured',
+      adminOnly: true,
+    },
+    {
+      title: 'Asistente IA',
+      description: 'Respuestas automáticas con inteligencia artificial',
+      href: '/dashboard/settings/ai-assistant',
+      icon: Bot,
       status: 'not_configured',
       adminOnly: true,
     },
