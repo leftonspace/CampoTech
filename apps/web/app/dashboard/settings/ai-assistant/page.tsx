@@ -333,6 +333,9 @@ export default function AIAssistantSettingsPage() {
             aiTone: config.aiTone,
             minConfidenceToRespond: config.minConfidenceToRespond,
             minConfidenceToCreateJob: config.minConfidenceToCreateJob,
+            transferKeywords: config.transferKeywords,
+            greetingMessage: config.greetingMessage,
+            awayMessage: config.awayMessage,
           },
           conversationHistory: testMessages.map((m) => ({
             role: m.role,
