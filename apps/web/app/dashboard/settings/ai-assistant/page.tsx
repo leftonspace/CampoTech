@@ -136,10 +136,22 @@ async function saveAIConfig(config: AIConfig): Promise<AIConfig> {
 }
 
 async function fetchTeamMembers(): Promise<Array<{ id: string; name: string; role: string }>> {
-  const res = await fetch('/api/users?role=OWNER,DISPATCHER');
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.data || [];
+  // Fetch OWNER and DISPATCHER users separately since API doesn't support comma-separated roles
+  const [ownersRes, dispatchersRes] = await Promise.all([
+    fetch('/api/users?role=OWNER'),
+    fetch('/api/users?role=DISPATCHER'),
+  ]);
+
+  const owners = ownersRes.ok ? await ownersRes.json() : { data: [] };
+  const dispatchers = dispatchersRes.ok ? await dispatchersRes.json() : { data: [] };
+
+  // Combine and deduplicate
+  const allUsers = [...(owners.data || []), ...(dispatchers.data || [])];
+  const uniqueUsers = allUsers.filter((user, index, self) =>
+    index === self.findIndex((u) => u.id === user.id)
+  );
+
+  return uniqueUsers;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
