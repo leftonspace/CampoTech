@@ -25,6 +25,9 @@ import {
   Zap,
   User,
   Loader2,
+  Shield,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -46,12 +49,26 @@ interface BusinessHours {
   [day: string]: { open: string; close: string } | null;
 }
 
+interface DataAccessPermissions {
+  companyInfo: boolean;
+  services: boolean;
+  pricing: boolean;
+  businessHours: boolean;
+  serviceAreas: boolean;
+  technicianNames: boolean;
+  technicianAvailability: boolean;
+  scheduleSlots: boolean;
+  faq: boolean;
+  policies: boolean;
+}
+
 interface AIConfig {
   id?: string;
   isEnabled: boolean;
   autoResponseEnabled: boolean;
   minConfidenceToRespond: number;
   minConfidenceToCreateJob: number;
+  dataAccessPermissions: DataAccessPermissions;
   companyName: string;
   companyDescription: string;
   servicesOffered: ServiceInfo[];
@@ -105,11 +122,37 @@ const AI_TONES = [
   { value: 'casual', label: 'Casual', description: 'Relajado y cercano, como un vecino' },
 ];
 
+// Data access permission definitions with descriptions
+const DATA_ACCESS_PERMISSIONS = [
+  { key: 'companyInfo', label: 'Información de la empresa', description: 'Nombre y descripción de la empresa', category: 'empresa' },
+  { key: 'services', label: 'Servicios ofrecidos', description: 'Lista de servicios disponibles', category: 'empresa' },
+  { key: 'pricing', label: 'Información de precios', description: 'Precios y tarifas de servicios', category: 'empresa' },
+  { key: 'businessHours', label: 'Horarios de atención', description: 'Días y horarios de operación', category: 'empresa' },
+  { key: 'serviceAreas', label: 'Zonas de cobertura', description: 'Áreas geográficas de servicio', category: 'empresa' },
+  { key: 'policies', label: 'Políticas', description: 'Cancelación, garantía, métodos de pago', category: 'empresa' },
+  { key: 'faq', label: 'Preguntas frecuentes', description: 'Respuestas pre-configuradas', category: 'empresa' },
+  { key: 'technicianNames', label: 'Nombres de técnicos', description: 'Mostrar nombres reales vs "un técnico"', category: 'equipo' },
+  { key: 'technicianAvailability', label: 'Disponibilidad de técnicos', description: 'Estado actual (disponible/ocupado)', category: 'equipo' },
+  { key: 'scheduleSlots', label: 'Turnos disponibles', description: 'Horarios libres para agendar', category: 'equipo' },
+] as const;
+
 const DEFAULT_CONFIG: AIConfig = {
   isEnabled: false,
   autoResponseEnabled: true,
   minConfidenceToRespond: 70,
   minConfidenceToCreateJob: 85,
+  dataAccessPermissions: {
+    companyInfo: true,
+    services: true,
+    pricing: true,
+    businessHours: true,
+    serviceAreas: true,
+    technicianNames: false, // Privacy: hide names by default
+    technicianAvailability: true,
+    scheduleSlots: true,
+    faq: true,
+    policies: true,
+  },
   companyName: '',
   companyDescription: '',
   servicesOffered: [],
@@ -185,7 +228,7 @@ async function fetchTeamMembers(): Promise<Array<{ id: string; name: string; rol
 export default function AIAssistantSettingsPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'general' | 'company' | 'hours' | 'faq' | 'advanced' | 'test'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'company' | 'hours' | 'faq' | 'advanced' | 'permissions' | 'test'>('general');
   const [config, setConfig] = useState<AIConfig>(DEFAULT_CONFIG);
   const [hasChanges, setHasChanges] = useState(false);
   const [error, setError] = useState('');
@@ -336,6 +379,7 @@ export default function AIAssistantSettingsPage() {
             transferKeywords: config.transferKeywords,
             greetingMessage: config.greetingMessage,
             awayMessage: config.awayMessage,
+            dataAccessPermissions: config.dataAccessPermissions,
           },
           conversationHistory: testMessages.map((m) => ({
             role: m.role,
@@ -470,6 +514,7 @@ export default function AIAssistantSettingsPage() {
             { key: 'hours', label: 'Horarios', icon: Clock },
             { key: 'faq', label: 'Preguntas frecuentes', icon: HelpCircle },
             { key: 'advanced', label: 'Avanzado', icon: Sparkles },
+            { key: 'permissions', label: 'Permisos IA', icon: Shield },
             { key: 'test', label: 'Probar', icon: Zap },
           ].map((tab) => (
             <button
@@ -975,6 +1020,128 @@ export default function AIAssistantSettingsPage() {
 - No dar información sobre la competencia
 - Si el cliente menciona urgencia, priorizar disponibilidad inmediata`}
               />
+            </div>
+          </div>
+        )}
+
+        {/* Permissions Tab */}
+        {activeTab === 'permissions' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900">Permisos de Acceso a Datos</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Controlá qué información puede ver y compartir la IA con los clientes.
+              </p>
+            </div>
+
+            {/* System-blocked warning */}
+            <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-red-800">Información siempre protegida</h4>
+                  <p className="text-sm text-red-700 mt-1">
+                    La IA <strong>nunca</strong> tiene acceso a: salarios de empleados, datos personales de otros clientes,
+                    información financiera, reportes de ingresos, o notas internas.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Company Data Section */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                <Building2 className="h-4 w-4" />
+                Información de la Empresa
+              </h4>
+              <div className="grid gap-4">
+                {DATA_ACCESS_PERMISSIONS.filter(p => p.category === 'empresa').map((permission) => (
+                  <div key={permission.key} className="flex items-center justify-between p-4 rounded-lg border bg-white">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        {config.dataAccessPermissions[permission.key as keyof DataAccessPermissions] ? (
+                          <Eye className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <EyeOff className="h-4 w-4 text-gray-400" />
+                        )}
+                        <span className="font-medium text-gray-900">{permission.label}</span>
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1 ml-6">{permission.description}</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.dataAccessPermissions[permission.key as keyof DataAccessPermissions]}
+                        onChange={(e) => updateConfig('dataAccessPermissions', {
+                          ...config.dataAccessPermissions,
+                          [permission.key]: e.target.checked,
+                        })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Team Data Section */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-900 flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                Información del Equipo
+              </h4>
+              <div className="grid gap-4">
+                {DATA_ACCESS_PERMISSIONS.filter(p => p.category === 'equipo').map((permission) => (
+                  <div key={permission.key} className="flex items-center justify-between p-4 rounded-lg border bg-white">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        {config.dataAccessPermissions[permission.key as keyof DataAccessPermissions] ? (
+                          <Eye className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <EyeOff className="h-4 w-4 text-gray-400" />
+                        )}
+                        <span className="font-medium text-gray-900">{permission.label}</span>
+                        {permission.key === 'technicianNames' && (
+                          <span className="text-xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded">Privacidad</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-500 mt-1 ml-6">{permission.description}</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={config.dataAccessPermissions[permission.key as keyof DataAccessPermissions]}
+                        onChange={(e) => updateConfig('dataAccessPermissions', {
+                          ...config.dataAccessPermissions,
+                          [permission.key]: e.target.checked,
+                        })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Summary */}
+            <div className="rounded-lg bg-blue-50 p-4">
+              <h4 className="font-medium text-blue-900 mb-2">Resumen de Permisos</h4>
+              <div className="flex flex-wrap gap-2">
+                {DATA_ACCESS_PERMISSIONS.map((p) => (
+                  <span
+                    key={p.key}
+                    className={`text-xs px-2 py-1 rounded-full ${
+                      config.dataAccessPermissions[p.key as keyof DataAccessPermissions]
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    {config.dataAccessPermissions[p.key as keyof DataAccessPermissions] ? '✓' : '✗'} {p.label}
+                  </span>
+                ))}
+              </div>
             </div>
           </div>
         )}

@@ -32,6 +32,20 @@ export async function GET() {
       },
     });
 
+    // Default data access permissions
+    const defaultDataAccessPermissions = {
+      companyInfo: true,
+      services: true,
+      pricing: true,
+      businessHours: true,
+      serviceAreas: true,
+      technicianNames: false, // Privacy: hide actual names by default
+      technicianAvailability: true,
+      scheduleSlots: true,
+      faq: true,
+      policies: true,
+    };
+
     // Return default config if not found (for new organizations)
     if (!config) {
       return NextResponse.json({
@@ -40,6 +54,7 @@ export async function GET() {
         autoResponseEnabled: true,
         minConfidenceToRespond: 70,
         minConfidenceToCreateJob: 85,
+        dataAccessPermissions: defaultDataAccessPermissions,
         companyName: '',
         companyDescription: '',
         servicesOffered: [],
@@ -65,6 +80,7 @@ export async function GET() {
       autoResponseEnabled: config.autoResponseEnabled,
       minConfidenceToRespond: config.minConfidenceToRespond,
       minConfidenceToCreateJob: config.minConfidenceToCreateJob,
+      dataAccessPermissions: config.dataAccessPermissions || defaultDataAccessPermissions,
       companyName: config.companyName || '',
       companyDescription: config.companyDescription || '',
       servicesOffered: config.servicesOffered || [],
@@ -120,6 +136,20 @@ export async function PUT(request: NextRequest) {
     const minConfidenceToRespond = Math.min(100, Math.max(0, body.minConfidenceToRespond ?? 70));
     const minConfidenceToCreateJob = Math.min(100, Math.max(0, body.minConfidenceToCreateJob ?? 85));
 
+    // Default data access permissions for PUT
+    const defaultPerms = {
+      companyInfo: true,
+      services: true,
+      pricing: true,
+      businessHours: true,
+      serviceAreas: true,
+      technicianNames: false,
+      technicianAvailability: true,
+      scheduleSlots: true,
+      faq: true,
+      policies: true,
+    };
+
     // Upsert configuration
     const config = await prisma.aIConfiguration.upsert({
       where: { organizationId: session.organizationId },
@@ -129,6 +159,7 @@ export async function PUT(request: NextRequest) {
         autoResponseEnabled: body.autoResponseEnabled ?? true,
         minConfidenceToRespond,
         minConfidenceToCreateJob,
+        dataAccessPermissions: body.dataAccessPermissions || defaultPerms,
         companyName: body.companyName || null,
         companyDescription: body.companyDescription || null,
         servicesOffered: body.servicesOffered || [],
@@ -151,6 +182,7 @@ export async function PUT(request: NextRequest) {
         autoResponseEnabled: body.autoResponseEnabled ?? true,
         minConfidenceToRespond,
         minConfidenceToCreateJob,
+        dataAccessPermissions: body.dataAccessPermissions || defaultPerms,
         companyName: body.companyName || null,
         companyDescription: body.companyDescription || null,
         servicesOffered: body.servicesOffered || [],
@@ -176,6 +208,7 @@ export async function PUT(request: NextRequest) {
       autoResponseEnabled: config.autoResponseEnabled,
       minConfidenceToRespond: config.minConfidenceToRespond,
       minConfidenceToCreateJob: config.minConfidenceToCreateJob,
+      dataAccessPermissions: config.dataAccessPermissions || defaultPerms,
       companyName: config.companyName || '',
       companyDescription: config.companyDescription || '',
       servicesOffered: config.servicesOffered || [],
