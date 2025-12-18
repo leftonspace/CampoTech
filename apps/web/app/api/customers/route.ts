@@ -1,11 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import {
   filterEntitiesByRole,
   getEntityFieldMetadata,
   UserRole,
 } from '@/lib/middleware/field-filter';
+
+// Type for customer with computed fields
+type CustomerWithCount = Prisma.CustomerGetPayload<{
+  include: { _count: { select: { jobs: true; invoices: true } } };
+}>;
+
+interface EnrichedCustomer extends CustomerWithCount {
+  jobCount: number;
+  totalSpent: number;
+  averageRating: number | null;
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -78,7 +90,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Get job counts, total spent, and ratings for all customers
-    const customerIds = customers.map(c => c.id);
+    const customerIds = customers.map((c: CustomerWithCount) => c.id);
 
     // Get aggregated data for all customers in one query
     const [jobCounts, invoiceTotals, ratings] = await Promise.all([
@@ -111,12 +123,18 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Create maps for quick lookup
-    const jobCountMap = new Map(jobCounts.map(j => [j.customerId, j._count.id]));
-    const totalSpentMap = new Map(invoiceTotals.map(i => [i.customerId, Number(i._sum.total) || 0]));
-    const ratingMap = new Map(ratings.map(r => [r.customerId, r._avg.rating]));
+    const jobCountMap = new Map<string, number>(
+      jobCounts.map((j) => [j.customerId, j._count.id])
+    );
+    const totalSpentMap = new Map<string, number>(
+      invoiceTotals.map((i) => [i.customerId, Number(i._sum.total) || 0])
+    );
+    const ratingMap = new Map<string, number | null>(
+      ratings.map((r) => [r.customerId, r._avg.rating])
+    );
 
     // Enrich customers with computed fields
-    let enrichedCustomers = customers.map(customer => ({
+    let enrichedCustomers: EnrichedCustomer[] = customers.map((customer: CustomerWithCount) => ({
       ...customer,
       jobCount: jobCountMap.get(customer.id) || 0,
       totalSpent: totalSpentMap.get(customer.id) || 0,
@@ -125,14 +143,14 @@ export async function GET(request: NextRequest) {
 
     // Apply 'frequent' filter (job count >= 5)
     if (filter === 'frequent') {
-      enrichedCustomers = enrichedCustomers.filter(c => c.jobCount >= 5);
+      enrichedCustomers = enrichedCustomers.filter((c: EnrichedCustomer) => c.jobCount >= 5);
     }
 
     // Apply sorting by jobs or revenue
     if (sort === 'jobs') {
-      enrichedCustomers.sort((a, b) => b.jobCount - a.jobCount);
+      enrichedCustomers.sort((a: EnrichedCustomer, b: EnrichedCustomer) => b.jobCount - a.jobCount);
     } else if (sort === 'revenue') {
-      enrichedCustomers.sort((a, b) => b.totalSpent - a.totalSpent);
+      enrichedCustomers.sort((a: EnrichedCustomer, b: EnrichedCustomer) => b.totalSpent - a.totalSpent);
     }
 
     // Apply pagination after filtering/sorting if needed
