@@ -7,6 +7,15 @@ import {
   UserRole,
 } from '@/lib/middleware/field-filter';
 
+// Helper type for enriched customer
+interface EnrichedCustomer {
+  id: string;
+  jobCount: number;
+  totalSpent: number;
+  averageRating: number | null;
+  [key: string]: unknown;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
@@ -80,7 +89,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Get job counts, total spent, and ratings for all customers
-    const customerIds = customers.map((c) => c.id);
+    const customerIds: string[] = customers.map((c: { id: string }) => c.id);
 
     // Get aggregated data for all customers in one query
     const [jobCounts, invoiceTotals, ratings] = await Promise.all([
@@ -113,18 +122,23 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Create maps for quick lookup
-    const jobCountMap = new Map<string, number>(
-      jobCounts.map((j) => [j.customerId, j._count.id])
-    );
-    const totalSpentMap = new Map<string, number>(
-      invoiceTotals.map((i) => [i.customerId, Number(i._sum.total) || 0])
-    );
-    const ratingMap = new Map<string, number | null>(
-      ratings.map((r) => [r.customerId, r._avg.rating])
-    );
+    const jobCountMap = new Map<string, number>();
+    for (const j of jobCounts) {
+      jobCountMap.set(j.customerId, j._count.id);
+    }
+
+    const totalSpentMap = new Map<string, number>();
+    for (const i of invoiceTotals) {
+      totalSpentMap.set(i.customerId, Number(i._sum.total) || 0);
+    }
+
+    const ratingMap = new Map<string, number | null>();
+    for (const r of ratings) {
+      ratingMap.set(r.customerId, r._avg.rating);
+    }
 
     // Enrich customers with computed fields
-    let enrichedCustomers = customers.map((customer) => ({
+    let enrichedCustomers: EnrichedCustomer[] = customers.map((customer: { id: string }) => ({
       ...customer,
       jobCount: jobCountMap.get(customer.id) || 0,
       totalSpent: totalSpentMap.get(customer.id) || 0,
@@ -133,14 +147,14 @@ export async function GET(request: NextRequest) {
 
     // Apply 'frequent' filter (job count >= 5)
     if (filter === 'frequent') {
-      enrichedCustomers = enrichedCustomers.filter((c) => c.jobCount >= 5);
+      enrichedCustomers = enrichedCustomers.filter((c: EnrichedCustomer) => c.jobCount >= 5);
     }
 
     // Apply sorting by jobs or revenue
     if (sort === 'jobs') {
-      enrichedCustomers.sort((a, b) => b.jobCount - a.jobCount);
+      enrichedCustomers.sort((a: EnrichedCustomer, b: EnrichedCustomer) => b.jobCount - a.jobCount);
     } else if (sort === 'revenue') {
-      enrichedCustomers.sort((a, b) => b.totalSpent - a.totalSpent);
+      enrichedCustomers.sort((a: EnrichedCustomer, b: EnrichedCustomer) => b.totalSpent - a.totalSpent);
     }
 
     // Apply pagination after filtering/sorting if needed
@@ -152,8 +166,7 @@ export async function GET(request: NextRequest) {
     const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Filter data based on user role
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const filteredCustomers = filterEntitiesByRole(enrichedCustomers as any[], 'customer', userRole);
+    const filteredCustomers = filterEntitiesByRole(enrichedCustomers, 'customer', userRole);
     const fieldMeta = getEntityFieldMetadata('customer', userRole);
 
     return NextResponse.json({
