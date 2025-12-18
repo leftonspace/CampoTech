@@ -185,6 +185,11 @@ async function getTechnicianAvailability(
             notIn: ['COMPLETED', 'CANCELLED'],
           },
         },
+        select: {
+          id: true,
+          status: true,
+          scheduledTimeSlot: true,
+        },
       },
     },
   });
@@ -207,8 +212,9 @@ async function getTechnicianAvailability(
     if (status !== 'disponible' && tech.assignedJobs.length > 0) {
       // Estimate based on last job end time
       const lastJob = tech.assignedJobs[tech.assignedJobs.length - 1];
-      if (lastJob.scheduledTimeEnd) {
-        nextAvailableSlot = lastJob.scheduledTimeEnd;
+      const timeSlot = lastJob.scheduledTimeSlot as { start?: string; end?: string } | null;
+      if (timeSlot?.end) {
+        nextAvailableSlot = timeSlot.end;
       }
     }
 
@@ -257,8 +263,11 @@ async function getAvailableSlots(organizationId: string): Promise<ScheduleSlot[]
           notIn: ['CANCELLED'],
         },
       },
-      include: {
-        assignedTo: {
+      select: {
+        id: true,
+        technicianId: true,
+        scheduledTimeSlot: true,
+        technician: {
           select: { id: true, name: true },
         },
       },
@@ -290,11 +299,13 @@ async function getAvailableSlots(organizationId: string): Promise<ScheduleSlot[]
       // Check if any technician is available for this slot
       const busyTechs = existingJobs
         .filter((j) => {
-          if (!j.scheduledTimeStart) return false;
-          const jobStart = j.scheduledTimeStart;
+          const timeSlot = j.scheduledTimeSlot as { start?: string; end?: string } | null;
+          if (!timeSlot?.start) return false;
+          const jobStart = timeSlot.start;
           return jobStart >= startTime && jobStart < endTime;
         })
-        .map((j) => j.assignedToId);
+        .map((j) => j.technicianId)
+        .filter((id): id is string => id !== null);
 
       const availableTech = schedules.find(
         (s) =>
