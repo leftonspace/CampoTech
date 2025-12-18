@@ -268,6 +268,47 @@ export const api = {
       apiRequest('/notifications/unregister', { method: 'POST' }),
   },
 
+  // GPS Tracking
+  tracking: {
+    start: (jobId: string, initialLat: number, initialLng: number) =>
+      apiRequest<{
+        sessionId: string;
+        token: string;
+        trackingUrl: string;
+        expiresAt: string;
+      }>('/tracking/start', {
+        method: 'POST',
+        body: { jobId, initialLat, initialLng },
+      }),
+
+    update: (data: {
+      lat: number;
+      lng: number;
+      jobId?: string | null;
+      sessionId?: string | null;
+      speed?: number | null;
+      heading?: number | null;
+      accuracy?: number | null;
+      altitude?: number | null;
+    }) =>
+      apiRequest<{
+        recorded: boolean;
+        sessionId?: string;
+        etaMinutes?: number;
+        arrived?: boolean;
+        movementMode?: string;
+      }>('/tracking/update', {
+        method: 'POST',
+        body: data,
+      }),
+
+    stop: (sessionId: string) =>
+      apiRequest('/tracking/status', {
+        method: 'POST',
+        body: { sessionId, status: 'COMPLETED' },
+      }),
+  },
+
   // Employee invites
   invites: {
     get: (token: string) =>

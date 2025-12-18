@@ -23,6 +23,11 @@ import { switchMap, of } from 'rxjs';
 import { jobsCollection, customersCollection } from '../../../watermelon/database';
 import { Job, Customer } from '../../../watermelon/models';
 import { enqueueOperation } from '../../../lib/sync/sync-engine';
+import {
+  startTracking,
+  stopTracking,
+  isTrackingActive,
+} from '../../../lib/services/location';
 import StatusButton from '../../../components/job/StatusButton';
 
 function JobDetailScreen({ job, customer }: { job: Job; customer: Customer | null }) {
@@ -34,10 +39,24 @@ function JobDetailScreen({ job, customer }: { job: Job; customer: Customer | nul
       setIsUpdating(true);
       try {
         if (newStatus === 'en_camino') {
+          // Start GPS tracking when going EN_ROUTE
+          const trackingResult = await startTracking(job.serverId);
+          if (!trackingResult.success) {
+            // Show warning but don't block status change
+            Alert.alert(
+              'Ubicación',
+              'No se pudo activar el seguimiento GPS. El cliente no podrá ver tu ubicación.',
+              [{ text: 'OK' }]
+            );
+          }
           await job.startJob();
         } else if (newStatus === 'working') {
           await job.arriveAtJob();
         } else if (newStatus === 'completed') {
+          // Stop GPS tracking when completing
+          if (isTrackingActive()) {
+            await stopTracking();
+          }
           // Navigate to completion flow
           router.push(`/(tabs)/jobs/complete?id=${job.id}`);
           return;
@@ -51,6 +70,10 @@ function JobDetailScreen({ job, customer }: { job: Job; customer: Customer | nul
                 text: 'Cancelar trabajo',
                 style: 'destructive',
                 onPress: async (reason) => {
+                  // Stop tracking on cancellation
+                  if (isTrackingActive()) {
+                    await stopTracking();
+                  }
                   await job.cancelJob(reason || 'Sin motivo');
                   await enqueueOperation('job', job.serverId, 'update', {
                     status: 'cancelled',
