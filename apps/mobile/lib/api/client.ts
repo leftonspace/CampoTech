@@ -7,10 +7,15 @@
 
 import * as SecureStore from '../storage/secure-store';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3001/api';
+// For development: Use your computer's local IP address
+// Find your IP with: ipconfig (Windows) or ifconfig (Mac/Linux)
+const DEV_API_URL = 'http://192.168.0.14:3000/api';
+
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || DEV_API_URL;
 
 // Debug: Log the API URL on startup
 console.log('[API Client] Using API_BASE_URL:', API_BASE_URL);
+console.log('[API Client] EXPO_PUBLIC_API_URL env:', process.env.EXPO_PUBLIC_API_URL);
 
 interface ApiResponse<T> {
   success: boolean;
