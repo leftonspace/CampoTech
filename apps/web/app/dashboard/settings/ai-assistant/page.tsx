@@ -20,6 +20,11 @@ import {
   AlertTriangle,
   CheckCircle,
   Sparkles,
+  Send,
+  RefreshCw,
+  Zap,
+  User,
+  Loader2,
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -63,6 +68,25 @@ interface AIConfig {
   awayMessage: string;
   transferKeywords: string[];
   escalationUserId: string;
+}
+
+interface TestMessage {
+  role: 'customer' | 'assistant';
+  content: string;
+  analysis?: {
+    intent: string;
+    confidence: number;
+    shouldCreateJob: boolean;
+    shouldTransfer: boolean;
+    suggestedTechnician?: { id: string; name: string } | null;
+    suggestedTimeSlot?: { date: string; start: string; end: string } | null;
+  };
+}
+
+interface TestContext {
+  availableTechnicians: number;
+  totalTechnicians: number;
+  availableSlots: number;
 }
 
 const DAYS_OF_WEEK = [
@@ -161,11 +185,17 @@ async function fetchTeamMembers(): Promise<Array<{ id: string; name: string; rol
 export default function AIAssistantSettingsPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'general' | 'company' | 'hours' | 'faq' | 'advanced'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'company' | 'hours' | 'faq' | 'advanced' | 'test'>('general');
   const [config, setConfig] = useState<AIConfig>(DEFAULT_CONFIG);
   const [hasChanges, setHasChanges] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Test chat state
+  const [testMessages, setTestMessages] = useState<TestMessage[]>([]);
+  const [testInput, setTestInput] = useState('');
+  const [testLoading, setTestLoading] = useState(false);
+  const [testContext, setTestContext] = useState<TestContext | null>(null);
 
   const { data: savedConfig, isLoading } = useQuery({
     queryKey: ['ai-config'],
@@ -269,6 +299,86 @@ export default function AIAssistantSettingsPage() {
     updateConfig('transferKeywords', config.transferKeywords.filter((_, i) => i !== index));
   };
 
+  // Test chat functions
+  const sendTestMessage = async () => {
+    if (!testInput.trim() || testLoading) return;
+
+    const customerMessage: TestMessage = {
+      role: 'customer',
+      content: testInput.trim(),
+    };
+
+    setTestMessages((prev) => [...prev, customerMessage]);
+    setTestInput('');
+    setTestLoading(true);
+
+    try {
+      const res = await fetch('/api/settings/ai-assistant/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: customerMessage.content,
+          config: {
+            companyName: config.companyName,
+            companyDescription: config.companyDescription,
+            servicesOffered: config.servicesOffered,
+            businessHours: config.businessHours,
+            serviceAreas: config.serviceAreas,
+            pricingInfo: config.pricingInfo,
+            cancellationPolicy: config.cancellationPolicy,
+            paymentMethods: config.paymentMethods,
+            warrantyInfo: config.warrantyInfo,
+            faqItems: config.faqItems,
+            customInstructions: config.customInstructions,
+            aiTone: config.aiTone,
+            minConfidenceToRespond: config.minConfidenceToRespond,
+            minConfidenceToCreateJob: config.minConfidenceToCreateJob,
+          },
+          conversationHistory: testMessages.map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
+        }),
+      });
+
+      if (!res.ok) throw new Error('Error en la prueba');
+
+      const data = await res.json();
+
+      const assistantMessage: TestMessage = {
+        role: 'assistant',
+        content: data.analysis.suggestedResponse,
+        analysis: {
+          intent: data.analysis.intent,
+          confidence: data.analysis.confidence,
+          shouldCreateJob: data.analysis.shouldCreateJob,
+          shouldTransfer: data.analysis.shouldTransfer,
+          suggestedTechnician: data.analysis.suggestedTechnician,
+          suggestedTimeSlot: data.analysis.suggestedTimeSlot,
+        },
+      };
+
+      setTestMessages((prev) => [...prev, assistantMessage]);
+      setTestContext(data.context);
+    } catch (err) {
+      setTestMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: 'Error: No se pudo procesar el mensaje. Verificá tu conexión.',
+          analysis: { intent: 'error', confidence: 0, shouldCreateJob: false, shouldTransfer: true },
+        },
+      ]);
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  const resetTestChat = () => {
+    setTestMessages([]);
+    setTestContext(null);
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -357,6 +467,7 @@ export default function AIAssistantSettingsPage() {
             { key: 'hours', label: 'Horarios', icon: Clock },
             { key: 'faq', label: 'Preguntas frecuentes', icon: HelpCircle },
             { key: 'advanced', label: 'Avanzado', icon: Sparkles },
+            { key: 'test', label: 'Probar', icon: Zap },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -861,6 +972,163 @@ export default function AIAssistantSettingsPage() {
 - No dar información sobre la competencia
 - Si el cliente menciona urgencia, priorizar disponibilidad inmediata`}
               />
+            </div>
+          </div>
+        )}
+
+        {/* Test Tab */}
+        {activeTab === 'test' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">Zona de Pruebas</h3>
+                <p className="text-sm text-gray-500">
+                  Probá el asistente con la configuración actual (sin guardar). Los cambios se reflejan en tiempo real.
+                </p>
+              </div>
+              <button
+                onClick={resetTestChat}
+                className="btn-outline flex items-center gap-2"
+                disabled={testMessages.length === 0}
+              >
+                <RefreshCw className="h-4 w-4" />
+                Nueva conversación
+              </button>
+            </div>
+
+            {/* Context Info */}
+            {testContext && (
+              <div className="rounded-lg bg-blue-50 p-3">
+                <p className="text-sm text-blue-700">
+                  <strong>Datos en tiempo real:</strong> {testContext.availableTechnicians} de{' '}
+                  {testContext.totalTechnicians} técnicos disponibles • {testContext.availableSlots} turnos libres próximos días
+                </p>
+              </div>
+            )}
+
+            {/* Chat Container */}
+            <div className="rounded-lg border bg-gray-50 h-[400px] flex flex-col">
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                {testMessages.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                    <MessageSquare className="h-12 w-12 mb-3 text-gray-300" />
+                    <p className="text-sm">Escribí un mensaje como si fueras un cliente</p>
+                    <p className="text-xs mt-1">Ejemplos: "Hola, necesito instalar un aire" o "¿Cuánto sale una limpieza?"</p>
+                  </div>
+                ) : (
+                  testMessages.map((msg, index) => (
+                    <div
+                      key={index}
+                      className={`flex ${msg.role === 'customer' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[80%] rounded-lg p-3 ${
+                          msg.role === 'customer'
+                            ? 'bg-primary-600 text-white'
+                            : 'bg-white border shadow-sm'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          {msg.role === 'assistant' && (
+                            <Bot className="h-5 w-5 text-primary-600 mt-0.5 flex-shrink-0" />
+                          )}
+                          <div className="flex-1">
+                            <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                            {msg.role === 'assistant' && msg.analysis && (
+                              <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
+                                <div className="flex flex-wrap gap-2 text-xs">
+                                  <span
+                                    className={`px-2 py-0.5 rounded-full ${
+                                      msg.analysis.confidence >= 85
+                                        ? 'bg-green-100 text-green-700'
+                                        : msg.analysis.confidence >= 70
+                                          ? 'bg-yellow-100 text-yellow-700'
+                                          : 'bg-red-100 text-red-700'
+                                    }`}
+                                  >
+                                    {msg.analysis.confidence}% confianza
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                                    {msg.analysis.intent}
+                                  </span>
+                                  {msg.analysis.shouldCreateJob && (
+                                    <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                      Crear trabajo
+                                    </span>
+                                  )}
+                                  {msg.analysis.shouldTransfer && (
+                                    <span className="px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                                      Transferir
+                                    </span>
+                                  )}
+                                </div>
+                                {msg.analysis.suggestedTechnician && (
+                                  <p className="text-xs text-gray-500">
+                                    👷 Técnico sugerido: {msg.analysis.suggestedTechnician.name}
+                                  </p>
+                                )}
+                                {msg.analysis.suggestedTimeSlot && (
+                                  <p className="text-xs text-gray-500">
+                                    📅 Turno sugerido: {msg.analysis.suggestedTimeSlot.date}{' '}
+                                    {msg.analysis.suggestedTimeSlot.start}-{msg.analysis.suggestedTimeSlot.end}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          {msg.role === 'customer' && (
+                            <User className="h-5 w-5 text-white/70 mt-0.5 flex-shrink-0" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+                {testLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-white border rounded-lg p-3 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-primary-600" />
+                        <span className="text-sm text-gray-500">El AI está pensando...</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Input */}
+              <div className="border-t p-3 bg-white rounded-b-lg">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={testInput}
+                    onChange={(e) => setTestInput(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && sendTestMessage()}
+                    placeholder="Escribí como si fueras un cliente..."
+                    className="input flex-1"
+                    disabled={testLoading}
+                  />
+                  <button
+                    onClick={sendTestMessage}
+                    disabled={!testInput.trim() || testLoading}
+                    className="btn-primary px-4"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Tips */}
+            <div className="rounded-lg bg-amber-50 p-4">
+              <h4 className="font-medium text-amber-900 mb-2">💡 Consejos para probar</h4>
+              <ul className="text-sm text-amber-800 space-y-1">
+                <li>• Probá diferentes tipos de mensajes: consultas, reservas, quejas</li>
+                <li>• El AI usa tus datos reales de técnicos y turnos disponibles</li>
+                <li>• Ajustá la configuración en otras pestañas y probá de nuevo acá</li>
+                <li>• Los cambios son en tiempo real - no necesitás guardar para probar</li>
+              </ul>
             </div>
           </div>
         )}
