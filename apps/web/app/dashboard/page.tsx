@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
-import { useAuth } from '@/contexts/auth-context';
+import { useAuth } from '@/lib/auth-context';
 import { formatCurrency, JOB_STATUS_LABELS } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 import {
