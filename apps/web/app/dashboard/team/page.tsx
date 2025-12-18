@@ -698,6 +698,34 @@ function MyScheduleTab({ userId }: { userId?: string }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CONSTANTS FOR TEAM MEMBER FORM
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const SPECIALTY_OPTIONS = [
+  { value: '', label: 'Sin especialidad' },
+  { value: 'PLOMERO', label: 'Plomero' },
+  { value: 'ELECTRICISTA', label: 'Electricista' },
+  { value: 'GASISTA', label: 'Gasista' },
+  { value: 'CALEFACCIONISTA', label: 'Calefaccionista' },
+  { value: 'REFRIGERACION', label: 'Refrigeración' },
+  { value: 'ALBANIL', label: 'Albañil' },
+  { value: 'PINTOR', label: 'Pintor' },
+  { value: 'CARPINTERO', label: 'Carpintero' },
+  { value: 'TECHISTA', label: 'Techista' },
+  { value: 'HERRERO', label: 'Herrero' },
+  { value: 'SOLDADOR', label: 'Soldador' },
+  { value: 'OTRO', label: 'Otro' },
+];
+
+const SKILL_LEVEL_OPTIONS = [
+  { value: '', label: 'Sin nivel asignado' },
+  { value: 'AYUDANTE', label: 'Ayudante' },
+  { value: 'MEDIO_OFICIAL', label: 'Medio Oficial' },
+  { value: 'OFICIAL', label: 'Oficial' },
+  { value: 'OFICIAL_ESPECIALIZADO', label: 'Oficial Especializado' },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // TEAM MEMBER MODAL (Add/Edit)
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -711,15 +739,20 @@ interface TeamMemberModalProps {
 function TeamMemberModal({ member, currentUserId, onClose, onSuccess }: TeamMemberModalProps) {
   const [formData, setFormData] = useState({
     name: member?.name || '',
-    phone: member?.phone || '',
+    countryCode: '+54',
+    phone: member?.phone?.replace(/^\+54/, '') || '',
     email: member?.email || '',
     role: member?.role || 'TECHNICIAN',
+    specialty: member?.specialty || '',
+    skillLevel: member?.skillLevel || '',
     isActive: member?.isActive ?? true,
+    sendWelcome: true,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isOwner = member?.role === 'OWNER';
+  const isEditing = !!member;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -727,13 +760,31 @@ function TeamMemberModal({ member, currentUserId, onClose, onSuccess }: TeamMemb
     setError(null);
 
     try {
+      // Combine country code with phone number
+      const fullPhone = formData.countryCode + formData.phone.replace(/\D/g, '');
+
       const url = member ? `/api/users/${member.id}` : '/api/users';
       const method = member ? 'PUT' : 'POST';
+
+      const payload: any = {
+        name: formData.name,
+        phone: fullPhone,
+        email: formData.email,
+        role: formData.role,
+        specialty: formData.specialty || null,
+        skillLevel: formData.skillLevel || null,
+        isActive: formData.isActive,
+      };
+
+      // Only include sendWelcome for new users
+      if (!member) {
+        payload.sendWelcome = formData.sendWelcome;
+      }
 
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -751,11 +802,11 @@ function TeamMemberModal({ member, currentUserId, onClose, onSuccess }: TeamMemb
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
+      <div className="w-full max-w-md rounded-xl bg-white shadow-xl my-8">
         <div className="flex items-center justify-between border-b p-4">
           <h2 className="text-lg font-semibold text-gray-900">
-            {member ? 'Editar Empleado' : 'Agregar Empleado'}
+            {member ? 'Editar Empleado' : 'Nuevo miembro'}
           </h2>
           <button onClick={onClose} className="p-1 rounded hover:bg-gray-100">
             <X className="h-5 w-5 text-gray-400" />
@@ -769,6 +820,7 @@ function TeamMemberModal({ member, currentUserId, onClose, onSuccess }: TeamMemb
             </div>
           )}
 
+          {/* Name */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Nombre *
@@ -778,27 +830,46 @@ function TeamMemberModal({ member, currentUserId, onClose, onSuccess }: TeamMemb
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="input w-full"
+              placeholder="Nombre completo"
               required
             />
           </div>
 
+          {/* Phone with country code */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Teléfono *
             </label>
-            <input
-              type="tel"
-              value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              className="input w-full"
-              required
-              disabled={!!member}
-            />
-            {member && (
-              <p className="mt-1 text-xs text-gray-500">El teléfono no se puede cambiar</p>
-            )}
+            <div className="flex gap-2">
+              <select
+                value={formData.countryCode}
+                onChange={(e) => setFormData({ ...formData, countryCode: e.target.value })}
+                className="input w-24 flex-shrink-0"
+                disabled={isEditing}
+              >
+                <option value="+54">AR +54</option>
+                <option value="+1">US +1</option>
+                <option value="+56">CL +56</option>
+                <option value="+598">UY +598</option>
+                <option value="+55">BR +55</option>
+                <option value="+52">MX +52</option>
+              </select>
+              <input
+                type="tel"
+                value={formData.phone}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                className="input flex-1"
+                placeholder="11 1234 5678"
+                required
+                disabled={isEditing}
+              />
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              {isEditing ? 'El teléfono no se puede cambiar' : 'Ej: 11 1234 5678 (10-11 dígitos)'}
+            </p>
           </div>
 
+          {/* Email */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Email *
@@ -808,10 +879,15 @@ function TeamMemberModal({ member, currentUserId, onClose, onSuccess }: TeamMemb
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="input w-full"
+              placeholder="email@ejemplo.com"
               required
             />
+            <p className="mt-1 text-xs text-gray-500">
+              Se enviará una notificación al empleado
+            </p>
           </div>
 
+          {/* Role */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Rol
@@ -828,6 +904,49 @@ function TeamMemberModal({ member, currentUserId, onClose, onSuccess }: TeamMemb
             </select>
           </div>
 
+          {/* Specialty */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Especialidad
+            </label>
+            <select
+              value={formData.specialty}
+              onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
+              className="input w-full"
+            >
+              {SPECIALTY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Oficio o área de trabajo del empleado
+            </p>
+          </div>
+
+          {/* Skill Level */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Nivel de Calificación
+            </label>
+            <select
+              value={formData.skillLevel}
+              onChange={(e) => setFormData({ ...formData, skillLevel: e.target.value })}
+              className="input w-full"
+            >
+              {SKILL_LEVEL_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500">
+              Según categorías UOCRA (CCT 76/75)
+            </p>
+          </div>
+
+          {/* Active checkbox */}
           <div>
             <label className="flex items-center gap-2">
               <input
@@ -841,6 +960,29 @@ function TeamMemberModal({ member, currentUserId, onClose, onSuccess }: TeamMemb
             </label>
           </div>
 
+          {/* Send welcome message (only for new members) */}
+          {!isEditing && (
+            <div className="p-3 bg-teal-50 rounded-lg border border-teal-200">
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={formData.sendWelcome}
+                  onChange={(e) => setFormData({ ...formData, sendWelcome: e.target.checked })}
+                  className="rounded text-teal-600 mt-0.5"
+                />
+                <div>
+                  <span className="text-sm font-medium text-teal-800">
+                    Enviar bienvenida y código de verificación
+                  </span>
+                  <p className="text-xs text-teal-600 mt-0.5">
+                    Se enviará por WhatsApp un mensaje de bienvenida con código de verificación (6 dígitos)
+                  </p>
+                </div>
+              </label>
+            </div>
+          )}
+
+          {/* Buttons */}
           <div className="flex gap-3 pt-4">
             <button type="button" onClick={onClose} className="btn-outline flex-1">
               Cancelar
