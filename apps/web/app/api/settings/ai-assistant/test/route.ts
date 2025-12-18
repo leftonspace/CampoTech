@@ -40,6 +40,7 @@ interface TestConfig {
   aiTone: string;
   minConfidenceToRespond: number;
   minConfidenceToCreateJob: number;
+  transferKeywords: string[];
 }
 
 interface TestRequest {
@@ -116,6 +117,37 @@ export async function POST(request: NextRequest) {
 
     if (!message?.trim()) {
       return NextResponse.json({ error: 'Mensaje requerido' }, { status: 400 });
+    }
+
+    // Check for transfer keywords BEFORE calling AI
+    const messageLower = message.toLowerCase();
+    const transferKeywords = config.transferKeywords || [];
+    const matchedKeyword = transferKeywords.find((keyword) =>
+      messageLower.includes(keyword.toLowerCase())
+    );
+
+    if (matchedKeyword) {
+      // Immediate transfer - don't call AI
+      return NextResponse.json({
+        success: true,
+        analysis: {
+          intent: 'transfer_keyword',
+          confidence: 100,
+          extractedEntities: {},
+          suggestedResponse: `[TRANSFERENCIA AUTOMÁTICA] Se detectó la palabra clave "${matchedKeyword}". Transfiriendo a un humano...`,
+          shouldCreateJob: false,
+          shouldTransfer: true,
+          transferReason: `Palabra clave detectada: "${matchedKeyword}"`,
+          suggestedTechnician: null,
+          suggestedTimeSlot: null,
+          warnings: [`Transferencia automática por palabra clave: ${matchedKeyword}`],
+        },
+        context: {
+          availableTechnicians: 0,
+          totalTechnicians: 0,
+          availableSlots: 0,
+        },
+      });
     }
 
     // Get real-time data from database
