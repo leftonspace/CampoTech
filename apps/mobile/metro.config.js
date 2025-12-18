@@ -2,8 +2,26 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 
+// Monorepo root directory
+const projectRoot = __dirname;
+
+// Set EXPO_ROUTER_APP_ROOT for monorepo compatibility
+// This tells expo-router where to find the app directory
+process.env.EXPO_ROUTER_APP_ROOT = path.resolve(projectRoot, 'app');
+const monorepoRoot = path.resolve(projectRoot, '../..');
+
 /** @type {import('expo/metro-config').MetroConfig} */
-const config = getDefaultConfig(__dirname);
+const config = getDefaultConfig(projectRoot);
+
+// Watch folders in the monorepo
+config.watchFolders = [monorepoRoot];
+
+// Configure module resolution for monorepo
+// Order matters: check app's node_modules first, then root
+config.resolver.nodeModulesPaths = [
+  path.resolve(projectRoot, 'node_modules'),
+  path.resolve(monorepoRoot, 'node_modules'),
+];
 
 // Exclude WatermelonDB from web builds completely
 config.resolver.resolveRequest = (context, moduleName, platform) => {
