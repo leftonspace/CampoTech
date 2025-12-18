@@ -44,7 +44,7 @@ export async function GET() {
           status: 'IN_PROGRESS',
           technicianId: { not: null },
         },
-      }).then((result) => result.length),
+      }).then((result: { technicianId: string | null }[]) => result.length),
 
       // Average rating from technician reviews
       prisma.review.aggregate({
