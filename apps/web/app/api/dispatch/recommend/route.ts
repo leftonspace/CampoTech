@@ -3,11 +3,22 @@
  *
  * Provides intelligent technician recommendations for job assignments
  * based on multiple factors: proximity, availability, skills, and workload.
+ *
+ * Supports two modes:
+ * - Algorithmic scoring (default): Fast, rule-based recommendations
+ * - AI-enhanced (useAI=true): Uses GPT-4o-mini for intelligent reasoning
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import {
+  getAIDispatchService,
+  isAIDispatchAvailable,
+  TechnicianData,
+  JobContext,
+  AIDispatchResult,
+} from '@/lib/services/ai-dispatch';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -23,6 +34,9 @@ interface RecommendationRequest {
   preferredTime?: string; // ISO datetime
   requiredSkillLevel?: string;
   excludeTechnicianIds?: string[];
+  useAI?: boolean; // Enable GPT-4o-mini powered recommendations
+  customerName?: string;
+  address?: string;
 }
 
 interface TechnicianRecommendation {
@@ -48,6 +62,10 @@ interface TechnicianRecommendation {
     completed: number;
     remaining: number;
   };
+  // AI-enhanced fields (only present when useAI=true)
+  aiReasoning?: string;
+  aiConfidence?: 'high' | 'medium' | 'low';
+  estimatedSuccessRate?: number;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -307,6 +325,9 @@ export async function POST(request: NextRequest) {
       urgency = 'NORMAL',
       requiredSkillLevel,
       excludeTechnicianIds = [],
+      useAI = false,
+      customerName,
+      address,
     } = body;
 
     if (!jobLocation?.lat || !jobLocation?.lng) {
@@ -487,7 +508,85 @@ export async function POST(request: NextRequest) {
     recommendations.sort((a, b) => b.score - a.score);
 
     // Take top 5 recommendations
-    const topRecommendations = recommendations.slice(0, 5);
+    let topRecommendations = recommendations.slice(0, 5);
+
+    // AI Enhancement (optional)
+    let aiResult: AIDispatchResult | null = null;
+    const aiAvailable = isAIDispatchAvailable();
+
+    if (useAI && aiAvailable && topRecommendations.length > 0) {
+      try {
+        const aiService = getAIDispatchService();
+
+        // Prepare data for AI analysis
+        const technicianDataForAI: TechnicianData[] = topRecommendations.map(
+          (rec) => ({
+            id: rec.id,
+            name: rec.name,
+            specialty: rec.specialty,
+            skillLevel: rec.skillLevel,
+            currentStatus: rec.currentStatus,
+            distanceKm: rec.distanceKm,
+            etaMinutes: rec.etaMinutes,
+            todaysWorkload: rec.todaysWorkload,
+            performanceScore: rec.score,
+            avgRating:
+              ratingsMap.get(rec.id) !== undefined
+                ? (ratingsMap.get(rec.id) as number | null)
+                : null,
+          })
+        );
+
+        const jobContext: JobContext = {
+          serviceType: serviceType || null,
+          urgency,
+          requiredSkillLevel: requiredSkillLevel || null,
+          customerName,
+          address,
+        };
+
+        aiResult = await aiService.getRecommendations(
+          technicianDataForAI,
+          jobContext
+        );
+
+        // Merge AI reasoning into recommendations
+        if (aiResult.recommendations.length > 0) {
+          const aiRecommendationsMap = new Map(
+            aiResult.recommendations.map((r) => [r.technicianId, r])
+          );
+
+          topRecommendations = topRecommendations.map((rec) => {
+            const aiRec = aiRecommendationsMap.get(rec.id);
+            if (aiRec) {
+              return {
+                ...rec,
+                aiReasoning: aiRec.reasoning,
+                aiConfidence: aiRec.confidence,
+                estimatedSuccessRate: aiRec.estimatedSuccessRate,
+                // Merge AI warnings with existing warnings
+                warnings: [...new Set([...rec.warnings, ...aiRec.warnings])],
+              };
+            }
+            return rec;
+          });
+
+          // Re-sort based on AI ranking if available
+          topRecommendations.sort((a, b) => {
+            const aRank =
+              aiResult!.recommendations.find((r) => r.technicianId === a.id)
+                ?.rank ?? 999;
+            const bRank =
+              aiResult!.recommendations.find((r) => r.technicianId === b.id)
+                ?.rank ?? 999;
+            return aRank - bRank;
+          });
+        }
+      } catch (aiError) {
+        console.error('AI enhancement failed, using algorithmic results:', aiError);
+        // Continue with algorithmic recommendations
+      }
+    }
 
     return NextResponse.json({
       success: true,
@@ -499,6 +598,11 @@ export async function POST(request: NextRequest) {
         serviceType: serviceType || null,
         scoringWeights: SCORING_WEIGHTS,
         generatedAt: new Date().toISOString(),
+        // AI-specific response fields
+        aiEnhanced: useAI && aiResult !== null,
+        aiAvailable,
+        aiSummary: aiResult?.summary || null,
+        aiAlternativeStrategy: aiResult?.alternativeStrategy || null,
       },
     });
   } catch (error) {
