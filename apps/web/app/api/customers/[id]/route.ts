@@ -23,6 +23,8 @@ export async function GET(
     }
 
     const { id } = await params;
+
+    // Fetch customer with recent jobs and invoices
     const customer = await prisma.customer.findFirst({
       where: {
         id,
@@ -32,6 +34,11 @@ export async function GET(
         jobs: {
           orderBy: { createdAt: 'desc' },
           take: 10,
+          include: {
+            technician: {
+              select: { id: true, name: true },
+            },
+          },
         },
         invoices: {
           orderBy: { createdAt: 'desc' },
@@ -47,11 +54,43 @@ export async function GET(
       );
     }
 
+    // Get computed statistics
+    const [jobCount, totalSpentResult, averageRatingResult] = await Promise.all([
+      // Total job count
+      prisma.job.count({
+        where: { customerId: id },
+      }),
+      // Total spent from paid/sent invoices
+      prisma.invoice.aggregate({
+        where: {
+          customerId: id,
+          status: { in: ['PAID', 'SENT'] },
+        },
+        _sum: { total: true },
+      }),
+      // Average rating from reviews
+      prisma.review.aggregate({
+        where: {
+          customerId: id,
+          rating: { not: null },
+        },
+        _avg: { rating: true },
+      }),
+    ]);
+
+    // Enrich customer with computed fields
+    const enrichedCustomer = {
+      ...customer,
+      jobCount,
+      totalSpent: Number(totalSpentResult._sum.total) || 0,
+      averageRating: averageRatingResult._avg.rating || null,
+    };
+
     // Normalize user role for permission checking
     const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Filter data based on user role
-    const filteredData = filterEntityByRole(customer, 'customer', userRole);
+    const filteredData = filterEntityByRole(enrichedCustomer, 'customer', userRole);
     const fieldMeta = getEntityFieldMetadata('customer', userRole);
 
     return NextResponse.json({
