@@ -37,6 +37,9 @@ interface ChatWindowProps {
   onDisableAI?: (minutes: number) => void;
   onEnableAI?: () => void;
   onGoToSettings?: () => void;
+  // Controlled input for copilot suggestions
+  inputValue?: string;
+  onInputChange?: (value: string) => void;
 }
 
 export default function ChatWindow({
@@ -55,6 +58,8 @@ export default function ChatWindow({
   onDisableAI,
   onEnableAI,
   onGoToSettings,
+  inputValue,
+  onInputChange,
 }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -311,6 +316,8 @@ export default function ChatWindow({
         isSending={isSending}
         onSend={onSendMessage}
         onSendTemplate={onSendTemplate}
+        value={inputValue}
+        onChange={onInputChange}
       />
 
       {/* Image modal */}
