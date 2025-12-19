@@ -537,105 +537,136 @@ interface JobCardProps {
 
 function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick }: JobCardProps) {
   const hasAssignment = job.assignments && job.assignments.length > 0;
-  const canCancel = job.status !== 'COMPLETED' && job.status !== 'CANCELLED';
+  const isCompleted = job.status === 'COMPLETED' || job.status === 'CANCELLED';
+  const canCancel = !isCompleted;
+  const canAssign = !isCompleted;
   const isUrgent = job.priority === 'urgent' || job.priority === 'high';
 
-  // Format time slot
-  const timeSlot = job.scheduledTimeStart && job.scheduledTimeEnd
-    ? `${job.scheduledTimeStart} - ${job.scheduledTimeEnd}`
-    : job.scheduledTimeStart || '';
+  // Parse time slot from JSON or use direct fields
+  let timeSlot = '';
+  if (job.scheduledTimeStart && job.scheduledTimeEnd) {
+    timeSlot = `${job.scheduledTimeStart} - ${job.scheduledTimeEnd}`;
+  } else if (job.scheduledTimeStart) {
+    timeSlot = job.scheduledTimeStart;
+  } else if ('scheduledTimeSlot' in job && job.scheduledTimeSlot) {
+    // Parse JSON time slot if available
+    try {
+      const slotData = job.scheduledTimeSlot;
+      const slot = typeof slotData === 'string' ? JSON.parse(slotData) : slotData;
+      if (slot?.start && slot?.end) {
+        timeSlot = `${slot.start} - ${slot.end}`;
+      } else if (slot?.start) {
+        timeSlot = slot.start;
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }
 
-  // Format service type
+  // Format service type as title
   const serviceTypeLabel = SERVICE_TYPE_LABELS[job.serviceType] || job.serviceType?.replace(/_/g, ' ') || '';
+
+  // Format price (if available from extended job data)
+  const estimatedPrice = 'estimatedPrice' in job ? (job as { estimatedPrice?: number }).estimatedPrice : null;
+  const totalPrice = 'total' in job ? (job as { total?: number }).total : null;
+  const priceValue = estimatedPrice || totalPrice;
+  const formattedPrice = priceValue
+    ? `$${Number(priceValue).toLocaleString('es-AR')}`
+    : null;
 
   return (
     <Link
       href={`/dashboard/jobs/${job.id}`}
-      className="card p-4 hover:shadow-md transition-shadow block"
+      className="bg-white rounded-lg border border-gray-200 p-4 mb-3 hover:shadow-md hover:border-gray-300 transition-all block"
     >
-      <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-        {/* Job Info Section */}
-        <div className="flex-1 min-w-0 lg:w-[35%]">
-          <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className="text-sm text-gray-500">{job.jobNumber}</span>
-            <span className={cn(
-              'px-2 py-0.5 text-xs font-medium rounded-full border',
-              STATUS_BADGE_COLORS[job.status]
-            )}>
-              {JOB_STATUS_LABELS[job.status]}
-            </span>
-            {isUrgent && (
-              <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-red-500 text-white">
-                {PRIORITY_LABELS[job.priority]}
-              </span>
-            )}
-          </div>
-          <h3 className="font-semibold text-gray-900 truncate">
+      {/* Row 1: Job ID + Badges */}
+      <div className="flex items-center gap-2 flex-wrap mb-2">
+        <span className="text-sm text-gray-500 font-mono">{job.jobNumber}</span>
+        <span className={cn(
+          'px-2 py-0.5 text-xs font-medium rounded-full border',
+          STATUS_BADGE_COLORS[job.status]
+        )}>
+          {JOB_STATUS_LABELS[job.status]}
+        </span>
+        {isUrgent && (
+          <span className="px-2 py-0.5 text-xs font-medium rounded-full border border-red-300 bg-red-50 text-red-600">
+            {PRIORITY_LABELS[job.priority]}
+          </span>
+        )}
+      </div>
+
+      {/* Main Content: 4 Sections */}
+      <div className="flex flex-col lg:flex-row lg:items-start gap-4">
+        {/* Section 1: Job Info (35%) */}
+        <div className="flex-1 min-w-0 lg:max-w-[35%]">
+          <h3 className="font-semibold text-gray-900 text-base truncate">
             {serviceTypeLabel || job.description || 'Trabajo sin descripción'}
           </h3>
           {job.description && serviceTypeLabel && (
-            <p className="text-sm text-gray-500 truncate mt-0.5">{job.description}</p>
+            <p className="text-sm text-gray-500 truncate mt-1">{job.description}</p>
           )}
         </div>
 
-        {/* Customer Info Section */}
-        <div className="lg:w-[20%] min-w-0">
-          <div className="flex items-center gap-2 text-sm">
-            <User className="h-4 w-4 text-gray-400 shrink-0" />
+        {/* Section 2: Customer Info (25%) */}
+        <div className="lg:w-48 flex-shrink-0 min-w-0">
+          <div className="flex items-center gap-1.5 text-sm text-gray-700">
+            <User className="h-3.5 w-3.5 text-gray-400 shrink-0" />
             <span className="truncate">{job.customer?.name || 'Sin cliente'}</span>
           </div>
           {job.address && (
-            <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-              <MapPin className="h-4 w-4 text-gray-400 shrink-0" />
+            <div className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
+              <MapPin className="h-3.5 w-3.5 text-gray-400 shrink-0" />
               <span className="truncate">{job.address}</span>
             </div>
           )}
         </div>
 
-        {/* Schedule Info Section */}
-        <div className="lg:w-[15%]">
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="h-4 w-4 text-gray-400" />
+        {/* Section 3: Schedule Info (20%) */}
+        <div className="lg:w-36 flex-shrink-0">
+          <div className="flex items-center gap-1.5 text-sm text-gray-700">
+            <Calendar className="h-3.5 w-3.5 text-gray-400" />
             <span>{job.scheduledDate ? formatDate(job.scheduledDate) : 'Sin fecha'}</span>
           </div>
           {timeSlot && (
-            <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
-              <Clock className="h-4 w-4 text-gray-400" />
+            <div className="flex items-center gap-1.5 text-sm text-gray-500 mt-1">
+              <Clock className="h-3.5 w-3.5 text-gray-400" />
               <span>{timeSlot}</span>
             </div>
           )}
         </div>
 
-        {/* Technician Section */}
-        <div className="lg:w-[15%]">
+        {/* Section 4: Technician + Price + Actions (20%) */}
+        <div className="lg:w-44 flex-shrink-0 flex items-center justify-end gap-3">
+          {/* Technician display */}
           {hasAssignment ? (
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-teal-500 flex items-center justify-center text-white text-xs font-medium">
+              <div className="w-7 h-7 rounded-full bg-teal-500 flex items-center justify-center text-white text-xs font-medium">
                 {getInitials(job.assignments![0].technician?.name || '')}
               </div>
-              <span className="text-sm truncate">
+              <span className="text-sm text-gray-700 truncate max-w-[80px]">
                 {job.assignments![0].technician?.name}
                 {job.assignments!.length > 1 && (
                   <span className="text-gray-400 ml-1">+{job.assignments!.length - 1}</span>
                 )}
               </span>
             </div>
-          ) : (
+          ) : canAssign ? (
             <button
               onClick={(e) => onAssignClick(job, e)}
-              className="btn-outline text-sm py-1.5 px-3"
+              className="btn-outline text-sm py-1 px-2"
             >
               Asignar
             </button>
+          ) : (
+            <span className="text-sm text-gray-400">-</span>
           )}
-        </div>
 
-        {/* Price and Actions Section */}
-        <div className="lg:w-[15%] flex items-center justify-between lg:justify-end gap-4">
-          {/* Price placeholder - would come from job.estimatedPrice */}
-          <span className="font-semibold text-gray-900">
-            {/* $15.000 */}
-          </span>
+          {/* Price */}
+          {formattedPrice && (
+            <span className="font-semibold text-gray-900 whitespace-nowrap">
+              {formattedPrice}
+            </span>
+          )}
 
           {/* 3-dot menu */}
           <div className="relative">
@@ -643,7 +674,7 @@ function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick }: JobC
               onClick={(e) => onMenuClick(job.id, e)}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
             >
-              <MoreHorizontal className="h-5 w-5 text-gray-400" />
+              <MoreHorizontal className="h-4 w-4 text-gray-400" />
             </button>
 
             {openMenuId === job.id && (
