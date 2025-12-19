@@ -1,38 +1,234 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { cn, formatCurrency } from '@/lib/utils';
 import {
   Package,
-  Warehouse,
-  AlertTriangle,
-  ArrowRight,
   Plus,
-  ArrowUpDown,
-  BarChart3,
+  Search,
+  CheckCircle,
+  TrendingDown,
+  AlertTriangle,
+  MoreHorizontal,
+  Eye,
+  Edit2,
+  Minus,
+  RefreshCw,
+  Trash2,
+  MapPin,
+  Filter,
+  X,
 } from 'lucide-react';
+import InventoryItemModal from './InventoryItemModal';
 
-interface InventoryStats {
-  totalProducts: number;
-  totalWarehouses: number;
-  lowStockItems: number;
-  pendingOrders: number;
-  pendingReceiving: number;
-  totalStockValue: number;
-  replenishmentRequests: number;
+// ═══════════════════════════════════════════════════════════════════════════════
+// TYPES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface InventoryStock {
+  locationId: string;
+  locationName: string;
+  locationType: string;
+  quantity: number;
+  availableQuantity: number;
 }
 
+interface InventoryItem {
+  id: string;
+  sku: string;
+  name: string;
+  description?: string;
+  category: string;
+  unit: string;
+  minStockLevel: number;
+  costPrice: number;
+  salePrice: number;
+  isActive: boolean;
+  totalStock: number;
+  isLowStock: boolean;
+  stocksByLocation: InventoryStock[];
+}
+
+interface InventoryLocation {
+  id: string;
+  name: string;
+  locationType: string;
+  vehicle?: {
+    plateNumber: string;
+    make: string;
+    model: string;
+  };
+}
+
+type StockStatus = 'normal' | 'low' | 'critical';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const CATEGORY_LABELS: Record<string, string> = {
+  PARTS: 'Repuestos',
+  CONSUMABLES: 'Consumibles',
+  TOOLS: 'Herramientas',
+  EQUIPMENT: 'Equipos',
+  REFRIGERATION: 'Refrigeración',
+  ELECTRICAL: 'Eléctrico',
+  PLUMBING: 'Plomería',
+  GAS: 'Gas',
+  OTHER: 'Otros',
+};
+
+const UNIT_LABELS: Record<string, string> = {
+  unidad: 'unidades',
+  metro: 'metros',
+  litro: 'litros',
+  kg: 'kg',
+  rollo: 'rollos',
+  tubo: 'tubos',
+  pieza: 'piezas',
+  caja: 'cajas',
+  paquete: 'paquetes',
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UTILITY FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function getStockStatus(currentStock: number, minStock: number): StockStatus {
+  if (currentStock <= minStock) return 'critical';
+  if (currentStock <= minStock * 1.5) return 'low';
+  return 'normal';
+}
+
+function getStockPercentage(currentStock: number, minStock: number): number {
+  // Progress bar fills up at 2x minimum stock (healthy level)
+  const healthyLevel = minStock * 2;
+  const percentage = (currentStock / healthyLevel) * 100;
+  return Math.min(percentage, 100);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
 export default function InventoryPage() {
-  const { data: statsData, isLoading } = useQuery({
-    queryKey: ['inventory-stats'],
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  // State
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [locationFilter, setLocationFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<StockStatus | ''>('');
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+
+  // Fetch items
+  const { data: itemsData, isLoading: itemsLoading } = useQuery({
+    queryKey: ['inventory-items', search, categoryFilter, locationFilter],
     queryFn: async () => {
-      const res = await fetch('/api/inventory/products?view=stats');
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      if (categoryFilter) params.set('category', categoryFilter);
+      if (locationFilter) params.set('locationId', locationFilter);
+      const res = await fetch(`/api/inventory/items?${params.toString()}`);
+      if (!res.ok) throw new Error('Error loading inventory');
       return res.json();
     },
   });
 
-  const stats = statsData?.data as InventoryStats | undefined;
+  // Fetch locations
+  const { data: locationsData } = useQuery({
+    queryKey: ['inventory-locations'],
+    queryFn: async () => {
+      const res = await fetch('/api/inventory/locations');
+      if (!res.ok) throw new Error('Error loading locations');
+      return res.json();
+    },
+  });
+
+  const items: InventoryItem[] = itemsData?.data?.items || [];
+  const locations: InventoryLocation[] = locationsData?.data?.locations || [];
+
+  // Get unique categories from items
+  const categories = useMemo(() => {
+    const cats = items.map(item => item.category).filter(Boolean);
+    return Array.from(new Set(cats));
+  }, [items]);
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const total = items.length;
+    let normal = 0;
+    let low = 0;
+    let critical = 0;
+
+    items.forEach(item => {
+      const status = getStockStatus(item.totalStock, item.minStockLevel);
+      if (status === 'normal') normal++;
+      else if (status === 'low') low++;
+      else critical++;
+    });
+
+    return { total, normal, low, critical };
+  }, [items]);
+
+  // Filter items by status
+  const filteredItems = useMemo(() => {
+    if (!statusFilter) return items;
+    return items.filter(item => {
+      const status = getStockStatus(item.totalStock, item.minStockLevel);
+      return status === statusFilter;
+    });
+  }, [items, statusFilter]);
+
+  // Check if any filters are active
+  const hasActiveFilters = search || categoryFilter || locationFilter || statusFilter;
+
+  const clearFilters = () => {
+    setSearch('');
+    setCategoryFilter('');
+    setLocationFilter('');
+    setStatusFilter('');
+  };
+
+  // Handle menu click
+  const handleMenuClick = (itemId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpenMenuId(openMenuId === itemId ? null : itemId);
+  };
+
+  // Handle action
+  const handleAction = (action: string, item: InventoryItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setOpenMenuId(null);
+
+    switch (action) {
+      case 'view':
+        setSelectedItemId(item.id);
+        break;
+      case 'edit':
+        router.push(`/dashboard/inventory/products/${item.id}/edit`);
+        break;
+      case 'add-stock':
+        router.push(`/dashboard/inventory/stock/adjust?itemId=${item.id}&type=add`);
+        break;
+      case 'reduce-stock':
+        router.push(`/dashboard/inventory/stock/adjust?itemId=${item.id}&type=reduce`);
+        break;
+      case 'transfer':
+        router.push(`/dashboard/inventory/stock/transfer?itemId=${item.id}`);
+        break;
+      case 'delete':
+        if (confirm(`¿Estás seguro de eliminar "${item.name}"?`)) {
+          // TODO: Implement delete
+        }
+        break;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -40,235 +236,427 @@ export default function InventoryPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Inventario</h1>
-          <p className="text-gray-500">Gestiona productos y stock en oficina y vehículos</p>
+          <p className="text-gray-500">Gestiona productos y stock</p>
         </div>
-        <div className="flex gap-2">
-          <Link href="/dashboard/inventory/products/new" className="btn-primary">
-            <Plus className="mr-2 h-4 w-4" />
-            Nuevo producto
-          </Link>
-        </div>
+        <Link href="/dashboard/inventory/products/new" className="btn-primary">
+          <Plus className="mr-2 h-4 w-4" />
+          Nuevo Producto
+        </Link>
       </div>
 
-      {/* Stats cards */}
+      {/* Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Productos"
-          value={stats?.totalProducts ?? '-'}
+          title="Total Productos"
+          value={stats.total}
           icon={Package}
-          loading={isLoading}
-          color="blue"
-          href="/dashboard/inventory/products"
+          iconBg="bg-teal-100"
+          iconColor="text-teal-600"
+          loading={itemsLoading}
+          onClick={() => setStatusFilter('')}
+          active={statusFilter === ''}
         />
         <StatCard
-          title="Almacenes"
-          value={stats?.totalWarehouses ?? '-'}
-          icon={Warehouse}
-          loading={isLoading}
-          color="green"
-          href="/dashboard/inventory/warehouses"
+          title="Stock Normal"
+          value={stats.normal}
+          valueColor="text-green-600"
+          icon={CheckCircle}
+          iconBg="bg-green-100"
+          iconColor="text-green-600"
+          loading={itemsLoading}
+          onClick={() => setStatusFilter('normal')}
+          active={statusFilter === 'normal'}
         />
         <StatCard
-          title="Stock bajo"
-          value={stats?.lowStockItems ?? '-'}
+          title="Stock Bajo"
+          value={stats.low}
+          valueColor="text-orange-600"
+          icon={TrendingDown}
+          iconBg="bg-orange-100"
+          iconColor="text-orange-600"
+          loading={itemsLoading}
+          onClick={() => setStatusFilter('low')}
+          active={statusFilter === 'low'}
+        />
+        <StatCard
+          title="Crítico"
+          value={stats.critical}
+          valueColor="text-red-600"
           icon={AlertTriangle}
-          loading={isLoading}
-          color="yellow"
-          href="/dashboard/inventory/stock?filter=low"
-        />
-        <StatCard
-          title="Valor total"
-          value={stats?.totalStockValue ? formatCurrency(stats.totalStockValue) : '-'}
-          icon={BarChart3}
-          loading={isLoading}
-          color="purple"
+          iconBg="bg-red-100"
+          iconColor="text-red-600"
+          loading={itemsLoading}
+          onClick={() => setStatusFilter('critical')}
+          active={statusFilter === 'critical'}
         />
       </div>
 
-      {/* Low stock alerts */}
-      <div className="card">
-        <div className="card-header flex flex-row items-center justify-between">
-          <h2 className="card-title text-lg">Alertas de stock</h2>
-          <Link
-            href="/dashboard/inventory/stock?filter=low"
-            className="text-sm text-primary-600 hover:underline"
+      {/* Filters */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        {/* Search */}
+        <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar productos..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+          />
+        </div>
+
+        {/* Category Filter */}
+        <select
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter(e.target.value)}
+          className="rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+        >
+          <option value="">Todas las categorías</option>
+          {categories.map((cat) => (
+            <option key={cat} value={cat}>
+              {CATEGORY_LABELS[cat] || cat}
+            </option>
+          ))}
+        </select>
+
+        {/* Location Filter */}
+        <select
+          value={locationFilter}
+          onChange={(e) => setLocationFilter(e.target.value)}
+          className="rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
+        >
+          <option value="">Todas las ubicaciones</option>
+          {locations.map((loc) => (
+            <option key={loc.id} value={loc.id}>
+              {loc.name}
+              {loc.vehicle && ` (${loc.vehicle.plateNumber})`}
+            </option>
+          ))}
+        </select>
+
+        {/* Clear Filters */}
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="flex items-center gap-1 px-3 py-2 text-sm text-gray-600 hover:text-gray-900"
           >
-            Ver todo
-            <ArrowRight className="ml-1 inline h-4 w-4" />
-          </Link>
-        </div>
-        <div className="card-content">
-          <LowStockList />
-        </div>
+            <X className="h-4 w-4" />
+            Limpiar
+          </button>
+        )}
       </div>
 
-      {/* Quick actions */}
-      <div className="card">
-        <div className="card-header">
-          <h2 className="card-title text-lg">Acciones rápidas</h2>
-        </div>
-        <div className="card-content">
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <QuickAction
-              href="/dashboard/inventory/products"
-              icon={Package}
-              title="Productos"
-              description="Catálogo de productos"
-            />
-            <QuickAction
-              href="/dashboard/inventory/stock"
-              icon={ArrowUpDown}
-              title="Movimientos"
-              description="Ver movimientos de stock"
-            />
-            <QuickAction
-              href="/dashboard/inventory/warehouses"
-              icon={Warehouse}
-              title="Almacenes"
-              description="Gestionar ubicaciones"
-            />
+      {/* Products Table */}
+      <div className="card overflow-hidden">
+        {itemsLoading ? (
+          <div className="p-8 text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
+            <p className="mt-2 text-gray-500">Cargando productos...</p>
           </div>
-        </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="p-12 text-center">
+            <Package className="mx-auto h-12 w-12 text-gray-300" />
+            <h3 className="mt-4 text-lg font-medium text-gray-900">
+              {hasActiveFilters ? 'Sin resultados' : 'No hay productos'}
+            </h3>
+            <p className="mt-2 text-sm text-gray-500">
+              {hasActiveFilters
+                ? 'No se encontraron productos con los filtros seleccionados'
+                : 'Agregá tu primer producto para comenzar'}
+            </p>
+            {hasActiveFilters ? (
+              <button onClick={clearFilters} className="btn-outline mt-4">
+                Limpiar filtros
+              </button>
+            ) : (
+              <Link href="/dashboard/inventory/products/new" className="btn-primary mt-4 inline-flex">
+                <Plus className="mr-2 h-4 w-4" />
+                Agregar Producto
+              </Link>
+            )}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Producto
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Categoría
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Stock
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Ubicación
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Precio
+                  </th>
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Estado
+                  </th>
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {filteredItems.map((item) => {
+                  const status = getStockStatus(item.totalStock, item.minStockLevel);
+                  const percentage = getStockPercentage(item.totalStock, item.minStockLevel);
+                  const primaryLocation = item.stocksByLocation[0];
+
+                  return (
+                    <tr
+                      key={item.id}
+                      className="hover:bg-gray-50 transition-colors cursor-pointer"
+                      onClick={() => setSelectedItemId(item.id)}
+                    >
+                      {/* Product */}
+                      <td className="px-4 py-4">
+                        <div>
+                          <p className="font-medium text-gray-900">{item.name}</p>
+                          <p className="text-sm text-gray-500">{item.sku}</p>
+                        </div>
+                      </td>
+
+                      {/* Category */}
+                      <td className="px-4 py-4">
+                        <span className="text-sm text-gray-600">
+                          {CATEGORY_LABELS[item.category] || item.category}
+                        </span>
+                      </td>
+
+                      {/* Stock */}
+                      <td className="px-4 py-4">
+                        <div className="w-32">
+                          <p className="text-sm font-medium text-gray-900">
+                            {item.totalStock} {UNIT_LABELS[item.unit] || item.unit}
+                          </p>
+                          <StockProgressBar percentage={percentage} status={status} />
+                          <p className="text-xs text-gray-400 mt-0.5">
+                            Mín: {item.minStockLevel}
+                          </p>
+                        </div>
+                      </td>
+
+                      {/* Location */}
+                      <td className="px-4 py-4">
+                        {item.stocksByLocation.length > 0 ? (
+                          <div className="flex items-center gap-1 text-sm text-gray-600">
+                            <MapPin className="h-3.5 w-3.5 text-gray-400" />
+                            <span>
+                              {primaryLocation?.locationName}
+                              {item.stocksByLocation.length > 1 && (
+                                <span className="text-gray-400"> +{item.stocksByLocation.length - 1}</span>
+                              )}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-sm text-gray-400">-</span>
+                        )}
+                      </td>
+
+                      {/* Price */}
+                      <td className="px-4 py-4">
+                        <span className="text-sm font-medium text-gray-900">
+                          {formatCurrency(item.salePrice)}
+                        </span>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-4 py-4">
+                        <StatusBadge status={status} />
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-4 py-4 text-right">
+                        <div className="relative inline-block">
+                          <button
+                            onClick={(e) => handleMenuClick(item.id, e)}
+                            className="p-1 rounded hover:bg-gray-100"
+                          >
+                            <MoreHorizontal className="h-5 w-5 text-gray-400" />
+                          </button>
+                          {openMenuId === item.id && (
+                            <div className="absolute right-0 mt-1 w-48 bg-white border rounded-lg shadow-lg z-10">
+                              <button
+                                onClick={(e) => handleAction('view', item, e)}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <Eye className="h-4 w-4" />
+                                Ver detalles
+                              </button>
+                              <button
+                                onClick={(e) => handleAction('edit', item, e)}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <Edit2 className="h-4 w-4" />
+                                Editar producto
+                              </button>
+                              <button
+                                onClick={(e) => handleAction('add-stock', item, e)}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <Plus className="h-4 w-4" />
+                                Agregar stock
+                              </button>
+                              <button
+                                onClick={(e) => handleAction('reduce-stock', item, e)}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <Minus className="h-4 w-4" />
+                                Reducir stock
+                              </button>
+                              <button
+                                onClick={(e) => handleAction('transfer', item, e)}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                                Transferir
+                              </button>
+                              <div className="border-t my-1" />
+                              <button
+                                onClick={(e) => handleAction('delete', item, e)}
+                                className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                                Eliminar
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
+
+      {/* Item Detail Modal */}
+      <InventoryItemModal
+        itemId={selectedItemId}
+        onClose={() => setSelectedItemId(null)}
+        onEdit={(itemId) => {
+          setSelectedItemId(null);
+          router.push(`/dashboard/inventory/products/${itemId}/edit`);
+        }}
+      />
     </div>
   );
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// COMPONENTS
+// STAT CARD COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
 interface StatCardProps {
   title: string;
-  value: string | number;
+  value: number;
+  valueColor?: string;
   icon: React.ElementType;
+  iconBg: string;
+  iconColor: string;
   loading?: boolean;
-  color: 'blue' | 'green' | 'yellow' | 'purple';
-  href?: string;
+  onClick?: () => void;
+  active?: boolean;
 }
 
-function StatCard({ title, value, icon: Icon, loading, color, href }: StatCardProps) {
-  const colorClasses = {
-    blue: 'bg-blue-100 text-blue-600',
-    green: 'bg-green-100 text-green-600',
-    yellow: 'bg-yellow-100 text-yellow-600',
-    purple: 'bg-purple-100 text-purple-600',
-  };
+function StatCard({
+  title,
+  value,
+  valueColor = 'text-gray-900',
+  icon: Icon,
+  iconBg,
+  iconColor,
+  loading,
+  onClick,
+  active,
+}: StatCardProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'card p-4 text-left transition-all hover:shadow-md w-full',
+        active && 'ring-2 ring-teal-500 bg-teal-50'
+      )}
+    >
+      <div className="flex items-center gap-4">
+        <div className={cn('rounded-full p-3', iconBg)}>
+          <Icon className={cn('h-5 w-5', iconColor)} />
+        </div>
+        <div>
+          <p className="text-sm text-gray-500">{title}</p>
+          {loading ? (
+            <div className="h-7 w-12 animate-pulse rounded bg-gray-200 mt-1" />
+          ) : (
+            <p className={cn('text-2xl font-bold', valueColor)}>{value}</p>
+          )}
+        </div>
+      </div>
+    </button>
+  );
+}
 
-  const content = (
-    <div className="flex items-center gap-4">
-      <div className={cn('rounded-full p-3', colorClasses[color])}>
-        <Icon className="h-5 w-5" />
-      </div>
-      <div>
-        <p className="text-sm text-gray-500">{title}</p>
-        {loading ? (
-          <div className="h-7 w-16 animate-pulse rounded bg-gray-200" />
-        ) : (
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
-        )}
-      </div>
+// ═══════════════════════════════════════════════════════════════════════════════
+// STOCK PROGRESS BAR COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface StockProgressBarProps {
+  percentage: number;
+  status: StockStatus;
+}
+
+function StockProgressBar({ percentage, status }: StockProgressBarProps) {
+  const colorClass = {
+    normal: 'bg-green-500',
+    low: 'bg-orange-500',
+    critical: 'bg-red-500',
+  }[status];
+
+  return (
+    <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+      <div
+        className={cn('h-1.5 rounded-full transition-all', colorClass)}
+        style={{ width: `${Math.max(percentage, 5)}%` }}
+      />
     </div>
   );
-
-  if (href) {
-    return (
-      <Link href={href} className="card p-4 transition-colors hover:bg-gray-50">
-        {content}
-      </Link>
-    );
-  }
-
-  return <div className="card p-4">{content}</div>;
 }
 
-interface QuickActionProps {
-  href: string;
-  icon: React.ElementType;
-  title: string;
-  description: string;
+// ═══════════════════════════════════════════════════════════════════════════════
+// STATUS BADGE COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface StatusBadgeProps {
+  status: StockStatus;
 }
 
-function QuickAction({ href, icon: Icon, title, description }: QuickActionProps) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 rounded-lg border p-4 transition-colors hover:bg-gray-50"
-    >
-      <div className="rounded-full bg-primary-100 p-2 text-primary-600">
-        <Icon className="h-5 w-5" />
-      </div>
-      <div>
-        <p className="font-medium text-gray-900">{title}</p>
-        <p className="text-sm text-gray-500">{description}</p>
-      </div>
-    </Link>
-  );
-}
-
-function LowStockList() {
-  const { data, isLoading } = useQuery({
-    queryKey: ['low-stock-products'],
-    queryFn: async () => {
-      const res = await fetch('/api/inventory/products?filter=lowStock&pageSize=5');
-      return res.json();
+function StatusBadge({ status }: StatusBadgeProps) {
+  const config = {
+    normal: {
+      label: 'Normal',
+      className: 'bg-green-100 text-green-700',
     },
-  });
-
-  const products = data?.data?.products as Array<{
-    id: string;
-    name: string;
-    sku: string;
-    currentStock: number;
-    minStock: number;
-  }> | undefined;
-
-  if (isLoading) {
-    return (
-      <div className="space-y-3">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="flex gap-4 rounded-lg border p-4">
-            <div className="flex-1 space-y-2">
-              <div className="h-4 w-1/2 animate-pulse rounded bg-gray-200" />
-              <div className="h-3 w-1/4 animate-pulse rounded bg-gray-200" />
-            </div>
-          </div>
-        ))}
-      </div>
-    );
-  }
-
-  if (!products?.length) {
-    return (
-      <div className="rounded-lg border border-dashed p-8 text-center">
-        <Package className="mx-auto h-8 w-8 text-gray-400" />
-        <p className="mt-2 text-gray-500">Todos los productos tienen stock suficiente</p>
-      </div>
-    );
-  }
+    low: {
+      label: 'Stock Bajo',
+      className: 'bg-orange-100 text-orange-700',
+    },
+    critical: {
+      label: 'Crítico',
+      className: 'bg-red-100 text-red-700',
+    },
+  }[status];
 
   return (
-    <ul className="space-y-3">
-      {products.map((product) => (
-        <li key={product.id}>
-          <Link
-            href={`/dashboard/inventory/products/${product.id}`}
-            className="flex items-center gap-4 rounded-lg border p-4 transition-colors hover:bg-gray-50"
-          >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-100">
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="truncate font-medium text-gray-900">{product.name}</p>
-              <p className="text-sm text-gray-500">{product.sku}</p>
-            </div>
-            <div className="text-right">
-              <p className="font-medium text-red-600">{product.currentStock}</p>
-              <p className="text-xs text-gray-500">Min: {product.minStock}</p>
-            </div>
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <span className={cn('px-2.5 py-0.5 rounded-full text-xs font-medium', config.className)}>
+      {config.label}
+    </span>
   );
 }
