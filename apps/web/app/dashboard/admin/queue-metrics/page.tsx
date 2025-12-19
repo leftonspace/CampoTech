@@ -567,10 +567,10 @@ function QueueMetricsContent() {
       {/* Tier cards */}
       <div className="space-y-4">
         <h2 className="text-lg font-semibold text-gray-900">Colas por Tier</h2>
-        {['realtime', 'background', 'batch'].map((tier) => {
-          const tierMetrics = metrics.tiers[tier];
-          const tierLittleLaw = littleLaw[tier];
-          const tierConfig = configuration.tiers[tier];
+        {(['realtime', 'background', 'batch'] as const).map((tier) => {
+          const tierMetrics = metrics.tiers[tier as keyof typeof metrics.tiers];
+          const tierLittleLaw = littleLaw[tier as keyof typeof littleLaw];
+          const tierConfig = configuration.tiers[tier as keyof typeof configuration.tiers];
 
           if (!tierMetrics || !tierLittleLaw || !tierConfig) return null;
 
