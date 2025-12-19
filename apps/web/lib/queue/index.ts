@@ -1,6 +1,6 @@
 /**
- * CampoTech Queue Module (Phase 5B.1 + 5B.2)
- * ==========================================
+ * CampoTech Queue Module (Phase 5B.1 + 5B.2 + 5B.3)
+ * ==================================================
  *
  * Central queue management for background job processing.
  *
@@ -8,7 +8,7 @@
  * - 3-tier queue system (realtime, background, batch)
  * - Idempotent job dispatch
  * - Worker processors with automatic retries
- * - Dead letter queue for failed jobs
+ * - Dead letter queue with advanced handling (Phase 5B.3)
  * - Metrics collection with Little's Law analysis (Phase 5B.2)
  *
  * Basic usage:
@@ -157,3 +157,24 @@ export {
   type HistoricalMetrics,
   type MetricDataPoint,
 } from './metrics';
+
+export {
+  // DLQ Handler (Phase 5B.3)
+  DLQHandler,
+
+  // DLQ Statistics
+  getDlqStats,
+  getDlqHealth,
+
+  // DLQ Analysis
+  analyzeDlqErrors,
+
+  // Types
+  type DLQEntry,
+  type DLQStats,
+  type DLQPolicy,
+  type ErrorCategory,
+  type DLQAction,
+  type ErrorPattern,
+  type DLQEventHandlers,
+} from './dlq';
