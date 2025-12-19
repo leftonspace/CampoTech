@@ -365,7 +365,7 @@ export function VehicleDetailModal({
                   >
                     <div className="flex items-center gap-3">
                       <FileText className="h-5 w-5 text-gray-400" />
-                      <span className="text-sm text-gray-700">Documentos ({vehicle._count.documents})</span>
+                      <span className="text-sm text-gray-700">Documentos ({vehicle._count?.documents || 0})</span>
                     </div>
                     <ChevronRight className="h-5 w-5 text-gray-400" />
                   </button>
@@ -375,7 +375,7 @@ export function VehicleDetailModal({
                   >
                     <div className="flex items-center gap-3">
                       <Settings className="h-5 w-5 text-gray-400" />
-                      <span className="text-sm text-gray-700">Mantenimientos ({vehicle._count.maintenanceLogs})</span>
+                      <span className="text-sm text-gray-700">Mantenimientos ({vehicle._count?.maintenanceLogs || 0})</span>
                     </div>
                     <ChevronRight className="h-5 w-5 text-gray-400" />
                   </button>
