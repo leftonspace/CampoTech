@@ -1,15 +1,16 @@
 /**
- * CampoTech Queue Workers (Phase 5B.1.3)
- * =======================================
+ * CampoTech Queue Workers (Phase 5B.1.3 + 5B.3.2)
+ * ================================================
  *
  * Worker processors for handling queued jobs.
  *
  * Features:
  * - Tier-specific workers with appropriate concurrency
  * - Automatic retries with exponential backoff
- * - Dead letter queue for failed jobs
+ * - Dead letter queue routing with DLQHandler (Phase 5B.3)
  * - Processing locks to prevent duplicate execution
  * - Job handlers registry
+ * - Metrics integration for monitoring
  *
  * Usage:
  * ```typescript
@@ -39,13 +40,23 @@ import {
   QUEUE_CONFIG,
   JOB_STATUS,
   queueKey,
-  jobKey,
   lockKey,
   dlqKey,
   calculateBackoff,
   isQueueConfigured,
 } from './config';
 import { getJob, updateJobStatus } from './dispatcher';
+import { recordJobCompleted, recordJobEnqueued } from './metrics';
+
+// DLQ Handler is imported dynamically to avoid circular dependencies
+let DLQHandler: typeof import('./dlq').DLQHandler | null = null;
+async function getDLQHandler() {
+  if (!DLQHandler) {
+    const dlqModule = await import('./dlq');
+    DLQHandler = dlqModule.DLQHandler;
+  }
+  return DLQHandler;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -214,6 +225,9 @@ async function processJob(job: Job): Promise<JobResult> {
         result: result.data,
       });
 
+      // Record metrics (Phase 5B.2)
+      await recordJobCompleted(job.tier, job.type, duration, true);
+
       if (QUEUE_CONFIG.debug) {
         console.log(`[Queue] Job completed: ${job.id} in ${duration}ms`);
       }
@@ -231,6 +245,9 @@ async function processJob(job: Job): Promise<JobResult> {
     const duration = Date.now() - startTime;
 
     console.error(`[Queue] Job failed: ${job.id}`, error);
+
+    // Record failure metrics (Phase 5B.2)
+    await recordJobCompleted(job.tier, job.type, duration, false);
 
     // Check if we should retry
     const tierConfig = QUEUE_TIERS[job.tier];
@@ -255,8 +272,9 @@ async function processJob(job: Job): Promise<JobResult> {
         console.log(`[Queue] Job ${job.id} scheduled for retry in ${retryDelay}ms (attempt ${currentAttempt + 1}/${job.maxRetries})`);
       }
     } else {
-      // Move to dead letter queue
-      await moveToDeadLetterQueue(job, errorMessage);
+      // Move to dead letter queue using DLQ handler (Phase 5B.3)
+      const dlq = await getDLQHandler();
+      await dlq.moveToDeadLetter(job, errorMessage);
     }
 
     return {
@@ -290,28 +308,6 @@ async function executeWithTimeout<T>(
         reject(error);
       });
   });
-}
-
-/**
- * Move failed job to dead letter queue
- */
-async function moveToDeadLetterQueue(job: Job, error: string): Promise<void> {
-  if (!redis) return;
-
-  try {
-    // Update job status to dead
-    await updateJobStatus(job.id, JOB_STATUS.DEAD, {
-      error,
-      completedAt: new Date(),
-    });
-
-    // Add to DLQ
-    await redis.zadd(dlqKey(job.tier), { score: Date.now(), member: job.id });
-
-    console.warn(`[Queue] Job ${job.id} moved to dead letter queue after ${job.maxRetries} attempts`);
-  } catch (err) {
-    console.error('[Queue] Error moving to DLQ:', err);
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
