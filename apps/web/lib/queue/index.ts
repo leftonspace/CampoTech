@@ -1,6 +1,6 @@
 /**
- * CampoTech Queue Module (Phase 5B.1)
- * ====================================
+ * CampoTech Queue Module (Phase 5B.1 + 5B.2)
+ * ==========================================
  *
  * Central queue management for background job processing.
  *
@@ -9,6 +9,7 @@
  * - Idempotent job dispatch
  * - Worker processors with automatic retries
  * - Dead letter queue for failed jobs
+ * - Metrics collection with Little's Law analysis (Phase 5B.2)
  *
  * Basic usage:
  * ```typescript
@@ -131,3 +132,28 @@ export {
   // Types
   type JobHandler,
 } from './workers';
+
+export {
+  // Metric recording
+  recordJobEnqueued,
+  recordJobCompleted,
+  recordJobFailed,
+
+  // Metric retrieval
+  getQueueMetrics,
+  getHistoricalMetrics,
+
+  // Little's Law analysis
+  analyzeLittleLaw,
+
+  // Maintenance
+  resetMetrics,
+  getJobTypeBreakdown,
+
+  // Types
+  type TierMetrics,
+  type QueueMetrics,
+  type LittleLawAnalysis,
+  type HistoricalMetrics,
+  type MetricDataPoint,
+} from './metrics';
