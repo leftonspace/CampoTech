@@ -24,7 +24,11 @@
       },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "CampoTech usa tu ubicación para mostrarte proveedores de servicios cerca tuyo."
-      }
+      },
+      "associatedDomains": [
+        "applinks:campotech.com.ar",
+        "applinks:www.campotech.com.ar"
+      ]
     },
     "android": {
       "adaptiveIcon": {
@@ -36,6 +40,38 @@
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "campotech.com.ar",
+              "pathPrefix": "/provider"
+            },
+            {
+              "scheme": "https",
+              "host": "campotech.com.ar",
+              "pathPrefix": "/rate"
+            },
+            {
+              "scheme": "https",
+              "host": "www.campotech.com.ar",
+              "pathPrefix": "/provider"
+            },
+            {
+              "scheme": "https",
+              "host": "www.campotech.com.ar",
+              "pathPrefix": "/rate"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
       ]
     },
     "web": {
