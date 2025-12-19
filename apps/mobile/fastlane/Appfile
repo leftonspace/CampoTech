@@ -1,0 +1,18 @@
+# CampoTech - Fastlane Appfile
+# =============================
+#
+# This file contains app identifiers and credentials configuration.
+# Update these values with your actual app information.
+
+# iOS
+app_identifier("tech.campo.app")          # Bundle identifier
+apple_id("kevin@campo.tech")              # Your Apple email address
+itc_team_id("REPLACE_WITH_ITC_TEAM_ID")   # App Store Connect Team ID
+team_id("REPLACE_WITH_TEAM_ID")           # Developer Portal Team ID
+
+# Android
+json_key_file("./google-play-service-account.json")  # Path to service account JSON
+package_name("tech.campo.app")                        # Package name
+
+# For more info about the Appfile:
+# https://docs.fastlane.tools/advanced/#appfile
