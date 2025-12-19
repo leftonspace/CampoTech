@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import {
   Truck,
   Users,
@@ -49,6 +48,7 @@ interface Vehicle {
 
 interface VehicleCardProps {
   vehicle: Vehicle;
+  onClick?: () => void;
 }
 
 const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
@@ -82,7 +82,7 @@ function getDaysUntil(dateString: string | null): number | null {
   return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
 
-export function VehicleCard({ vehicle }: VehicleCardProps) {
+export function VehicleCard({ vehicle, onClick }: VehicleCardProps) {
   const status = statusConfig[vehicle.status] || statusConfig.INACTIVE;
   const primaryDriver = vehicle.assignments.find((a) => a.isPrimaryDriver);
   const otherDrivers = vehicle.assignments.filter((a) => !a.isPrimaryDriver);
@@ -92,9 +92,9 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
   const registrationDays = getDaysUntil(vehicle.registrationExpiry);
 
   return (
-    <Link
-      href={`/dashboard/fleet/${vehicle.id}`}
-      className="block rounded-lg bg-white shadow-sm hover:shadow-md transition-shadow"
+    <div
+      onClick={onClick}
+      className="block rounded-lg bg-white shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer"
     >
       {/* Header */}
       <div className="flex items-center justify-between border-b px-4 py-3">
@@ -252,6 +252,6 @@ export function VehicleCard({ vehicle }: VehicleCardProps) {
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
