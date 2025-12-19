@@ -309,6 +309,42 @@ export const api = {
       }),
   },
 
+  // Voice transcription (Whisper API)
+  transcription: {
+    transcribe: async (audioUri: string) => {
+      // Upload audio file for transcription
+      const token = await SecureStore.getAccessToken();
+
+      const formData = new FormData();
+      formData.append('audio', {
+        uri: audioUri,
+        type: 'audio/m4a',
+        name: 'voice_note.m4a',
+      } as any);
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/transcription/whisper`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        const data = await response.json();
+        return data as ApiResponse<{ text: string; duration: number; language: string }>;
+      } catch (error) {
+        return {
+          success: false,
+          error: {
+            code: 'TRANSCRIPTION_ERROR',
+            message: error instanceof Error ? error.message : 'Transcription failed',
+          },
+        } as ApiResponse<{ text: string; duration: number; language: string }>;
+      }
+    },
+  },
+
   // Employee invites
   invites: {
     get: (token: string) =>

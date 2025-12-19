@@ -2,10 +2,17 @@
  * Conflict Resolver Component
  * ===========================
  *
- * UI for resolving sync conflicts between local and server data
+ * Phase 2.3.5: Offline Support
+ * UI for resolving sync conflicts between local and server data.
+ *
+ * Features:
+ * - Single conflict resolution
+ * - Batch resolution for multiple conflicts
+ * - Visual diff between local and server data
+ * - Progress tracking
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -148,6 +155,26 @@ export function ConflictResolver({
           />
         </ScrollView>
 
+        {/* Batch Actions (when multiple conflicts) */}
+        {conflicts.length > 1 && (
+          <View style={styles.batchActions}>
+            <TouchableOpacity
+              style={styles.batchButton}
+              onPress={() => handleResolveAll('local')}
+              disabled={resolving}
+            >
+              <Text style={styles.batchButtonText}>Usar local para todos ({conflicts.length})</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.batchButton}
+              onPress={() => handleResolveAll('server')}
+              disabled={resolving}
+            >
+              <Text style={styles.batchButtonText}>Usar servidor para todos</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Actions */}
         <View style={styles.actions}>
           <TouchableOpacity
@@ -168,9 +195,48 @@ export function ConflictResolver({
             <Text style={styles.actionButtonText}>Usar del servidor</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Skip button for multiple conflicts */}
+        {conflicts.length > 1 && currentIndex < conflicts.length - 1 && (
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={() => setCurrentIndex(currentIndex + 1)}
+            disabled={resolving}
+          >
+            <Text style={styles.skipButtonText}>Omitir y ver siguiente</Text>
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
     </Modal>
   );
+
+  // Batch resolve handler
+  function handleResolveAll(resolution: 'local' | 'server') {
+    Alert.alert(
+      resolution === 'local' ? 'Usar datos locales' : 'Usar datos del servidor',
+      `¿Aplicar esta resolución a los ${conflicts.length} conflictos pendientes?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Aplicar a todos',
+          onPress: async () => {
+            setResolving(true);
+            try {
+              for (const conflict of conflicts) {
+                await resolveConflict(conflict.id, resolution);
+              }
+              onResolved();
+              onClose();
+            } catch (error) {
+              Alert.alert('Error', 'No se pudieron resolver todos los conflictos');
+            } finally {
+              setResolving(false);
+            }
+          },
+        },
+      ]
+    );
+  }
 }
 
 interface ConflictVersionProps {
@@ -342,6 +408,38 @@ export function useConflictResolver() {
   };
 }
 
+/**
+ * Conflict Badge Component
+ * Shows a badge when there are unresolved conflicts
+ */
+interface ConflictBadgeProps {
+  onPress: () => void;
+}
+
+export function ConflictBadge({ onPress }: ConflictBadgeProps) {
+  const [count, setCount] = useState(0);
+
+  // Check for conflicts on mount
+  useState(() => {
+    getUnresolvedConflicts().then((conflicts) => {
+      setCount(conflicts.length);
+    });
+  });
+
+  if (count === 0) {
+    return null;
+  }
+
+  return (
+    <TouchableOpacity style={styles.conflictBadge} onPress={onPress}>
+      <AlertTriangle size={14} color="#f59e0b" />
+      <Text style={styles.conflictBadgeText}>
+        {count} conflicto{count !== 1 ? 's' : ''}
+      </Text>
+    </TouchableOpacity>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -501,5 +599,51 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
+  },
+  // Batch actions
+  batchActions: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  batchButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    alignItems: 'center',
+  },
+  batchButtonText: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  // Skip button
+  skipButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+  },
+  skipButtonText: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  // Conflict badge
+  conflictBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#fffbeb',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fde68a',
+  },
+  conflictBadgeText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#b45309',
   },
 });
