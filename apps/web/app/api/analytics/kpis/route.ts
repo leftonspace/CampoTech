@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/db';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -42,6 +42,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Use read replica for analytics queries (Phase 5A.3)
+    const db = getDb({ analytics: true });
     const organizationId = session.organizationId;
     if (!organizationId) {
       return NextResponse.json({ error: 'No organization' }, { status: 400 });
@@ -55,16 +57,16 @@ export async function GET(req: NextRequest) {
 
     // Get actual data from database
     const [jobCount, customerCount, invoiceData, reviewData] = await Promise.all([
-      prisma.job.count({
+      db.job.count({
         where: {
           organizationId,
           createdAt: { gte: dateRange.start, lte: dateRange.end },
         },
       }).catch(() => 0),
-      prisma.customer.count({
+      db.customer.count({
         where: { organizationId },
       }).catch(() => 0),
-      prisma.invoice.aggregate({
+      db.invoice.aggregate({
         where: {
           organizationId,
           status: 'PAID',
@@ -73,7 +75,7 @@ export async function GET(req: NextRequest) {
         _sum: { total: true },
         _count: true,
       }).catch(() => ({ _sum: { total: 0 }, _count: 0 })),
-      prisma.review.aggregate({
+      db.review.aggregate({
         where: {
           organizationId,
           createdAt: { gte: dateRange.start, lte: dateRange.end },
