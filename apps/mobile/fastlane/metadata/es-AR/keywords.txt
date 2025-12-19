@@ -1,0 +1,1 @@
+servicios,técnicos,gestión,trabajos,campo,equipo,inventario,facturación,aire acondicionado,plomería

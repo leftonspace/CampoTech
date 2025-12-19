@@ -19,6 +19,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "tech.campo.app",
       "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "NSCameraUsageDescription": "CampoTech necesita acceso a la cámara para tomar fotos de los trabajos completados.",
         "NSPhotoLibraryUsageDescription": "CampoTech necesita acceso a las fotos para adjuntar imágenes a los trabajos.",
