@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/db';
 
 /**
  * GET /api/analytics/predictions
@@ -24,6 +24,9 @@ export async function GET(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    // Use read replica for analytics queries (Phase 5A.3)
+    const db = getDb({ analytics: true });
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'all';
@@ -44,7 +47,7 @@ export async function GET(request: NextRequest) {
       recentCustomerActivity,
     ] = await Promise.all([
       // Jobs from last 30 days
-      prisma.job.findMany({
+      db.job.findMany({
         where: {
           organizationId,
           createdAt: { gte: thirtyDaysAgo },
@@ -57,7 +60,7 @@ export async function GET(request: NextRequest) {
         },
       }),
       // Jobs from 30-60 days ago (for comparison)
-      prisma.job.findMany({
+      db.job.findMany({
         where: {
           organizationId,
           createdAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
@@ -68,7 +71,7 @@ export async function GET(request: NextRequest) {
         },
       }),
       // Invoices for revenue analysis
-      prisma.invoice.findMany({
+      db.invoice.findMany({
         where: {
           organizationId,
           createdAt: { gte: ninetyDaysAgo },
@@ -81,7 +84,7 @@ export async function GET(request: NextRequest) {
         },
       }),
       // All customers for churn analysis
-      prisma.customer.findMany({
+      db.customer.findMany({
         where: { organizationId },
         select: {
           id: true,
@@ -90,7 +93,7 @@ export async function GET(request: NextRequest) {
         },
       }),
       // Customer activity (jobs) in last 90 days
-      prisma.job.groupBy({
+      db.job.groupBy({
         by: ['customerId'],
         where: {
           organizationId,

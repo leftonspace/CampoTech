@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/db';
 
 /**
  * GET /api/analytics/locations
@@ -17,6 +17,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Use read replica for analytics queries (Phase 5A.3)
+    const db = getDb({ analytics: true });
+
     const { searchParams } = new URL(request.url);
     const view = searchParams.get('view') || 'comparison';
 
@@ -29,7 +32,7 @@ export async function GET(request: NextRequest) {
       : new Date();
 
     // Get locations for the organization
-    const locations = await prisma.location.findMany({
+    const locations = await db.location.findMany({
       where: { organizationId: session.organizationId },
       select: {
         id: true,
@@ -40,7 +43,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Get job counts by location
-    const jobCounts = await prisma.job.groupBy({
+    const jobCounts = await db.job.groupBy({
       by: ['locationId'],
       where: {
         organizationId: session.organizationId,
