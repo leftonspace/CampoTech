@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, RefreshCw, Plus, Bot, AlertCircle } from 'lucide-react';
+import { Search, RefreshCw, Plus, Users } from 'lucide-react';
 import { searchMatchesAny, formatRelativeTime } from '@/lib/utils';
 import ConversationItem from './ConversationItem';
 
@@ -44,6 +44,7 @@ interface ConversationListProps {
   isLoading: boolean;
   onRefresh?: () => void;
   onNewConversation?: () => void;
+  onShowContacts?: () => void;
   isConnected?: boolean;
   stats?: ConversationStats;
 }
@@ -57,6 +58,7 @@ export default function ConversationList({
   isLoading,
   onRefresh,
   onNewConversation,
+  onShowContacts,
   isConnected = true,
   stats,
 }: ConversationListProps) {
@@ -108,6 +110,15 @@ export default function ConversationList({
             </span>
           </div>
           <div className="flex items-center gap-1">
+            {onShowContacts && (
+              <button
+                onClick={onShowContacts}
+                className="p-1.5 text-gray-500 hover:bg-gray-100 rounded transition-colors"
+                title="Ver contactos"
+              >
+                <Users className="h-4 w-4" />
+              </button>
+            )}
             {onRefresh && (
               <button
                 onClick={onRefresh}

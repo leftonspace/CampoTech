@@ -64,18 +64,50 @@ export async function GET(request: NextRequest) {
       ],
     });
 
-    // Format contacts
-    const contacts = customers.map((customer: typeof customers[number]) => ({
-      id: customer.id,
-      name: customer.name,
-      phone: customer.phone,
-      email: customer.email,
-      address: customer.address,
-      hasConversation: customer.waConversations.length > 0,
-      conversationId: customer.waConversations[0]?.id || null,
-      lastMessageAt: customer.waConversations[0]?.lastMessageAt || null,
-      unreadCount: customer.waConversations[0]?.unreadCount || 0,
-    }));
+    // Format contacts with parsed address
+    const contacts = customers.map((customer: typeof customers[number]) => {
+      // Parse address JSON field
+      let addressStr = '';
+      let city = '';
+      let province = '';
+
+      if (customer.address) {
+        try {
+          const addr = typeof customer.address === 'string'
+            ? JSON.parse(customer.address)
+            : customer.address;
+
+          // Build street address
+          const parts = [];
+          if (addr.street) parts.push(addr.street);
+          if (addr.number) parts.push(addr.number);
+          if (addr.floor) parts.push(`Piso ${addr.floor}`);
+          if (addr.apartment) parts.push(`Depto ${addr.apartment}`);
+          addressStr = parts.join(' ');
+
+          city = addr.city || '';
+          province = addr.province || '';
+        } catch {
+          // If address is plain string, use as is
+          addressStr = String(customer.address);
+        }
+      }
+
+      return {
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email,
+        address: addressStr,
+        city,
+        province,
+        customerId: customer.id,
+        hasConversation: customer.waConversations.length > 0,
+        conversationId: customer.waConversations[0]?.id || null,
+        lastContactedAt: customer.waConversations[0]?.lastMessageAt || null,
+        unreadCount: customer.waConversations[0]?.unreadCount || 0,
+      };
+    });
 
     return NextResponse.json({
       success: true,

@@ -16,13 +16,14 @@ import {
   ConversationStats,
   Message,
 } from './components';
+import ContactsPanel from './components/ContactsPanel';
 
 export default function WhatsAppPage() {
   const queryClient = useQueryClient();
   const router = useRouter();
 
   // AI Assistant context
-  const { isEnabled: aiEnabled, isLoading: aiLoading } = useAIAssistant();
+  const { isEnabled: aiEnabled } = useAIAssistant();
 
   // State
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
@@ -30,6 +31,7 @@ export default function WhatsAppPage() {
   const [showTemplateSelector, setShowTemplateSelector] = useState(false);
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [showNewConversation, setShowNewConversation] = useState(false);
+  const [showContacts, setShowContacts] = useState(false);
 
   // Fetch conversations
   const { data: conversationsData, isLoading: loadingConversations } = useQuery({
@@ -104,6 +106,7 @@ export default function WhatsAppPage() {
   const handleSelectConversation = useCallback((id: string) => {
     setSelectedConversationId(id);
     setShowContactInfo(false);
+    setShowContacts(false);
   }, []);
 
   const handleSendMessage = useCallback((text: string) => {
@@ -123,6 +126,7 @@ export default function WhatsAppPage() {
 
   const handleRefresh = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+    queryClient.invalidateQueries({ queryKey: ['whatsapp-contacts'] });
     if (selectedConversationId) {
       queryClient.invalidateQueries({ queryKey: ['whatsapp-messages', selectedConversationId] });
     }
@@ -145,7 +149,6 @@ export default function WhatsAppPage() {
   const handleDisableAI = useCallback((minutes: number) => {
     if (!selectedConversationId) return;
 
-    // Call API to disable AI for this conversation
     fetch(`/api/whatsapp/conversations/${selectedConversationId}/ai`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -158,7 +161,6 @@ export default function WhatsAppPage() {
   const handleEnableAI = useCallback(() => {
     if (!selectedConversationId) return;
 
-    // Call API to re-enable AI for this conversation
     fetch(`/api/whatsapp/conversations/${selectedConversationId}/ai`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -172,48 +174,77 @@ export default function WhatsAppPage() {
     router.push('/dashboard/settings/ai-assistant');
   }, [router]);
 
+  // Start conversation from contact
+  const handleStartConversation = useCallback((phone: string) => {
+    // Create or get conversation for this phone
+    fetch('/api/whatsapp/conversations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.id) {
+          setSelectedConversationId(data.id);
+          setShowContacts(false);
+          queryClient.invalidateQueries({ queryKey: ['whatsapp-conversations'] });
+        }
+      });
+  }, [queryClient]);
+
   return (
-    <div className="flex h-full -m-6">
-      {/* Conversations sidebar */}
-      <ConversationList
-        conversations={conversations}
-        selectedId={selectedConversationId}
-        onSelect={handleSelectConversation}
-        filter={filter}
-        onFilterChange={setFilter}
-        isLoading={loadingConversations}
-        onRefresh={handleRefresh}
-        onNewConversation={() => setShowNewConversation(true)}
-        isConnected={true}
-        stats={stats}
-      />
-
-      {/* Chat window */}
-      <ChatWindow
-        conversation={selectedConversation}
-        messages={messages}
-        isLoadingMessages={loadingMessages}
-        isSending={sendMutation.isPending}
-        onSendMessage={handleSendMessage}
-        onSendTemplate={handleSendTemplate}
-        onAction={handleAction}
-        // AI-related props
-        aiEnabled={aiEnabled}
-        aiHandlingConversation={selectedConversation?.aiHandling}
-        aiDisabledUntil={selectedConversation?.aiDisabledUntil}
-        onDisableAI={handleDisableAI}
-        onEnableAI={handleEnableAI}
-        onGoToSettings={handleGoToSettings}
-      />
-
-      {/* Contact info sidebar */}
-      {showContactInfo && (
-        <ContactInfo
-          isOpen={showContactInfo}
-          onClose={() => setShowContactInfo(false)}
-          conversation={selectedConversation}
+    <div className="h-[calc(100vh-7rem)] -m-6 p-6">
+      {/* Main container with rounded corners */}
+      <div className="h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex">
+        {/* Conversations sidebar */}
+        <ConversationList
+          conversations={conversations}
+          selectedId={selectedConversationId}
+          onSelect={handleSelectConversation}
+          filter={filter}
+          onFilterChange={setFilter}
+          isLoading={loadingConversations}
+          onRefresh={handleRefresh}
+          onNewConversation={() => setShowNewConversation(true)}
+          onShowContacts={() => setShowContacts(true)}
+          isConnected={true}
+          stats={stats}
         />
-      )}
+
+        {/* Chat window */}
+        <ChatWindow
+          conversation={selectedConversation}
+          messages={messages}
+          isLoadingMessages={loadingMessages}
+          isSending={sendMutation.isPending}
+          onSendMessage={handleSendMessage}
+          onSendTemplate={handleSendTemplate}
+          onAction={handleAction}
+          aiEnabled={aiEnabled}
+          aiHandlingConversation={selectedConversation?.aiHandling}
+          aiDisabledUntil={selectedConversation?.aiDisabledUntil}
+          onDisableAI={handleDisableAI}
+          onEnableAI={handleEnableAI}
+          onGoToSettings={handleGoToSettings}
+        />
+
+        {/* Contacts panel (sliding) */}
+        {showContacts && (
+          <ContactsPanel
+            onClose={() => setShowContacts(false)}
+            onStartConversation={handleStartConversation}
+          />
+        )}
+
+        {/* Contact info sidebar */}
+        {showContactInfo && (
+          <ContactInfo
+            isOpen={showContactInfo}
+            onClose={() => setShowContactInfo(false)}
+            conversation={selectedConversation}
+          />
+        )}
+      </div>
 
       {/* Template selector modal */}
       <TemplateSelector
