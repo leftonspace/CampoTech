@@ -22,7 +22,10 @@
       "infoPlist": {
         "NSCameraUsageDescription": "CampoTech necesita acceso a la cámara para tomar fotos de los trabajos completados.",
         "NSPhotoLibraryUsageDescription": "CampoTech necesita acceso a las fotos para adjuntar imágenes a los trabajos.",
-        "NSLocationWhenInUseUsageDescription": "CampoTech usa tu ubicación para mostrar trabajos cercanos y registrar la ubicación de los trabajos completados."
+        "NSLocationWhenInUseUsageDescription": "CampoTech usa tu ubicación para mostrar trabajos cercanos y permitir que los clientes rastreen tu llegada.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "CampoTech necesita acceso continuo a tu ubicación para que los clientes puedan rastrear tu llegada en tiempo real.",
+        "NSLocationAlwaysUsageDescription": "CampoTech necesita acceso continuo a tu ubicación para que los clientes puedan rastrear tu llegada en tiempo real.",
+        "UIBackgroundModes": ["location", "fetch"]
       }
     },
     "android": {
@@ -38,6 +41,9 @@
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.ACCESS_FINE_LOCATION",
         "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
         "android.permission.RECEIVE_BOOT_COMPLETED",
         "android.permission.VIBRATE",
         "android.permission.RECORD_AUDIO"
@@ -66,7 +72,12 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Permitir a CampoTech usar tu ubicación para mostrar trabajos cercanos."
+          "locationWhenInUsePermission": "Permitir a CampoTech usar tu ubicación para mostrar trabajos cercanos y permitir que los clientes rastreen tu llegada.",
+          "locationAlwaysAndWhenInUsePermission": "Permitir a CampoTech usar tu ubicación en segundo plano para que los clientes puedan rastrear tu llegada en tiempo real.",
+          "locationAlwaysPermission": "Permitir a CampoTech usar tu ubicación en segundo plano para rastreo en tiempo real.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       [
