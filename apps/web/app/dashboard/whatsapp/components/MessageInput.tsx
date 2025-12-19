@@ -17,6 +17,9 @@ interface MessageInputProps {
   onSend: (text: string) => void;
   onSendTemplate: () => void;
   onAttachment?: (file: File) => void;
+  // Controlled input props for copilot suggestions
+  value?: string;
+  onChange?: (value: string) => void;
 }
 
 export default function MessageInput({
@@ -25,8 +28,20 @@ export default function MessageInput({
   onSend,
   onSendTemplate,
   onAttachment,
+  value,
+  onChange,
 }: MessageInputProps) {
-  const [text, setText] = useState('');
+  const [internalText, setInternalText] = useState('');
+
+  // Use controlled value if provided, otherwise use internal state
+  const text = value !== undefined ? value : internalText;
+  const setText = (newValue: string) => {
+    if (onChange) {
+      onChange(newValue);
+    } else {
+      setInternalText(newValue);
+    }
+  };
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 

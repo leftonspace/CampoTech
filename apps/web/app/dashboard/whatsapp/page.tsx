@@ -11,12 +11,14 @@ import {
   TemplateSelector,
   ContactInfo,
   NewConversationModal,
+  CopilotPanel,
   Conversation,
   ConversationFilter,
   ConversationStats,
   Message,
 } from './components';
 import ContactsPanel from './components/ContactsPanel';
+import { Bot, Sparkles } from 'lucide-react';
 
 export default function WhatsAppPage() {
   const queryClient = useQueryClient();
@@ -32,6 +34,8 @@ export default function WhatsAppPage() {
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
+  const [showCopilot, setShowCopilot] = useState(false);
+  const [messageInputValue, setMessageInputValue] = useState('');
 
   // Fetch conversations
   const { data: conversationsData, isLoading: loadingConversations } = useQuery({
@@ -174,6 +178,11 @@ export default function WhatsAppPage() {
     router.push('/dashboard/settings/ai-assistant');
   }, [router]);
 
+  // Handle copilot suggesting a reply
+  const handleCopilotSuggestReply = useCallback((text: string) => {
+    setMessageInputValue(text);
+  }, []);
+
   // Start conversation from contact
   const handleStartConversation = useCallback((phone: string) => {
     // Create or get conversation for this phone
@@ -195,7 +204,7 @@ export default function WhatsAppPage() {
   return (
     <div className="h-[calc(100vh-7rem)] -m-6 p-6">
       {/* Main container with rounded corners */}
-      <div className="h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex">
+      <div className="h-full bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex relative">
         {/* Conversations sidebar */}
         <ConversationList
           conversations={conversations}
@@ -212,21 +221,39 @@ export default function WhatsAppPage() {
         />
 
         {/* Chat window */}
-        <ChatWindow
-          conversation={selectedConversation}
-          messages={messages}
-          isLoadingMessages={loadingMessages}
-          isSending={sendMutation.isPending}
-          onSendMessage={handleSendMessage}
-          onSendTemplate={handleSendTemplate}
-          onAction={handleAction}
-          aiEnabled={aiEnabled}
-          aiHandlingConversation={selectedConversation?.aiHandling}
-          aiDisabledUntil={selectedConversation?.aiDisabledUntil}
-          onDisableAI={handleDisableAI}
-          onEnableAI={handleEnableAI}
-          onGoToSettings={handleGoToSettings}
-        />
+        <div className="flex-1 flex flex-col relative">
+          <ChatWindow
+            conversation={selectedConversation}
+            messages={messages}
+            isLoadingMessages={loadingMessages}
+            isSending={sendMutation.isPending}
+            onSendMessage={handleSendMessage}
+            onSendTemplate={handleSendTemplate}
+            onAction={handleAction}
+            aiEnabled={aiEnabled}
+            aiHandlingConversation={selectedConversation?.aiHandling}
+            aiDisabledUntil={selectedConversation?.aiDisabledUntil}
+            onDisableAI={handleDisableAI}
+            onEnableAI={handleEnableAI}
+            onGoToSettings={handleGoToSettings}
+            inputValue={messageInputValue}
+            onInputChange={setMessageInputValue}
+          />
+
+          {/* Copilot toggle button */}
+          {selectedConversation && !showCopilot && (
+            <button
+              onClick={() => setShowCopilot(true)}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-teal-500 text-white rounded-l-lg shadow-lg hover:bg-teal-600 transition-all flex items-center justify-center group"
+              title="Abrir Asistente AI"
+            >
+              <Sparkles className="h-5 w-5" />
+              <span className="absolute right-full mr-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                Asistente AI
+              </span>
+            </button>
+          )}
+        </div>
 
         {/* Contacts panel (sliding) */}
         {showContacts && (
@@ -242,6 +269,17 @@ export default function WhatsAppPage() {
             isOpen={showContactInfo}
             onClose={() => setShowContactInfo(false)}
             conversation={selectedConversation}
+          />
+        )}
+
+        {/* Copilot panel */}
+        {showCopilot && (
+          <CopilotPanel
+            isOpen={showCopilot}
+            onClose={() => setShowCopilot(false)}
+            conversation={selectedConversation}
+            messages={messages}
+            onSuggestReply={handleCopilotSuggestReply}
           />
         )}
       </div>
