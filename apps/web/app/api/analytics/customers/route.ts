@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/db';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GET /api/analytics/customers
@@ -24,6 +24,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Use read replica for analytics queries (Phase 5A.3)
+    const db = getDb({ analytics: true });
     const organizationId = session.organizationId;
     if (!organizationId) {
       return NextResponse.json({ error: 'No organization' }, { status: 400 });
@@ -39,7 +41,7 @@ export async function GET(req: NextRequest) {
 
     // Fetch customers and related data
     const [customers, currentJobs, previousJobs, invoices, reviews] = await Promise.all([
-      prisma.customer.findMany({
+      db.customer.findMany({
         where: { organizationId },
         select: {
           id: true,
@@ -51,7 +53,7 @@ export async function GET(req: NextRequest) {
           },
         },
       }).catch(() => []),
-      prisma.job.findMany({
+      db.job.findMany({
         where: {
           organizationId,
           createdAt: {
@@ -64,7 +66,7 @@ export async function GET(req: NextRequest) {
           createdAt: true,
         },
       }).catch(() => []),
-      prisma.job.findMany({
+      db.job.findMany({
         where: {
           organizationId,
           createdAt: {
@@ -74,7 +76,7 @@ export async function GET(req: NextRequest) {
         },
         select: { customerId: true },
       }).catch(() => []),
-      prisma.invoice.findMany({
+      db.invoice.findMany({
         where: {
           organizationId,
           status: 'PAID',
@@ -85,7 +87,7 @@ export async function GET(req: NextRequest) {
           createdAt: true,
         },
       }).catch(() => []),
-      prisma.review.findMany({
+      db.review.findMany({
         where: { organizationId },
         select: {
           rating: true,

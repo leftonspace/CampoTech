@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { getDb } from '@/lib/db';
 
 function getDateRangeFromPreset(range: string): { start: Date; end: Date } {
   const now = new Date();
@@ -42,6 +42,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Use read replica for analytics queries (Phase 5A.3)
+    const db = getDb({ analytics: true });
     const organizationId = session.organizationId;
 
     const { searchParams } = new URL(req.url);
@@ -49,7 +51,7 @@ export async function GET(req: NextRequest) {
     const dateRange = getDateRangeFromPreset(range);
 
     // Fetch technicians
-    const technicians = await prisma.user.findMany({
+    const technicians = await db.user.findMany({
       where: {
         organizationId,
         role: 'TECHNICIAN',
@@ -62,7 +64,7 @@ export async function GET(req: NextRequest) {
     });
 
     // Fetch jobs for the period
-    const jobs = await prisma.job.findMany({
+    const jobs = await db.job.findMany({
       where: {
         organizationId,
         createdAt: {
