@@ -97,6 +97,15 @@ export default function RootLayout() {
               headerTintColor: '#059669',
             }}
           />
+
+          {/* Booking/Quote request */}
+          <Stack.Screen
+            name="(booking)"
+            options={{
+              headerShown: false,
+              presentation: 'modal',
+            }}
+          />
         </Stack>
       </QueryClientProvider>
     </GestureHandlerRootView>
