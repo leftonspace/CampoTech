@@ -14,7 +14,15 @@
  * @see https://upstash.com/docs/redis/overall/getstarted
  */
 
-import { Redis } from '@upstash/redis';
+// Note: @upstash/redis must be installed: npm install @upstash/redis
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+let Redis: typeof import('@upstash/redis').Redis;
+try {
+  // Dynamic import to handle cases where package isn't installed yet
+  Redis = require('@upstash/redis').Redis;
+} catch {
+  // Package not installed - will use null client
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // REDIS CLIENT CONFIGURATION
@@ -30,11 +38,23 @@ export function isRedisConfigured(): boolean {
   );
 }
 
+// Redis client type
+type RedisClient = InstanceType<typeof import('@upstash/redis').Redis>;
+
 /**
  * Create Redis client instance
  * Uses Upstash REST API which is ideal for serverless/edge deployments
  */
-function createRedisClient(): Redis | null {
+function createRedisClient(): RedisClient | null {
+  if (!Redis) {
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        '[Cache] @upstash/redis not installed. Run: npm install @upstash/redis'
+      );
+    }
+    return null;
+  }
+
   if (!isRedisConfigured()) {
     if (process.env.NODE_ENV === 'development') {
       console.warn(
@@ -288,7 +308,7 @@ export async function cached<T>(
     const result = await fn();
 
     // Cache the result (don't await to not block the response)
-    redis.set(key, result, { ex: ttlSeconds }).catch((error) => {
+    redis.set(key, result, { ex: ttlSeconds }).catch((error: unknown) => {
       console.error(`[Cache] Error caching key ${key}:`, error);
     });
 

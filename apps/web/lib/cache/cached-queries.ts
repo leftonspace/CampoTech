@@ -37,6 +37,32 @@ import {
   type TierConfig,
 } from '@/lib/config/tier-limits';
 
+// Type for BusinessPublicProfile from Prisma (matches schema)
+interface DBBusinessPublicProfile {
+  id: string;
+  organizationId: string;
+  displayName: string;
+  description: string | null;
+  logo: string | null;
+  coverPhoto: string | null;
+  categories: string[];
+  services: unknown;
+  serviceArea: unknown;
+  address: string | null;
+  whatsappNumber: string;
+  phone: string | null;
+  averageRating: number;
+  totalReviews: number;
+  totalJobs: number;
+  responseRate: number;
+  responseTime: number;
+  cuitVerified: boolean;
+  insuranceVerified: boolean;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // ORGANIZATION SETTINGS (TTL: 1 hour)
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -341,7 +367,7 @@ export async function searchMarketplaceProfiles(
   params: MarketplaceSearchParams
 ): Promise<MarketplaceSearchResult> {
   // Generate cache key from params
-  const queryHash = hashSearchQuery(params);
+  const queryHash = hashSearchQuery(params as unknown as Record<string, unknown>);
   const key = searchResultsKey(queryHash);
 
   return cached(
@@ -389,7 +415,7 @@ export async function searchMarketplaceProfiles(
       ]);
 
       return {
-        profiles: profiles.map((p) => ({
+        profiles: profiles.map((p: DBBusinessPublicProfile) => ({
           id: p.id,
           organizationId: p.organizationId,
           displayName: p.displayName,
@@ -443,7 +469,7 @@ export async function getTopRatedProfiles(
         take: limit,
       });
 
-      return profiles.map((p) => ({
+      return profiles.map((p: DBBusinessPublicProfile) => ({
         id: p.id,
         organizationId: p.organizationId,
         displayName: p.displayName,
@@ -495,7 +521,7 @@ export async function getProfilesByCategory(
         take: limit,
       });
 
-      return profiles.map((p) => ({
+      return profiles.map((p: DBBusinessPublicProfile) => ({
         id: p.id,
         organizationId: p.organizationId,
         displayName: p.displayName,
