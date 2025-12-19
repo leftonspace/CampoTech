@@ -21,30 +21,44 @@ import { cn, formatCurrency } from '@/lib/utils';
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface InventoryStock {
-  locationId: string;
-  quantity: number;
-  location: {
+interface InventoryLevel {
+  quantityOnHand: number;
+  quantityReserved: number;
+  quantityAvailable: number;
+  warehouse: {
     id: string;
+    code: string;
     name: string;
-    locationType: string;
   };
 }
 
-interface InventoryItem {
+interface ProductCategory {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface Product {
   id: string;
   sku: string;
   name: string;
   description?: string;
-  category: string;
-  unit: string;
+  categoryId?: string;
+  category?: ProductCategory;
+  unitOfMeasure: string;
   minStockLevel: number;
   costPrice: number;
   salePrice: number;
   isActive: boolean;
-  totalStock: number;
-  isLowStock: boolean;
-  stocks: InventoryStock[];
+  trackInventory: boolean;
+  inventoryLevels: InventoryLevel[];
+  stock: {
+    onHand: number;
+    reserved: number;
+    available: number;
+    isLowStock: boolean;
+    isOutOfStock: boolean;
+  };
   createdAt?: string;
   updatedAt?: string;
 }
@@ -112,19 +126,19 @@ export default function InventoryItemModal({
 }: InventoryItemModalProps) {
   const router = useRouter();
 
-  // Fetch item details
+  // Fetch product details
   const { data, isLoading, error } = useQuery({
-    queryKey: ['inventory-item-detail', itemId],
+    queryKey: ['inventory-product-detail', itemId],
     queryFn: async () => {
       if (!itemId) return null;
-      const res = await fetch(`/api/inventory/items/${itemId}`);
-      if (!res.ok) throw new Error('Error fetching item');
+      const res = await fetch(`/api/inventory/products/${itemId}`);
+      if (!res.ok) throw new Error('Error fetching product');
       return res.json();
     },
     enabled: !!itemId,
   });
 
-  const item: InventoryItem | null = data?.data || null;
+  const product: Product | null = data?.data || null;
 
   // Close on escape key
   useEffect(() => {
@@ -139,17 +153,17 @@ export default function InventoryItemModal({
   if (!itemId) return null;
 
   const handleAddStock = () => {
-    router.push(`/dashboard/inventory/stock/adjust?itemId=${itemId}&type=add`);
+    router.push(`/dashboard/inventory/stock/adjust?productId=${itemId}&type=add`);
     onClose();
   };
 
   const handleReduceStock = () => {
-    router.push(`/dashboard/inventory/stock/adjust?itemId=${itemId}&type=reduce`);
+    router.push(`/dashboard/inventory/stock/adjust?productId=${itemId}&type=reduce`);
     onClose();
   };
 
   const handleTransfer = () => {
-    router.push(`/dashboard/inventory/stock/transfer?itemId=${itemId}`);
+    router.push(`/dashboard/inventory/stock/transfer?productId=${itemId}`);
     onClose();
   };
 
@@ -163,8 +177,9 @@ export default function InventoryItemModal({
     onClose();
   };
 
-  const status = item ? getStockStatus(item.totalStock, item.minStockLevel) : 'normal';
-  const percentage = item ? getStockPercentage(item.totalStock, item.minStockLevel) : 0;
+  const stockOnHand = product?.stock?.onHand || 0;
+  const status = product ? getStockStatus(stockOnHand, product.minStockLevel) : 'normal';
+  const percentage = product ? getStockPercentage(stockOnHand, product.minStockLevel) : 0;
 
   const statusConfig = {
     normal: {
@@ -204,7 +219,7 @@ export default function InventoryItemModal({
                 <div className="h-4 w-24 bg-gray-200 rounded" />
               </div>
             </div>
-          ) : item ? (
+          ) : product ? (
             <div className="flex items-center gap-4">
               {/* Icon */}
               <div className="h-12 w-12 rounded-lg bg-teal-100 flex items-center justify-center flex-shrink-0">
@@ -212,7 +227,7 @@ export default function InventoryItemModal({
               </div>
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-xl font-bold text-gray-900">{item.name}</h2>
+                  <h2 className="text-xl font-bold text-gray-900">{product.name}</h2>
                   <span className={cn(
                     'px-2.5 py-0.5 text-xs font-medium rounded-full',
                     statusConfig.className
@@ -220,7 +235,7 @@ export default function InventoryItemModal({
                     {statusConfig.label}
                   </span>
                 </div>
-                <p className="text-sm text-gray-500">{item.sku}</p>
+                <p className="text-sm text-gray-500">{product.sku}</p>
               </div>
             </div>
           ) : null}
@@ -245,14 +260,14 @@ export default function InventoryItemModal({
             <div className="p-6 text-center">
               <p className="text-red-500">Error al cargar el producto</p>
             </div>
-          ) : item ? (
+          ) : product ? (
             <>
               {/* Stock Overview */}
               <div className="p-6 border-b bg-gray-50">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm text-gray-500">Stock Total</span>
                   <span className="text-2xl font-bold text-gray-900">
-                    {item.totalStock} {UNIT_LABELS[item.unit] || item.unit}
+                    {stockOnHand} {UNIT_LABELS[product.unitOfMeasure] || product.unitOfMeasure}
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
@@ -263,8 +278,8 @@ export default function InventoryItemModal({
                 </div>
                 <div className="flex justify-between text-xs text-gray-400 mt-1">
                   <span>0</span>
-                  <span>Mín: {item.minStockLevel}</span>
-                  <span>Óptimo: {item.minStockLevel * 2}</span>
+                  <span>Mín: {product.minStockLevel}</span>
+                  <span>Óptimo: {product.minStockLevel * 2}</span>
                 </div>
               </div>
 
@@ -277,32 +292,32 @@ export default function InventoryItemModal({
                   <div>
                     <p className="text-xs text-gray-400">Categoría</p>
                     <p className="text-sm font-medium text-gray-900">
-                      {CATEGORY_LABELS[item.category] || item.category}
+                      {product.category?.name || 'Sin categoría'}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400">Unidad</p>
                     <p className="text-sm font-medium text-gray-900">
-                      {UNIT_LABELS[item.unit] || item.unit}
+                      {UNIT_LABELS[product.unitOfMeasure] || product.unitOfMeasure}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400">Precio de Costo</p>
                     <p className="text-sm font-medium text-gray-900">
-                      {formatCurrency(item.costPrice)}
+                      {formatCurrency(product.costPrice)}
                     </p>
                   </div>
                   <div>
                     <p className="text-xs text-gray-400">Precio de Venta</p>
                     <p className="text-sm font-medium text-gray-900">
-                      {formatCurrency(item.salePrice)}
+                      {formatCurrency(product.salePrice)}
                     </p>
                   </div>
                 </div>
-                {item.description && (
+                {product.description && (
                   <div className="mt-4">
                     <p className="text-xs text-gray-400">Descripción</p>
-                    <p className="text-sm text-gray-700">{item.description}</p>
+                    <p className="text-sm text-gray-700">{product.description}</p>
                   </div>
                 )}
               </div>
@@ -312,22 +327,22 @@ export default function InventoryItemModal({
                 <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
                   Stock por Ubicación
                 </h3>
-                {item.stocks && item.stocks.length > 0 ? (
+                {product.inventoryLevels && product.inventoryLevels.length > 0 ? (
                   <div className="space-y-2">
-                    {item.stocks.map((stock) => (
+                    {product.inventoryLevels.map((level) => (
                       <div
-                        key={stock.locationId}
+                        key={level.warehouse.id}
                         className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
                       >
                         <div className="flex items-center gap-2">
                           <MapPin className="h-4 w-4 text-gray-400" />
-                          <span className="text-sm text-gray-700">{stock.location.name}</span>
+                          <span className="text-sm text-gray-700">{level.warehouse.name}</span>
                           <span className="text-xs px-1.5 py-0.5 bg-gray-200 text-gray-600 rounded">
-                            {stock.location.locationType}
+                            {level.warehouse.code}
                           </span>
                         </div>
                         <span className="font-semibold text-gray-900">
-                          {stock.quantity}
+                          {level.quantityOnHand}
                         </span>
                       </div>
                     ))}
