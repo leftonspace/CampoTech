@@ -25,6 +25,7 @@ import {
   User,
 } from 'lucide-react';
 import TeamCalendar from '@/components/schedule/TeamCalendar';
+import TeamMemberDetailModal from './TeamMemberDetailModal';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -108,6 +109,7 @@ export default function TeamPage() {
   const [activeTab, setActiveTab] = useState<TabType>('employees');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
   const userRole = user?.role?.toUpperCase() || 'TECHNICIAN';
   const isOwnerOrDispatcher = userRole === 'OWNER' || userRole === 'DISPATCHER';
@@ -250,6 +252,7 @@ export default function TeamPage() {
             loading={teamLoading}
             canEdit={isOwnerOrDispatcher}
             onEdit={handleEditMember}
+            onCardClick={(member) => setSelectedMemberId(member.id)}
             currentUserId={user?.id}
           />
         )}
@@ -283,6 +286,17 @@ export default function TeamPage() {
           }}
         />
       )}
+
+      {/* Team Member Detail Modal */}
+      <TeamMemberDetailModal
+        memberId={selectedMemberId}
+        onClose={() => setSelectedMemberId(null)}
+        onEdit={(memberId) => {
+          setSelectedMemberId(null);
+          const member = members.find(m => m.id === memberId);
+          if (member) handleEditMember(member);
+        }}
+      />
     </div>
   );
 }
@@ -329,10 +343,11 @@ interface EmployeeListTabProps {
   loading: boolean;
   canEdit: boolean;
   onEdit: (member: TeamMember) => void;
+  onCardClick: (member: TeamMember) => void;
   currentUserId?: string;
 }
 
-function EmployeeListTab({ members, loading, canEdit, onEdit, currentUserId }: EmployeeListTabProps) {
+function EmployeeListTab({ members, loading, canEdit, onEdit, onCardClick, currentUserId }: EmployeeListTabProps) {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
   if (loading) {
@@ -387,7 +402,15 @@ function EmployeeListTab({ members, loading, canEdit, onEdit, currentUserId }: E
         const isCurrentUser = member.id === currentUserId;
 
         return (
-          <div key={member.id} className="card p-5 hover:shadow-md transition-shadow">
+          <div
+            key={member.id}
+            className="card p-5 hover:shadow-md transition-shadow cursor-pointer"
+            onClick={(e) => {
+              // Don't open modal if clicking on menu
+              if ((e.target as HTMLElement).closest('.menu-container')) return;
+              onCardClick(member);
+            }}
+          >
             {/* Header row */}
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-3">
@@ -416,9 +439,12 @@ function EmployeeListTab({ members, loading, canEdit, onEdit, currentUserId }: E
 
               {/* Menu */}
               {canEdit && (
-                <div className="relative">
+                <div className="relative menu-container">
                   <button
-                    onClick={() => setMenuOpen(menuOpen === member.id ? null : member.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuOpen(menuOpen === member.id ? null : member.id);
+                    }}
                     className="p-1 rounded hover:bg-gray-100"
                   >
                     <MoreHorizontal className="h-5 w-5 text-gray-400" />

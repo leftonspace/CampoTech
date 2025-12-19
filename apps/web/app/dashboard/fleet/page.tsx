@@ -18,6 +18,7 @@ import {
   Fuel,
 } from 'lucide-react';
 import { VehicleCard } from '@/components/fleet/VehicleCard';
+import { VehicleDetailModal } from '@/components/fleet/VehicleDetailModal';
 
 interface VehicleAssignment {
   id: string;
@@ -79,6 +80,7 @@ export default function FleetPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [showAlerts, setShowAlerts] = useState(false);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['vehicles', search, statusFilter],
@@ -236,10 +238,24 @@ export default function FleetPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filteredVehicles.map((vehicle) => (
-            <VehicleCard key={vehicle.id} vehicle={vehicle} />
+            <VehicleCard
+              key={vehicle.id}
+              vehicle={vehicle}
+              onClick={() => setSelectedVehicleId(vehicle.id)}
+            />
           ))}
         </div>
       )}
+
+      {/* Vehicle Detail Modal */}
+      <VehicleDetailModal
+        vehicleId={selectedVehicleId}
+        onClose={() => setSelectedVehicleId(null)}
+        onEdit={(vehicleId) => {
+          setSelectedVehicleId(null);
+          window.location.href = `/dashboard/fleet/${vehicleId}?edit=true`;
+        }}
+      />
     </div>
   );
 }
