@@ -28,38 +28,43 @@ import InventoryItemModal from './InventoryItemModal';
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface InventoryStock {
-  locationId: string;
-  locationName: string;
-  locationType: string;
-  quantity: number;
-  availableQuantity: number;
+interface InventoryLevel {
+  quantityOnHand: number;
+  quantityReserved: number;
+  quantityAvailable: number;
+  warehouse: {
+    id: string;
+    code: string;
+    name: string;
+  };
 }
 
-interface InventoryItem {
+interface ProductCategory {
+  id: string;
+  code: string;
+  name: string;
+}
+
+interface Product {
   id: string;
   sku: string;
   name: string;
   description?: string;
-  category: string;
-  unit: string;
+  categoryId?: string;
+  category?: ProductCategory;
+  unitOfMeasure: string;
   minStockLevel: number;
   costPrice: number;
   salePrice: number;
   isActive: boolean;
-  totalStock: number;
-  isLowStock: boolean;
-  stocksByLocation: InventoryStock[];
-}
-
-interface InventoryLocation {
-  id: string;
-  name: string;
-  locationType: string;
-  vehicle?: {
-    plateNumber: string;
-    make: string;
-    model: string;
+  trackInventory: boolean;
+  inventoryLevels: InventoryLevel[];
+  stock: {
+    onHand: number;
+    reserved: number;
+    available: number;
+    isLowStock: boolean;
+    isOutOfStock: boolean;
   };
 }
 
@@ -121,77 +126,67 @@ export default function InventoryPage() {
   // State
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('');
-  const [locationFilter, setLocationFilter] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<StockStatus | ''>('');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
-  // Fetch items
-  const { data: itemsData, isLoading: itemsLoading } = useQuery({
-    queryKey: ['inventory-items', search, categoryFilter, locationFilter],
+  // Fetch products
+  const { data: productsData, isLoading: productsLoading } = useQuery({
+    queryKey: ['inventory-products', search, categoryFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (search) params.set('search', search);
-      if (categoryFilter) params.set('category', categoryFilter);
-      if (locationFilter) params.set('locationId', locationFilter);
-      const res = await fetch(`/api/inventory/items?${params.toString()}`);
+      if (categoryFilter) params.set('categoryId', categoryFilter);
+      const res = await fetch(`/api/inventory/products?${params.toString()}`);
       if (!res.ok) throw new Error('Error loading inventory');
       return res.json();
     },
   });
 
-  // Fetch locations
-  const { data: locationsData } = useQuery({
-    queryKey: ['inventory-locations'],
+  // Fetch categories
+  const { data: categoriesData } = useQuery({
+    queryKey: ['product-categories'],
     queryFn: async () => {
-      const res = await fetch('/api/inventory/locations');
-      if (!res.ok) throw new Error('Error loading locations');
+      const res = await fetch('/api/inventory/products?view=categories');
       return res.json();
     },
   });
 
-  const items: InventoryItem[] = itemsData?.data?.items || [];
-  const locations: InventoryLocation[] = locationsData?.data?.locations || [];
-
-  // Get unique categories from items
-  const categories = useMemo(() => {
-    const cats = items.map(item => item.category).filter(Boolean);
-    return Array.from(new Set(cats));
-  }, [items]);
+  const products: Product[] = productsData?.data?.products || [];
+  const categories: ProductCategory[] = categoriesData?.data?.categories || [];
 
   // Calculate stats
   const stats = useMemo(() => {
-    const total = items.length;
+    const total = products.length;
     let normal = 0;
     let low = 0;
     let critical = 0;
 
-    items.forEach(item => {
-      const status = getStockStatus(item.totalStock, item.minStockLevel);
+    products.forEach(product => {
+      const status = getStockStatus(product.stock?.onHand || 0, product.minStockLevel);
       if (status === 'normal') normal++;
       else if (status === 'low') low++;
       else critical++;
     });
 
     return { total, normal, low, critical };
-  }, [items]);
+  }, [products]);
 
-  // Filter items by status
-  const filteredItems = useMemo(() => {
-    if (!statusFilter) return items;
-    return items.filter(item => {
-      const status = getStockStatus(item.totalStock, item.minStockLevel);
+  // Filter products by status
+  const filteredProducts = useMemo(() => {
+    if (!statusFilter) return products;
+    return products.filter(product => {
+      const status = getStockStatus(product.stock?.onHand || 0, product.minStockLevel);
       return status === statusFilter;
     });
-  }, [items, statusFilter]);
+  }, [products, statusFilter]);
 
   // Check if any filters are active
-  const hasActiveFilters = search || categoryFilter || locationFilter || statusFilter;
+  const hasActiveFilters = search || categoryFilter || statusFilter;
 
   const clearFilters = () => {
     setSearch('');
     setCategoryFilter('');
-    setLocationFilter('');
     setStatusFilter('');
   };
 
@@ -202,28 +197,28 @@ export default function InventoryPage() {
   };
 
   // Handle action
-  const handleAction = (action: string, item: InventoryItem, e: React.MouseEvent) => {
+  const handleAction = (action: string, product: Product, e: React.MouseEvent) => {
     e.stopPropagation();
     setOpenMenuId(null);
 
     switch (action) {
       case 'view':
-        setSelectedItemId(item.id);
+        setSelectedItemId(product.id);
         break;
       case 'edit':
-        router.push(`/dashboard/inventory/products/${item.id}/edit`);
+        router.push(`/dashboard/inventory/products/${product.id}/edit`);
         break;
       case 'add-stock':
-        router.push(`/dashboard/inventory/stock/adjust?itemId=${item.id}&type=add`);
+        router.push(`/dashboard/inventory/stock/adjust?productId=${product.id}&type=add`);
         break;
       case 'reduce-stock':
-        router.push(`/dashboard/inventory/stock/adjust?itemId=${item.id}&type=reduce`);
+        router.push(`/dashboard/inventory/stock/adjust?productId=${product.id}&type=reduce`);
         break;
       case 'transfer':
-        router.push(`/dashboard/inventory/stock/transfer?itemId=${item.id}`);
+        router.push(`/dashboard/inventory/stock/transfer?productId=${product.id}`);
         break;
       case 'delete':
-        if (confirm(`¿Estás seguro de eliminar "${item.name}"?`)) {
+        if (confirm(`¿Estás seguro de eliminar "${product.name}"?`)) {
           // TODO: Implement delete
         }
         break;
@@ -252,7 +247,7 @@ export default function InventoryPage() {
           icon={Package}
           iconBg="bg-teal-100"
           iconColor="text-teal-600"
-          loading={itemsLoading}
+          loading={productsLoading}
           onClick={() => setStatusFilter('')}
           active={statusFilter === ''}
         />
@@ -263,7 +258,7 @@ export default function InventoryPage() {
           icon={CheckCircle}
           iconBg="bg-green-100"
           iconColor="text-green-600"
-          loading={itemsLoading}
+          loading={productsLoading}
           onClick={() => setStatusFilter('normal')}
           active={statusFilter === 'normal'}
         />
@@ -274,7 +269,7 @@ export default function InventoryPage() {
           icon={TrendingDown}
           iconBg="bg-orange-100"
           iconColor="text-orange-600"
-          loading={itemsLoading}
+          loading={productsLoading}
           onClick={() => setStatusFilter('low')}
           active={statusFilter === 'low'}
         />
@@ -285,7 +280,7 @@ export default function InventoryPage() {
           icon={AlertTriangle}
           iconBg="bg-red-100"
           iconColor="text-red-600"
-          loading={itemsLoading}
+          loading={productsLoading}
           onClick={() => setStatusFilter('critical')}
           active={statusFilter === 'critical'}
         />
@@ -313,23 +308,8 @@ export default function InventoryPage() {
         >
           <option value="">Todas las categorías</option>
           {categories.map((cat) => (
-            <option key={cat} value={cat}>
-              {CATEGORY_LABELS[cat] || cat}
-            </option>
-          ))}
-        </select>
-
-        {/* Location Filter */}
-        <select
-          value={locationFilter}
-          onChange={(e) => setLocationFilter(e.target.value)}
-          className="rounded-lg border border-gray-300 py-2 px-3 text-sm focus:border-teal-500 focus:outline-none focus:ring-1 focus:ring-teal-500"
-        >
-          <option value="">Todas las ubicaciones</option>
-          {locations.map((loc) => (
-            <option key={loc.id} value={loc.id}>
-              {loc.name}
-              {loc.vehicle && ` (${loc.vehicle.plateNumber})`}
+            <option key={cat.id} value={cat.id}>
+              {cat.name}
             </option>
           ))}
         </select>
@@ -348,12 +328,12 @@ export default function InventoryPage() {
 
       {/* Products Table */}
       <div className="card overflow-hidden">
-        {itemsLoading ? (
+        {productsLoading ? (
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600 mx-auto"></div>
             <p className="mt-2 text-gray-500">Cargando productos...</p>
           </div>
-        ) : filteredItems.length === 0 ? (
+        ) : filteredProducts.length === 0 ? (
           <div className="p-12 text-center">
             <Package className="mx-auto h-12 w-12 text-gray-300" />
             <h3 className="mt-4 text-lg font-medium text-gray-900">
@@ -404,29 +384,30 @@ export default function InventoryPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
-                {filteredItems.map((item) => {
-                  const status = getStockStatus(item.totalStock, item.minStockLevel);
-                  const percentage = getStockPercentage(item.totalStock, item.minStockLevel);
-                  const primaryLocation = item.stocksByLocation[0];
+                {filteredProducts.map((product) => {
+                  const stockOnHand = product.stock?.onHand || 0;
+                  const status = getStockStatus(stockOnHand, product.minStockLevel);
+                  const percentage = getStockPercentage(stockOnHand, product.minStockLevel);
+                  const primaryLocation = product.inventoryLevels?.[0];
 
                   return (
                     <tr
-                      key={item.id}
+                      key={product.id}
                       className="hover:bg-gray-50 transition-colors cursor-pointer"
-                      onClick={() => setSelectedItemId(item.id)}
+                      onClick={() => setSelectedItemId(product.id)}
                     >
                       {/* Product */}
                       <td className="px-4 py-4">
                         <div>
-                          <p className="font-medium text-gray-900">{item.name}</p>
-                          <p className="text-sm text-gray-500">{item.sku}</p>
+                          <p className="font-medium text-gray-900">{product.name}</p>
+                          <p className="text-sm text-gray-500">{product.sku}</p>
                         </div>
                       </td>
 
                       {/* Category */}
                       <td className="px-4 py-4">
                         <span className="text-sm text-gray-600">
-                          {CATEGORY_LABELS[item.category] || item.category}
+                          {product.category?.name || 'Sin categoría'}
                         </span>
                       </td>
 
@@ -434,24 +415,24 @@ export default function InventoryPage() {
                       <td className="px-4 py-4">
                         <div className="w-32">
                           <p className="text-sm font-medium text-gray-900">
-                            {item.totalStock} {UNIT_LABELS[item.unit] || item.unit}
+                            {stockOnHand} {UNIT_LABELS[product.unitOfMeasure] || product.unitOfMeasure}
                           </p>
                           <StockProgressBar percentage={percentage} status={status} />
                           <p className="text-xs text-gray-400 mt-0.5">
-                            Mín: {item.minStockLevel}
+                            Mín: {product.minStockLevel}
                           </p>
                         </div>
                       </td>
 
                       {/* Location */}
                       <td className="px-4 py-4">
-                        {item.stocksByLocation.length > 0 ? (
+                        {product.inventoryLevels && product.inventoryLevels.length > 0 ? (
                           <div className="flex items-center gap-1 text-sm text-gray-600">
                             <MapPin className="h-3.5 w-3.5 text-gray-400" />
                             <span>
-                              {primaryLocation?.locationName}
-                              {item.stocksByLocation.length > 1 && (
-                                <span className="text-gray-400"> +{item.stocksByLocation.length - 1}</span>
+                              {primaryLocation?.warehouse?.name}
+                              {product.inventoryLevels.length > 1 && (
+                                <span className="text-gray-400"> +{product.inventoryLevels.length - 1}</span>
                               )}
                             </span>
                           </div>
@@ -463,7 +444,7 @@ export default function InventoryPage() {
                       {/* Price */}
                       <td className="px-4 py-4">
                         <span className="text-sm font-medium text-gray-900">
-                          {formatCurrency(item.salePrice)}
+                          {formatCurrency(product.salePrice)}
                         </span>
                       </td>
 
@@ -476,43 +457,43 @@ export default function InventoryPage() {
                       <td className="px-4 py-4 text-right">
                         <div className="relative inline-block">
                           <button
-                            onClick={(e) => handleMenuClick(item.id, e)}
+                            onClick={(e) => handleMenuClick(product.id, e)}
                             className="p-1 rounded hover:bg-gray-100"
                           >
                             <MoreHorizontal className="h-5 w-5 text-gray-400" />
                           </button>
-                          {openMenuId === item.id && (
+                          {openMenuId === product.id && (
                             <div className="absolute right-0 mt-1 w-48 bg-white border rounded-lg shadow-lg z-10">
                               <button
-                                onClick={(e) => handleAction('view', item, e)}
+                                onClick={(e) => handleAction('view', product, e)}
                                 className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                               >
                                 <Eye className="h-4 w-4" />
                                 Ver detalles
                               </button>
                               <button
-                                onClick={(e) => handleAction('edit', item, e)}
+                                onClick={(e) => handleAction('edit', product, e)}
                                 className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                               >
                                 <Edit2 className="h-4 w-4" />
                                 Editar producto
                               </button>
                               <button
-                                onClick={(e) => handleAction('add-stock', item, e)}
+                                onClick={(e) => handleAction('add-stock', product, e)}
                                 className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                               >
                                 <Plus className="h-4 w-4" />
                                 Agregar stock
                               </button>
                               <button
-                                onClick={(e) => handleAction('reduce-stock', item, e)}
+                                onClick={(e) => handleAction('reduce-stock', product, e)}
                                 className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                               >
                                 <Minus className="h-4 w-4" />
                                 Reducir stock
                               </button>
                               <button
-                                onClick={(e) => handleAction('transfer', item, e)}
+                                onClick={(e) => handleAction('transfer', product, e)}
                                 className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                               >
                                 <RefreshCw className="h-4 w-4" />
@@ -520,7 +501,7 @@ export default function InventoryPage() {
                               </button>
                               <div className="border-t my-1" />
                               <button
-                                onClick={(e) => handleAction('delete', item, e)}
+                                onClick={(e) => handleAction('delete', product, e)}
                                 className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-red-600"
                               >
                                 <Trash2 className="h-4 w-4" />
