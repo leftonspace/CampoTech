@@ -9,5 +9,5 @@ export { default as QuickActions } from './QuickActions';
 export { default as NewConversationModal } from './NewConversationModal';
 export { default as EmojiPicker, EmojiButton } from './EmojiPicker';
 
-export type { Conversation, ConversationFilter } from './ConversationList';
+export type { Conversation, ConversationFilter, ConversationStats } from './ConversationList';
 export type { Message } from './MessageBubble';
