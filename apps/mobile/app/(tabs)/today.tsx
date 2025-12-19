@@ -3,6 +3,10 @@
  * ===================
  *
  * Shows jobs scheduled for today with quick status updates.
+ *
+ * Role-based filtering:
+ * - TECHNICIAN: Only sees their assigned jobs
+ * - OWNER/DISPATCHER: Sees all organization jobs
  */
 
 import { useCallback, useMemo } from 'react';
@@ -23,6 +27,7 @@ import { database, jobsCollection } from '../../watermelon/database';
 import { Job } from '../../watermelon/models';
 import { performSync } from '../../lib/sync/sync-engine';
 import { useSyncStatus } from '../../lib/hooks/use-sync-status';
+import { useAuth } from '../../lib/auth/auth-context';
 import JobCard from '../../components/job/JobCard';
 
 // Get today's date range
@@ -171,20 +176,44 @@ function TodayScreen({ jobs }: { jobs: Job[] }) {
   );
 }
 
-// Observe today's jobs from WatermelonDB
-const enhance = withObservables([], () => {
-  const { start, end } = getTodayRange();
+// Observe today's jobs from WatermelonDB with role-based filtering
+const enhance = withObservables(
+  ['userId', 'userRole'],
+  ({ userId, userRole }: { userId: string; userRole: string }) => {
+    const { start, end } = getTodayRange();
+    const isTechnician = userRole?.toUpperCase() === 'TECHNICIAN';
 
-  return {
-    jobs: jobsCollection.query(
+    // Build query conditions
+    const conditions = [
       Q.where('scheduled_start', Q.gte(start)),
       Q.where('scheduled_start', Q.lte(end)),
-      Q.sortBy('scheduled_start', Q.asc)
-    ),
-  };
-});
+    ];
 
-export default enhance(TodayScreen);
+    // Technicians only see their assigned jobs
+    if (isTechnician && userId) {
+      conditions.push(Q.where('assigned_to_id', userId));
+    }
+
+    return {
+      jobs: jobsCollection.query(...conditions, Q.sortBy('scheduled_start', Q.asc)),
+    };
+  }
+);
+
+// Wrapper to inject auth context into the enhanced component
+function TodayScreenWrapper() {
+  const { user } = useAuth();
+  const EnhancedScreen = enhance(TodayScreen);
+
+  return (
+    <EnhancedScreen
+      userId={user?.id || ''}
+      userRole={user?.role || 'TECHNICIAN'}
+    />
+  );
+}
+
+export default TodayScreenWrapper;
 
 const styles = StyleSheet.create({
   container: {
