@@ -63,7 +63,7 @@ async function requireAdmin(): Promise<AuthResult | NextResponse> {
 
     return {
       user: {
-        id: session.id,
+        id: session.userId,
         role: session.role,
         organizationId: session.organizationId,
       },

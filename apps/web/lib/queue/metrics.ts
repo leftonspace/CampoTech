@@ -353,8 +353,8 @@ async function getAverageTiming(key: string, windowMs: number = METRICS_WINDOW *
   const windowStart = now - windowMs;
 
   try {
-    // Get entries in window
-    const entries = await redis.zrangebyscore(key, windowStart, now) as string[];
+    // Get entries in window using zrange with BYSCORE (Upstash Redis REST API)
+    const entries = await redis.zrange(key, windowStart, now, { byScore: true }) as string[];
 
     if (entries.length === 0) return 0;
 

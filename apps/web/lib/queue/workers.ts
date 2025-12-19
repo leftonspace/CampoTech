@@ -406,10 +406,12 @@ async function fetchJobs(tier: QueueTier, count: number): Promise<string[]> {
     const now = Date.now();
 
     // Get jobs with score <= now (ready to process)
-    const jobs = await redis.zrangebyscore(queueKey(tier), 0, now, {
+    // Using zrange with BYSCORE (Upstash Redis REST API)
+    const jobs = await redis.zrange(queueKey(tier), 0, now, {
+      byScore: true,
       offset: 0,
       count: Math.min(count, QUEUE_CONFIG.batchSize),
-    });
+    }) as string[];
 
     // Remove fetched jobs from queue
     if (jobs.length > 0) {
@@ -531,7 +533,7 @@ export async function retryDeadLetterQueue(tier: QueueTier): Promise<number> {
   if (!redis) return 0;
 
   try {
-    const jobIds = await redis.zrange(dlqKey(tier), 0, -1);
+    const jobIds = await redis.zrange(dlqKey(tier), 0, -1) as string[];
     let retried = 0;
 
     for (const jobId of jobIds) {

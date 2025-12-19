@@ -226,7 +226,7 @@ async function archiveTable(config: ArchivalConfig): Promise<ArchivalResult> {
 
         // For delete-only tables, skip archival
         if (DELETE_ONLY_TABLES.includes(config.table)) {
-          const deleted = await deleteRecords(config.table, records.map((r) => r.id));
+          const deleted = await deleteRecords(config.table, records.map((r) => (r as { id: string }).id));
           recordsDeleted += deleted;
           console.log(
             `[DataArchiver] ${config.table}: deleted ${deleted} records (no archive needed)`
@@ -266,7 +266,7 @@ async function archiveTable(config: ArchivalConfig): Promise<ArchivalResult> {
           // Wait 100ms to ensure storage consistency
           await new Promise((resolve) => setTimeout(resolve, 100));
 
-          const deleted = await deleteRecords(config.table, records.map((r) => r.id));
+          const deleted = await deleteRecords(config.table, records.map((r) => (r as { id: string }).id));
           recordsDeleted += deleted;
 
           if (deleted !== records.length) {

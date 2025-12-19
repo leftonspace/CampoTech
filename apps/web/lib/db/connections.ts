@@ -387,7 +387,9 @@ export async function withTransaction<T>(
     isolationLevel?: 'ReadUncommitted' | 'ReadCommitted' | 'RepeatableRead' | 'Serializable';
   }
 ): Promise<T> {
-  return db.$transaction(fn, {
+  // Prisma interactive transactions: pass options as second argument
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (db.$transaction as any)(fn, {
     maxWait: options?.maxWait ?? 5000,
     timeout: options?.timeout ?? 10000,
     isolationLevel: options?.isolationLevel,
