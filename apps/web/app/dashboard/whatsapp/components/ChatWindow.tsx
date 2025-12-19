@@ -10,6 +10,11 @@ import {
   XCircle,
   UserPlus,
   Info,
+  Phone,
+  Bot,
+  User,
+  Settings,
+  Power,
 } from 'lucide-react';
 import MessageBubble, { Message } from './MessageBubble';
 import MessageInput from './MessageInput';
@@ -25,6 +30,13 @@ interface ChatWindowProps {
   onLoadMore?: () => void;
   hasMoreMessages?: boolean;
   onAction?: (action: 'archive' | 'close' | 'assign' | 'info') => void;
+  // AI-related props
+  aiEnabled?: boolean;
+  aiHandlingConversation?: boolean;
+  aiDisabledUntil?: string | null;
+  onDisableAI?: (minutes: number) => void;
+  onEnableAI?: () => void;
+  onGoToSettings?: () => void;
 }
 
 export default function ChatWindow({
@@ -37,6 +49,12 @@ export default function ChatWindow({
   onLoadMore,
   hasMoreMessages,
   onAction,
+  aiEnabled = false,
+  aiHandlingConversation = false,
+  aiDisabledUntil = null,
+  onDisableAI,
+  onEnableAI,
+  onGoToSettings,
 }: ChatWindowProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -60,11 +78,20 @@ export default function ChatWindow({
     }
   };
 
+  // Format time for AI disabled until display
+  const formatDisabledUntil = (dateStr: string | null) => {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  };
+
   if (!conversation) {
     return (
       <div className="flex-1 flex items-center justify-center text-gray-500 bg-gray-50">
         <div className="text-center">
-          <MessageCircle className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
+            <MessageCircle className="h-8 w-8 text-gray-300" />
+          </div>
           <p className="text-lg font-medium text-gray-600">Selecciona una conversacion</p>
           <p className="text-sm text-gray-400 mt-1">
             Elige una conversacion de la lista para ver los mensajes
@@ -91,35 +118,29 @@ export default function ChatWindow({
               {initials}
             </div>
             {conversation.isInWindow && (
-              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-success-500 rounded-full border-2 border-white" />
+              <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
             )}
           </div>
           <div>
             <h2 className="font-medium text-gray-900">{conversation.customerName}</h2>
-            <p className="text-sm text-gray-500">
-              {conversation.customerPhone}
-              {conversation.isInWindow && (
-                <span className="ml-2 text-success-600 font-medium">En ventana 24h</span>
-              )}
-            </p>
+            <p className="text-sm text-gray-500">{conversation.customerPhone}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {conversation.customerId && (
-            <Link
-              href={`/dashboard/customers/${conversation.customerId}`}
-              className="btn-outline text-sm"
-            >
-              Ver cliente
-            </Link>
-          )}
+          {/* Phone button */}
+          <button
+            className="p-2 text-gray-500 hover:bg-gray-100 rounded transition-colors"
+            title="Llamar"
+          >
+            <Phone className="h-5 w-5" />
+          </button>
 
           {/* Actions menu */}
           <div className="relative">
             <button
               onClick={() => setShowMenu(!showMenu)}
-              className="p-2 text-gray-500 hover:bg-gray-100 rounded"
+              className="p-2 text-gray-500 hover:bg-gray-100 rounded transition-colors"
             >
               <MoreVertical className="h-5 w-5" />
             </button>
@@ -141,6 +162,16 @@ export default function ChatWindow({
                     <Info className="h-4 w-4" />
                     Ver informacion
                   </button>
+                  {conversation.customerId && (
+                    <Link
+                      href={`/dashboard/customers/${conversation.customerId}`}
+                      className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                      onClick={() => setShowMenu(false)}
+                    >
+                      <User className="h-4 w-4" />
+                      Ver perfil del cliente
+                    </Link>
+                  )}
                   <button
                     onClick={() => {
                       onAction?.('assign');
@@ -166,7 +197,7 @@ export default function ChatWindow({
                       onAction?.('close');
                       setShowMenu(false);
                     }}
-                    className="w-full px-4 py-2 text-left text-sm text-danger-600 hover:bg-danger-50 flex items-center gap-2"
+                    className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                   >
                     <XCircle className="h-4 w-4" />
                     Cerrar conversacion
@@ -189,7 +220,7 @@ export default function ChatWindow({
           <div className="text-center">
             <button
               onClick={onLoadMore}
-              className="text-sm text-primary-600 hover:underline"
+              className="text-sm text-teal-600 hover:underline"
             >
               Cargar mensajes anteriores
             </button>
@@ -218,6 +249,60 @@ export default function ChatWindow({
         )}
 
         <div ref={messagesEndRef} />
+      </div>
+
+      {/* AI Status Bar */}
+      <div className="px-4 py-2 border-t bg-teal-50 border-teal-100">
+        {aiEnabled && aiHandlingConversation && !aiDisabledUntil ? (
+          // AI is active and handling this conversation
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2 text-teal-700">
+              <Bot className="h-4 w-4" />
+              <span>AI está activo y respondiendo automáticamente</span>
+            </div>
+            {onDisableAI && (
+              <button
+                onClick={() => onDisableAI(30)}
+                className="text-teal-600 hover:text-teal-800 hover:underline font-medium"
+              >
+                Desactivar AI temporalmente
+              </button>
+            )}
+          </div>
+        ) : aiEnabled && aiDisabledUntil ? (
+          // AI is enabled globally but disabled for this conversation
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2 text-gray-600">
+              <User className="h-4 w-4" />
+              <span>AI desactivado para esta conversación hasta {formatDisabledUntil(aiDisabledUntil)}</span>
+            </div>
+            {onEnableAI && (
+              <button
+                onClick={onEnableAI}
+                className="text-teal-600 hover:text-teal-800 hover:underline font-medium"
+              >
+                Reactivar AI
+              </button>
+            )}
+          </div>
+        ) : (
+          // AI is disabled globally
+          <div className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2 text-gray-500">
+              <Power className="h-4 w-4" />
+              <span>AI desactivado globalmente</span>
+            </div>
+            {onGoToSettings && (
+              <button
+                onClick={onGoToSettings}
+                className="text-teal-600 hover:text-teal-800 hover:underline font-medium flex items-center gap-1"
+              >
+                <Settings className="h-3 w-3" />
+                Activar en Configuración
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Message input */}

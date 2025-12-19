@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth-context';
+import { useAIAssistant, AIStatusToggle } from '@/lib/ai-assistant-context';
 import {
   ArrowLeft,
   Save,
@@ -228,6 +229,10 @@ async function fetchTeamMembers(): Promise<Array<{ id: string; name: string; rol
 export default function AIAssistantSettingsPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+
+  // AI Assistant context - for synced toggle state
+  const { isEnabled: aiIsEnabled, settings: aiSettings } = useAIAssistant();
+
   const [activeTab, setActiveTab] = useState<'general' | 'company' | 'hours' | 'faq' | 'advanced' | 'permissions' | 'test'>('general');
   const [config, setConfig] = useState<AIConfig>(DEFAULT_CONFIG);
   const [hasChanges, setHasChanges] = useState(false);
@@ -256,6 +261,7 @@ export default function AIAssistantSettingsPage() {
       setSuccess('Configuración guardada correctamente');
       setHasChanges(false);
       queryClient.invalidateQueries({ queryKey: ['ai-config'] });
+      queryClient.invalidateQueries({ queryKey: ['ai-assistant-settings'] });
       setTimeout(() => setSuccess(''), 3000);
     },
     onError: (err: Error) => {
@@ -264,11 +270,19 @@ export default function AIAssistantSettingsPage() {
     },
   });
 
+  // Sync local config with saved config
   useEffect(() => {
     if (savedConfig) {
       setConfig(savedConfig);
     }
   }, [savedConfig]);
+
+  // Sync isEnabled from context to local config
+  useEffect(() => {
+    if (aiSettings && config.isEnabled !== aiIsEnabled) {
+      setConfig((prev) => ({ ...prev, isEnabled: aiIsEnabled }));
+    }
+  }, [aiIsEnabled, aiSettings]);
 
   const updateConfig = <K extends keyof AIConfig>(key: K, value: AIConfig[K]) => {
     setConfig((prev) => ({ ...prev, [key]: value }));
@@ -474,34 +488,27 @@ export default function AIAssistantSettingsPage() {
         </div>
       )}
 
-      {/* Master Toggle */}
+      {/* Master Toggle - Uses shared AI context for sync with WhatsApp page */}
       <div className="card p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className={`rounded-full p-3 ${config.isEnabled ? 'bg-green-100' : 'bg-gray-100'}`}>
-              <Bot className={`h-6 w-6 ${config.isEnabled ? 'text-green-600' : 'text-gray-400'}`} />
+            <div className={`rounded-full p-3 ${aiIsEnabled ? 'bg-teal-100' : 'bg-gray-100'}`}>
+              <Bot className={`h-6 w-6 ${aiIsEnabled ? 'text-teal-600' : 'text-gray-400'}`} />
             </div>
             <div>
               <h2 className="text-lg font-semibold text-gray-900">Asistente IA Activo</h2>
               <p className="text-sm text-gray-500">
-                {config.isEnabled
+                {aiIsEnabled
                   ? 'El asistente responde mensajes de WhatsApp automáticamente'
                   : 'El asistente está desactivado'}
               </p>
             </div>
           </div>
-          <button
-            onClick={() => updateConfig('isEnabled', !config.isEnabled)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              config.isEnabled ? 'bg-green-500' : 'bg-gray-300'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                config.isEnabled ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
+          {/* Toggle synced with WhatsApp page via context */}
+          <AIStatusToggle
+            showLabel={false}
+            size="md"
+          />
         </div>
       </div>
 
