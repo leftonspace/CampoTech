@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
-import { cn, formatDate, JOB_STATUS_LABELS, JOB_STATUS_COLORS, searchMatchesAny, getInitials } from '@/lib/utils';
+import { cn, formatDate, formatAddress, JOB_STATUS_LABELS, JOB_STATUS_COLORS, searchMatchesAny, getInitials } from '@/lib/utils';
 import {
   Plus,
   Search,
@@ -588,7 +588,7 @@ function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick, onCard
     : null;
 
   // Get address - prefer job address, fallback to customer address
-  const displayAddress = job.address || (job.customer as { address?: string })?.address || '';
+  const displayAddress = formatAddress(job.address) || formatAddress(job.customer?.address) || '';
 
   return (
     <div
