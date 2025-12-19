@@ -476,26 +476,22 @@ export function hashSearchQuery(params: Record<string, unknown>): string {
 export async function getCacheStats(): Promise<{
   connected: boolean;
   dbSize?: number;
-  usedMemory?: string;
 } | null> {
   if (!redis) {
     return { connected: false };
   }
 
   try {
-    const info = await redis.info();
+    // Use ping to check connection and dbsize for stats
+    // Note: Upstash Redis doesn't support INFO command
+    await redis.ping();
     const dbSize = await redis.dbsize();
-
-    // Parse memory from info string
-    const memoryMatch = info?.match(/used_memory_human:(\S+)/);
-    const usedMemory = memoryMatch ? memoryMatch[1] : 'unknown';
 
     return {
       connected: true,
       dbSize,
-      usedMemory,
     };
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('[Cache] Error getting stats:', error);
     return { connected: false };
   }
