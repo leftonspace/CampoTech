@@ -29,6 +29,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { Job } from '@/types';
+import JobDetailModal from './JobDetailModal';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES & CONSTANTS
@@ -92,6 +93,7 @@ export default function JobsPage() {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [assignModalJob, setAssignModalJob] = useState<Job | null>(null);
   const [cancelConfirmJob, setCancelConfirmJob] = useState<Job | null>(null);
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
 
   // Fetch jobs
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
@@ -440,6 +442,7 @@ export default function JobsPage() {
               onMenuClick={handleMenuClick}
               onAction={handleAction}
               onAssignClick={handleAssignClick}
+              onCardClick={(job) => setSelectedJobId(job.id)}
             />
           ))
         ) : (
@@ -482,6 +485,16 @@ export default function JobsPage() {
           onClose={() => setCancelConfirmJob(null)}
         />
       )}
+
+      {/* Job Detail Modal */}
+      <JobDetailModal
+        jobId={selectedJobId}
+        onClose={() => setSelectedJobId(null)}
+        onEdit={(jobId) => {
+          setSelectedJobId(null);
+          router.push(`/dashboard/jobs/${jobId}?edit=true`);
+        }}
+      />
     </div>
   );
 }
@@ -533,9 +546,10 @@ interface JobCardProps {
   onMenuClick: (jobId: string, e: React.MouseEvent) => void;
   onAction: (action: string, job: Job, e: React.MouseEvent) => void;
   onAssignClick: (job: Job, e: React.MouseEvent) => void;
+  onCardClick: (job: Job) => void;
 }
 
-function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick }: JobCardProps) {
+function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick, onCardClick }: JobCardProps) {
   const hasAssignment = job.assignments && job.assignments.length > 0;
   const isCompleted = job.status === 'COMPLETED' || job.status === 'CANCELLED';
   const canCancel = !isCompleted;
@@ -577,9 +591,9 @@ function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick }: JobC
   const displayAddress = job.address || (job.customer as { address?: string })?.address || '';
 
   return (
-    <Link
-      href={`/dashboard/jobs/${job.id}`}
-      className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-all duration-200 block"
+    <div
+      onClick={() => onCardClick(job)}
+      className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-all duration-200 block cursor-pointer"
     >
       <div className="flex flex-col lg:flex-row lg:items-center gap-4">
         {/* Section 1: Job Info - flex-1 */}
@@ -731,7 +745,7 @@ function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick }: JobC
           </div>
         </div>
       </div>
-    </Link>
+    </div>
   );
 }
 
