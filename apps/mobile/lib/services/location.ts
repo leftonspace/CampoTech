@@ -5,15 +5,23 @@
  * Location tracking for technicians.
  * Sends location updates to server when technician is EN_ROUTE.
  *
- * NOTE: Uses foreground polling in Expo Go.
- * For background tracking, a development build is required.
+ * Features:
+ * - Foreground polling in Expo Go (development)
+ * - Background tracking in production builds
+ * - Automatic retry and offline queuing
+ * - 30-second update interval
  */
 
 import * as Location from 'expo-location';
+import * as TaskManager from 'expo-task-manager';
 import { api } from '../api/client';
+
+// Background task name
+const BACKGROUND_LOCATION_TASK = 'CAMPOTECH_BACKGROUND_LOCATION';
 
 // Update interval in milliseconds (30 seconds)
 const UPDATE_INTERVAL = 30000;
+const DISTANCE_INTERVAL = 10; // 10 meters minimum movement
 
 // State
 let isTracking = false;
@@ -21,6 +29,7 @@ let currentJobId: string | null = null;
 let currentSessionId: string | null = null;
 let trackingListeners: Array<(location: LocationUpdate) => void> = [];
 let foregroundInterval: ReturnType<typeof setInterval> | null = null;
+let foregroundSubscription: Location.LocationSubscription | null = null;
 
 export interface LocationUpdate {
   latitude: number;
@@ -33,6 +42,53 @@ export interface LocationUpdate {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// BACKGROUND TASK DEFINITION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Define background location task (must be at module level for expo-task-manager)
+TaskManager.defineTask(BACKGROUND_LOCATION_TASK, async ({ data, error }) => {
+  if (error) {
+    console.error('[Location] Background task error:', error);
+    return;
+  }
+
+  if (data) {
+    const { locations } = data as { locations: Location.LocationObject[] };
+
+    for (const location of locations) {
+      try {
+        // Send location update to server
+        if (currentSessionId && currentJobId) {
+          await api.tracking.update({
+            lat: location.coords.latitude,
+            lng: location.coords.longitude,
+            jobId: currentJobId,
+            sessionId: currentSessionId,
+            speed: location.coords.speed,
+            heading: location.coords.heading,
+            accuracy: location.coords.accuracy,
+            altitude: location.coords.altitude,
+          });
+        }
+
+        // Notify listeners
+        notifyListeners({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          speed: location.coords.speed,
+          heading: location.coords.heading,
+          accuracy: location.coords.accuracy,
+          altitude: location.coords.altitude,
+          timestamp: location.timestamp,
+        });
+      } catch (err) {
+        console.warn('[Location] Background update error:', err);
+      }
+    }
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // PERMISSIONS
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -40,7 +96,7 @@ export async function requestLocationPermissions(): Promise<{
   foreground: boolean;
   background: boolean;
 }> {
-  // Request foreground permission
+  // Request foreground permission first
   const { status: foregroundStatus } =
     await Location.requestForegroundPermissionsAsync();
 
@@ -48,7 +104,18 @@ export async function requestLocationPermissions(): Promise<{
     return { foreground: false, background: false };
   }
 
-  return { foreground: true, background: false };
+  // Request background permission for production builds
+  let backgroundGranted = false;
+  try {
+    const { status: backgroundStatus } =
+      await Location.requestBackgroundPermissionsAsync();
+    backgroundGranted = backgroundStatus === 'granted';
+  } catch (error) {
+    // Background permissions may not be available in Expo Go
+    console.log('[Location] Background permissions not available:', error);
+  }
+
+  return { foreground: true, background: backgroundGranted };
 }
 
 export async function checkLocationPermissions(): Promise<{
@@ -57,9 +124,17 @@ export async function checkLocationPermissions(): Promise<{
 }> {
   const foreground = await Location.getForegroundPermissionsAsync();
 
+  let backgroundGranted = false;
+  try {
+    const background = await Location.getBackgroundPermissionsAsync();
+    backgroundGranted = background.status === 'granted';
+  } catch {
+    // Ignore - background permissions may not be available
+  }
+
   return {
     foreground: foreground.status === 'granted',
-    background: false,
+    background: backgroundGranted,
   };
 }
 
@@ -83,11 +158,11 @@ export async function startTracking(jobId: string): Promise<{
     };
   }
 
-  // Check permissions
-  const permissions = await checkLocationPermissions();
+  // Check and request permissions
+  let permissions = await checkLocationPermissions();
   if (!permissions.foreground) {
-    const requested = await requestLocationPermissions();
-    if (!requested.foreground) {
+    permissions = await requestLocationPermissions();
+    if (!permissions.foreground) {
       return {
         success: false,
         error: 'Location permission required',
@@ -98,7 +173,7 @@ export async function startTracking(jobId: string): Promise<{
   try {
     // Get current location
     const currentLocation = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
+      accuracy: Location.Accuracy.High,
     });
 
     // Start tracking session on server
@@ -119,8 +194,17 @@ export async function startTracking(jobId: string): Promise<{
     currentSessionId = response.data.sessionId;
     isTracking = true;
 
-    // Start foreground polling
-    startForegroundTracking();
+    // Start location updates based on available permissions
+    if (permissions.background) {
+      await startBackgroundTracking();
+      console.log('[Location] Started background tracking');
+    } else {
+      startForegroundTracking();
+      console.log('[Location] Started foreground tracking (polling every 30s)');
+    }
+
+    // Also start watch for foreground updates (more frequent when app is open)
+    await startForegroundWatch();
 
     // Notify listeners of initial location
     notifyListeners({
@@ -154,7 +238,10 @@ export async function stopTracking(): Promise<void> {
   if (!isTracking) return;
 
   try {
+    // Stop all tracking methods
     stopForegroundTracking();
+    await stopForegroundWatch();
+    await stopBackgroundTracking();
 
     // Notify server that tracking has stopped
     if (currentSessionId) {
@@ -183,16 +270,66 @@ export function getCurrentJobId(): string | null {
   return currentJobId;
 }
 
+/**
+ * Get current session ID
+ */
+export function getCurrentSessionId(): string | null {
+  return currentSessionId;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
-// FOREGROUND TRACKING
+// BACKGROUND TRACKING (Production builds only)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+async function startBackgroundTracking(): Promise<void> {
+  try {
+    const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(
+      BACKGROUND_LOCATION_TASK
+    );
+
+    if (!isTaskRegistered) {
+      await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
+        accuracy: Location.Accuracy.High,
+        timeInterval: UPDATE_INTERVAL,
+        distanceInterval: DISTANCE_INTERVAL,
+        showsBackgroundLocationIndicator: true,
+        foregroundService: {
+          notificationTitle: 'CampoTech - Rastreo activo',
+          notificationBody: 'Tu ubicación se está compartiendo con el cliente',
+          notificationColor: '#16a34a',
+        },
+        pausesUpdatesAutomatically: false,
+        activityType: Location.ActivityType.AutomotiveNavigation,
+      });
+    }
+  } catch (error) {
+    console.warn('[Location] Could not start background tracking:', error);
+    // Fall back to foreground polling
+    startForegroundTracking();
+  }
+}
+
+async function stopBackgroundTracking(): Promise<void> {
+  try {
+    const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(
+      BACKGROUND_LOCATION_TASK
+    );
+    if (isTaskRegistered) {
+      await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
+    }
+  } catch (error) {
+    console.warn('[Location] Error stopping background tracking:', error);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FOREGROUND TRACKING (Fallback for Expo Go)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function startForegroundTracking(): void {
   if (foregroundInterval) return;
 
-  console.log('[Location] Starting foreground tracking (polling every 30s)');
-
-  // Poll location every 30 seconds
+  // Poll location every 30 seconds (fallback for Expo Go)
   foregroundInterval = setInterval(async () => {
     if (!isTracking) {
       stopForegroundTracking();
@@ -201,7 +338,7 @@ function startForegroundTracking(): void {
 
     try {
       const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
+        accuracy: Location.Accuracy.High,
       });
 
       const locationUpdate: LocationUpdate = {
@@ -217,16 +354,18 @@ function startForegroundTracking(): void {
       notifyListeners(locationUpdate);
 
       // Send to server
-      await api.tracking.update({
-        lat: location.coords.latitude,
-        lng: location.coords.longitude,
-        jobId: currentJobId,
-        sessionId: currentSessionId,
-        speed: location.coords.speed,
-        heading: location.coords.heading,
-        accuracy: location.coords.accuracy,
-        altitude: location.coords.altitude,
-      });
+      if (currentSessionId && currentJobId) {
+        await api.tracking.update({
+          lat: location.coords.latitude,
+          lng: location.coords.longitude,
+          jobId: currentJobId,
+          sessionId: currentSessionId,
+          speed: location.coords.speed,
+          heading: location.coords.heading,
+          accuracy: location.coords.accuracy,
+          altitude: location.coords.altitude,
+        });
+      }
     } catch (error) {
       console.warn('Foreground location update error:', error);
     }
@@ -237,6 +376,40 @@ function stopForegroundTracking(): void {
   if (foregroundInterval) {
     clearInterval(foregroundInterval);
     foregroundInterval = null;
+  }
+}
+
+// Foreground watch for more frequent updates when app is in foreground
+async function startForegroundWatch(): Promise<void> {
+  try {
+    foregroundSubscription = await Location.watchPositionAsync(
+      {
+        accuracy: Location.Accuracy.High,
+        timeInterval: 5000, // 5 seconds when in foreground
+        distanceInterval: DISTANCE_INTERVAL,
+      },
+      (location) => {
+        const locationUpdate: LocationUpdate = {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          speed: location.coords.speed,
+          heading: location.coords.heading,
+          accuracy: location.coords.accuracy,
+          altitude: location.coords.altitude,
+          timestamp: location.timestamp,
+        };
+        notifyListeners(locationUpdate);
+      }
+    );
+  } catch (error) {
+    console.warn('[Location] Could not start foreground watch:', error);
+  }
+}
+
+async function stopForegroundWatch(): Promise<void> {
+  if (foregroundSubscription) {
+    foregroundSubscription.remove();
+    foregroundSubscription = null;
   }
 }
 
@@ -281,7 +454,7 @@ export async function getCurrentLocation(): Promise<LocationUpdate | null> {
     }
 
     const location = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
+      accuracy: Location.Accuracy.High,
     });
 
     return {
@@ -326,6 +499,19 @@ export async function sendLocationUpdate(): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('Manual location update error:', error);
+    return false;
+  }
+}
+
+/**
+ * Check if background tracking is available
+ * (Requires development build, not available in Expo Go)
+ */
+export async function isBackgroundTrackingAvailable(): Promise<boolean> {
+  try {
+    const permissions = await checkLocationPermissions();
+    return permissions.background;
+  } catch {
     return false;
   }
 }

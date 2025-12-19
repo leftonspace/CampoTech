@@ -1,0 +1,57 @@
+🔧 CampoTech - La app definitiva para negocios de servicios a domicilio
+
+¿Tenés un negocio de aire acondicionado, plomería, electricidad o servicios técnicos? CampoTech te ayuda a organizar todo: trabajos, técnicos, inventario y facturación.
+
+📋 GESTIÓN DE TRABAJOS
+• Creá y asigná trabajos a tu equipo
+• Seguimiento en tiempo real de técnicos en ruta
+• Historial completo de cada trabajo con fotos y reportes
+• Estados personalizables: agendado, en camino, trabajando, completado
+
+👥 EQUIPO Y TÉCNICOS
+• Asigná trabajos según ubicación y disponibilidad
+• Vista de calendario semanal y diario
+• Comunicación directa con tu equipo
+• Métricas de rendimiento por técnico
+
+📦 INVENTARIO INTELIGENTE
+• Control de stock en tiempo real
+• Registro de materiales usados en cada trabajo
+• Alertas de stock bajo
+• Historial de movimientos
+
+📱 FUNCIONA OFFLINE
+• Trabajá sin conexión a internet
+• Sincronización automática cuando vuelvas online
+• Ideal para zonas con mala señal
+
+📊 REPORTES Y ANALÍTICAS
+• Ingresos por período
+• Trabajos completados vs programados
+• Satisfacción del cliente
+• Rendimiento del equipo
+
+⭐ PARA DUEÑOS
+• Control total del negocio
+• Gestión de equipo y roles
+• Analytics avanzados
+• Facturación integrada
+
+⭐ PARA DESPACHADORES
+• Asignación rápida de trabajos
+• Vista de calendario y mapa
+• Seguimiento de técnicos
+• Gestión de clientes
+
+⭐ PARA TÉCNICOS
+• Lista de trabajos del día
+• Navegación integrada
+• Registro de materiales usados
+• Reportes de voz con transcripción
+
+---
+
+🚀 Probalo gratis y organizá tu negocio como un profesional.
+
+Contacto: soporte@campo.tech
+Web: https://campo.tech

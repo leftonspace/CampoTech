@@ -3,9 +3,16 @@
  * =================
  *
  * Shows job details with status actions and completion flow.
+ *
+ * Features:
+ * - Customer info with contact options
+ * - Status updates with GPS tracking integration
+ * - Photo capture (before/during/after)
+ * - Material usage logging
+ * - Signature capture on completion
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,13 +21,16 @@ import {
   TouchableOpacity,
   Linking,
   Alert,
+  Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { withObservables } from '@nozbe/watermelondb/react';
 import { switchMap, of } from 'rxjs';
+import { Q } from '@nozbe/watermelondb';
+import * as ImagePicker from 'expo-image-picker';
 
-import { jobsCollection, customersCollection } from '../../../watermelon/database';
+import { jobsCollection, customersCollection, jobPhotosCollection, database } from '../../../watermelon/database';
 import { Job, Customer } from '../../../watermelon/models';
 import { enqueueOperation } from '../../../lib/sync/sync-engine';
 import {
@@ -30,9 +40,39 @@ import {
 } from '../../../lib/services/location';
 import StatusButton from '../../../components/job/StatusButton';
 
+interface JobPhoto {
+  id: string;
+  localUri: string;
+  type: 'before' | 'during' | 'after';
+}
+
 function JobDetailScreen({ job, customer }: { job: Job; customer: Customer | null }) {
   const router = useRouter();
   const [isUpdating, setIsUpdating] = useState(false);
+  const [photos, setPhotos] = useState<JobPhoto[]>([]);
+  const [showPhotos, setShowPhotos] = useState(false);
+
+  // Load existing photos for this job
+  useEffect(() => {
+    loadPhotos();
+  }, [job.id]);
+
+  const loadPhotos = async () => {
+    try {
+      const existingPhotos = await jobPhotosCollection
+        .query(Q.where('job_id', job.id))
+        .fetch();
+      setPhotos(
+        existingPhotos.map((p: any) => ({
+          id: p.id,
+          localUri: p.localUri,
+          type: p.type,
+        }))
+      );
+    } catch (error) {
+      console.error('Failed to load photos:', error);
+    }
+  };
 
   const handleStatusChange = useCallback(
     async (newStatus: string) => {
@@ -120,6 +160,99 @@ function JobDetailScreen({ job, customer }: { job: Job; customer: Customer | nul
     }
   };
 
+  // Determine photo type based on job status
+  const getPhotoType = (): 'before' | 'during' | 'after' => {
+    if (job.status === 'pending' || job.status === 'scheduled' || job.status === 'en_camino') {
+      return 'before';
+    }
+    if (job.status === 'working') {
+      return 'during';
+    }
+    return 'after';
+  };
+
+  const handleTakePhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permiso requerido', 'Necesitamos acceso a la cámara para tomar fotos');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsEditing: false,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      await savePhoto(result.assets[0].uri);
+    }
+  };
+
+  const handlePickPhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('Permiso requerido', 'Necesitamos acceso a la galería');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+      allowsMultipleSelection: true,
+      selectionLimit: 5 - photos.length,
+    });
+
+    if (!result.canceled) {
+      for (const asset of result.assets) {
+        await savePhoto(asset.uri);
+      }
+    }
+  };
+
+  const savePhoto = async (uri: string) => {
+    const photoType = getPhotoType();
+    try {
+      await database.write(async () => {
+        await jobPhotosCollection.create((photo: any) => {
+          photo.jobId = job.id;
+          photo.localUri = uri;
+          photo.type = photoType;
+          photo.uploaded = false;
+          photo.createdAt = new Date();
+        });
+      });
+      await loadPhotos();
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo guardar la foto');
+    }
+  };
+
+  const handleRemovePhoto = async (photoId: string) => {
+    Alert.alert(
+      'Eliminar foto',
+      '¿Estás seguro de que querés eliminar esta foto?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Eliminar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await database.write(async () => {
+                const photo = await jobPhotosCollection.find(photoId);
+                await photo.destroyPermanently();
+              });
+              await loadPhotos();
+            } catch (error) {
+              Alert.alert('Error', 'No se pudo eliminar la foto');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const formatDate = (timestamp: number | null) => {
     if (!timestamp) return '--';
     return new Date(timestamp).toLocaleDateString('es-AR', {
@@ -136,6 +269,10 @@ function JobDetailScreen({ job, customer }: { job: Job; customer: Customer | nul
       minute: '2-digit',
     });
   };
+
+  // Check if we can add photos (job is in progress)
+  const canAddPhotos = ['en_camino', 'working'].includes(job.status);
+  const photoTypeLabel = getPhotoType() === 'before' ? 'Antes' : getPhotoType() === 'during' ? 'Durante' : 'Después';
 
   return (
     <>
@@ -161,6 +298,107 @@ function JobDetailScreen({ job, customer }: { job: Job; customer: Customer | nul
             isLoading={isUpdating}
           />
         </View>
+
+        {/* Photo capture card - shown during work */}
+        {canAddPhotos && (
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.cardHeader}
+              onPress={() => setShowPhotos(!showPhotos)}
+            >
+              <Feather name="camera" size={18} color="#16a34a" />
+              <Text style={styles.cardTitle}>
+                Fotos del trabajo ({photos.length})
+              </Text>
+              <View style={styles.photoBadge}>
+                <Text style={styles.photoBadgeText}>{photoTypeLabel}</Text>
+              </View>
+              <Feather
+                name={showPhotos ? 'chevron-up' : 'chevron-down'}
+                size={20}
+                color="#9ca3af"
+              />
+            </TouchableOpacity>
+
+            {showPhotos && (
+              <View style={styles.photoSection}>
+                {/* Photo grid */}
+                {photos.length > 0 && (
+                  <View style={styles.photoGrid}>
+                    {photos.map((photo) => (
+                      <View key={photo.id} style={styles.photoItem}>
+                        <Image source={{ uri: photo.localUri }} style={styles.photo} />
+                        <View style={styles.photoTypeBadge}>
+                          <Text style={styles.photoTypeText}>
+                            {photo.type === 'before' ? 'A' : photo.type === 'during' ? 'D' : 'F'}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          style={styles.removePhoto}
+                          onPress={() => handleRemovePhoto(photo.id)}
+                        >
+                          <Feather name="x" size={14} color="#fff" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Add photo buttons */}
+                <View style={styles.addPhotoButtons}>
+                  <TouchableOpacity
+                    style={styles.addPhotoButton}
+                    onPress={handleTakePhoto}
+                  >
+                    <Feather name="camera" size={20} color="#16a34a" />
+                    <Text style={styles.addPhotoText}>Tomar foto</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.addPhotoButton}
+                    onPress={handlePickPhoto}
+                  >
+                    <Feather name="image" size={20} color="#16a34a" />
+                    <Text style={styles.addPhotoText}>Galería</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Text style={styles.photoHint}>
+                  Las fotos se guardan localmente y se sincronizan cuando haya conexión
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
+        {/* Quick actions during work */}
+        {job.status === 'working' && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Feather name="tool" size={18} color="#16a34a" />
+              <Text style={styles.cardTitle}>Acciones rápidas</Text>
+            </View>
+            <View style={styles.quickActions}>
+              <TouchableOpacity
+                style={styles.quickAction}
+                onPress={() => router.push(`/(tabs)/inventory/usage?jobId=${job.id}`)}
+              >
+                <View style={styles.quickActionIcon}>
+                  <Feather name="package" size={20} color="#3b82f6" />
+                </View>
+                <Text style={styles.quickActionText}>Registrar materiales</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.quickAction}
+                onPress={handleTakePhoto}
+              >
+                <View style={styles.quickActionIcon}>
+                  <Feather name="camera" size={20} color="#8b5cf6" />
+                </View>
+                <Text style={styles.quickActionText}>Agregar foto</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
 
         {/* Customer card */}
         <View style={styles.card}>
@@ -242,6 +480,25 @@ function JobDetailScreen({ job, customer }: { job: Job; customer: Customer | nul
           </View>
         )}
 
+        {/* Materials used (if any) */}
+        {job.parsedMaterialsUsed.length > 0 && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Feather name="package" size={18} color="#16a34a" />
+              <Text style={styles.cardTitle}>Materiales utilizados</Text>
+            </View>
+            {job.parsedMaterialsUsed.map((material, index) => (
+              <View key={index} style={styles.materialItem}>
+                <Text style={styles.materialName}>{material.name}</Text>
+                <Text style={styles.materialQty}>x{material.quantity}</Text>
+                <Text style={styles.materialPrice}>
+                  ${(material.quantity * material.price).toLocaleString('es-AR')}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )}
+
         {/* Completion info (if completed) */}
         {job.isCompleted && job.completionNotes && (
           <View style={styles.card}>
@@ -258,6 +515,28 @@ function JobDetailScreen({ job, customer }: { job: Job; customer: Customer | nul
                 </Text>
               </View>
             )}
+          </View>
+        )}
+
+        {/* Existing photos for completed jobs */}
+        {job.isCompleted && photos.length > 0 && (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Feather name="image" size={18} color="#16a34a" />
+              <Text style={styles.cardTitle}>Fotos ({photos.length})</Text>
+            </View>
+            <View style={styles.photoGrid}>
+              {photos.map((photo) => (
+                <View key={photo.id} style={styles.photoItem}>
+                  <Image source={{ uri: photo.localUri }} style={styles.photo} />
+                  <View style={styles.photoTypeBadge}>
+                    <Text style={styles.photoTypeText}>
+                      {photo.type === 'before' ? 'A' : photo.type === 'during' ? 'D' : 'F'}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
           </View>
         )}
 
@@ -421,6 +700,138 @@ const styles = StyleSheet.create({
     color: '#374151',
     lineHeight: 20,
   },
+  // Photo styles
+  photoBadge: {
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  photoBadgeText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#16a34a',
+  },
+  photoSection: {
+    marginTop: 8,
+  },
+  photoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  photoItem: {
+    position: 'relative',
+    width: '30%',
+    aspectRatio: 1,
+  },
+  photo: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  photoTypeBadge: {
+    position: 'absolute',
+    bottom: 4,
+    left: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  photoTypeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  removePhoto: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    padding: 4,
+  },
+  addPhotoButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  addPhotoButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    backgroundColor: '#f0fdf4',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#dcfce7',
+    borderStyle: 'dashed',
+  },
+  addPhotoText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#16a34a',
+  },
+  photoHint: {
+    fontSize: 12,
+    color: '#9ca3af',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  // Quick actions
+  quickActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  quickAction: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 12,
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+  },
+  quickActionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  quickActionText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#374151',
+    textAlign: 'center',
+  },
+  // Materials
+  materialItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  materialName: {
+    flex: 1,
+    fontSize: 14,
+    color: '#374151',
+  },
+  materialQty: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginRight: 12,
+  },
+  materialPrice: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#16a34a',
+  },
+  // Total
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -83,6 +83,8 @@ model Organization {
   // AI Assistant
   aiConfiguration             AIConfiguration?
   aiConversationLogs          AIConversationLog[]
+  // Marketplace Public Profile
+  publicProfile               BusinessPublicProfile?
 
   @@map("organizations")
 }
@@ -241,6 +243,10 @@ model Job {
   @@index([organizationId])
   @@index([locationId])
   @@index([zoneId])
+  // Composite indexes for common query patterns (Phase 5.1.1)
+  @@index([organizationId, status])        // Filter jobs by org and status
+  @@index([organizationId, scheduledDate]) // Filter jobs by org and date
+  @@index([technicianId, status])          // Filter technician's jobs by status
   @@map("jobs")
 }
 
@@ -765,6 +771,8 @@ model Review {
   @@index([technicianId])
   @@index([rating])
   @@index([token])
+  // Composite indexes for marketplace queries (Phase 5.1.1)
+  @@index([organizationId, rating]) // Aggregate ratings by org for marketplace
   @@map("reviews")
 }
 
@@ -3095,6 +3103,9 @@ model EmployeeSchedule {
   @@unique([userId, dayOfWeek])
   @@index([organizationId])
   @@index([userId])
+  // Composite indexes for availability queries (Phase 5.1.1)
+  // Note: @@unique([userId, dayOfWeek]) already creates an implicit index
+  @@index([organizationId, dayOfWeek]) // Find available employees on a specific day
   @@map("employee_schedules")
 }
 
@@ -3118,7 +3129,61 @@ model ScheduleException {
   @@index([organizationId])
   @@index([userId])
   @@index([date])
+  // Composite indexes for exception queries (Phase 5.1.1)
+  // Note: @@unique([userId, date]) already creates an implicit index
+  @@index([organizationId, date]) // Find all exceptions on a specific date
   @@map("schedule_exceptions")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MARKETPLACE PUBLIC PROFILES (Phase 3.3 / 5.1)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model BusinessPublicProfile {
+  id              String   @id @default(cuid())
+  organizationId  String   @unique
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  displayName     String
+  description     String?  @db.Text
+  logo            String?  // URL
+  coverPhoto      String?  // URL
+
+  // Services offered
+  categories      String[] // e.g., ["plomeria", "gas"]
+  services        Json     @default("[]") // Array of {name, description, priceRange}
+
+  // Location
+  serviceArea     Json?    // GeoJSON polygon or radius
+  address         String?  // Physical address (optional)
+
+  // Contact
+  whatsappNumber  String
+  phone           String?
+
+  // Metrics (calculated, updated by background job)
+  averageRating   Float    @default(0)
+  totalReviews    Int      @default(0)
+  totalJobs       Int      @default(0)
+  responseRate    Float    @default(0)  // % of requests responded to (0-100)
+  responseTime    Int      @default(0)  // Average minutes to respond
+
+  // Verification badges
+  cuitVerified      Boolean  @default(false)
+  insuranceVerified Boolean  @default(false)
+
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Indexes for marketplace search queries (Phase 5.1.1)
+  @@index([averageRating])
+  @@index([isActive])
+  @@index([isActive, averageRating(sort: Desc)]) // Active profiles sorted by rating
+  // Note: For categories array search, PostgreSQL GIN index is recommended
+  // This will be handled via raw SQL migration for GIN index on categories
+  @@map("business_public_profiles")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

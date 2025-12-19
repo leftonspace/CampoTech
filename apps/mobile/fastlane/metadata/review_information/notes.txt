@@ -1,0 +1,13 @@
+Demo Account for Review:
+Email: review@campo.tech
+Password: AppReview2024!
+
+Test Instructions:
+1. Log in with the demo account
+2. You will see sample jobs for today
+3. Tap on any job to see details
+4. Try the calendar view for weekly schedule
+5. Check the team section (for owner role)
+6. Test offline mode by enabling airplane mode
+
+Note: This app is designed for field service businesses (HVAC, plumbing, electrical, etc.) in Argentina. All text is in Spanish.

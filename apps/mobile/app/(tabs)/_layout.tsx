@@ -23,6 +23,7 @@ import {
   Users,
   Map,
   FileText,
+  BarChart3,
 } from 'lucide-react-native';
 import { useRef, useEffect, useMemo } from 'react';
 
@@ -50,6 +51,7 @@ export default function TabsLayout() {
   const canSeeCalendar = userRole === 'OWNER' || userRole === 'DISPATCHER';
   const canSeeTeam = userRole === 'OWNER';
   const canSeeInvoices = userRole === 'OWNER';
+  const canSeeAnalytics = userRole === 'OWNER';
   const canSeeInventory = userRole === 'TECHNICIAN';
 
   // Animate sync icon
@@ -215,6 +217,19 @@ export default function TabsLayout() {
             href: null,
             tabBarIcon: ({ color, size }) => (
               <FileText size={size} color={color} />
+            ),
+          }}
+        />
+
+        {/* Analytics - OWNER only, accessible from profile */}
+        <Tabs.Screen
+          name="analytics"
+          options={{
+            title: 'Analíticas',
+            headerShown: false,
+            href: canSeeAnalytics ? null : null, // Hidden from tab bar, accessible via navigation
+            tabBarIcon: ({ color, size }) => (
+              <BarChart3 size={size} color={color} />
             ),
           }}
         />

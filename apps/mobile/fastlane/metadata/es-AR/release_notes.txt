@@ -1,0 +1,11 @@
+¡Bienvenido a CampoTech!
+
+✨ Novedades en esta versión:
+• Mapa en vivo con ubicación de técnicos
+• Vista semanal del calendario
+• Dashboard de analíticas para dueños
+• Gestión de equipo mejorada
+• Reportes de voz con transcripción
+• Modo offline mejorado
+
+📱 Optimizado para dispositivos Android 8+ e iOS 14+

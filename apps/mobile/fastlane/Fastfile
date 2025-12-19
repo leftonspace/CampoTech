@@ -1,0 +1,110 @@
+# CampoTech Mobile - Fastlane Configuration
+# ==========================================
+#
+# This file contains the fastlane configuration for automating
+# App Store and Google Play submissions.
+#
+# For iOS: Run `fastlane ios beta` or `fastlane ios release`
+# For Android: Run `fastlane android beta` or `fastlane android release`
+
+default_platform(:ios)
+
+# iOS Lane
+platform :ios do
+  desc "Push a new beta build to TestFlight"
+  lane :beta do
+    # Ensure we're on a clean git state
+    ensure_git_status_clean
+
+    # Increment build number
+    increment_build_number(xcodeproj: "ios/CampoTech.xcodeproj")
+
+    # Build the app
+    build_app(
+      workspace: "ios/CampoTech.xcworkspace",
+      scheme: "CampoTech",
+      export_method: "app-store"
+    )
+
+    # Upload to TestFlight
+    upload_to_testflight(
+      skip_waiting_for_build_processing: true
+    )
+
+    # Commit version bump
+    commit_version_bump(message: "Version bump [skip ci]")
+    push_to_git_remote
+  end
+
+  desc "Push a new release to the App Store"
+  lane :release do
+    # Build
+    build_app(
+      workspace: "ios/CampoTech.xcworkspace",
+      scheme: "CampoTech",
+      export_method: "app-store"
+    )
+
+    # Upload to App Store
+    upload_to_app_store(
+      submit_for_review: false,
+      automatic_release: false,
+      force: true, # Skip HTML preview
+      metadata_path: "./fastlane/metadata",
+      screenshots_path: "./fastlane/screenshots"
+    )
+  end
+
+  desc "Download metadata from App Store Connect"
+  lane :download_metadata do
+    download_metadata(
+      metadata_path: "./fastlane/metadata"
+    )
+  end
+end
+
+# Android Lane
+platform :android do
+  desc "Submit a new beta build to Play Store internal track"
+  lane :beta do
+    # Build with Gradle
+    gradle(
+      task: "clean bundleRelease",
+      project_dir: "android/"
+    )
+
+    # Upload to Play Store internal track
+    upload_to_play_store(
+      track: "internal",
+      aab: "android/app/build/outputs/bundle/release/app-release.aab",
+      json_key: "google-play-service-account.json",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Promote internal to production"
+  lane :release do
+    upload_to_play_store(
+      track: "internal",
+      track_promote_to: "production",
+      json_key: "google-play-service-account.json",
+      skip_upload_aab: true,
+      skip_upload_metadata: false,
+      metadata_path: "./fastlane/metadata"
+    )
+  end
+
+  desc "Upload metadata only"
+  lane :upload_metadata do
+    upload_to_play_store(
+      track: "production",
+      json_key: "google-play-service-account.json",
+      skip_upload_aab: true,
+      skip_upload_metadata: false,
+      skip_upload_changelogs: false,
+      metadata_path: "./fastlane/metadata"
+    )
+  end
+end
