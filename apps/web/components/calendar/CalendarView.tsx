@@ -3,6 +3,10 @@
 import { useMemo } from 'react';
 import { RefreshCw, Clock, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDateBuenosAires, getBuenosAiresNow, TIMEZONE } from '@/lib/timezone';
+
+// Use the shared timezone utilities
+const formatLocalDate = formatDateBuenosAires;
 
 export interface CalendarEvent {
   id: string;
@@ -183,15 +187,15 @@ function MonthView({
   }, [currentDate]);
 
   const getEventsForDate = (date: Date) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(date);
     return events.filter((event) => {
       const eventDate = event.start.split('T')[0];
       return eventDate === dateStr;
     });
   };
 
-  const today = new Date().toISOString().split('T')[0];
-  const selectedDateStr = selectedDate?.toISOString().split('T')[0];
+  const today = formatLocalDate(getBuenosAiresNow());
+  const selectedDateStr = selectedDate ? formatLocalDate(selectedDate) : undefined;
   const selectedEvents = selectedDate ? getEventsForDate(selectedDate) : [];
 
   return (
@@ -212,7 +216,7 @@ function MonthView({
           {weeks.map((week, weekIndex) => (
             <div key={weekIndex} className="grid grid-cols-7 border-b border-gray-50">
               {week.map((date, dayIndex) => {
-                const dateStr = date.toISOString().split('T')[0];
+                const dateStr = formatLocalDate(date);
                 const isCurrentMonth = date.getMonth() === currentDate.getMonth();
                 const isToday = dateStr === today;
                 const isSelected = dateStr === selectedDateStr;
@@ -416,7 +420,7 @@ function WeekView({
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   const getEventsForDateAndHour = (date: Date, hour: number) => {
-    const dateStr = date.toISOString().split('T')[0];
+    const dateStr = formatLocalDate(date);
     return events.filter((event) => {
       const eventDate = event.start.split('T')[0];
       const eventHour = new Date(event.start).getHours();
@@ -424,7 +428,7 @@ function WeekView({
     });
   };
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = formatLocalDate(getBuenosAiresNow());
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
@@ -434,7 +438,7 @@ function WeekView({
           Hora
         </div>
         {weekDays.map((day, i) => {
-          const dateStr = day.toISOString().split('T')[0];
+          const dateStr = formatLocalDate(day);
           const isToday = dateStr === today;
           return (
             <div
@@ -465,7 +469,7 @@ function WeekView({
               {hour.toString().padStart(2, '0')}:00
             </div>
             {weekDays.map((day, i) => {
-              const dateStr = day.toISOString().split('T')[0];
+              const dateStr = formatLocalDate(day);
               const isToday = dateStr === today;
               const hourEvents = getEventsForDateAndHour(day, hour);
 
@@ -513,7 +517,7 @@ function DayView({
   onEventClick: (event: CalendarEvent) => void;
 }) {
   const hours = Array.from({ length: 24 }, (_, i) => i);
-  const dateStr = currentDate.toISOString().split('T')[0];
+  const dateStr = formatLocalDate(currentDate);
 
   const getEventsForHour = (hour: number) => {
     return events.filter((event) => {
