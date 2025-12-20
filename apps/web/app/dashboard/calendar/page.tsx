@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { CalendarView, CalendarEvent } from '@/components/calendar/CalendarView';
 import { JobCard } from '@/components/calendar/JobCard';
+import { getBuenosAiresNow } from '@/lib/timezone';
 
 interface Technician {
   id: string;
@@ -46,11 +47,12 @@ async function fetchCalendarEvents(
 }
 
 export default function CalendarPage() {
-  const [currentDate, setCurrentDate] = useState(new Date());
+  // Initialize dates with Buenos Aires timezone
+  const [currentDate, setCurrentDate] = useState(() => getBuenosAiresNow());
   const [view, setView] = useState<'month' | 'week' | 'day'>('month');
   const [selectedTechnicianId, setSelectedTechnicianId] = useState<string | undefined>();
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(() => getBuenosAiresNow());
   const [showFilters, setShowFilters] = useState(false);
 
   // Calculate date range based on view
@@ -112,8 +114,8 @@ export default function CalendarPage() {
   }, [view]);
 
   const handleToday = useCallback(() => {
-    setCurrentDate(new Date());
-    setSelectedDate(new Date());
+    setCurrentDate(getBuenosAiresNow());
+    setSelectedDate(getBuenosAiresNow());
   }, []);
 
   const handleEventClick = useCallback((event: CalendarEvent) => {
