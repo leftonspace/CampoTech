@@ -373,8 +373,8 @@ class ErrorLogger {
     for (const [key, value] of Object.entries(context)) {
       if (key === 'metadata' && value) {
         sanitized.metadata = this.sanitizeData(value as Record<string, unknown>);
-      } else {
-        sanitized[key as keyof ErrorContext] = value as string | undefined;
+      } else if (key !== 'metadata') {
+        (sanitized as Record<string, unknown>)[key] = value;
       }
     }
 

@@ -14,6 +14,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 import type { ComplianceBlockType } from '@/lib/types/subscription';
 
 // Type for ComplianceBlock from Prisma model
@@ -604,7 +605,8 @@ class BlockManager {
       },
     });
 
-    return expiredSubmissions.map((s) => ({
+    type ExpiredSubmission = (typeof expiredSubmissions)[number];
+    return expiredSubmissions.map((s: ExpiredSubmission) => ({
       requirementId: s.requirementId,
       code: s.requirement.code,
     }));
@@ -728,8 +730,9 @@ class BlockManager {
       _count: { id: true },
     });
 
+    type GroupedEntry = (typeof grouped)[number];
     const results = await Promise.all(
-      grouped.map(async (g) => {
+      grouped.map(async (g: GroupedEntry) => {
         const org = await prisma.organization.findUnique({
           where: { id: g.organizationId },
           select: { name: true },

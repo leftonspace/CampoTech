@@ -457,7 +457,8 @@ class TrialManager {
         },
       });
 
-      return orgs.map((org) => ({
+      type OrgEntry = (typeof orgs)[number];
+      return orgs.map((org: OrgEntry) => ({
         organizationId: org.id,
         daysRemaining: org.trialEndsAt ? getDaysUntil(org.trialEndsAt) : 0,
         email: org.email,

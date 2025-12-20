@@ -166,7 +166,8 @@ export async function getVerificationNotifications(
     },
   });
 
-  const notifications: VerificationNotification[] = events.map((event) => {
+  type VerificationEventEntry = (typeof events)[number];
+  const notifications: VerificationNotification[] = events.map((event: VerificationEventEntry) => {
     const data = event.eventData as Record<string, unknown>;
     return {
       id: event.id,
@@ -585,7 +586,8 @@ export async function notifyOrganizationOwners(
     select: { ownerId: true },
   });
 
-  const ownerIds = new Set([...owners.map((o) => o.userId), org?.ownerId].filter(Boolean) as string[]);
+  type VerifOwnerEntry = (typeof owners)[number];
+  const ownerIds = new Set([...owners.map((o: VerifOwnerEntry) => o.userId), org?.ownerId].filter(Boolean) as string[]);
 
   const notifications: VerificationNotification[] = [];
 
@@ -653,7 +655,8 @@ export async function getAllNotifications(
     },
   });
 
-  const notifications = events.map((event) => {
+  type CombinedEventEntry = (typeof events)[number];
+  const notifications = events.map((event: CombinedEventEntry) => {
     const data = event.eventData as Record<string, unknown>;
     const isVerification = event.subscriptionId === 'verification_notification';
 

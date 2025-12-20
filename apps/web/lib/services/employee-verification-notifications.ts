@@ -339,8 +339,9 @@ async function getPendingVerificationItems(
     });
 
     // Check which requirements are not completed
+    type SubmissionEntry = (typeof submissions)[number];
     for (const req of requirements) {
-      const submission = submissions.find((s) => s.requirementId === req.id);
+      const submission = submissions.find((s: SubmissionEntry) => s.requirementId === req.id);
       if (!submission || submission.status !== 'approved') {
         items.push(req.name);
       }
@@ -434,7 +435,7 @@ export async function getEmployeesWithVerificationStatus(
   const submissions = await prisma.verificationSubmission.findMany({
     where: {
       organizationId,
-      userId: { in: employees.map((e) => e.id) },
+      userId: { in: employees.map((e: { id: string }) => e.id) },
     },
     include: {
       requirement: true,
@@ -450,18 +451,20 @@ export async function getEmployeesWithVerificationStatus(
   }
 
   // Calculate status for each employee
-  return employees.map((emp) => {
+  type EmployeeEntry = (typeof employees)[number];
+  type UserSubmissionEntry = (typeof submissions)[number];
+  return employees.map((emp: EmployeeEntry) => {
     const userSubs = submissionsByUser.get(emp.id) || [];
 
     // Count pending and expiring documents
     const pendingDocuments = userSubs.filter(
-      (s) => s.status === 'pending' || s.status === 'in_review'
+      (s: UserSubmissionEntry) => s.status === 'pending' || s.status === 'in_review'
     ).length;
 
     const now = new Date();
     const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
     const expiringDocuments = userSubs.filter(
-      (s) =>
+      (s: UserSubmissionEntry) =>
         s.status === 'approved' &&
         s.expiresAt &&
         s.expiresAt <= thirtyDaysFromNow

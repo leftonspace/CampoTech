@@ -871,8 +871,9 @@ class EdgeCasesService {
       select: { userId: true },
     });
 
+    type MemberEntry = (typeof members)[number];
     await Promise.all(
-      members.map((member) =>
+      members.map((member: MemberEntry) =>
         prisma.notification.create({
           data: {
             userId: member.userId,
@@ -991,8 +992,9 @@ class EdgeCasesService {
       select: { userId: true },
     });
 
+    type RecoveryMemberEntry = (typeof members)[number];
     await Promise.all(
-      members.map((member) =>
+      members.map((member: RecoveryMemberEntry) =>
         prisma.notification.create({
           data: {
             userId: member.userId,

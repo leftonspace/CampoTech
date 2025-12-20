@@ -175,7 +175,8 @@ export async function getSubscriptionNotifications(
     },
   });
 
-  const notifications: SubscriptionNotification[] = events.map((event) => {
+  type EventEntry = (typeof events)[number];
+  const notifications: SubscriptionNotification[] = events.map((event: EventEntry) => {
     const data = event.eventData as Record<string, unknown>;
     return {
       id: event.id,
@@ -221,7 +222,7 @@ export async function markNotificationsAsRead(
           },
         })
       )
-    );
+    ) as Array<{ count: number }>;
     return result.reduce((sum, r) => sum + r.count, 0);
   }
 
@@ -636,7 +637,8 @@ export async function notifyOrganizationOwners(
     select: { ownerId: true },
   });
 
-  const ownerIds = new Set([...owners.map((o) => o.userId), org?.ownerId].filter(Boolean) as string[]);
+  type OwnerEntry = (typeof owners)[number];
+  const ownerIds = new Set([...owners.map((o: OwnerEntry) => o.userId), org?.ownerId].filter(Boolean) as string[]);
 
   const notifications: SubscriptionNotification[] = [];
 

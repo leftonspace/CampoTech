@@ -173,7 +173,7 @@ async function getOrgVerificationStatus(
     const formattedRequirements = requirements.map((r) => ({
       code: r.requirement.code,
       name: r.requirement.name,
-      description: r.requirement.description,
+      description: r.requirement.description || '',
       tier: r.requirement.tier,
       isRequired: r.requirement.isRequired,
       appliesTo: r.requirement.appliesTo,
@@ -276,7 +276,7 @@ async function getUserVerificationStatus(
     const formattedRequirements = requirements.map((r) => ({
       code: r.requirement.code,
       name: r.requirement.name,
-      description: r.requirement.description,
+      description: r.requirement.description || '',
       tier: r.requirement.tier,
       isRequired: r.requirement.isRequired,
       appliesTo: r.requirement.appliesTo,

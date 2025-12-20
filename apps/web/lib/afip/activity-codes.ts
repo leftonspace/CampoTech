@@ -333,7 +333,7 @@ export function getServiceTypesFromActivities(codes: ActivityCode[]): CampoTechS
 
   for (const service of mappedServices) {
     for (const type of service.serviceTypes) {
-      serviceTypes.add(type);
+      serviceTypes.add(type as CampoTechServiceType);
     }
   }
 

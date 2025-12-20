@@ -112,7 +112,7 @@ class VerificationManagerClass {
     const submissions = await prisma.verificationSubmission.findMany({
       where: {
         organizationId: orgId,
-        requirementId: { in: requirements.map((r) => r.id) },
+        requirementId: { in: requirements.map((r: { id: string }) => r.id) },
       },
     });
 
@@ -128,7 +128,8 @@ class VerificationManagerClass {
     }
 
     // Build requirements with status
-    return requirements.map((req) => {
+    type ReqEntry = (typeof requirements)[number];
+    return requirements.map((req: ReqEntry) => {
       const submission = submissionMap.get(req.id) || null;
       const status = getCombinedStatus(submission);
       const expiresAt = submission?.expiresAt || null;
@@ -169,7 +170,7 @@ class VerificationManagerClass {
       where: {
         organizationId: orgId,
         userId,
-        requirementId: { in: requirements.map((r) => r.id) },
+        requirementId: { in: requirements.map((r: { id: string }) => r.id) },
       },
     });
 
@@ -180,7 +181,8 @@ class VerificationManagerClass {
     }
 
     // Build requirements with status
-    return requirements.map((req) => {
+    type UserReqEntry = (typeof requirements)[number];
+    return requirements.map((req: UserReqEntry) => {
       const submission = submissionMap.get(req.id) || null;
       const status = getCombinedStatus(submission);
       const expiresAt = submission?.expiresAt || null;
@@ -412,7 +414,7 @@ class VerificationManagerClass {
     const approvedCount = await prisma.verificationSubmission.count({
       where: {
         organizationId: orgId,
-        requirementId: { in: requirements.map((r) => r.id) },
+        requirementId: { in: requirements.map((r: { id: string }) => r.id) },
         status: 'approved',
         OR: [
           { expiresAt: null },
@@ -495,7 +497,7 @@ class VerificationManagerClass {
       where: {
         organizationId: user.organizationId,
         userId,
-        requirementId: { in: requirements.map((r) => r.id) },
+        requirementId: { in: requirements.map((r: { id: string }) => r.id) },
         status: 'approved',
         OR: [
           { expiresAt: null },
@@ -643,7 +645,8 @@ class VerificationManagerClass {
       include: { requirement: true },
     });
 
-    return submissions.map((sub) => ({
+    type BadgeSubmission = (typeof submissions)[number];
+    return submissions.map((sub: BadgeSubmission) => ({
       code: sub.requirement.code,
       name: sub.requirement.name,
       icon: sub.requirement.badgeIcon,
