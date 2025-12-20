@@ -18,7 +18,7 @@ import type {
   SubscriptionTier,
   OrgVerificationStatus,
   UserVerificationStatus,
-} from '@prisma/client';
+} from '@/lib/types';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES

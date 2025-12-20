@@ -28,9 +28,9 @@ import { type SubscriptionTier } from '@/lib/config/tier-limits';
  */
 export const RATE_LIMITS: Record<SubscriptionTier, { requests: number; window: string }> = {
   FREE: { requests: 30, window: '1 m' },
-  BASICO: { requests: 100, window: '1 m' },
+  INICIAL: { requests: 100, window: '1 m' },
   PROFESIONAL: { requests: 500, window: '1 m' },
-  EMPRESARIAL: { requests: 2000, window: '1 m' },
+  EMPRESA: { requests: 2000, window: '1 m' },
 };
 
 /**

@@ -11,9 +11,9 @@
  *
  * Rate Limits:
  * - FREE: 30 req/min
- * - BASICO (Inicial): 100 req/min
+ * - INICIAL: 100 req/min
  * - PROFESIONAL: 500 req/min
- * - EMPRESARIAL: 2000 req/min
+ * - EMPRESA: 2000 req/min
  *
  * API Version: 1
  *
@@ -70,9 +70,9 @@ const AUTH_PATHS = [
  */
 const RATE_LIMITS = {
   FREE: 30,
-  BASICO: 100,
+  INICIAL: 100,
   PROFESIONAL: 500,
-  EMPRESARIAL: 2000,
+  EMPRESA: 2000,
 } as const;
 
 type SubscriptionTier = keyof typeof RATE_LIMITS;

@@ -20,7 +20,7 @@ export type FeatureId =
   | 'basic_invoicing'
   | 'whatsapp_receive'
 
-  // BASICO+ Features
+  // INICIAL+ Features
   | 'afip_integration'
   | 'mercado_pago'
   | 'calendar_view'
@@ -35,7 +35,7 @@ export type FeatureId =
   | 'fleet_management'
   | 'inventory_management'
 
-  // EMPRESARIAL Features
+  // EMPRESA Features
   | 'multi_location'
   | 'advanced_analytics'
   | 'customer_portal'
@@ -93,13 +93,13 @@ export const FEATURES: Record<FeatureId, FeatureConfig> = {
     icon: 'message-circle',
   },
 
-  // BASICO+ Features
+  // INICIAL+ Features
   afip_integration: {
     id: 'afip_integration',
     name: 'Integración AFIP',
     description: 'Factura electrónica con CAE automático',
     category: 'integrations',
-    minTier: 'BASICO',
+    minTier: 'INICIAL',
     icon: 'check-square',
   },
   mercado_pago: {
@@ -107,7 +107,7 @@ export const FEATURES: Record<FeatureId, FeatureConfig> = {
     name: 'Mercado Pago',
     description: 'Cobrar con tarjeta y link de pago',
     category: 'integrations',
-    minTier: 'BASICO',
+    minTier: 'INICIAL',
     icon: 'credit-card',
   },
   calendar_view: {
@@ -115,7 +115,7 @@ export const FEATURES: Record<FeatureId, FeatureConfig> = {
     name: 'Vista Calendario',
     description: 'Visualizar trabajos en calendario',
     category: 'operations',
-    minTier: 'BASICO',
+    minTier: 'INICIAL',
     icon: 'calendar',
   },
   whatsapp_send: {
@@ -123,7 +123,7 @@ export const FEATURES: Record<FeatureId, FeatureConfig> = {
     name: 'Enviar WhatsApp',
     description: 'Enviar mensajes y notificaciones automáticas',
     category: 'communication',
-    minTier: 'BASICO',
+    minTier: 'INICIAL',
     icon: 'send',
   },
   multi_user: {
@@ -131,7 +131,7 @@ export const FEATURES: Record<FeatureId, FeatureConfig> = {
     name: 'Multi-Usuario',
     description: 'Agregar empleados y técnicos',
     category: 'operations',
-    minTier: 'BASICO',
+    minTier: 'INICIAL',
     icon: 'users',
   },
 
@@ -185,13 +185,13 @@ export const FEATURES: Record<FeatureId, FeatureConfig> = {
     icon: 'package',
   },
 
-  // EMPRESARIAL Features
+  // EMPRESA Features
   multi_location: {
     id: 'multi_location',
     name: 'Multi-Zona',
     description: 'Operar múltiples zonas de cobertura con técnicos asignados',
     category: 'enterprise',
-    minTier: 'EMPRESARIAL',
+    minTier: 'EMPRESA',
     icon: 'map-pin',
   },
   advanced_analytics: {
@@ -199,7 +199,7 @@ export const FEATURES: Record<FeatureId, FeatureConfig> = {
     name: 'Analítica Avanzada',
     description: 'Reportes detallados, KPIs y proyecciones',
     category: 'analytics',
-    minTier: 'EMPRESARIAL',
+    minTier: 'EMPRESA',
     icon: 'bar-chart-2',
   },
   customer_portal: {
@@ -207,7 +207,7 @@ export const FEATURES: Record<FeatureId, FeatureConfig> = {
     name: 'Portal de Clientes',
     description: 'Portal personalizado para que clientes vean sus trabajos',
     category: 'enterprise',
-    minTier: 'EMPRESARIAL',
+    minTier: 'EMPRESA',
     icon: 'globe',
   },
   public_api: {
@@ -215,7 +215,7 @@ export const FEATURES: Record<FeatureId, FeatureConfig> = {
     name: 'API Pública',
     description: 'Integrar con sistemas externos vía REST API',
     category: 'enterprise',
-    minTier: 'EMPRESARIAL',
+    minTier: 'EMPRESA',
     icon: 'code',
   },
   webhooks: {
@@ -223,7 +223,7 @@ export const FEATURES: Record<FeatureId, FeatureConfig> = {
     name: 'Webhooks',
     description: 'Recibir notificaciones en tiempo real en tu sistema',
     category: 'enterprise',
-    minTier: 'EMPRESARIAL',
+    minTier: 'EMPRESA',
     icon: 'webhook',
   },
 
@@ -233,7 +233,7 @@ export const FEATURES: Record<FeatureId, FeatureConfig> = {
     name: 'Marca Blanca',
     description: 'Remover branding de CampoTech, usar tu propia marca',
     category: 'enterprise',
-    minTier: 'EMPRESARIAL', // Actually requires custom Enterprise contract
+    minTier: 'EMPRESA', // Actually requires custom Enterprise contract
     icon: 'palette',
   },
 };
@@ -249,7 +249,7 @@ export const TIER_FEATURES: Record<SubscriptionTier, FeatureId[]> = {
     'basic_invoicing',
     'whatsapp_receive',
   ],
-  BASICO: [
+  INICIAL: [
     'basic_jobs',
     'basic_customers',
     'basic_invoicing',
@@ -277,7 +277,7 @@ export const TIER_FEATURES: Record<SubscriptionTier, FeatureId[]> = {
     'fleet_management',
     'inventory_management',
   ],
-  EMPRESARIAL: [
+  EMPRESA: [
     'basic_jobs',
     'basic_customers',
     'basic_invoicing',
@@ -423,14 +423,14 @@ export function getTierComparison(currentTier: SubscriptionTier): Array<{
   name: string;
   newFeatures: FeatureConfig[];
 }> {
-  const tiers: SubscriptionTier[] = ['BASICO', 'PROFESIONAL', 'EMPRESARIAL'];
+  const tiers: SubscriptionTier[] = ['INICIAL', 'PROFESIONAL', 'EMPRESA'];
   const currentIndex = getTierOrder(currentTier);
 
   return tiers
     .filter(tier => getTierOrder(tier) > currentIndex)
     .map(tier => ({
       tier,
-      name: tier === 'BASICO' ? 'Inicial' :
+      name: tier === 'INICIAL' ? 'Inicial' :
             tier === 'PROFESIONAL' ? 'Profesional' : 'Empresa',
       newFeatures: getUnlockableFeatures(currentTier, tier),
     }));
@@ -461,9 +461,9 @@ export function createFeatureNotAvailableError(
 
   const tierNames: Record<SubscriptionTier, string> = {
     FREE: 'Gratis',
-    BASICO: 'Inicial',
+    INICIAL: 'Inicial',
     PROFESIONAL: 'Profesional',
-    EMPRESARIAL: 'Empresa',
+    EMPRESA: 'Empresa',
   };
 
   return {
@@ -471,7 +471,7 @@ export function createFeatureNotAvailableError(
     feature: featureId,
     feature_name: feature?.name || featureId,
     current_tier: currentTier,
-    required_tier: feature?.minTier || 'BASICO',
+    required_tier: feature?.minTier || 'INICIAL',
     message: `${feature?.name || featureId} no está disponible en tu plan actual.`,
     upgrade_url: `/settings/billing/upgrade?feature=${featureId}`,
   };

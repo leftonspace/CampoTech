@@ -10,7 +10,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export type UserRole = 'OWNER' | 'DISPATCHER' | 'TECHNICIAN';
-export type SubscriptionTier = 'FREE' | 'BASICO' | 'PROFESIONAL' | 'EMPRESARIAL';
+export type SubscriptionTier = 'FREE' | 'INICIAL' | 'PROFESIONAL' | 'EMPRESA';
 
 export interface UserOrganization {
   id: string;

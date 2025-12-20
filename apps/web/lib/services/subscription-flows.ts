@@ -17,14 +17,15 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import {
+import type {
   SubscriptionTier,
   SubscriptionStatus,
   BillingCycle,
-  OrganizationSubscription,
-} from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+} from '@/lib/types/subscription';
 import { blockManager, BLOCK_REASON_CODES } from './block-manager';
+
+// Type for OrganizationSubscription from Prisma
+type OrganizationSubscription = Awaited<ReturnType<typeof prisma.organizationSubscription.findFirst>> & {};
 import { funnelTracker } from './funnel-tracker';
 import { getMercadoPagoClient, getPaymentAPI } from '@/lib/mercadopago/client';
 

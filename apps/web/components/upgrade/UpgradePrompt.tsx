@@ -49,16 +49,16 @@ interface FeatureLockedProps {
 
 const TIER_NAMES: Record<string, string> = {
   FREE: 'Gratis',
-  BASICO: 'Inicial',
+  INICIAL: 'Inicial',
   PROFESIONAL: 'Profesional',
-  EMPRESARIAL: 'Empresa',
+  EMPRESA: 'Empresa',
 };
 
 const TIER_PRICES: Record<string, string> = {
   FREE: 'Gratis',
-  BASICO: '$25/mes',
+  INICIAL: '$25/mes',
   PROFESIONAL: '$55/mes',
-  EMPRESARIAL: '$120/mes',
+  EMPRESA: '$120/mes',
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

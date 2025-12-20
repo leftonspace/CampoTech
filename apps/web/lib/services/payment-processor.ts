@@ -15,14 +15,15 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import {
+import type {
   SubscriptionTier,
   SubscriptionStatus,
   SubscriptionPaymentStatus,
   BillingCycle,
-  Prisma,
-} from '@prisma/client';
-import { Decimal } from '@prisma/client/runtime/library';
+} from '@/lib/types/subscription';
+
+// Type alias for Prisma Decimal
+type Decimal = number;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS

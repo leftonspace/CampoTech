@@ -60,9 +60,9 @@ Or use cookie-based authentication after login.
 ## Rate Limits
 
 - **FREE**: 30 requests/min
-- **BASICO**: 100 requests/min
+- **INICIAL**: 100 requests/min
 - **PROFESIONAL**: 500 requests/min
-- **EMPRESARIAL**: 2000 requests/min
+- **EMPRESA**: 2000 requests/min
 
 Rate limit headers are included in all responses:
 - \`X-RateLimit-Limit\`: Maximum requests per window

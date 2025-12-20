@@ -50,7 +50,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const { newTier, immediate } = body;
 
     // Validate tier
-    const validTiers: SubscriptionTier[] = ['FREE', 'BASICO', 'PROFESIONAL', 'EMPRESARIAL'];
+    const validTiers: SubscriptionTier[] = ['FREE', 'INICIAL', 'PROFESIONAL', 'EMPRESA'];
     if (!validTiers.includes(newTier)) {
       return NextResponse.json(
         { success: false, error: 'Plan no valido' },

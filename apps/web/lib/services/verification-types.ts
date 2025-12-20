@@ -6,12 +6,46 @@
  */
 
 import type {
-  VerificationRequirement,
-  VerificationSubmission,
   VerificationSubmissionStatus,
   OrgVerificationStatus,
   UserVerificationStatus,
-} from '@prisma/client';
+} from '@/lib/types';
+
+// These types are used from Prisma models - using minimal local definitions
+interface VerificationRequirement {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  category: string;
+  tier: number;
+  isRequired: boolean;
+  isActive: boolean;
+  displayOrder: number;
+  icon: string | null;
+  badgeLabel: string | null;
+  appliesTo: string;
+  validationRules: Record<string, unknown> | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface VerificationSubmission {
+  id: string;
+  organizationId: string;
+  userId: string | null;
+  requirementId: string;
+  status: VerificationSubmissionStatus;
+  submittedValue: string | null;
+  documentUrl: string | null;
+  expiresAt: Date | null;
+  verificationData: Record<string, unknown> | null;
+  reviewedBy: string | null;
+  reviewNotes: string | null;
+  reviewedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // REQUIREMENT WITH STATUS

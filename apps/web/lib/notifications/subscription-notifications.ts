@@ -15,7 +15,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { SubscriptionTier, BillingCycle } from '@prisma/client';
+import type { SubscriptionTier, BillingCycle } from '@/lib/types/subscription';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
