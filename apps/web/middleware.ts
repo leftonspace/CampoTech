@@ -24,9 +24,19 @@ import { jwtVerify, type JWTPayload } from 'jose';
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.NEXTAUTH_SECRET || 'fallback-secret-change-in-production'
-);
+/**
+ * JWT Secret - must be set in production
+ * Edge middleware has limited logging, so we log once on module load
+ */
+const JWT_SECRET = (() => {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret && process.env.NODE_ENV === 'production') {
+    console.error('SECURITY ERROR: NEXTAUTH_SECRET is required in production');
+  }
+  return new TextEncoder().encode(
+    secret || 'dev-fallback-secret-not-for-production'
+  );
+})();
 
 /**
  * Paths that should bypass rate limiting
