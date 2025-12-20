@@ -13,6 +13,7 @@
 export type SubscriptionTier = 'FREE' | 'INICIAL' | 'PROFESIONAL' | 'EMPRESA';
 
 export type SubscriptionStatus =
+  | 'none'
   | 'trialing'
   | 'active'
   | 'past_due'

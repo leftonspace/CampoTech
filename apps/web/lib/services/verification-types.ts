@@ -43,6 +43,9 @@ interface VerificationSubmission {
   reviewedBy: string | null;
   reviewNotes: string | null;
   reviewedAt: Date | null;
+  submittedAt: Date;
+  verifiedAt: Date | null;
+  rejectionReason: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
