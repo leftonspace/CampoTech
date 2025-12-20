@@ -1,9 +1,31 @@
 import { SignJWT, jwtVerify, JWTPayload } from 'jose';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.NEXTAUTH_SECRET || 'fallback-secret-change-in-production'
-);
+/**
+ * Get JWT secret with validation
+ * In production, NEXTAUTH_SECRET must be set
+ * In development, uses a fallback (with warning)
+ */
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.NEXTAUTH_SECRET;
+
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'SECURITY ERROR: NEXTAUTH_SECRET environment variable is required in production'
+      );
+    }
+    // Development fallback with warning
+    console.warn(
+      '⚠️  WARNING: Using fallback JWT secret. Set NEXTAUTH_SECRET in production!'
+    );
+    return new TextEncoder().encode('dev-fallback-secret-not-for-production');
+  }
+
+  return new TextEncoder().encode(secret);
+}
+
+const JWT_SECRET = getJwtSecret();
 
 export interface TokenPayload extends JWTPayload {
   userId: string;
