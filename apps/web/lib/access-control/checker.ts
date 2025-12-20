@@ -130,7 +130,7 @@ export async function checkAccess(organizationId: string): Promise<AccessStatus>
     select: {
       blockType: true,
       reason: true,
-      blockCode: true,
+      reasonCode: true,
     },
   });
 
@@ -162,7 +162,7 @@ export async function checkAccess(organizationId: string): Promise<AccessStatus>
   // Check compliance blocks
   for (const block of activeBlocks) {
     blockReasons.push({
-      code: block.blockCode || 'compliance_block',
+      code: block.reasonCode || 'compliance_block',
       type: 'compliance',
       severity: block.blockType === 'hard_block' ? 'hard_block' : 'soft_block',
       message: block.reason,
@@ -257,13 +257,13 @@ export async function checkUserAccess(
     select: {
       blockType: true,
       reason: true,
-      blockCode: true,
+      reasonCode: true,
     },
   });
 
   for (const block of userBlocks) {
     blockReasons.push({
-      code: block.blockCode || 'user_compliance_block',
+      code: block.reasonCode || 'user_compliance_block',
       type: 'compliance',
       severity: block.blockType === 'hard_block' ? 'hard_block' : 'soft_block',
       message: block.reason,
