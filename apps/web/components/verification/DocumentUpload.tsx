@@ -19,6 +19,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getSubmissionAcknowledgment } from '@/lib/config/acknowledgments';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -45,6 +46,8 @@ export interface DocumentUploadProps {
   label?: string;
   /** Custom help text */
   helpText?: string;
+  /** Whether to require data accuracy confirmation before upload */
+  requireDataAccuracy?: boolean;
 }
 
 export interface UploadResult {
@@ -86,13 +89,18 @@ export function DocumentUpload({
   className,
   label = 'Subir documento',
   helpText,
+  requireDataAccuracy = true,
 }: DocumentUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<FilePreview | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [dataAccuracyConfirmed, setDataAccuracyConfirmed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Get the data accuracy acknowledgment config
+  const dataAccuracyAck = getSubmissionAcknowledgment();
 
   // ─────────────────────────────────────────────────────────────────────────────
   // FILE VALIDATION
@@ -189,6 +197,7 @@ export function DocumentUpload({
     setPreview(null);
     setUploadStatus('idle');
     setErrorMessage(null);
+    setDataAccuracyConfirmed(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -355,7 +364,7 @@ export function DocumentUpload({
                 {uploadStatus !== 'success' && (
                   <button
                     onClick={handleUpload}
-                    disabled={isUploading || disabled}
+                    disabled={isUploading || disabled || (requireDataAccuracy && !dataAccuracyConfirmed)}
                     className={cn(
                       'px-3 py-1.5 text-sm font-medium rounded-lg transition-colors',
                       'bg-primary-600 text-white hover:bg-primary-700',
@@ -388,6 +397,51 @@ export function DocumentUpload({
                 </button>
               </div>
             </div>
+
+            {/* Data accuracy acknowledgment checkbox */}
+            {requireDataAccuracy && uploadStatus !== 'success' && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <label className="flex items-start gap-2 cursor-pointer">
+                  <div className="relative mt-0.5">
+                    <input
+                      type="checkbox"
+                      checked={dataAccuracyConfirmed}
+                      onChange={(e) => setDataAccuracyConfirmed(e.target.checked)}
+                      disabled={isUploading}
+                      className="sr-only peer"
+                    />
+                    <div
+                      className={cn(
+                        'w-4 h-4 border-2 rounded transition-colors',
+                        dataAccuracyConfirmed
+                          ? 'bg-primary-600 border-primary-600'
+                          : 'bg-white border-gray-300',
+                        !isUploading && 'hover:border-primary-500'
+                      )}
+                    >
+                      {dataAccuracyConfirmed && (
+                        <svg
+                          className="w-full h-full text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-xs text-gray-600">
+                    {dataAccuracyAck.checkbox}
+                  </span>
+                </label>
+              </div>
+            )}
           </div>
         )}
       </div>

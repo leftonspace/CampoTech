@@ -19,3 +19,11 @@ export type {
   CUITVerifyResult,
   PhoneVerifyResult,
 } from './verification-types';
+
+// Acknowledgment Services
+export { acknowledgmentService } from './acknowledgment-service';
+export type {
+  AcknowledgmentInput,
+  AcknowledgmentStatus,
+  MissingAcknowledgment,
+} from './acknowledgment-service';
