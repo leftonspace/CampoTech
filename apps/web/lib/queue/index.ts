@@ -1,6 +1,6 @@
 /**
- * CampoTech Queue Module (Phase 5B.1 + 5B.2 + 5B.3)
- * ==================================================
+ * CampoTech Queue Module (Phase 5B + 6.2)
+ * ========================================
  *
  * Central queue management for background job processing.
  *
@@ -10,6 +10,7 @@
  * - Worker processors with automatic retries
  * - Dead letter queue with advanced handling (Phase 5B.3)
  * - Metrics collection with Little's Law analysis (Phase 5B.2)
+ * - Integrated processors for email, WhatsApp, AI, voice (Phase 6.2)
  *
  * Basic usage:
  * ```typescript
@@ -42,9 +43,9 @@
  *
  * Starting workers (in a separate process):
  * ```typescript
- * import { startWorkers, registerDefaultHandlers } from '@/lib/queue';
+ * import { startWorkers, registerAllProcessors } from '@/lib/queue';
  *
- * registerDefaultHandlers();
+ * registerAllProcessors(); // Registers email, WhatsApp, AI, voice handlers
  * await startWorkers(['realtime', 'background']);
  * ```
  */
@@ -178,3 +179,34 @@ export {
   type ErrorPattern,
   type DLQEventHandlers,
 } from './dlq';
+
+export {
+  // Processor registration (Phase 6.2)
+  registerAllProcessors,
+
+  // Individual handlers for testing
+  emailSendHandler,
+  emailBulkHandler,
+  whatsappSendHandler,
+  whatsappTemplateHandler,
+  whatsappAIProcessHandler,
+  voiceTranscribeHandler,
+  invoiceGenerateHandler,
+  afipInvoiceHandler,
+  pushNotificationHandler,
+  inAppNotificationHandler,
+  jobStatusNotifyHandler,
+  webhookHandler,
+
+  // Types
+  type EmailJobData,
+  type WhatsAppSendData,
+  type WhatsAppTemplateData,
+  type WhatsAppAIProcessData,
+  type VoiceTranscribeData,
+  type InvoiceGenerateData,
+  type AFIPInvoiceData,
+  type JobStatusNotifyData,
+  type PushNotificationData,
+  type WebhookData,
+} from './processors';
