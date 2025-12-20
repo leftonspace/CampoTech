@@ -101,9 +101,9 @@ const TYPE_CONFIG = {
 
 const TIER_NAMES: Record<string, string> = {
   FREE: 'Gratis',
-  BASICO: 'Inicial',
+  INICIAL: 'Inicial',
   PROFESIONAL: 'Profesional',
-  EMPRESARIAL: 'Empresa',
+  EMPRESA: 'Empresa',
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

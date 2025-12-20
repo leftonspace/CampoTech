@@ -14,14 +14,16 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import {
-  VerificationSubmission,
-  VerificationRequirement,
+import type {
   VerificationSubmissionStatus,
   OrgVerificationStatus,
   UserVerificationStatus,
-} from '@prisma/client';
+} from '@/lib/types';
 import { autoVerifier } from './auto-verifier';
+
+// Prisma model types for internal use
+type VerificationSubmission = Awaited<ReturnType<typeof prisma.verificationSubmission.findFirst>> & {};
+type VerificationRequirement = Awaited<ReturnType<typeof prisma.verificationRequirement.findFirst>> & {};
 import { acknowledgmentService } from './acknowledgment-service';
 import type {
   RequirementWithStatus,

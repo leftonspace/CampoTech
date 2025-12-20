@@ -74,9 +74,9 @@ export interface PlanChangeResult {
 
 const MP_PLAN_IDS: Record<SubscriptionTier, string | null> = {
   FREE: null, // No plan needed
-  BASICO: process.env.MP_PLAN_BASICO || 'plan_basico',
+  INICIAL: process.env.MP_PLAN_INICIAL || 'plan_inicial',
   PROFESIONAL: process.env.MP_PLAN_PROFESIONAL || 'plan_profesional',
-  EMPRESARIAL: process.env.MP_PLAN_EMPRESARIAL || 'plan_empresarial',
+  EMPRESA: process.env.MP_PLAN_EMPRESA || 'plan_empresa',
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -488,7 +488,7 @@ class SubscriptionManager {
         return tier as SubscriptionTier;
       }
     }
-    return 'BASICO'; // Default
+    return 'INICIAL'; // Default
   }
 
   /**
