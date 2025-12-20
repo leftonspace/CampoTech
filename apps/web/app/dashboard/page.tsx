@@ -28,12 +28,23 @@ import { useOnboardingStatus } from '@/hooks/useOnboardingStatus';
 // ═══════════════════════════════════════════════════════════════════════════════
 
 interface DashboardStats {
+  // Jobs
   todayJobs: number;
+  yesterdayJobs: number;
+  jobsTrend: string | null;
   pendingJobs: number;
   completedToday: number;
+  // Customers
+  activeCustomers: number;
+  customerTrend: string | null;
+  // Revenue
   pendingInvoices: number;
   unpaidAmount: number;
-  monthlyRevenue: number;
+  todayRevenue: number;
+  revenueTrend: string | null;
+  // Rating
+  averageRating: string | null;
+  ratingCount: number;
 }
 
 interface Job {
@@ -186,31 +197,31 @@ export default function DashboardPage() {
           value={stats?.todayJobs ?? 0}
           icon={Briefcase}
           color="teal"
-          trend="+2 vs ayer"
+          trend={stats?.jobsTrend}
           loading={statsLoading}
         />
         <StatCard
           title="Clientes Activos"
-          value={156}
+          value={stats?.activeCustomers ?? 0}
           icon={Users}
           color="coral"
-          trend="+12 este mes"
+          trend={stats?.customerTrend}
           loading={statsLoading}
         />
         <StatCard
           title="Facturado Hoy"
-          value={stats?.monthlyRevenue ? formatCurrency(stats.monthlyRevenue) : '$45.600'}
+          value={stats?.todayRevenue ? formatCurrency(stats.todayRevenue) : '$0'}
           icon={DollarSign}
           color="green"
-          trend="+18% vs semana pasada"
+          trend={stats?.revenueTrend}
           loading={statsLoading}
         />
         <StatCard
           title="Rating Promedio"
-          value="4.8"
+          value={stats?.averageRating ?? '-'}
           icon={TrendingUp}
           color="pink"
-          trend="Top 15% en tu zona"
+          trend={stats?.ratingCount ? `${stats.ratingCount} reseñas` : null}
           loading={statsLoading}
         />
       </div>
@@ -294,7 +305,7 @@ interface StatCardProps {
   value: string | number;
   icon: React.ElementType;
   color: 'teal' | 'coral' | 'pink' | 'green';
-  trend?: string;
+  trend?: string | null;
   loading?: boolean;
 }
 
