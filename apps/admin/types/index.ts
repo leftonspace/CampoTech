@@ -339,3 +339,234 @@ export const REJECTION_REASONS = [
   { code: 'invalid_photo', label: 'Foto no válida' },
   { code: 'other', label: 'Otro' },
 ] as const;
+
+// ────────────────────────────────────────────────────────────────────────────────
+// ADMIN ALERTS TYPES
+// ────────────────────────────────────────────────────────────────────────────────
+
+export type AdminAlertType =
+  | 'new_subscription_payment'
+  | 'failed_payment'
+  | 'new_verification_submission'
+  | 'document_expired'
+  | 'organization_blocked'
+  | 'subscription_cancelled'
+  | 'verification_approved'
+  | 'verification_rejected';
+
+export interface AdminAlert {
+  id: string;
+  type: AdminAlertType;
+  title: string;
+  message: string;
+  severity: 'info' | 'warning' | 'error' | 'success';
+  entityType: 'organization' | 'subscription' | 'verification' | 'payment';
+  entityId: string;
+  organizationId: string | null;
+  organizationName: string | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface AdminAlertPreferences {
+  adminId: string;
+  emailEnabled: boolean;
+  emailDigestFrequency: 'immediate' | 'daily' | 'weekly' | 'never';
+  inAppEnabled: boolean;
+  alertTypes: {
+    [key in AdminAlertType]: {
+      email: boolean;
+      inApp: boolean;
+    };
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// UNIFIED DASHBOARD TYPES
+// ────────────────────────────────────────────────────────────────────────────────
+
+export interface UnifiedDashboardStats {
+  subscriptions: {
+    totalActive: number;
+    byTier: { tier: string; count: number; percentage: number }[];
+    mrr: number;
+    mrrTrend: { month: string; mrr: number }[];
+    trialConversion: number;
+    churnRate: number;
+  };
+  verifications: {
+    pendingReview: number;
+    inReview: number;
+    approvedToday: number;
+    rejectedToday: number;
+    expiringThisWeek: number;
+  };
+  pendingActions: {
+    failedPayments: number;
+    failedPaymentsAmount: number;
+    pendingVerifications: number;
+    expiringDocuments: number;
+    blockedOrganizations: number;
+  };
+  recentActivity: AdminActivityItem[];
+}
+
+export interface AdminActivityItem {
+  id: string;
+  type: 'subscription' | 'verification' | 'payment' | 'organization';
+  action: string;
+  description: string;
+  organizationId: string | null;
+  organizationName: string | null;
+  actorType: 'system' | 'admin' | 'user';
+  actorName: string | null;
+  createdAt: string;
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// ADMIN SEARCH TYPES
+// ────────────────────────────────────────────────────────────────────────────────
+
+export interface AdminSearchResult {
+  organizations: AdminSearchOrganization[];
+  users: AdminSearchUser[];
+  payments: AdminSearchPayment[];
+  verifications: AdminSearchVerification[];
+}
+
+export interface AdminSearchOrganization {
+  id: string;
+  name: string;
+  cuit: string | null;
+  ownerName: string;
+  ownerEmail: string;
+  subscriptionTier: SubscriptionTier;
+  subscriptionStatus: SubscriptionStatus;
+  verificationStatus: 'not_started' | 'pending' | 'verified' | 'suspended';
+  isBlocked: boolean;
+}
+
+export interface AdminSearchUser {
+  id: string;
+  name: string;
+  email: string;
+  cuil: string | null;
+  organizationId: string;
+  organizationName: string;
+  role: string;
+  verificationStatus: 'not_started' | 'pending' | 'verified' | 'blocked';
+}
+
+export interface AdminSearchPayment {
+  id: string;
+  mpPaymentId: string | null;
+  organizationId: string;
+  organizationName: string;
+  amount: number;
+  currency: string;
+  status: PaymentStatus;
+  createdAt: string;
+}
+
+export interface AdminSearchVerification {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  requirementName: string;
+  status: VerificationSubmissionStatus;
+  submittedAt: string;
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// DASHBOARD WIDGET TYPES
+// ────────────────────────────────────────────────────────────────────────────────
+
+export type DashboardWidgetType =
+  | 'revenue_summary'
+  | 'subscription_funnel'
+  | 'verification_queue'
+  | 'recent_activity'
+  | 'pending_actions'
+  | 'tier_distribution'
+  | 'mrr_trend'
+  | 'system_health';
+
+export interface DashboardWidgetConfig {
+  id: string;
+  type: DashboardWidgetType;
+  title: string;
+  position: { x: number; y: number };
+  size: { width: number; height: number };
+  visible: boolean;
+}
+
+export interface AdminDashboardLayout {
+  adminId: string;
+  widgets: DashboardWidgetConfig[];
+  updatedAt: string;
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// COMBINED ORGANIZATION DETAIL
+// ────────────────────────────────────────────────────────────────────────────────
+
+export interface CombinedOrganizationDetail {
+  id: string;
+  name: string;
+  cuit: string | null;
+  phone: string | null;
+  address: string | null;
+  owner: {
+    id: string;
+    name: string;
+    email: string;
+    phone: string | null;
+    cuil: string | null;
+  };
+  subscription: {
+    id: string | null;
+    tier: SubscriptionTier;
+    status: SubscriptionStatus;
+    billingCycle: BillingCycle | null;
+    priceUsd: number | null;
+    trialEndsAt: string | null;
+    currentPeriodStart: string | null;
+    currentPeriodEnd: string | null;
+    cancelAtPeriodEnd: boolean;
+    gracePeriodEndsAt: string | null;
+  };
+  verification: {
+    status: 'not_started' | 'pending' | 'verified' | 'suspended';
+    tier2Progress: { completed: number; total: number };
+    tier3Progress: { completed: number; total: number };
+    badgesEarned: number;
+    requirements: OrganizationRequirementStatus[];
+  };
+  block: {
+    isBlocked: boolean;
+    reason: string | null;
+    blockedAt: string | null;
+    blockedBy: string | null;
+  };
+  stats: {
+    employeeCount: number;
+    verifiedEmployeeCount: number;
+    totalPayments: number;
+    totalPaid: number;
+    lastPaymentAt: string | null;
+    jobCount: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CombinedActivityItem {
+  id: string;
+  source: 'subscription' | 'verification' | 'payment' | 'block';
+  type: string;
+  description: string;
+  metadata: Record<string, unknown>;
+  actorType: 'system' | 'admin' | 'user';
+  actorName: string | null;
+  createdAt: string;
+}
