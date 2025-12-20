@@ -1,12 +1,13 @@
 /**
- * CampoTech Edge Middleware (Phase 6.1 + 6.3)
- * ============================================
+ * CampoTech Edge Middleware (Phase 6.1 + 6.3 + 7.3)
+ * ==================================================
  *
  * Next.js Edge Middleware for:
  * - Rate limiting with tier-based limits
  * - API versioning headers
  * - Request logging
  * - Security headers
+ * - CSRF protection (Origin validation)
  *
  * Rate Limits:
  * - FREE: 30 req/min
@@ -15,6 +16,8 @@
  * - EMPRESARIAL: 2000 req/min
  *
  * API Version: 1
+ *
+ * OWASP A05:2021 - Security Misconfiguration
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -92,6 +95,119 @@ const NO_VERSION_HEADER_PATHS = [
   '/api/health',
   '/api/webhooks/',
 ];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CSRF PROTECTION (OWASP A05:2021)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * HTTP methods that modify state and require CSRF protection
+ */
+const STATE_CHANGING_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
+
+/**
+ * Paths that should bypass CSRF validation (webhooks from external services)
+ */
+const CSRF_BYPASS_PATHS = [
+  '/api/webhooks/',
+  '/api/cron/',
+];
+
+/**
+ * Allowed origins for CSRF validation
+ * In production, this should match your domain(s)
+ */
+function getAllowedOrigins(): string[] {
+  const origins: string[] = [];
+
+  // Add production domain
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    origins.push(new URL(process.env.NEXT_PUBLIC_APP_URL).origin);
+  }
+
+  // Add Vercel preview URLs
+  if (process.env.VERCEL_URL) {
+    origins.push(`https://${process.env.VERCEL_URL}`);
+  }
+
+  // Development origins
+  if (process.env.NODE_ENV === 'development') {
+    origins.push('http://localhost:3000');
+    origins.push('http://localhost:3001');
+    origins.push('http://127.0.0.1:3000');
+  }
+
+  return origins;
+}
+
+/**
+ * Validate Origin/Referer header for CSRF protection
+ * Returns true if the request is safe, false if it should be blocked
+ */
+function validateCsrf(request: NextRequest): { valid: boolean; reason?: string } {
+  const method = request.method;
+
+  // GET, HEAD, OPTIONS are safe methods
+  if (!STATE_CHANGING_METHODS.includes(method)) {
+    return { valid: true };
+  }
+
+  const pathname = request.nextUrl.pathname;
+
+  // Bypass CSRF for webhooks and cron (they use API keys/secrets)
+  if (CSRF_BYPASS_PATHS.some(path => pathname.startsWith(path))) {
+    return { valid: true };
+  }
+
+  // Get Origin header (preferred)
+  const origin = request.headers.get('origin');
+
+  // Get Referer header as fallback
+  const referer = request.headers.get('referer');
+
+  // At least one must be present for state-changing requests
+  if (!origin && !referer) {
+    // Allow requests without Origin/Referer only if they have a valid auth cookie
+    // This handles same-origin requests from some browsers
+    const hasAuthCookie = request.cookies.has('auth-token');
+    if (hasAuthCookie) {
+      return { valid: true };
+    }
+    return { valid: false, reason: 'Missing Origin or Referer header' };
+  }
+
+  const allowedOrigins = getAllowedOrigins();
+
+  // Validate Origin if present
+  if (origin) {
+    if (allowedOrigins.length === 0) {
+      // If no allowed origins configured, allow all (dev mode fallback)
+      return { valid: true };
+    }
+    if (allowedOrigins.includes(origin)) {
+      return { valid: true };
+    }
+    return { valid: false, reason: `Origin ${origin} not allowed` };
+  }
+
+  // Validate Referer as fallback
+  if (referer) {
+    try {
+      const refererOrigin = new URL(referer).origin;
+      if (allowedOrigins.length === 0) {
+        return { valid: true };
+      }
+      if (allowedOrigins.includes(refererOrigin)) {
+        return { valid: true };
+      }
+      return { valid: false, reason: `Referer origin ${refererOrigin} not allowed` };
+    } catch {
+      return { valid: false, reason: 'Invalid Referer URL' };
+    }
+  }
+
+  return { valid: true };
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SLIDING WINDOW RATE LIMITER (in-memory for Edge Runtime)
@@ -274,6 +390,21 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   // Skip rate limiting for bypassed paths
   if (shouldBypass(pathname)) {
     return NextResponse.next();
+  }
+
+  // CSRF Protection - validate Origin for state-changing requests
+  const csrfResult = validateCsrf(request);
+  if (!csrfResult.valid) {
+    return new NextResponse(
+      JSON.stringify({
+        error: 'CSRF Validation Failed',
+        message: 'Request blocked due to invalid origin',
+      }),
+      {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   }
 
   // Get client identifier
