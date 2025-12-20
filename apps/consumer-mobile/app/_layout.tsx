@@ -4,6 +4,7 @@
  *
  * Phase 3.1.2: App Structure
  * Main navigation structure for consumer marketplace app.
+ * Includes Sentry error tracking.
  */
 
 import { useEffect } from 'react';
@@ -13,6 +14,11 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
+
+import { initSentry, withSentry } from '../lib/monitoring/sentry';
+
+// Initialize Sentry as early as possible
+initSentry();
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -27,7 +33,7 @@ const queryClient = new QueryClient({
   },
 });
 
-export default function RootLayout() {
+function RootLayout() {
   const [fontsLoaded] = useFonts({
     // Add custom fonts here if needed
   });
@@ -111,3 +117,6 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+// Wrap with Sentry error boundary
+export default withSentry(RootLayout);

@@ -88,7 +88,14 @@
           "locationWhenInUsePermission": "CampoTech usa tu ubicación para mostrarte proveedores de servicios cerca tuyo."
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "campotech",
+          "project": "consumer-mobile"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -99,7 +106,9 @@
       },
       "eas": {
         "projectId": "consumer-app-project-id"
-      }
+      },
+      "sentryDsn": "",
+      "environment": "development"
     }
   }
 }

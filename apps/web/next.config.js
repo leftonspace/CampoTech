@@ -1,4 +1,5 @@
 const path = require('path');
+const { withSentryConfig } = require('@sentry/nextjs');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -60,7 +61,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: https: blob:",
               "font-src 'self' data:",
-              "connect-src 'self' https://api.mercadopago.com https://api.openai.com https://wswhomo.afip.gov.ar https://wsaa.afip.gov.ar https://servicios1.afip.gov.ar wss:",
+              "connect-src 'self' https://api.mercadopago.com https://api.openai.com https://wswhomo.afip.gov.ar https://wsaa.afip.gov.ar https://servicios1.afip.gov.ar https://*.sentry.io https://*.ingest.sentry.io wss:",
               "frame-ancestors 'none'",
               "form-action 'self'",
               "base-uri 'self'",
@@ -73,4 +74,27 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+// Sentry webpack plugin options
+const sentryWebpackPluginOptions = {
+  // Suppress source map uploading during local development
+  silent: process.env.NODE_ENV !== 'production',
+
+  // Organization and project in Sentry
+  org: process.env.SENTRY_ORG || 'campotech',
+  project: process.env.SENTRY_PROJECT || 'web',
+
+  // Auth token for source map uploads (set in CI/CD)
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  // Upload source maps only in production
+  hideSourceMaps: process.env.NODE_ENV === 'production',
+
+  // Disable telemetry
+  telemetry: false,
+
+  // Tunnel Sentry requests through the app to avoid ad blockers
+  tunnelRoute: '/api/monitoring/tunnel',
+};
+
+// Wrap Next.js config with Sentry
+module.exports = withSentryConfig(nextConfig, sentryWebpackPluginOptions);
