@@ -27,6 +27,13 @@ type GeocodingQueueStatus = 'pending' | 'processing' | 'completed' | 'failed';
 // Cache TTL in milliseconds (7 days)
 const CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// SQL INJECTION PROTECTION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Geocoding queue table name constant (prevents accidental modification)
+const GEOCODING_QUEUE_TABLE = 'GeocodingQueue' as const;
+
 // Rate limiting for Nominatim (1 request per second)
 let lastNominatimRequest = 0;
 const NOMINATIM_RATE_LIMIT_MS = 1100; // Slightly over 1 second to be safe
@@ -335,21 +342,20 @@ export async function batchGeocodeCustomers(
 /**
  * Queue an entity for geocoding
  * Stores in database for background processing
+ * Uses parameterized queries to prevent SQL injection
  */
 export async function queueForGeocoding(item: GeocodingQueueItem): Promise<string | null> {
   try {
+    const priority = item.priority || 'normal';
+
     // Check if GeocodingQueue table exists by trying to query
-    const queue = await prisma.$queryRawUnsafe<{ id: string }[]>(
-      `INSERT INTO "GeocodingQueue" ("id", "entityType", "entityId", "address", "organizationId", "priority", "status", "attempts", "createdAt", "updatedAt")
-       VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, 'pending', 0, NOW(), NOW())
-       ON CONFLICT ("entityType", "entityId") DO UPDATE SET "address" = $3, "status" = 'pending', "attempts" = 0, "updatedAt" = NOW()
-       RETURNING "id"`,
-      item.entityType,
-      item.entityId,
-      item.address,
-      item.organizationId,
-      item.priority || 'normal'
-    );
+    // Using parameterized query template literal
+    const queue = await prisma.$queryRaw<{ id: string }[]>`
+      INSERT INTO "GeocodingQueue" ("id", "entityType", "entityId", "address", "organizationId", "priority", "status", "attempts", "createdAt", "updatedAt")
+      VALUES (gen_random_uuid(), ${item.entityType}, ${item.entityId}, ${item.address}, ${item.organizationId}, ${priority}, 'pending', 0, NOW(), NOW())
+      ON CONFLICT ("entityType", "entityId") DO UPDATE SET "address" = ${item.address}, "status" = 'pending', "attempts" = 0, "updatedAt" = NOW()
+      RETURNING "id"
+    `;
 
     if (queue.length > 0) {
       // Trigger background processing
@@ -400,6 +406,7 @@ async function processGeocodingImmediately(item: GeocodingQueueItem): Promise<bo
 
 /**
  * Process pending items in the geocoding queue
+ * Uses parameterized queries to prevent SQL injection
  */
 export async function processGeocodingQueue(
   organizationId?: string,
@@ -409,33 +416,44 @@ export async function processGeocodingQueue(
   let success = 0;
   let failed = 0;
 
-  try {
-    // Get pending items from queue
-    const whereClause = organizationId
-      ? `WHERE "status" = 'pending' AND "organizationId" = $1 AND "attempts" < 3`
-      : `WHERE "status" = 'pending' AND "attempts" < 3`;
+  // Validate batchSize is a safe number (prevent injection through numeric params)
+  const safeBatchSize = Math.min(Math.max(1, Math.floor(batchSize)), 100);
 
-    const items = await prisma.$queryRawUnsafe<{
+  try {
+    // Get pending items from queue using separate queries for clarity and safety
+    let items: {
       id: string;
       entityType: string;
       entityId: string;
       address: string;
       organizationId: string;
-    }[]>(
-      `SELECT "id", "entityType", "entityId", "address", "organizationId"
-       FROM "GeocodingQueue"
-       ${whereClause}
-       ORDER BY "priority" DESC, "createdAt" ASC
-       LIMIT ${batchSize}`,
-      ...(organizationId ? [organizationId] : [])
-    );
+    }[];
+
+    if (organizationId) {
+      // Query with organizationId filter - all params are properly parameterized
+      items = await prisma.$queryRaw<typeof items>`
+        SELECT "id", "entityType", "entityId", "address", "organizationId"
+        FROM "GeocodingQueue"
+        WHERE "status" = 'pending' AND "organizationId" = ${organizationId} AND "attempts" < 3
+        ORDER BY "priority" DESC, "createdAt" ASC
+        LIMIT ${safeBatchSize}
+      `;
+    } else {
+      // Query without organizationId filter
+      items = await prisma.$queryRaw<typeof items>`
+        SELECT "id", "entityType", "entityId", "address", "organizationId"
+        FROM "GeocodingQueue"
+        WHERE "status" = 'pending' AND "attempts" < 3
+        ORDER BY "priority" DESC, "createdAt" ASC
+        LIMIT ${safeBatchSize}
+      `;
+    }
 
     for (const item of items) {
-      // Mark as processing
-      await prisma.$executeRawUnsafe(
-        `UPDATE "GeocodingQueue" SET "status" = 'processing', "updatedAt" = NOW() WHERE "id" = $1`,
-        item.id
-      );
+      // Mark as processing - using parameterized query
+      await prisma.$executeRaw`
+        UPDATE "GeocodingQueue" SET "status" = 'processing', "updatedAt" = NOW() WHERE "id" = ${item.id}::uuid
+      `;
 
       const geocodeResult = await geocodeAddress(item.address);
 
@@ -463,28 +481,25 @@ export async function processGeocodingQueue(
         }
 
         if (updateSuccess) {
-          // Mark as completed
-          await prisma.$executeRawUnsafe(
-            `UPDATE "GeocodingQueue" SET "status" = 'completed', "completedAt" = NOW(), "updatedAt" = NOW() WHERE "id" = $1`,
-            item.id
-          );
+          // Mark as completed - using parameterized query
+          await prisma.$executeRaw`
+            UPDATE "GeocodingQueue" SET "status" = 'completed', "completedAt" = NOW(), "updatedAt" = NOW() WHERE "id" = ${item.id}::uuid
+          `;
           success++;
         } else {
-          // Mark as failed
-          await prisma.$executeRawUnsafe(
-            `UPDATE "GeocodingQueue" SET "status" = 'failed', "attempts" = "attempts" + 1, "lastError" = $2, "updatedAt" = NOW() WHERE "id" = $1`,
-            item.id,
-            'Failed to update entity'
-          );
+          // Mark as failed - using parameterized query
+          const errorMsg = 'Failed to update entity';
+          await prisma.$executeRaw`
+            UPDATE "GeocodingQueue" SET "status" = 'failed', "attempts" = "attempts" + 1, "lastError" = ${errorMsg}, "updatedAt" = NOW() WHERE "id" = ${item.id}::uuid
+          `;
           failed++;
         }
       } else {
-        // Geocoding failed, increment attempts
-        await prisma.$executeRawUnsafe(
-          `UPDATE "GeocodingQueue" SET "status" = 'pending', "attempts" = "attempts" + 1, "lastError" = $2, "updatedAt" = NOW() WHERE "id" = $1`,
-          item.id,
-          'Geocoding failed'
-        );
+        // Geocoding failed, increment attempts - using parameterized query
+        const errorMsg = 'Geocoding failed';
+        await prisma.$executeRaw`
+          UPDATE "GeocodingQueue" SET "status" = 'pending', "attempts" = "attempts" + 1, "lastError" = ${errorMsg}, "updatedAt" = NOW() WHERE "id" = ${item.id}::uuid
+        `;
         failed++;
       }
 
@@ -788,16 +803,17 @@ export async function cleanupOldLocationHistory(daysToKeep: number = 30): Promis
 
 /**
  * Delete old geocoding queue records
+ * Uses parameterized query to prevent SQL injection
  */
 export async function cleanupOldGeocodingQueue(daysToKeep: number = 7): Promise<number> {
   try {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
 
-    const result = await prisma.$executeRawUnsafe(
-      `DELETE FROM "GeocodingQueue" WHERE "status" IN ('completed', 'failed') AND "updatedAt" < $1`,
-      cutoffDate
-    );
+    // Using parameterized query template literal
+    const result = await prisma.$executeRaw`
+      DELETE FROM "GeocodingQueue" WHERE "status" IN ('completed', 'failed') AND "updatedAt" < ${cutoffDate}
+    `;
 
     console.log(`Deleted ${result} old geocoding queue records`);
     return result as number;
