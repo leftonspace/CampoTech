@@ -27,14 +27,26 @@ CREATE INDEX IF NOT EXISTS "idx_reviews_org_rating" ON "reviews"("organizationId
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 -- Index for finding available employees on a specific day
-CREATE INDEX IF NOT EXISTS "idx_employee_schedules_org_day" ON "employee_schedules"("organizationId", "dayOfWeek");
+-- Only create if table exists
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'employee_schedules') THEN
+        CREATE INDEX IF NOT EXISTS "idx_employee_schedules_org_day" ON "employee_schedules"("organizationId", "dayOfWeek");
+    END IF;
+END $$;
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- SCHEDULE EXCEPTIONS TABLE - Composite indexes for exception queries
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 -- Index for finding all exceptions on a specific date
-CREATE INDEX IF NOT EXISTS "idx_schedule_exceptions_org_date" ON "schedule_exceptions"("organizationId", "date");
+-- Only create if table exists
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'schedule_exceptions') THEN
+        CREATE INDEX IF NOT EXISTS "idx_schedule_exceptions_org_date" ON "schedule_exceptions"("organizationId", "date");
+    END IF;
+END $$;
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- BUSINESS PUBLIC PROFILES TABLE - New table for marketplace
