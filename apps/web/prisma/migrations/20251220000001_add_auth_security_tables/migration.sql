@@ -12,8 +12,8 @@
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS refresh_tokens (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash VARCHAR(64) NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     revoked BOOLEAN NOT NULL DEFAULT false,
@@ -38,13 +38,13 @@ CREATE INDEX IF NOT EXISTS idx_refresh_tokens_expires_at ON refresh_tokens(expir
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS login_attempts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY,
     identifier VARCHAR(255) NOT NULL,
     identifier_type VARCHAR(20) NOT NULL, -- 'phone', 'email', 'user_id'
     success BOOLEAN NOT NULL DEFAULT false,
     ip_address VARCHAR(45),
     user_agent TEXT,
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     CONSTRAINT login_attempts_identifier_type_check
@@ -67,7 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_login_attempts_created_at ON login_attempts(creat
 -- ═══════════════════════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS login_lockouts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY,
     identifier VARCHAR(255) NOT NULL,
     identifier_type VARCHAR(20) NOT NULL, -- 'phone', 'email', 'user_id'
     locked_until TIMESTAMPTZ NOT NULL,
