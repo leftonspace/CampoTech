@@ -65,6 +65,61 @@ export interface PartitionManagerResult {
   }[];
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// SQL INJECTION PROTECTION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Allowed partition table names (whitelist for SQL injection prevention)
+const ALLOWED_PARTITION_TABLES = new Set([
+  'jobs_partitioned',
+  'wa_messages_partitioned',
+  'tech_location_history_partitioned',
+  'audit_logs_partitioned',
+  'notification_logs_partitioned',
+]);
+
+// Allowed partition prefixes (whitelist for SQL injection prevention)
+const ALLOWED_PARTITION_PREFIXES = new Set([
+  'jobs_y',
+  'wa_msgs_',
+  'tech_loc_',
+  'audit_logs_y',
+  'notif_logs_',
+]);
+
+// Validate PostgreSQL identifier (table/partition name)
+// Only allows alphanumeric, underscore, and must start with letter
+function isValidIdentifier(name: string): boolean {
+  return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name);
+}
+
+/**
+ * Validate table name against allowed tables
+ * @throws Error if table name is not in whitelist
+ */
+function validateTableName(tableName: string): void {
+  if (!ALLOWED_PARTITION_TABLES.has(tableName)) {
+    throw new Error(`Invalid table name: ${tableName}. Not in allowed tables list.`);
+  }
+}
+
+/**
+ * Validate partition name format
+ * Must start with an allowed prefix and be a valid identifier
+ * @throws Error if partition name is invalid
+ */
+function validatePartitionName(partitionName: string, prefix: string): void {
+  if (!ALLOWED_PARTITION_PREFIXES.has(prefix)) {
+    throw new Error(`Invalid partition prefix: ${prefix}. Not in allowed prefixes list.`);
+  }
+  if (!partitionName.startsWith(prefix)) {
+    throw new Error(`Partition name ${partitionName} must start with prefix ${prefix}`);
+  }
+  if (!isValidIdentifier(partitionName)) {
+    throw new Error(`Invalid partition name format: ${partitionName}. Must be a valid SQL identifier.`);
+  }
+}
+
 // Table configurations
 const PARTITIONED_TABLES: PartitionedTableConfig[] = [
   {
@@ -222,17 +277,24 @@ async function tableExists(tableName: string): Promise<boolean> {
 
 /**
  * Create a single partition
+ * Uses whitelisted table/partition names to prevent SQL injection
  */
 async function createPartition(
   tableName: string,
   partitionName: string,
   startDate: Date,
-  endDate: Date
+  endDate: Date,
+  partitionPrefix: string
 ): Promise<boolean> {
   const startStr = format(startDate, 'yyyy-MM-dd');
   const endStr = format(endDate, 'yyyy-MM-dd');
 
   try {
+    // Validate table and partition names against whitelist
+    validateTableName(tableName);
+    validatePartitionName(partitionName, partitionPrefix);
+
+    // After validation, safe to use in query (names are from controlled config)
     await prisma.$executeRawUnsafe(`
       CREATE TABLE IF NOT EXISTS ${partitionName}
       PARTITION OF ${tableName}
@@ -293,7 +355,8 @@ async function ensurePartitionsForTable(
         config.tableName,
         partitionName,
         startDate,
-        endDate
+        endDate,
+        config.partitionPrefix
       );
 
       if (created) {

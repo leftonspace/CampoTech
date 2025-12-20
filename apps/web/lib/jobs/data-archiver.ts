@@ -75,6 +75,31 @@ export const ARCHIVAL_CONFIGS: ArchivalConfig[] = [
 const DELETE_ONLY_TABLES = ['notification_logs'];
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SQL INJECTION PROTECTION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Allowed archival tables (whitelist for SQL injection prevention)
+const ALLOWED_ARCHIVAL_TABLES = new Set([
+  'technician_locations',
+  'notification_logs',
+  'whatsapp_messages',
+  'audit_logs',
+  'jobs',
+  'invoices',
+  'technician_location_history',
+]);
+
+/**
+ * Validate table name against allowed archival tables
+ * @throws Error if table name is not in whitelist
+ */
+function validateArchivalTableName(tableName: string): void {
+  if (!ALLOWED_ARCHIVAL_TABLES.has(tableName)) {
+    throw new Error(`Invalid archival table name: ${tableName}. Not in allowed tables list.`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -461,12 +486,17 @@ async function archiveLocationsWithAggregation(
 
 /**
  * Get organizations with data older than cutoff
+ * Validates table name against whitelist to prevent SQL injection
  */
 async function getOrganizationsWithOldData(
   table: string,
   cutoffDate: Date
 ): Promise<string[]> {
+  // Validate table name against whitelist
+  validateArchivalTableName(table);
+
   // Use raw query for flexibility across tables
+  // Table name is safe after validation
   const result = await prisma.$queryRawUnsafe<Array<{ organization_id: string }>>(
     `SELECT DISTINCT organization_id FROM "${table}" WHERE created_at < $1`,
     cutoffDate
@@ -477,6 +507,7 @@ async function getOrganizationsWithOldData(
 
 /**
  * Fetch old records for archival
+ * Validates table name against whitelist to prevent SQL injection
  */
 async function fetchOldRecords(
   table: string,
@@ -484,6 +515,10 @@ async function fetchOldRecords(
   cutoffDate: Date,
   limit: number
 ): Promise<Record<string, unknown>[]> {
+  // Validate table name against whitelist
+  validateArchivalTableName(table);
+
+  // Table name is safe after validation
   const result = await prisma.$queryRawUnsafe<Record<string, unknown>[]>(
     `SELECT * FROM "${table}"
      WHERE organization_id = $1
@@ -500,10 +535,15 @@ async function fetchOldRecords(
 
 /**
  * Delete records by IDs
+ * Validates table name against whitelist to prevent SQL injection
  */
 async function deleteRecords(table: string, ids: string[]): Promise<number> {
   if (ids.length === 0) return 0;
 
+  // Validate table name against whitelist
+  validateArchivalTableName(table);
+
+  // Table name is safe after validation
   const result = await prisma.$executeRawUnsafe(
     `DELETE FROM "${table}" WHERE id = ANY($1::text[])`,
     ids
@@ -518,6 +558,7 @@ async function deleteRecords(table: string, ids: string[]): Promise<number> {
 
 /**
  * Get archival status for monitoring
+ * Validates table names against whitelist to prevent SQL injection
  */
 export async function getArchivalStatus(): Promise<{
   lastRun?: string;
@@ -532,8 +573,12 @@ export async function getArchivalStatus(): Promise<{
 
   for (const config of ARCHIVAL_CONFIGS) {
     try {
+      // Validate table name against whitelist
+      validateArchivalTableName(config.table);
+
       const cutoffDate = subDays(new Date(), config.retentionDays);
 
+      // Table name is safe after validation
       const [oldest, count] = await Promise.all([
         prisma.$queryRawUnsafe<Array<{ min: Date }>>(
           `SELECT MIN(created_at) as min FROM "${config.table}"`

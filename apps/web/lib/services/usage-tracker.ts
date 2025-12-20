@@ -24,6 +24,28 @@ import {
 } from '@/lib/config/tier-limits';
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SQL INJECTION PROTECTION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Allowed column names for usage tracking (whitelist for SQL injection prevention)
+const ALLOWED_USAGE_COLUMNS = new Set([
+  'jobs_count',
+  'invoices_count',
+  'whatsapp_messages',
+  'storage_bytes',
+]);
+
+/**
+ * Validate column name against allowed columns
+ * @throws Error if column name is not in whitelist
+ */
+function validateUsageColumn(column: string): void {
+  if (!ALLOWED_USAGE_COLUMNS.has(column)) {
+    throw new Error(`Invalid usage column: ${column}. Not in allowed columns list.`);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -149,6 +171,7 @@ export class UsageTracker {
 
   /**
    * Increment a monthly counter
+   * Uses whitelisted column names to prevent SQL injection
    */
   async incrementMonthlyCounter(
     orgId: string,
@@ -162,11 +185,15 @@ export class UsageTracker {
       invoices: 'invoices_count',
       whatsapp: 'whatsapp_messages',
       storage: 'storage_bytes',
-    };
+    } as const;
 
     const column = columnMap[counterType];
 
+    // Validate column name against whitelist
+    validateUsageColumn(column);
+
     try {
+      // Column name is safe after validation
       await prisma.$executeRawUnsafe(`
         INSERT INTO organization_usage (org_id, period, ${column})
         VALUES ($1::uuid, $2, $3)
@@ -180,6 +207,7 @@ export class UsageTracker {
 
   /**
    * Decrement a monthly counter (for deletions/returns)
+   * Uses whitelisted column names to prevent SQL injection
    */
   async decrementMonthlyCounter(
     orgId: string,
@@ -193,11 +221,15 @@ export class UsageTracker {
       invoices: 'invoices_count',
       whatsapp: 'whatsapp_messages',
       storage: 'storage_bytes',
-    };
+    } as const;
 
     const column = columnMap[counterType];
 
+    // Validate column name against whitelist
+    validateUsageColumn(column);
+
     try {
+      // Column name is safe after validation
       await prisma.$executeRawUnsafe(`
         UPDATE organization_usage
         SET ${column} = GREATEST(0, ${column} - $3), updated_at = NOW()
