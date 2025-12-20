@@ -115,9 +115,11 @@ CREATE TABLE IF NOT EXISTS jobs_default PARTITION OF jobs_partitioned
 -- STEP 3: Create indexes on each partition (for common query patterns)
 -- ═══════════════════════════════════════════════════════════════════════════════
 
--- Unique constraint on jobNumber (must include partition key)
+-- Unique constraint on jobNumber (must include partition key for partitioned tables)
+-- Note: This means jobNumber is unique within each partition (time period)
+-- For global uniqueness, enforce at application level
 CREATE UNIQUE INDEX IF NOT EXISTS jobs_partitioned_job_number_key
-    ON jobs_partitioned("jobNumber");
+    ON jobs_partitioned("jobNumber", "createdAt");
 
 -- Main query pattern indexes (these inherit to all partitions automatically)
 CREATE INDEX IF NOT EXISTS idx_jobs_part_org_status

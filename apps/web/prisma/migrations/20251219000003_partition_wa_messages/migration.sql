@@ -199,9 +199,10 @@ CREATE TABLE IF NOT EXISTS wa_msgs_default PARTITION OF wa_messages_partitioned
 -- STEP 3: Create indexes on partitioned table
 -- ═══════════════════════════════════════════════════════════════════════════════
 
--- Unique constraint on waMessageId (must include partition key)
+-- Unique constraint on waMessageId (must include partition key for partitioned tables)
+-- Note: waMessageId is unique within each partition (time period)
 CREATE UNIQUE INDEX IF NOT EXISTS wa_messages_part_wa_id_key
-    ON wa_messages_partitioned("waMessageId")
+    ON wa_messages_partitioned("waMessageId", "createdAt")
     WHERE "waMessageId" IS NOT NULL;
 
 -- Main query pattern indexes
