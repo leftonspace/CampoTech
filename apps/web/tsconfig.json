@@ -52,6 +52,7 @@
     "**/*.spec.ts",
     "**/*.spec.tsx",
     "*.config.js",
-    "*.config.ts"
+    "*.config.ts",
+    "e2e"
   ]
 }
