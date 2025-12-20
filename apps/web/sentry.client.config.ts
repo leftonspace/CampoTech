@@ -43,7 +43,7 @@ Sentry.init({
   ],
 
   // Filter out sensitive data
-  beforeSend(event) {
+  beforeSend(event: Sentry.ErrorEvent) {
     // Remove sensitive URL parameters
     if (event.request?.url) {
       const url = new URL(event.request.url);
