@@ -27,3 +27,12 @@ export type {
   AcknowledgmentStatus,
   MissingAcknowledgment,
 } from './acknowledgment-service';
+
+// Block Management Services
+export { blockManager, BLOCK_REASON_CODES } from './block-manager';
+export type {
+  CreateBlockInput,
+  BlockSummary,
+  AutoBlockResult,
+  BlockReasonCode,
+} from './block-manager';

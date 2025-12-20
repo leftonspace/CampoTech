@@ -71,3 +71,12 @@ export type {
   AccessControlContext,
   AccessControlHandler,
 } from './middleware';
+
+// Re-export block manager for convenience
+export { blockManager, BLOCK_REASON_CODES } from '@/lib/services/block-manager';
+export type {
+  CreateBlockInput,
+  BlockSummary,
+  AutoBlockResult,
+  BlockReasonCode,
+} from '@/lib/services/block-manager';
