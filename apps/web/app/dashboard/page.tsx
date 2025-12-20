@@ -20,7 +20,7 @@ import {
   TrendingUp,
   User,
 } from 'lucide-react';
-import { DashboardAlerts, OnboardingChecklist, AccountStatusCard } from '@/components/dashboard';
+import { OnboardingChecklist } from '@/components/dashboard';
 import { useOnboardingStatus } from '@/hooks/useOnboardingStatus';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -182,8 +182,6 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Dashboard Alerts - Subscription & Verification Warnings */}
-      <DashboardAlerts />
 
       {/* Onboarding Checklist - Show for incomplete setups */}
       {!onboardingLoading && !isOnboardingComplete && (
@@ -245,9 +243,6 @@ export default function DashboardPage() {
 
         {/* Right Sidebar (1/3) */}
         <div className="space-y-6">
-          {/* Account Status - Subscription & Verification Summary */}
-          <AccountStatusCard compact />
-
           {/* Quick Actions */}
           <div className="card">
             <div className="card-header">
