@@ -90,7 +90,14 @@
           "color": "#16a34a"
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "campotech",
+          "project": "mobile"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
@@ -101,7 +108,9 @@
       },
       "eas": {
         "projectId": "82fcb876-14ba-4ea2-9f84-c666b9af6888"
-      }
+      },
+      "sentryDsn": "",
+      "environment": "development"
     },
     "owner": "leftonspaces-organization"
   }
