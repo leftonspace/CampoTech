@@ -209,3 +209,133 @@ export interface SubscriptionFilters {
   page?: number;
   limit?: number;
 }
+
+// ────────────────────────────────────────────────────────────────────────────────
+// VERIFICATION TYPES
+// ────────────────────────────────────────────────────────────────────────────────
+
+export type VerificationCategory = 'identity' | 'business' | 'professional' | 'insurance' | 'background' | 'financial';
+export type VerificationAppliesTo = 'organization' | 'owner' | 'employee';
+export type VerificationSubmissionStatus = 'pending' | 'in_review' | 'approved' | 'rejected' | 'expired';
+export type VerifiedByType = 'auto' | 'admin';
+
+export interface VerificationQueueItem {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  userId: string | null;
+  userName: string | null;
+  requirementId: string;
+  requirementCode: string;
+  requirementName: string;
+  category: VerificationCategory;
+  appliesTo: VerificationAppliesTo;
+  tier: number;
+  status: VerificationSubmissionStatus;
+  submittedValue: string | null;
+  documentUrl: string | null;
+  documentType: string | null;
+  documentFilename: string | null;
+  submittedAt: string;
+  priority: 'new_business' | 'renewal' | 'badge_request' | 'normal';
+  isFirstSubmission: boolean;
+}
+
+export interface VerificationSubmissionDetail extends VerificationQueueItem {
+  verifiedAt: string | null;
+  verifiedBy: VerifiedByType | null;
+  verifiedByUserId: string | null;
+  rejectionReason: string | null;
+  rejectionCode: string | null;
+  expiresAt: string | null;
+  autoVerifyResponse: Record<string, unknown> | null;
+  autoVerifyCheckedAt: string | null;
+  notes: string | null;
+  adminNotes: string | null;
+  updatedAt: string;
+  previousSubmissions: VerificationSubmissionHistory[];
+}
+
+export interface VerificationSubmissionHistory {
+  id: string;
+  status: VerificationSubmissionStatus;
+  submittedValue: string | null;
+  documentUrl: string | null;
+  rejectionReason: string | null;
+  submittedAt: string;
+  verifiedAt: string | null;
+}
+
+export interface VerificationDashboardStats {
+  pendingReview: number;
+  inReview: number;
+  approvedToday: number;
+  rejectedToday: number;
+  expiringIn7Days: number;
+  totalPending: number;
+}
+
+export interface VerificationFilters {
+  status?: VerificationSubmissionStatus | 'all';
+  category?: VerificationCategory | 'all';
+  priority?: 'new_business' | 'renewal' | 'badge_request' | 'all';
+  appliesTo?: VerificationAppliesTo | 'all';
+  search?: string;
+  organizationId?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface OrganizationComplianceItem {
+  organizationId: string;
+  organizationName: string;
+  cuit: string | null;
+  ownerName: string;
+  ownerEmail: string;
+  verificationStatus: 'not_started' | 'pending' | 'verified' | 'suspended';
+  tier2Progress: { completed: number; total: number };
+  tier3Progress: { completed: number; total: number };
+  badgesEarned: number;
+  isBlocked: boolean;
+  blockReason: string | null;
+  createdAt: string;
+}
+
+export interface OrganizationComplianceDetail extends OrganizationComplianceItem {
+  requirements: OrganizationRequirementStatus[];
+  employees: EmployeeVerificationStatus[];
+}
+
+export interface OrganizationRequirementStatus {
+  requirementId: string;
+  code: string;
+  name: string;
+  category: VerificationCategory;
+  tier: number;
+  isRequired: boolean;
+  status: VerificationSubmissionStatus | 'not_submitted';
+  submittedAt: string | null;
+  verifiedAt: string | null;
+  expiresAt: string | null;
+  documentUrl: string | null;
+}
+
+export interface EmployeeVerificationStatus {
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+  verificationStatus: 'not_started' | 'pending' | 'verified' | 'blocked';
+  completedRequirements: number;
+  totalRequirements: number;
+  canBeAssignedJobs: boolean;
+}
+
+export const REJECTION_REASONS = [
+  { code: 'illegible', label: 'Documento ilegible' },
+  { code: 'expired', label: 'Documento vencido' },
+  { code: 'mismatch', label: 'Datos no coinciden' },
+  { code: 'incorrect', label: 'Documento incorrecto' },
+  { code: 'invalid_photo', label: 'Foto no válida' },
+  { code: 'other', label: 'Otro' },
+] as const;
