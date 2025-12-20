@@ -7,7 +7,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
-  Filter,
   RefreshCw,
 } from 'lucide-react';
 import { CalendarView, CalendarEvent } from '@/components/calendar/CalendarView';
@@ -53,7 +52,6 @@ export default function CalendarPage() {
   const [selectedTechnicianId, setSelectedTechnicianId] = useState<string | undefined>();
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(() => getBuenosAiresNow());
-  const [showFilters, setShowFilters] = useState(false);
 
   // Calculate date range based on view
   const dateRange = useMemo(() => {
@@ -198,23 +196,6 @@ export default function CalendarPage() {
               </button>
             ))}
           </div>
-
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
-              selectedTechnicianId
-                ? 'border-primary-300 bg-primary-50 text-primary-700'
-                : 'border-gray-200 text-gray-700 hover:bg-gray-50'
-            }`}
-          >
-            <Filter className="h-4 w-4" />
-            Filtros
-            {selectedTechnicianId && (
-              <span className="ml-1 rounded-full bg-primary-600 px-1.5 py-0.5 text-xs text-white">
-                1
-              </span>
-            )}
-          </button>
 
           <button
             onClick={() => refetch()}
