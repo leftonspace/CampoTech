@@ -393,7 +393,7 @@ class BlockManager {
     } else {
       // Remove trial expired blocks if trial is active
       if (org.subscriptionStatus === 'trialing' && org.trialEndsAt && org.trialEndsAt > now) {
-        const removed = await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.TRIAL_EXPIRED);
+        let removed = await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.TRIAL_EXPIRED);
         removed += await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.TRIAL_EXPIRED_GRACE);
         blocksRemoved += removed;
       }
@@ -408,7 +408,7 @@ class BlockManager {
     } else {
       // Remove payment blocks if subscription is active
       if (org.subscriptionStatus === 'active') {
-        const removed = await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.PAYMENT_PAST_DUE);
+        let removed = await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.PAYMENT_PAST_DUE);
         removed += await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.PAYMENT_FAILED);
         blocksRemoved += removed;
       }
@@ -436,7 +436,7 @@ class BlockManager {
       blocksCreated++;
     } else if (org.verificationStatus === 'verified') {
       // Remove verification-related blocks
-      const removed = await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.VERIFICATION_SUSPENDED);
+      let removed = await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.VERIFICATION_SUSPENDED);
       removed += await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.VERIFICATION_INCOMPLETE);
       blocksRemoved += removed;
     }

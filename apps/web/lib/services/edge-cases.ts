@@ -13,7 +13,7 @@
 
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
-import { blockManager } from '@/lib/subscription/block-manager';
+import { blockManager } from '@/lib/services/block-manager';
 import { funnelTracker } from '@/lib/services/funnel-tracker';
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -462,5 +462,4 @@ export function createAFIPClient(config?: AFIPClientConfig): AFIPClientClass {
   return new AFIPClientClass(config);
 }
 
-// Re-export validation functions for convenience
-export { validateCUITFormat, validateCUITCheckDigit, getCUITEntityType };
+// Note: validateCUITFormat, validateCUITCheckDigit, getCUITEntityType are already exported above
