@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma, TransactionClient } from '@/lib/prisma';
 import { createToken } from '@/lib/auth';
 import { verifyOTP } from '@/lib/otp';
+import { trialManager, TRIAL_DAYS } from '@/lib/services/trial-manager';
 
 export async function POST(request: NextRequest) {
   try {
@@ -120,6 +121,13 @@ export async function POST(request: NextRequest) {
       return { organization: org, user: adminUser };
     });
 
+    // Create 14-day trial subscription for the new organization
+    const trialResult = await trialManager.createTrial(organization.id);
+    if (!trialResult.success) {
+      console.error('Failed to create trial for organization:', organization.id, trialResult.error);
+      // Don't fail registration if trial creation fails - organization can still use the app
+    }
+
     // Create JWT tokens
     const accessToken = await createToken({
       userId: user.id,
@@ -148,6 +156,10 @@ export async function POST(request: NextRequest) {
           },
         },
         isNewUser: true,
+        trial: trialResult.success ? {
+          trialEndsAt: trialResult.trialEndsAt,
+          daysRemaining: TRIAL_DAYS,
+        } : null,
       },
     });
 
