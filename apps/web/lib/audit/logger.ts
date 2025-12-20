@@ -31,6 +31,7 @@ export interface AuditEntry {
   ipAddress?: string;
   userAgent?: string;
   metadata?: Record<string, unknown>;
+  resource?: string;
 }
 
 /**

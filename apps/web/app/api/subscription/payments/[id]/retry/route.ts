@@ -13,7 +13,7 @@ import { prisma } from '@/lib/prisma';
 import { createCheckoutPreference } from '@/lib/mercadopago/checkout';
 import { logAuditEntry } from '@/lib/audit/logger';
 import type { SubscriptionTier } from '@/lib/config/tier-limits';
-import type { BillingCycle } from '@prisma/client';
+import type { BillingCycle } from '@/lib/types/subscription';
 
 export async function POST(
   request: NextRequest,

@@ -18,11 +18,13 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import {
-  VerificationSubmission,
+import type {
   VerificationSubmissionStatus,
-} from '@prisma/client';
+} from '@/lib/types/verification';
 import { verificationManager } from './verification-manager';
+
+// Type for VerificationSubmission from Prisma model
+type VerificationSubmission = Awaited<ReturnType<typeof prisma.verificationSubmission.findFirst>> & {};
 import { blockManager, BLOCK_REASON_CODES } from './block-manager';
 import { funnelTracker } from './funnel-tracker';
 import {

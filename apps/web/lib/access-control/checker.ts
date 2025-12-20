@@ -371,7 +371,7 @@ async function getTier2Status(organizationId: string): Promise<{
   const submissions = await prisma.verificationSubmission.findMany({
     where: {
       organizationId,
-      requirementId: { in: requirements.map((r) => r.id) },
+      requirementId: { in: requirements.map((r: { id: string }) => r.id) },
     },
     select: {
       requirementId: true,
@@ -386,8 +386,11 @@ async function getTier2Status(organizationId: string): Promise<{
     },
   });
 
-  // Create submission map
-  const submissionMap = new Map(submissions.map((s) => [s.requirementId, s]));
+  // Create submission map with proper typing
+  type SubmissionEntry = (typeof submissions)[number];
+  const submissionMap = new Map<string, SubmissionEntry>(
+    submissions.map((s: SubmissionEntry): [string, SubmissionEntry] => [s.requirementId, s])
+  );
 
   const pending: string[] = [];
   const expired: string[] = [];

@@ -14,11 +14,24 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import type {
-  ComplianceBlock,
-  ComplianceBlockType,
-  Prisma,
-} from '@prisma/client';
+import type { ComplianceBlockType } from '@/lib/types/subscription';
+
+// Type for ComplianceBlock from Prisma model
+interface ComplianceBlock {
+  id: string;
+  organizationId: string;
+  userId: string | null;
+  blockType: ComplianceBlockType;
+  reason: string;
+  reasonCode: string | null;
+  relatedSubmissionId: string | null;
+  createdBy: string | null;
+  notes: string | null;
+  resolvedAt: Date | null;
+  resolvedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
