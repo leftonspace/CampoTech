@@ -25,7 +25,7 @@ export async function GET(): Promise<NextResponse> {
       );
     }
 
-    // Only OWNER and ADMIN can view approvals
+    // Only OWNER can view approvals
     if (!['OWNER'].includes(session.role)) {
       return NextResponse.json(
         { error: 'forbidden', message: 'No tienes permiso para ver aprobaciones.' },

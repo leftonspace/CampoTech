@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has permission (OWNER or DISPATCHER)
-    if (!['OWNER', 'DISPATCHER', 'ADMIN'].includes(session.role?.toUpperCase() || '')) {
+    if (!['OWNER', 'DISPATCHER'].includes(session.role?.toUpperCase() || '')) {
       return NextResponse.json(
         { success: false, error: 'No tenés permiso para usar el co-pilot' },
         { status: 403 }

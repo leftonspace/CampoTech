@@ -105,9 +105,9 @@ export async function POST(request: NextRequest) {
       }
 
       case 'expire_old': {
-        // Admin only action
-        if (session.role !== 'OWNER' && session.role !== 'ADMIN') {
-          return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+        // Owner only action
+        if (session.role !== 'OWNER') {
+          return NextResponse.json({ error: 'Owner access required' }, { status: 403 });
         }
 
         const expiredCount = await fallbackHandler.expireOldEscalations();

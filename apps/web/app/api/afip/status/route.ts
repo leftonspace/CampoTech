@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
 
     // Verify user has access to the org if specified
     if (orgId && session.organizationId !== orgId) {
-      // Allow if user is admin (check role)
-      if (session.role !== 'OWNER' && session.role !== 'ADMIN') {
+      // Only OWNER can access other organization status
+      if (session.role !== 'OWNER') {
         return NextResponse.json(
           { error: 'Forbidden: Cannot access other organization status' },
           { status: 403 }
@@ -89,10 +89,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Only OWNER/ADMIN can perform control actions
-    if (session.role !== 'OWNER' && session.role !== 'ADMIN') {
+    // Only OWNER can perform control actions
+    if (session.role !== 'OWNER') {
       return NextResponse.json(
-        { error: 'Forbidden: Admin access required' },
+        { error: 'Forbidden: Owner access required' },
         { status: 403 }
       );
     }
