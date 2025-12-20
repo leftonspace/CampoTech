@@ -20,6 +20,8 @@ import {
   TrendingUp,
   User,
 } from 'lucide-react';
+import { DashboardAlerts, OnboardingChecklist, AccountStatusCard } from '@/components/dashboard';
+import { useOnboardingStatus } from '@/hooks/useOnboardingStatus';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -122,6 +124,7 @@ const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { isOnboardingComplete, isLoading: onboardingLoading } = useOnboardingStatus();
 
   const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard-stats'],
@@ -167,6 +170,14 @@ export default function DashboardPage() {
           Nuevo trabajo
         </Link>
       </div>
+
+      {/* Dashboard Alerts - Subscription & Verification Warnings */}
+      <DashboardAlerts />
+
+      {/* Onboarding Checklist - Show for incomplete setups */}
+      {!onboardingLoading && !isOnboardingComplete && (
+        <OnboardingChecklist />
+      )}
 
       {/* Stats Cards - Lovable Design with filled icon backgrounds */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -223,6 +234,9 @@ export default function DashboardPage() {
 
         {/* Right Sidebar (1/3) */}
         <div className="space-y-6">
+          {/* Account Status - Subscription & Verification Summary */}
+          <AccountStatusCard compact />
+
           {/* Quick Actions */}
           <div className="card">
             <div className="card-header">
