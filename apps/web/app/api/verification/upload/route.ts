@@ -29,6 +29,7 @@ import {
   MAX_FILE_SIZE,
   ALLOWED_MIME_TYPES,
 } from '@/lib/storage/verification-storage';
+import { verificationManager } from '@/lib/services/verification-manager';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -221,6 +222,20 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
 
     // Generate signed URL for immediate viewing
     const signedUrl = await getSignedUrl(uploadResult.path!);
+
+    // Update verification status after upload
+    // This recalculates the org's overall status based on all submissions
+    try {
+      await verificationManager.updateOrgVerificationStatus(organizationId);
+
+      // If this is an employee document, also update user status
+      if (requirement.appliesTo === 'employee' && effectiveUserId) {
+        await verificationManager.updateUserVerificationStatus(effectiveUserId);
+      }
+    } catch (statusErr) {
+      console.error('[Upload] Status update error:', statusErr);
+      // Don't fail the upload if status update fails
+    }
 
     // Log audit entry
     await logAuditEntry({
