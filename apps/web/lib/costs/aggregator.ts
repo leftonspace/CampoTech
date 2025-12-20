@@ -167,7 +167,7 @@ const TTL_SECONDS = TTL_DAYS * 24 * 60 * 60;
 // COST AGGREGATOR CLASS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-class CostAggregator {
+export class CostAggregator {
   /**
    * Track a cost entry
    */

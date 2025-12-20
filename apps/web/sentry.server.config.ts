@@ -34,7 +34,7 @@ Sentry.init({
   ],
 
   // Filter sensitive data before sending
-  beforeSend(event) {
+  beforeSend(event: Sentry.ErrorEvent) {
     // Remove sensitive headers
     if (event.request?.headers) {
       delete event.request.headers['authorization'];
@@ -45,7 +45,7 @@ Sentry.init({
 
     // Remove sensitive data from breadcrumbs
     if (event.breadcrumbs) {
-      event.breadcrumbs = event.breadcrumbs.map((breadcrumb) => {
+      event.breadcrumbs = event.breadcrumbs.map((breadcrumb: Sentry.Breadcrumb) => {
         if (breadcrumb.data) {
           const sensitiveFields = [
             'password',
