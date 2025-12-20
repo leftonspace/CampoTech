@@ -85,15 +85,20 @@ export const JOB_TYPES = {
   'notification.inApp': { tier: 'realtime' as const, description: 'In-app notification' },
   'webhook.send': { tier: 'realtime' as const, description: 'Send webhook to external service' },
   'sync.realtime': { tier: 'realtime' as const, description: 'Real-time data sync' },
+  'job.statusNotify': { tier: 'realtime' as const, description: 'Notify on job status change' },
 
   // Background jobs
   'email.send': { tier: 'background' as const, description: 'Send email' },
   'email.bulk': { tier: 'background' as const, description: 'Send bulk emails' },
   'sms.send': { tier: 'background' as const, description: 'Send SMS' },
   'whatsapp.send': { tier: 'background' as const, description: 'Send WhatsApp message' },
+  'whatsapp.template': { tier: 'background' as const, description: 'Send WhatsApp template message' },
+  'whatsapp.aiProcess': { tier: 'background' as const, description: 'Process WhatsApp message with AI' },
+  'voice.transcribe': { tier: 'background' as const, description: 'Transcribe voice message with Whisper' },
   'image.process': { tier: 'background' as const, description: 'Process/resize image' },
   'pdf.generate': { tier: 'background' as const, description: 'Generate PDF document' },
   'invoice.generate': { tier: 'background' as const, description: 'Generate invoice' },
+  'invoice.afip': { tier: 'background' as const, description: 'Generate AFIP electronic invoice' },
   'sync.data': { tier: 'background' as const, description: 'Sync data between services' },
   'cache.invalidate': { tier: 'background' as const, description: 'Invalidate cache entries' },
 
