@@ -255,7 +255,7 @@ class PaymentProcessor {
           data: {
             subscriptionId: subscription.id,
             organizationId,
-            amount: new Decimal(paymentData.amount),
+            amount: paymentData.amount,
             currency: paymentData.currency || 'ARS',
             status: 'completed',
             paymentType: 'recurring',
@@ -515,7 +515,7 @@ class PaymentProcessor {
           data: {
             subscriptionId: subscription.id,
             organizationId,
-            amount: new Decimal(paymentData.amount || 0),
+            amount: paymentData.amount || 0,
             currency: paymentData.currency || 'ARS',
             status: 'failed',
             paymentType: 'recurring',
@@ -728,7 +728,7 @@ class PaymentProcessor {
           data: {
             subscriptionId: subscription.id,
             organizationId,
-            amount: new Decimal(paymentData.amount),
+            amount: paymentData.amount,
             currency: paymentData.currency || 'ARS',
             status: 'pending',
             paymentType: 'recurring',

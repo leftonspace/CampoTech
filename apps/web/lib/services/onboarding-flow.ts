@@ -26,7 +26,7 @@ import { trialManager, TRIAL_DAYS, TRIAL_TIER } from './trial-manager';
 import { verificationManager } from './verification-manager';
 import { blockManager } from './block-manager';
 import { funnelTracker, FunnelEvent } from './funnel-tracker';
-import type { SubscriptionTier } from '@prisma/client';
+import type { SubscriptionTier } from '@/lib/types/subscription';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES

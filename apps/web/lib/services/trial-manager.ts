@@ -15,11 +15,13 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import {
+import type {
   SubscriptionTier,
   SubscriptionStatus,
-  OrganizationSubscription,
-} from '@prisma/client';
+} from '@/lib/types/subscription';
+
+// Type for OrganizationSubscription from Prisma model
+type OrganizationSubscription = Awaited<ReturnType<typeof prisma.organizationSubscription.findFirst>> & {};
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
