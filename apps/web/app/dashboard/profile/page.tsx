@@ -33,10 +33,8 @@ interface ProfileResponse {
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: 'Propietario',
-  ADMIN: 'Administrador',
   DISPATCHER: 'Despachador',
   TECHNICIAN: 'Tecnico',
-  VIEWER: 'Visualizador',
 };
 
 const SKILL_LEVELS: { value: string; label: string }[] = [

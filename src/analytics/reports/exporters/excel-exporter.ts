@@ -3,7 +3,10 @@
  * =====================
  *
  * Phase 10.3: Report Generation Engine
- * Generates Excel reports with multiple sheets using xlsx library.
+ * Generates Excel reports with multiple sheets using exceljs library.
+ *
+ * Security: Uses exceljs instead of xlsx to avoid known vulnerabilities
+ * (GHSA-4r6h-8v6p-xvw6, GHSA-5pgg-2g8v-p9x)
  */
 
 import { ReportData, ReportSection, ChartData, TableData } from '../report-generator';
@@ -69,16 +72,7 @@ export async function generateExcel(
     sheets.push(createCombinedDataSheet(reportData));
   }
 
-  // Try xlsx library first
-  try {
-    const xlsxBuffer = await generateWithXLSX(sheets, { autoWidth, freezeHeaders });
-    log.info('Excel generated with xlsx library', { size: xlsxBuffer.length });
-    return xlsxBuffer;
-  } catch (xlsxError) {
-    log.warn('xlsx generation failed, trying exceljs fallback', { error: xlsxError });
-  }
-
-  // Try exceljs as fallback
+  // Use exceljs as primary Excel generator (secure alternative to xlsx)
   try {
     const excelBuffer = await generateWithExcelJS(sheets, reportData, { autoWidth, freezeHeaders });
     log.info('Excel generated with exceljs', { size: excelBuffer.length });
@@ -93,52 +87,6 @@ export async function generateExcel(
   return csvBuffer;
 }
 
-/**
- * Generate Excel using xlsx (SheetJS) library
- */
-async function generateWithXLSX(
-  sheets: ExcelSheet[],
-  options: { autoWidth: boolean; freezeHeaders: boolean }
-): Promise<Buffer> {
-  const XLSX = await import('xlsx').then(m => m.default || m).catch(() => null);
-  if (!XLSX) {
-    throw new Error('xlsx library not available');
-  }
-
-  const workbook = XLSX.utils.book_new();
-
-  for (const sheet of sheets) {
-    // Convert data to array of arrays with headers
-    const headers = sheet.columns.map((c: typeof sheet.columns[number]) => c.header);
-    const rows = sheet.data.map((row: typeof sheet.data[number]) => sheet.columns.map((c: typeof sheet.columns[number]) => row[c.key]));
-    const sheetData = [headers, ...rows];
-
-    const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
-
-    // Set column widths
-    if (options.autoWidth) {
-      const colWidths = sheet.columns.map((col: typeof sheet.columns[number], idx: number) => {
-        let maxWidth = col.header.length;
-        for (const row of sheet.data) {
-          const cellValue = String(row[col.key] || '');
-          maxWidth = Math.max(maxWidth, cellValue.length);
-        }
-        return { wch: Math.min(maxWidth + 2, 50) }; // Cap at 50 chars
-      });
-      worksheet['!cols'] = colWidths;
-    }
-
-    // Freeze first row (header)
-    if (options.freezeHeaders) {
-      worksheet['!freeze'] = { xSplit: 0, ySplit: 1 };
-    }
-
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheet.name);
-  }
-
-  const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-  return Buffer.from(buffer);
-}
 
 /**
  * Generate Excel using exceljs library
@@ -439,30 +387,42 @@ function createWorkbookJSON(sheets: ExcelSheet[]): object {
 }
 
 /**
- * Generate actual Excel file using xlsx library pattern
- * This would be the implementation with an actual xlsx library
+ * Generate Excel buffer from sheets using exceljs
+ * Falls back to CSV if exceljs fails
  */
-export function generateExcelBuffer(sheets: ExcelSheet[]): Buffer {
-  // For actual implementation, use xlsx or exceljs library:
-  //
-  // import * as XLSX from 'xlsx';
-  // const workbook = XLSX.utils.book_new();
-  // for (const sheet of sheets) {
-  //   const worksheet = XLSX.utils.json_to_sheet(sheet.data);
-  //   XLSX.utils.book_append_sheet(workbook, worksheet, sheet.name);
-  // }
-  // return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+export async function generateExcelBuffer(sheets: ExcelSheet[]): Promise<Buffer> {
+  try {
+    const ExcelJS = await import('exceljs').then(m => m.default || m);
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'CampoTech Analytics';
+    workbook.created = new Date();
 
-  // Return CSV format as fallback
-  const csvSheets = sheets.map((sheet: typeof sheets[number]) => {
-    const headers = sheet.columns.map((c: typeof sheet.columns[number]) => c.header).join(',');
-    const rows = sheet.data.map((row: typeof sheet.data[number]) =>
-      sheet.columns.map((c: typeof sheet.columns[number]) => formatCSVValue(row[c.key])).join(',')
-    );
-    return `=== ${sheet.name} ===\n${headers}\n${rows.join('\n')}`;
-  });
+    for (const sheet of sheets) {
+      const worksheet = workbook.addWorksheet(sheet.name);
+      worksheet.columns = sheet.columns.map(col => ({
+        header: col.header,
+        key: col.key,
+        width: col.width || 15,
+      }));
+      for (const row of sheet.data) {
+        worksheet.addRow(row);
+      }
+    }
 
-  return Buffer.from(csvSheets.join('\n\n'), 'utf-8');
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.from(buffer);
+  } catch {
+    // Return CSV format as fallback
+    const csvSheets = sheets.map((sheet: typeof sheets[number]) => {
+      const headers = sheet.columns.map((c: typeof sheet.columns[number]) => c.header).join(',');
+      const rows = sheet.data.map((row: typeof sheet.data[number]) =>
+        sheet.columns.map((c: typeof sheet.columns[number]) => formatCSVValue(row[c.key])).join(',')
+      );
+      return `=== ${sheet.name} ===\n${headers}\n${rows.join('\n')}`;
+    });
+
+    return Buffer.from(csvSheets.join('\n\n'), 'utf-8');
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

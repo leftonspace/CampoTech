@@ -1,11 +1,20 @@
 /**
  * Audit Logs API
  * GET /api/audit-logs - List audit logs with filters (OWNER only)
+ *
+ * SQL Injection Protection:
+ * - Uses parameterized queries throughout
+ * - Validates and sanitizes pagination parameters
+ * - WHERE clauses built with proper parameter binding
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
+
+// Maximum allowed page size to prevent abuse
+const MAX_PAGE_SIZE = 100;
 
 interface AuditLogRow {
   id: string;
@@ -41,8 +50,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const pageSize = parseInt(searchParams.get('pageSize') || '50', 10);
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+    const rawPageSize = parseInt(searchParams.get('pageSize') || '50', 10);
+    // Validate and constrain pageSize to prevent abuse
+    const pageSize = Math.min(Math.max(1, rawPageSize), MAX_PAGE_SIZE);
     const entityType = searchParams.get('entityType');
     const action = searchParams.get('action');
     const userId = searchParams.get('userId');
@@ -53,9 +64,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const offset = (page - 1) * pageSize;
     const { organizationId } = session;
 
-    // Build WHERE conditions
+    // Build WHERE conditions with proper parameter indexing
+    // All parameters are properly bound to prevent SQL injection
     let whereClause = 'WHERE a.org_id = $1::uuid';
-    const params: (string | Date)[] = [organizationId];
+    const params: (string | Date | number)[] = [organizationId];
     let paramIndex = 2;
 
     if (entityType) {
@@ -88,14 +100,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       paramIndex++;
     }
 
-    // Get total count
+    // Add LIMIT and OFFSET as proper parameters to prevent SQL injection
+    const limitParamIndex = paramIndex;
+    const offsetParamIndex = paramIndex + 1;
+    params.push(pageSize, offset);
+
+    // Get total count - uses parameterized query
     const countResult = await prisma.$queryRawUnsafe<[{ count: bigint }]>(
       `SELECT COUNT(*) as count FROM audit_logs a ${whereClause}`,
-      ...params
+      ...params.slice(0, -2) // Exclude limit/offset params for count query
     );
     const total = Number(countResult[0]?.count || 0);
 
-    // Get logs with user name
+    // Get logs with user name - LIMIT and OFFSET are now proper parameters
     const logs = await prisma.$queryRawUnsafe<AuditLogRow[]>(
       `SELECT
         a.id::text,
@@ -113,7 +130,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       LEFT JOIN users u ON a.user_id = u.id
       ${whereClause}
       ORDER BY a.created_at DESC
-      LIMIT ${pageSize} OFFSET ${offset}`,
+      LIMIT $${limitParamIndex} OFFSET $${offsetParamIndex}`,
       ...params
     );
 

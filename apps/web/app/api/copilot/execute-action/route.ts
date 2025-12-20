@@ -26,8 +26,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has permission
-    if (!['OWNER', 'DISPATCHER', 'ADMIN'].includes(session.role?.toUpperCase() || '')) {
+    // Check if user has permission (OWNER or DISPATCHER)
+    if (!['OWNER', 'DISPATCHER'].includes(session.role?.toUpperCase() || '')) {
       return NextResponse.json(
         { success: false, error: 'No tenés permiso para ejecutar acciones' },
         { status: 403 }

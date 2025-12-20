@@ -3,6 +3,7 @@
  * ===========
  *
  * Provides global providers and navigation structure.
+ * Includes Sentry error tracking initialization.
  */
 
 import { useEffect, useState, useCallback } from 'react';
@@ -15,6 +16,10 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppDatabaseProvider } from '../lib/providers/DatabaseProvider';
 import { AuthProvider } from '../lib/auth/auth-context';
+import { initSentry, withSentry } from '../lib/monitoring/sentry';
+
+// Initialize Sentry as early as possible
+initSentry();
 
 // Keep splash screen visible while we load resources
 SplashScreen.preventAutoHideAsync();
@@ -28,7 +33,7 @@ const queryClient = new QueryClient({
   },
 });
 
-export default function RootLayout() {
+function RootLayout() {
   const [appIsReady, setAppIsReady] = useState(false);
 
   useEffect(() => {
@@ -74,3 +79,6 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+// Wrap with Sentry error boundary
+export default withSentry(RootLayout);

@@ -21,13 +21,17 @@ export function PublicFooter() {
           </div>
 
           <div className="mt-6 md:mt-0 flex flex-wrap justify-center md:justify-end gap-6 text-sm text-gray-400">
-            <Link href="/legal/privacidad" className="hover:text-white transition-colors">
+            <Link href="/privacy" className="hover:text-white transition-colors">
               Política de Privacidad
             </Link>
-            <Link href="/legal/terminos" className="hover:text-white transition-colors">
+            <Link href="/terms" className="hover:text-white transition-colors">
               Términos de Servicio
             </Link>
-            <Link href="/legal/arrepentimiento" className="hover:text-white transition-colors">
+            <Link
+              href="/arrepentimiento"
+              className="hover:text-white transition-colors flex items-center gap-1"
+            >
+              <span className="text-danger-400">●</span>
               Botón de Arrepentimiento
             </Link>
           </div>

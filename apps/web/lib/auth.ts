@@ -1,9 +1,46 @@
 import { SignJWT, jwtVerify, JWTPayload } from 'jose';
 import { cookies } from 'next/headers';
 
-const JWT_SECRET = new TextEncoder().encode(
-  process.env.NEXTAUTH_SECRET || 'fallback-secret-change-in-production'
-);
+/**
+ * CampoTech Auth Module
+ * =====================
+ *
+ * JWT-based authentication with security enhancements:
+ * - Short-lived access tokens (24h instead of 7d)
+ * - Refresh token support available via auth-security.ts
+ *
+ * OWASP A07:2021 - Identification and Authentication Failures
+ */
+
+// Token expiration - reduced from 7d to 24h for better security
+// Use refresh tokens for longer sessions (see auth-security.ts)
+const ACCESS_TOKEN_EXPIRY = '24h';
+
+/**
+ * Get JWT secret with validation
+ * In production, NEXTAUTH_SECRET must be set
+ * In development, uses a fallback (with warning)
+ */
+function getJwtSecret(): Uint8Array {
+  const secret = process.env.NEXTAUTH_SECRET;
+
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        'SECURITY ERROR: NEXTAUTH_SECRET environment variable is required in production'
+      );
+    }
+    // Development fallback with warning
+    console.warn(
+      '⚠️  WARNING: Using fallback JWT secret. Set NEXTAUTH_SECRET in production!'
+    );
+    return new TextEncoder().encode('dev-fallback-secret-not-for-production');
+  }
+
+  return new TextEncoder().encode(secret);
+}
+
+const JWT_SECRET = getJwtSecret();
 
 export interface TokenPayload extends JWTPayload {
   userId: string;
@@ -12,11 +49,15 @@ export interface TokenPayload extends JWTPayload {
   organizationId: string;
 }
 
+/**
+ * Create access token with reduced expiration (24h)
+ * For longer sessions, use createTokenPair from auth-security.ts
+ */
 export async function createToken(payload: TokenPayload): Promise<string> {
   return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('7d')
+    .setExpirationTime(ACCESS_TOKEN_EXPIRY)
     .sign(JWT_SECRET);
 }
 

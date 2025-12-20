@@ -57,13 +57,13 @@ async function requireAdmin(): Promise<AuthResult | NextResponse> {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!['OWNER', 'ADMIN'].includes(session.role)) {
+    if (session.role !== 'OWNER') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     return {
       user: {
-        id: session.id,
+        id: session.userId,
         role: session.role,
         organizationId: session.organizationId,
       },

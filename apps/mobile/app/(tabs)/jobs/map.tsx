@@ -27,6 +27,7 @@ import { Q } from '@nozbe/watermelondb';
 
 import { jobsCollection } from '../../../watermelon/database';
 import { Job } from '../../../watermelon/models';
+import { api } from '../../../lib/api/client';
 
 const { width, height } = Dimensions.get('window');
 const ASPECT_RATIO = width / height;
@@ -41,36 +42,8 @@ const DEFAULT_REGION = {
   longitudeDelta: LONGITUDE_DELTA,
 };
 
-// Mock technician locations (in production, from real-time tracking API)
-const MOCK_TECHNICIANS = [
-  {
-    id: 'tech-1',
-    name: 'Carlos Rodriguez',
-    latitude: -34.5975,
-    longitude: -58.3772,
-    status: 'en_route',
-    currentJobId: 'job-1',
-    lastUpdate: new Date(),
-  },
-  {
-    id: 'tech-2',
-    name: 'María García',
-    latitude: -34.6118,
-    longitude: -58.3960,
-    status: 'working',
-    currentJobId: 'job-2',
-    lastUpdate: new Date(),
-  },
-  {
-    id: 'tech-3',
-    name: 'Juan Pérez',
-    latitude: -34.5890,
-    longitude: -58.4100,
-    status: 'available',
-    currentJobId: null,
-    lastUpdate: new Date(),
-  },
-];
+// Polling interval for real-time updates (10 seconds)
+const LOCATION_POLL_INTERVAL = 10000;
 
 interface TechnicianLocation {
   id: string;
@@ -85,11 +58,66 @@ interface TechnicianLocation {
 function LiveMapScreen({ jobs }: { jobs: Job[] }) {
   const router = useRouter();
   const mapRef = useRef<MapView>(null);
-  const [technicians, setTechnicians] = useState<TechnicianLocation[]>(MOCK_TECHNICIANS);
+  const [technicians, setTechnicians] = useState<TechnicianLocation[]>([]);
   const [selectedTechnician, setSelectedTechnician] = useState<TechnicianLocation | null>(null);
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [showLegend, setShowLegend] = useState(false);
   const [mapType, setMapType] = useState<'standard' | 'satellite'>('standard');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch technician locations from API
+  const fetchTechnicianLocations = useCallback(async () => {
+    try {
+      const response = await api.map.getTechnicianLocations({ onlineOnly: false });
+
+      if (response.success && response.data) {
+        // Map API response to component's TechnicianLocation interface
+        const mappedTechnicians: TechnicianLocation[] = response.data.technicians
+          .filter((t) => t.location !== null)
+          .map((t) => {
+            // Map API status to component status
+            let status = 'available';
+            if (t.currentJob?.status === 'EN_ROUTE') {
+              status = 'en_route';
+            } else if (t.currentJob?.status === 'IN_PROGRESS') {
+              status = 'working';
+            } else if (!t.isOnline) {
+              status = 'offline';
+            }
+
+            return {
+              id: t.id,
+              name: t.name,
+              latitude: t.location!.lat,
+              longitude: t.location!.lng,
+              status,
+              currentJobId: t.currentJob?.id || null,
+              lastUpdate: t.lastSeen ? new Date(t.lastSeen) : new Date(),
+            };
+          });
+
+        setTechnicians(mappedTechnicians);
+        setError(null);
+      } else {
+        console.warn('[LiveMap] Failed to fetch technicians:', response.error);
+        setError(response.error?.message || 'Error cargando ubicaciones');
+      }
+    } catch (err) {
+      console.error('[LiveMap] Error fetching technician locations:', err);
+      setError('Error de conexión');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Fetch locations on mount and poll for updates
+  useEffect(() => {
+    fetchTechnicianLocations();
+
+    const interval = setInterval(fetchTechnicianLocations, LOCATION_POLL_INTERVAL);
+    return () => clearInterval(interval);
+  }, [fetchTechnicianLocations]);
 
   // Get active jobs with locations
   const jobsWithLocation = jobs.filter(
@@ -154,6 +182,8 @@ function LiveMapScreen({ jobs }: { jobs: Job[] }) {
         return '#16a34a'; // Green
       case 'available':
         return '#9ca3af'; // Gray
+      case 'offline':
+        return '#ef4444'; // Red
       default:
         return '#6b7280';
     }
@@ -167,10 +197,24 @@ function LiveMapScreen({ jobs }: { jobs: Job[] }) {
         return 'Trabajando';
       case 'available':
         return 'Disponible';
+      case 'offline':
+        return 'Sin conexión';
       default:
         return status;
     }
   };
+
+  // Show loading state
+  if (isLoading && technicians.length === 0) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <View style={styles.loadingSpinner} />
+          <Text style={styles.loadingText}>Cargando ubicaciones...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -178,6 +222,12 @@ function LiveMapScreen({ jobs }: { jobs: Job[] }) {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Mapa en vivo</Text>
         <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.headerButton}
+            onPress={fetchTechnicianLocations}
+          >
+            <Feather name="refresh-cw" size={20} color="#374151" />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.headerButton}
             onPress={() => setMapType(mapType === 'standard' ? 'satellite' : 'standard')}
@@ -196,6 +246,16 @@ function LiveMapScreen({ jobs }: { jobs: Job[] }) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Error banner */}
+      {error && (
+        <View style={styles.errorBanner}>
+          <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity onPress={fetchTechnicianLocations}>
+            <Feather name="refresh-cw" size={16} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Stats bar */}
       <View style={styles.statsBar}>
@@ -473,6 +533,37 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingSpinner: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: '#e5e7eb',
+    borderTopColor: '#16a34a',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#fff',
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
