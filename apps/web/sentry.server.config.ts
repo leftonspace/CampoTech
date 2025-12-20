@@ -73,7 +73,7 @@ Sentry.init({
   },
 
   // Filter transactions before sending
-  beforeSendTransaction(event) {
+  beforeSendTransaction(event: Parameters<NonNullable<Sentry.NodeOptions['beforeSendTransaction']>>[0]) {
     // Don't trace health checks
     if (event.transaction?.includes('/health')) {
       return null;
