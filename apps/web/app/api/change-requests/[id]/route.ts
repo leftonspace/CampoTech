@@ -25,7 +25,7 @@ export async function GET(
 
     const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
-    // Only OWNER and ADMIN can view change requests
+    // Only OWNER can view change requests
     if (!['OWNER'].includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para ver solicitudes de cambio' },

@@ -373,7 +373,7 @@ function TierCard({
 
 export default function QueueMetricsPage() {
   return (
-    <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
+    <ProtectedRoute allowedRoles={['OWNER']}>
       <QueueMetricsContent />
     </ProtectedRoute>
   );
