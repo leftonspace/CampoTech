@@ -14,6 +14,8 @@ import {
 } from '@/lib/config/feature-flags';
 import { type SubscriptionTier } from '@/lib/config/tier-limits';
 import { TierUpgradeModal } from '@/components/upgrade/tier-upgrade-modal';
+import { TrialBannerWithFetch } from '@/components/billing/TrialBanner';
+import { AccessBanner } from '@/components/access';
 import {
   LayoutDashboard,
   Briefcase,
@@ -454,6 +456,12 @@ export default function DashboardLayout({
               </div>
             </div>
           </header>
+
+          {/* Trial Banner - Shows when organization is on trial */}
+          <TrialBannerWithFetch />
+
+          {/* Access Banner - Shows subscription/verification warnings or blocks */}
+          <AccessBanner className="px-6 pt-4" />
 
           {/* Page content */}
           <main className="flex-1 overflow-auto p-6">{children}</main>

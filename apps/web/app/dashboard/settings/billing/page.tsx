@@ -1,5 +1,17 @@
 'use client';
 
+/**
+ * Billing Page
+ * ============
+ *
+ * Comprehensive billing management page including:
+ * - Current subscription and trial status
+ * - Plan selection with monthly/yearly toggle
+ * - Payment history
+ * - Payment methods
+ * - Cancellation with Ley 24.240 compliance
+ */
+
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
@@ -22,7 +34,15 @@ import {
   Shield,
   Clock,
   Undo2,
+  ChevronDown,
+  ChevronUp,
+  Receipt,
+  Wallet,
 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { PlanSelector } from '@/components/billing/PlanSelector';
+import { PaymentHistory } from '@/components/billing/PaymentHistory';
+import { PaymentMethods } from '@/components/billing/PaymentMethods';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -92,6 +112,24 @@ interface UsageResponse {
   availableTiers: TierInfo[];
 }
 
+interface TrialStatusResponse {
+  success: boolean;
+  data: {
+    isTrialing: boolean;
+    daysRemaining: number;
+    trialEndsAt: string | null;
+    hasTrialExpired?: boolean;
+  };
+}
+
+interface SubscriptionInfo {
+  tier: string;
+  billingCycle: 'MONTHLY' | 'YEARLY';
+  status: 'active' | 'trialing' | 'past_due' | 'cancelled';
+  currentPeriodEnd: string;
+  nextBillingAmount: number;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // API
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -99,6 +137,14 @@ interface UsageResponse {
 async function fetchUsage(): Promise<UsageResponse> {
   const token = localStorage.getItem('accessToken');
   const res = await fetch('/api/usage', {
+    headers: { Authorization: token ? `Bearer ${token}` : '' },
+  });
+  return res.json();
+}
+
+async function fetchTrialStatus(): Promise<TrialStatusResponse> {
+  const token = localStorage.getItem('accessToken');
+  const res = await fetch('/api/subscription/trial-status', {
     headers: { Authorization: token ? `Bearer ${token}` : '' },
   });
   return res.json();
@@ -163,7 +209,7 @@ async function undoCancellation(): Promise<{ success: boolean; message?: string 
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// COMPONENTS
+// USAGE COMPONENTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function UsageBar({ percentage, color }: { percentage: number; color: string }) {
@@ -235,46 +281,223 @@ function UsageCard({
   );
 }
 
-function TierCard({
-  tier,
-  onSelect,
-}: {
-  tier: TierInfo;
-  onSelect?: () => void;
-}) {
-  return (
-    <div
-      className={`p-6 rounded-xl border-2 transition-all ${
-        tier.isCurrent
-          ? 'border-primary-500 bg-primary-50'
-          : 'border-gray-200 hover:border-primary-200 bg-white'
-      }`}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">{tier.name}</h3>
-        {tier.isCurrent && (
-          <span className="px-2 py-1 text-xs font-medium bg-primary-100 text-primary-700 rounded-full">
-            Plan actual
-          </span>
-        )}
+// ═══════════════════════════════════════════════════════════════════════════════
+// TRIAL STATUS BANNER
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface TrialStatusBannerProps {
+  daysRemaining: number;
+  trialEndsAt: string | null;
+  hasTrialExpired: boolean;
+}
+
+function TrialStatusBanner({ daysRemaining, trialEndsAt, hasTrialExpired }: TrialStatusBannerProps) {
+  const isUrgent = daysRemaining <= 3 && daysRemaining > 0;
+  const isWarning = daysRemaining <= 7 && daysRemaining > 3;
+
+  if (hasTrialExpired) {
+    return (
+      <div className="p-6 rounded-xl bg-gradient-to-r from-gray-700 to-gray-800 text-white">
+        <div className="flex items-start gap-4">
+          <div className="p-3 rounded-full bg-white/10">
+            <AlertTriangle className="h-6 w-6 text-white" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-xl font-bold">Tu periodo de prueba ha terminado</h2>
+            <p className="text-white/80 mt-1">
+              Elegí un plan para seguir usando todas las funciones de CampoTech.
+            </p>
+          </div>
+          <Link
+            href="#planes"
+            className="flex items-center gap-2 px-6 py-3 bg-white text-gray-800 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
+          >
+            Elegir plan
+            <ArrowUpRight className="h-5 w-5" />
+          </Link>
+        </div>
       </div>
-      <p className="text-2xl font-bold text-gray-900 mb-2">{tier.price}</p>
-      <p className="text-sm text-gray-500 mb-4">{tier.description}</p>
-      <ul className="space-y-2 mb-4">
-        {tier.highlights.map((highlight, i) => (
-          <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-            <CheckCircle className="h-4 w-4 text-success-500 flex-shrink-0" />
-            {highlight}
-          </li>
-        ))}
-      </ul>
-      {!tier.isCurrent && tier.id !== 'FREE' && (
-        <button
-          onClick={onSelect}
-          className="w-full py-2 px-4 rounded-lg border border-primary-500 text-primary-600 hover:bg-primary-50 font-medium text-sm transition-colors"
+    );
+  }
+
+  const bgClass = isUrgent
+    ? 'from-red-500 to-rose-600'
+    : isWarning
+    ? 'from-amber-500 to-orange-500'
+    : 'from-primary-600 to-purple-600';
+
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('es-AR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  };
+
+  return (
+    <div className={cn('p-6 rounded-xl bg-gradient-to-r text-white', bgClass)}>
+      <div className="flex items-start gap-4">
+        <div className="p-3 rounded-full bg-white/10">
+          {isUrgent ? (
+            <AlertTriangle className="h-6 w-6 text-white" />
+          ) : (
+            <Sparkles className="h-6 w-6 text-white" />
+          )}
+        </div>
+        <div className="flex-1">
+          <h2 className="text-xl font-bold">
+            {isUrgent ? '¡Últimos días de prueba!' : 'Periodo de Prueba Activo'}
+          </h2>
+          <div className="flex items-center gap-4 mt-2">
+            <div className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-white/80" />
+              <span className="text-lg font-semibold">
+                {daysRemaining} {daysRemaining === 1 ? 'día' : 'días'} restantes
+              </span>
+            </div>
+            {trialEndsAt && (
+              <span className="text-white/70 text-sm">
+                Termina el {formatDate(trialEndsAt)}
+              </span>
+            )}
+          </div>
+          <p className="text-white/80 mt-2 text-sm">
+            {isUrgent
+              ? 'Actualiza ahora para no perder acceso a las funciones premium.'
+              : 'Explora todas las funciones. Elegí tu plan antes de que termine la prueba.'}
+          </p>
+        </div>
+        <Link
+          href="#planes"
+          className="flex items-center gap-2 px-6 py-3 bg-white text-gray-800 rounded-lg font-semibold hover:bg-gray-100 transition-colors"
         >
-          Seleccionar plan
-        </button>
+          {isUrgent ? 'Actualizar ahora' : 'Elegir plan'}
+          <ArrowUpRight className="h-5 w-5" />
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CURRENT SUBSCRIPTION DISPLAY
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface CurrentSubscriptionProps {
+  tier: {
+    id: string;
+    name: string;
+    description: string;
+    priceDisplay: string;
+  };
+  billingPeriod: {
+    current: string;
+    startDate: string;
+    endDate: string;
+    daysRemaining: number;
+  };
+  isTrialing: boolean;
+}
+
+function CurrentSubscription({ tier, billingPeriod, isTrialing }: CurrentSubscriptionProps) {
+  const formatDate = (dateStr: string) => {
+    return new Date(dateStr).toLocaleDateString('es-AR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+  };
+
+  const statusBadge = isTrialing ? (
+    <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">
+      En prueba
+    </span>
+  ) : (
+    <span className="px-2 py-1 text-xs font-medium bg-success-100 text-success-700 rounded-full">
+      Activo
+    </span>
+  );
+
+  return (
+    <div className="card p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-primary-100">
+            <CreditCard className="h-5 w-5 text-primary-600" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="font-medium text-gray-900">Plan actual</h2>
+              {statusBadge}
+            </div>
+            <p className="text-2xl font-bold text-primary-600">{tier.name}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-sm text-gray-500">Próxima facturación</p>
+          <p className="text-lg font-semibold text-gray-900">{tier.priceDisplay}</p>
+          <p className="text-xs text-gray-400">
+            {formatDate(billingPeriod.endDate)} ({billingPeriod.daysRemaining} días)
+          </p>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="flex gap-3 pt-4 border-t border-gray-100">
+        <Link
+          href="#planes"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+        >
+          <ArrowUpRight className="h-4 w-4" />
+          Cambiar plan
+        </Link>
+        <Link
+          href="#cancelar"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 rounded-lg transition-colors"
+        >
+          <XCircle className="h-4 w-4" />
+          Cancelar suscripción
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COLLAPSIBLE SECTION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface CollapsibleSectionProps {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  id?: string;
+}
+
+function CollapsibleSection({ title, icon, children, defaultOpen = false, id }: CollapsibleSectionProps) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div id={id} className="card">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full p-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          {icon}
+          <h2 className="font-medium text-gray-900">{title}</h2>
+        </div>
+        {isOpen ? (
+          <ChevronUp className="h-5 w-5 text-gray-400" />
+        ) : (
+          <ChevronDown className="h-5 w-5 text-gray-400" />
+        )}
+      </button>
+      {isOpen && (
+        <div className="border-t border-gray-100">
+          {children}
+        </div>
       )}
     </div>
   );
@@ -488,6 +711,11 @@ export default function BillingPage() {
     queryFn: fetchUsage,
   });
 
+  const { data: trialData } = useQuery({
+    queryKey: ['trial-status'],
+    queryFn: fetchTrialStatus,
+  });
+
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -506,10 +734,10 @@ export default function BillingPage() {
     );
   }
 
-  const handleSelectPlan = (tierId: string) => {
-    // In a real implementation, this would redirect to Mercado Pago checkout
-    alert(`Proximamente: Integración con Mercado Pago para plan ${tierId}`);
-  };
+  const isTrialing = trialData?.data?.isTrialing ?? false;
+  const trialDaysRemaining = trialData?.data?.daysRemaining ?? 0;
+  const trialEndsAt = trialData?.data?.trialEndsAt ?? null;
+  const hasTrialExpired = trialData?.data?.hasTrialExpired ?? false;
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -523,12 +751,21 @@ export default function BillingPage() {
         </Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">Plan y Facturación</h1>
-          <p className="text-gray-500">Administra tu suscripción y uso</p>
+          <p className="text-gray-500">Administra tu suscripción, pagos e historial</p>
         </div>
       </div>
 
+      {/* Trial Status Banner */}
+      {(isTrialing || hasTrialExpired) && (
+        <TrialStatusBanner
+          daysRemaining={trialDaysRemaining}
+          trialEndsAt={trialEndsAt}
+          hasTrialExpired={hasTrialExpired}
+        />
+      )}
+
       {/* Upgrade Recommendation */}
-      {data.upgradeRecommendation?.recommended && (
+      {data.upgradeRecommendation?.recommended && !isTrialing && (
         <div className="p-4 rounded-lg bg-gradient-to-r from-primary-50 to-purple-50 border border-primary-200">
           <div className="flex items-start gap-4">
             <div className="p-2 rounded-full bg-primary-100">
@@ -573,98 +810,58 @@ export default function BillingPage() {
       )}
 
       {/* Current Plan */}
-      <div className="card p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-primary-100">
-              <CreditCard className="h-5 w-5 text-primary-600" />
-            </div>
-            <div>
-              <h2 className="font-medium text-gray-900">Plan actual</h2>
-              <p className="text-2xl font-bold text-primary-600">{data.tier.name}</p>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-gray-500">Periodo de facturación</p>
-            <p className="text-lg font-semibold text-gray-900">{data.tier.priceDisplay}</p>
-            <p className="text-xs text-gray-400">
-              {data.billingPeriod.daysRemaining} días restantes
-            </p>
-          </div>
-        </div>
-      </div>
+      <CurrentSubscription
+        tier={data.tier}
+        billingPeriod={data.billingPeriod}
+        isTrialing={isTrialing}
+      />
 
       {/* Usage Overview */}
       <div className="card p-6">
         <h2 className="font-medium text-gray-900 mb-4">Uso del periodo</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <UsageCard
-            icon={Users}
-            {...data.usage.users}
-          />
-          <UsageCard
-            icon={Users}
-            {...data.usage.customers}
-          />
-          <UsageCard
-            icon={Calendar}
-            {...data.usage.jobs}
-          />
-          <UsageCard
-            icon={FileText}
-            {...data.usage.invoices}
-          />
-          <UsageCard
-            icon={Car}
-            {...data.usage.vehicles}
-          />
-          <UsageCard
-            icon={Package}
-            {...data.usage.products}
-          />
-          <UsageCard
-            icon={HardDrive}
-            {...data.usage.storage}
-          />
-          <UsageCard
-            icon={MessageSquare}
-            {...data.usage.whatsapp}
-          />
+          <UsageCard icon={Users} {...data.usage.users} />
+          <UsageCard icon={Users} {...data.usage.customers} />
+          <UsageCard icon={Calendar} {...data.usage.jobs} />
+          <UsageCard icon={FileText} {...data.usage.invoices} />
+          <UsageCard icon={Car} {...data.usage.vehicles} />
+          <UsageCard icon={Package} {...data.usage.products} />
+          <UsageCard icon={HardDrive} {...data.usage.storage} />
+          <UsageCard icon={MessageSquare} {...data.usage.whatsapp} />
           {data.usage.api.limit !== null && (
-            <UsageCard
-              icon={Code}
-              {...data.usage.api}
-            />
+            <UsageCard icon={Code} {...data.usage.api} />
           )}
         </div>
       </div>
 
-      {/* Available Plans */}
+      {/* Plan Selection */}
       <div id="planes" className="scroll-mt-6">
-        <h2 className="text-xl font-bold text-gray-900 mb-4">Planes disponibles</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {data.availableTiers.map((tier) => (
-            <TierCard
-              key={tier.id}
-              tier={tier}
-              onSelect={() => handleSelectPlan(tier.id)}
-            />
-          ))}
-        </div>
+        <h2 className="text-xl font-bold text-gray-900 mb-4">Elegí tu plan</h2>
+        <PlanSelector
+          currentTier={data.tier.id}
+          currentBillingCycle="MONTHLY"
+        />
       </div>
 
-      {/* Payment Info */}
-      <div className="card p-6">
-        <h2 className="font-medium text-gray-900 mb-4">Información de pago</h2>
-        <div className="p-4 rounded-lg bg-gray-50 text-center">
-          <p className="text-gray-600">
-            Los pagos se procesan de forma segura a través de Mercado Pago.
-          </p>
-          <p className="text-sm text-gray-500 mt-2">
-            Podes pagar con tarjeta de crédito, débito, transferencia o efectivo.
-          </p>
-        </div>
-      </div>
+      {/* Payment History */}
+      <CollapsibleSection
+        id="historial"
+        title="Historial de pagos"
+        icon={<Receipt className="h-5 w-5 text-gray-500" />}
+        defaultOpen={false}
+      >
+        <PaymentHistory className="border-0 shadow-none" />
+      </CollapsibleSection>
+
+      {/* Payment Methods */}
+      <CollapsibleSection
+        id="metodos"
+        title="Métodos de pago aceptados"
+        icon={<Wallet className="h-5 w-5 text-gray-500" />}
+        defaultOpen={false}
+      >
+        <PaymentMethods className="border-0 shadow-none rounded-none" />
+      </CollapsibleSection>
 
       {/* FAQ */}
       <div className="card p-6">
@@ -695,6 +892,15 @@ export default function BillingPage() {
             <p className="mt-2 text-sm text-gray-600 pl-4">
               Sí, podes cancelar usando el <Link href="#cancelar" className="text-primary-600 hover:underline">Botón de Arrepentimiento</Link> más
               abajo. Si estás dentro de los primeros 10 días, recibirás un reembolso completo según la Ley 24.240.
+            </p>
+          </details>
+          <details className="group">
+            <summary className="cursor-pointer font-medium text-gray-700 hover:text-gray-900">
+              ¿Cuánto ahorro con el pago anual?
+            </summary>
+            <p className="mt-2 text-sm text-gray-600 pl-4">
+              Con el pago anual ahorrás 2 meses gratis (aproximadamente 17% de descuento).
+              Podés cambiar entre mensual y anual cuando quieras.
             </p>
           </details>
         </div>
