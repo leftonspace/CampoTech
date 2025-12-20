@@ -36,7 +36,7 @@ export interface EmployeeVerification {
   email: string;
   avatar?: string | null;
   role: string;
-  status: 'not_started' | 'partial' | 'verified' | 'suspended';
+  status: 'not_started' | 'partial' | 'verified' | 'suspended' | 'pending' | 'in_review' | 'expired' | 'blocked' | string;
   canWork: boolean;
   pendingDocs: number;
   completedDocs: number;
@@ -76,6 +76,26 @@ const STATUS_CONFIG = {
   },
   suspended: {
     label: 'Suspendido',
+    color: 'bg-danger-100 text-danger-700',
+    icon: XCircle,
+  },
+  pending: {
+    label: 'Pendiente',
+    color: 'bg-blue-100 text-blue-700',
+    icon: Clock,
+  },
+  in_review: {
+    label: 'En revisión',
+    color: 'bg-purple-100 text-purple-700',
+    icon: AlertCircle,
+  },
+  expired: {
+    label: 'Vencido',
+    color: 'bg-red-100 text-red-700',
+    icon: XCircle,
+  },
+  blocked: {
+    label: 'Bloqueado',
     color: 'bg-danger-100 text-danger-700',
     icon: XCircle,
   },
@@ -153,8 +173,12 @@ function SummaryCards({ total, verified, pending, blocked }: SummaryCardsProps) 
 // STATUS BADGE COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function StatusBadge({ status }: { status: EmployeeVerification['status'] }) {
-  const config = STATUS_CONFIG[status];
+function StatusBadge({ status }: { status: string }) {
+  const config = STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || {
+    label: status || 'Desconocido',
+    color: 'bg-gray-100 text-gray-700',
+    icon: Clock,
+  };
   const Icon = config.icon;
 
   return (
