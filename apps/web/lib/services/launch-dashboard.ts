@@ -195,11 +195,11 @@ class LaunchDashboardService {
     ]);
 
     const tierCounts = Object.fromEntries(
-      byTier.map((t) => [t.subscriptionTier, t._count])
+      byTier.map((t: { subscriptionTier: string; _count: number }) => [t.subscriptionTier, t._count])
     );
 
     const statusCounts = Object.fromEntries(
-      byStatus.map((s) => [s.subscriptionStatus, s._count])
+      byStatus.map((s: { subscriptionStatus: string; _count: number }) => [s.subscriptionStatus, s._count])
     );
 
     const activeTotal = total - (statusCounts['cancelled'] || 0);
@@ -266,7 +266,7 @@ class LaunchDashboardService {
 
     let avgCompletionTime: number | null = null;
     if (completedOrgs.length > 0) {
-      const totalHours = completedOrgs.reduce((sum, org) => {
+      const totalHours = completedOrgs.reduce((sum: number, org: { createdAt: Date; verificationCompletedAt: Date | null }) => {
         if (org.verificationCompletedAt) {
           const diff = org.verificationCompletedAt.getTime() - org.createdAt.getTime();
           return sum + diff / (1000 * 60 * 60);
@@ -325,7 +325,7 @@ class LaunchDashboardService {
     ]);
 
     const statusMap: Record<string, { count: number; sum: number }> = {};
-    byStatus.forEach((s) => {
+    byStatus.forEach((s: { status: string; _count: number; _sum: { amount: number | null } }) => {
       statusMap[s.status] = {
         count: s._count,
         sum: s._sum.amount || 0,
@@ -422,7 +422,7 @@ class LaunchDashboardService {
     const byCategory: Record<string, number> = {};
     const errorCounts: Record<string, number> = {};
 
-    errors.forEach((error) => {
+    errors.forEach((error: { eventType: string; eventData: unknown }) => {
       const data = error.eventData as Record<string, unknown>;
       const severity = (data.severity as string) || 'medium';
       const category = (data.category as string) || 'unknown';

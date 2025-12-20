@@ -8,19 +8,18 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { launchDashboard } from '@/lib/services/launch-dashboard';
 
 // Cache metrics for 30 seconds
 let cachedMetrics: { data: unknown; timestamp: number } | null = null;
 const CACHE_TTL = 30 * 1000;
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(_request: NextRequest): Promise<NextResponse> {
   try {
     // Verify admin access
-    const session = await getServerSession(authOptions);
-    if (!session?.user || session.user.role !== 'admin') {
+    const session = await getSession();
+    if (!session || !['OWNER', 'ADMIN'].includes(session.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
