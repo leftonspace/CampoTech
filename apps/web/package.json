@@ -46,6 +46,7 @@
     "leaflet": "^1.9.4",
     "leaflet.markercluster": "^1.5.3",
     "lucide-react": "^0.303.0",
+    "mercadopago": "^2.11.0",
     "next": "^15.1.0",
     "next-auth": "^4.24.5",
     "openai": "^6.10.0",
