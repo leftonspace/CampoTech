@@ -194,7 +194,8 @@ class ErrorHandlingService {
       orderBy: { createdAt: 'asc' },
     });
 
-    return pending.map((event) => {
+    type PendingEventEntry = (typeof pending)[number];
+    return pending.map((event: PendingEventEntry) => {
       const data = event.eventData as Record<string, unknown>;
       return {
         id: event.id,
@@ -744,8 +745,9 @@ class ErrorHandlingService {
       });
 
       // Create notifications for all admins
+      type AdminEntry = (typeof admins)[number];
       await Promise.all(
-        admins.map((admin) =>
+        admins.map((admin: AdminEntry) =>
           prisma.notification.create({
             data: {
               userId: admin.id,

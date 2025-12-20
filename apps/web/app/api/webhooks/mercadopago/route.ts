@@ -310,8 +310,9 @@ export async function POST(request: NextRequest): Promise<NextResponse<WebhookRe
     }
 
     // Extract data.id for signature validation
-    const dataId = (body as Record<string, unknown>)?.data?.id
-      ? String((body as Record<string, unknown>).data.id)
+    const bodyObj = body as { data?: { id?: unknown } };
+    const dataId = bodyObj?.data?.id
+      ? String(bodyObj.data.id)
       : undefined;
 
     // Validate signature

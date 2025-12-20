@@ -134,7 +134,7 @@ export async function GET(
     const formattedRequirements = requirements.map((r) => ({
       code: r.requirement.code,
       name: r.requirement.name,
-      description: r.requirement.description,
+      description: r.requirement.description || '',
       tier: r.requirement.tier,
       isRequired: r.requirement.isRequired,
       appliesTo: r.requirement.appliesTo,
@@ -199,7 +199,7 @@ export async function GET(
       badges: earnedBadges,
       requiresAttention,
       phoneVerified,
-      phoneNumber: session.phone,
+      phoneNumber: typeof session.phone === 'string' ? session.phone : undefined,
     });
   } catch (error) {
     console.error('[Employee Status] Error:', error);

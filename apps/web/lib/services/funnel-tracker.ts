@@ -454,7 +454,8 @@ class FunnelTrackerService {
       select: { organizationId: true, createdAt: true },
     });
 
-    const startedOrgs = new Set(startedEvents.map((e) => e.organizationId));
+    type StartedEventEntry = (typeof startedEvents)[number];
+    const startedOrgs = new Set(startedEvents.map((e: StartedEventEntry) => e.organizationId));
 
     // Get orgs that completed
     const completedEvents = await prisma.subscriptionEvent.findMany({
@@ -465,7 +466,8 @@ class FunnelTrackerService {
       select: { organizationId: true },
     });
 
-    const completedOrgs = new Set(completedEvents.map((e) => e.organizationId));
+    type CompletedEventEntry = (typeof completedEvents)[number];
+    const completedOrgs = new Set(completedEvents.map((e: CompletedEventEntry) => e.organizationId));
 
     // Find dropped orgs
     const droppedOrgs: Array<{
@@ -515,7 +517,7 @@ class FunnelTrackerService {
     _metadata?: Record<string, unknown>
   ): Promise<void> {
     // Map events to organization fields
-    const updates: Prisma.OrganizationUpdateInput = {};
+    const updates: Record<string, unknown> = {};
 
     switch (event) {
       case 'verification_completed':

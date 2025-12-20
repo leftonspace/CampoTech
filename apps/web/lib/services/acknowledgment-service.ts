@@ -372,7 +372,8 @@ class AcknowledgmentServiceClass {
       orderBy: { acknowledgedAt: 'desc' },
     });
 
-    return acknowledgments.map((a) => ({
+    type UserAckEntry = (typeof acknowledgments)[number];
+    return acknowledgments.map((a: UserAckEntry) => ({
       id: a.id,
       type: a.acknowledgmentType as AcknowledgmentType,
       title: ACKNOWLEDGMENTS[a.acknowledgmentType as AcknowledgmentType]?.title || a.acknowledgmentType,
@@ -400,7 +401,8 @@ class AcknowledgmentServiceClass {
       orderBy: { acknowledgedAt: 'desc' },
     });
 
-    return acknowledgments.map((a) => ({
+    type OrgAckEntry = (typeof acknowledgments)[number];
+    return acknowledgments.map((a: OrgAckEntry) => ({
       id: a.id,
       userId: a.userId,
       type: a.acknowledgmentType as AcknowledgmentType,

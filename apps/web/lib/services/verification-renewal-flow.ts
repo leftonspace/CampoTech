@@ -495,9 +495,10 @@ class VerificationRenewalFlowService {
       },
     });
 
+    type ExpiringEntry = (typeof expiringSubmissions)[number];
     return expiringSubmissions
-      .filter((s) => s.organization.owner?.email)
-      .map((s) => ({
+      .filter((s: ExpiringEntry) => s.organization.owner?.email)
+      .map((s: ExpiringEntry) => ({
         submissionId: s.id,
         organizationId: s.organizationId,
         userId: s.userId,

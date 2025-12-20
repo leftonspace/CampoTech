@@ -59,7 +59,7 @@ export interface OnboardingStatus {
     isExpired: boolean;
   };
   verification: {
-    status: 'pending' | 'partial' | 'verified' | 'suspended';
+    status: 'unverified' | 'pending' | 'partial' | 'in_review' | 'verified' | 'rejected' | 'suspended';
     tier2Complete: boolean;
     pendingCount: number;
   };

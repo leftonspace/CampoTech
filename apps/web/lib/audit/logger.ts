@@ -19,11 +19,11 @@ export type AuditAction =
   | 'cuit_validation';
 
 export interface AuditEntry {
-  userId: string;
-  userRole: string;
+  userId?: string;
+  userRole?: string;
   organizationId: string;
-  entityType: string;
-  entityId: string;
+  entityType?: string;
+  entityId?: string;
   action: AuditAction;
   fieldChanged?: string;
   oldValue?: unknown;
@@ -32,6 +32,9 @@ export interface AuditEntry {
   userAgent?: string;
   metadata?: Record<string, unknown>;
   resource?: string;
+  resourceId?: string;
+  actorId?: string;
+  details?: Record<string, unknown>;
 }
 
 /**
@@ -56,6 +59,11 @@ export async function logAuditEntry(entry: AuditEntry): Promise<void> {
       fieldChanged: entry.fieldChanged,
     };
 
+    // Use actorId as fallback for userId
+    const userId = entry.userId || entry.actorId;
+    const entityId = entry.entityId || entry.resourceId;
+    const entityType = entry.entityType || entry.resource;
+
     // Insert using raw query since audit_logs uses UUIDs
     await prisma.$executeRaw`
       INSERT INTO audit_logs (
@@ -70,10 +78,10 @@ export async function logAuditEntry(entry: AuditEntry): Promise<void> {
         created_at
       ) VALUES (
         ${entry.organizationId}::uuid,
-        ${entry.userId}::uuid,
+        ${userId ? `${userId}` : null}::uuid,
         ${entry.action},
-        ${entry.entityType},
-        ${entry.entityId}::uuid,
+        ${entityType || null},
+        ${entityId ? `${entityId}` : null}::uuid,
         ${oldData ? JSON.stringify(oldData) : null}::jsonb,
         ${newData ? JSON.stringify(newData) : null}::jsonb,
         ${JSON.stringify(fullMetadata)}::jsonb,

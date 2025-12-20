@@ -80,7 +80,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
     // Transform payments for response
-    const transformedPayments = payments.map((payment) => {
+    type PaymentEntry = (typeof payments)[number];
+    const transformedPayments = payments.map((payment: PaymentEntry) => {
       // Parse payment method for card info
       let last4: string | undefined;
       let cardBrand: string | undefined;
