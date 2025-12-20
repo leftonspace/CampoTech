@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { onTechnicianAssigned } from '@/src/modules/whatsapp/notification-triggers.service';
+import { canEmployeeBeAssignedJobs } from '@/lib/services/employee-verification-notifications';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -50,6 +51,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         return NextResponse.json(
           { success: false, error: 'User not found' },
           { status: 404 }
+        );
+      }
+
+      // Check if employee can be assigned jobs (verification status)
+      const verificationCheck = await canEmployeeBeAssignedJobs(userId);
+      if (!verificationCheck.canBeAssigned) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Este empleado no puede recibir trabajos. Verificación pendiente.',
+            verificationStatus: verificationCheck.status,
+            verificationLink: `/dashboard/settings/team?employee=${userId}&tab=verification`,
+          },
+          { status: 403 }
         );
       }
     }
