@@ -207,7 +207,7 @@ class SubscriptionFlowsService {
       throw new Error('No subscription found');
     }
 
-    const currentTier = subscription.tier;
+    const currentTier = subscription.tier as SubscriptionTier;
     const currentPriority = getTierPriority(currentTier);
     const newPriority = getTierPriority(newTier);
     const isUpgrade = newPriority > currentPriority;
@@ -216,8 +216,8 @@ class SubscriptionFlowsService {
     const currentFeatures = TIER_FEATURES[currentTier];
     const newFeatures = TIER_FEATURES[newTier];
 
-    const featuresGained = newFeatures.filter((f) => !currentFeatures.includes(f));
-    const featuresLost = currentFeatures.filter((f) => !newFeatures.includes(f));
+    const featuresGained = newFeatures.filter((f: string) => !currentFeatures.includes(f));
+    const featuresLost = currentFeatures.filter((f: string) => !newFeatures.includes(f));
 
     let proratedAmount: number | undefined;
     let effectiveDate: Date;
@@ -418,7 +418,8 @@ class SubscriptionFlowsService {
         return { success: false, error: 'No subscription found', effectiveDate: new Date(), featuresLost: [] };
       }
 
-      const currentPriority = getTierPriority(subscription.tier);
+      const currentTier = subscription.tier as SubscriptionTier;
+      const currentPriority = getTierPriority(currentTier);
       const newPriority = getTierPriority(newTier);
 
       if (newPriority >= currentPriority) {
@@ -426,9 +427,9 @@ class SubscriptionFlowsService {
       }
 
       // Calculate features lost
-      const currentFeatures = TIER_FEATURES[subscription.tier];
+      const currentFeatures = TIER_FEATURES[currentTier];
       const newFeatures = TIER_FEATURES[newTier];
-      const featuresLost = currentFeatures.filter((f) => !newFeatures.includes(f));
+      const featuresLost = currentFeatures.filter((f: string) => !newFeatures.includes(f));
 
       const effectiveDate = subscription.currentPeriodEnd;
 

@@ -388,7 +388,8 @@ class AdminRecoveryService {
       orderBy: { createdAt: 'asc' },
     });
 
-    return pending.map((payment) => ({
+    type PendingPaymentEntry = (typeof pending)[number];
+    return pending.map((payment: PendingPaymentEntry) => ({
       id: payment.id,
       type: 'payment' as const,
       organizationId: payment.organizationId,
@@ -651,7 +652,8 @@ class AdminRecoveryService {
       orderBy: { createdAt: 'desc' },
     });
 
-    return blocked.map((org) => ({
+    type BlockedOrgEntry = (typeof blocked)[number];
+    return blocked.map((org: BlockedOrgEntry) => ({
       id: org.id,
       type: 'block' as const,
       organizationId: org.id,
@@ -1101,7 +1103,8 @@ class AdminRecoveryService {
       take: options?.limit || 100,
     });
 
-    return events.map((event) => {
+    type AdminEventEntry = (typeof events)[number];
+    return events.map((event: AdminEventEntry) => {
       const data = event.eventData as Record<string, unknown>;
       return {
         id: event.id,

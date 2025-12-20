@@ -253,8 +253,9 @@ export async function GET(request: NextRequest): Promise<NextResponse<GetAcknowl
       });
 
       // Check which are missing or outdated
+      type AckEntry = (typeof acknowledgments)[number];
       const acknowledged = new Map(
-        acknowledgments.map((a) => [a.acknowledgmentType, a.version])
+        acknowledgments.map((a: AckEntry): [string, string] => [a.acknowledgmentType, a.version])
       );
 
       const missing: string[] = [];
@@ -280,9 +281,10 @@ export async function GET(request: NextRequest): Promise<NextResponse<GetAcknowl
       orderBy: { acknowledgedAt: 'desc' },
     });
 
+    type FullAckEntry = (typeof acknowledgments)[number];
     return NextResponse.json({
       success: true,
-      acknowledgments: acknowledgments.map((a) => ({
+      acknowledgments: acknowledgments.map((a: FullAckEntry) => ({
         id: a.id,
         type: a.acknowledgmentType,
         version: a.version,
