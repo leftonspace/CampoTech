@@ -86,19 +86,31 @@ model Organization {
   // Marketplace Public Profile
   publicProfile               BusinessPublicProfile?
   // Subscription & Verification
-  subscriptionTier            SubscriptionTier    @default(FREE)
-  subscriptionStatus          SubscriptionStatus  @default(none)
+  subscriptionTier            SubscriptionTier        @default(FREE)
+  subscriptionStatus          SubscriptionStatus      @default(none)
   trialEndsAt                 DateTime?
-  marketplaceVisible          Boolean             @default(false)
-  verificationStatus          String              @default("pending") // pending, partial, verified, suspended
+  marketplaceVisible          Boolean                 @default(false)
+  verificationStatus          OrgVerificationStatus   @default(pending)
+  verificationCompletedAt     DateTime?
+  canReceiveJobs              Boolean                 @default(false)
+  complianceScore             Int                     @default(0)
+  lastComplianceCheck         DateTime?
+  // Subscription Relations
   subscription                OrganizationSubscription?
   subscriptionPayments        SubscriptionPayment[]
   subscriptionEvents          SubscriptionEvent[]
+  // Verification Relations
+  verificationSubmissions     VerificationSubmission[]
+  complianceAcknowledgments   ComplianceAcknowledgment[]
+  complianceBlocks            ComplianceBlock[]
 
   @@index([subscriptionStatus])
   @@index([subscriptionTier])
   @@index([trialEndsAt])
   @@index([marketplaceVisible])
+  @@index([verificationStatus])
+  @@index([canReceiveJobs])
+  @@index([lastComplianceCheck])
   @@map("organizations")
 }
 
@@ -156,10 +168,23 @@ model User {
   scheduleExceptions      ScheduleException[]
   // AI Assistant
   aiEscalationConfigs     AIConfiguration[]      @relation("AIEscalationUser")
+  // Verification
+  verificationStatus          UserVerificationStatus @default(pending)
+  verificationCompletedAt     DateTime?
+  canBeAssignedJobs           Boolean                @default(false)
+  identityVerified            Boolean                @default(false)
+  // Verification Relations
+  verificationSubmissions     VerificationSubmission[]
+  verificationReminders       VerificationReminder[]
+  complianceAcknowledgments   ComplianceAcknowledgment[]
+  complianceBlocks            ComplianceBlock[]
 
   @@unique([email, organizationId])
   @@index([organizationId])
   @@index([homeLocationId])
+  @@index([verificationStatus])
+  @@index([canBeAssignedJobs])
+  @@index([identityVerified])
   @@map("users")
 }
 
@@ -209,6 +234,78 @@ enum SubscriptionPaymentType {
   upgrade      // Plan upgrade
   downgrade    // Plan downgrade
   reactivation // Reactivation after cancellation
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VERIFICATION ENUMS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum OrgVerificationStatus {
+  pending      // Not started verification
+  partial      // Some requirements completed
+  verified     // All required verifications complete
+  suspended    // Verification suspended (e.g., expired documents)
+}
+
+enum UserVerificationStatus {
+  pending      // Not verified
+  verified     // Identity verified
+  suspended    // Verification suspended
+}
+
+enum VerificationCategory {
+  identity     // DNI, selfie, etc.
+  business     // CUIT, address, etc.
+  professional // Matriculas, certifications
+  insurance    // Insurance policies
+  background   // Background checks
+  financial    // Financial documents
+}
+
+enum VerificationAppliesTo {
+  organization // Applies to the business
+  owner        // Applies to the owner
+  employee     // Applies to employees
+}
+
+enum VerificationSubmissionStatus {
+  pending      // Awaiting submission or review
+  in_review    // Under admin review
+  approved     // Approved
+  rejected     // Rejected (needs resubmission)
+  expired      // Document expired
+}
+
+enum ReminderType {
+  expiring_soon   // Document expiring soon
+  expired         // Document has expired
+  action_required // Action required from user
+  renewal_due     // Time to renew
+}
+
+enum NotificationChannel {
+  email
+  in_app
+  sms
+  whatsapp
+}
+
+enum AcknowledgmentType {
+  terms_of_service
+  verification_responsibility
+  employee_responsibility
+  data_accuracy
+  update_obligation
+}
+
+enum ComplianceBlockType {
+  soft_block   // Limited access
+  hard_block   // No access
+}
+
+enum VerifiedByType {
+  auto         // Automatic verification (AFIP, SMS, etc.)
+  admin        // Manual admin verification
 }
 
 // Valid values for specialty: PLOMERO, ELECTRICISTA, GASISTA, CALEFACCIONISTA, REFRIGERACION, ALBANIL, PINTOR, CARPINTERO, TECHISTA, HERRERO, SOLDADOR, OTRO
@@ -3563,4 +3660,212 @@ model SubscriptionEvent {
   @@index([createdAt])
   @@index([organizationId, createdAt(sort: Desc)])
   @@map("subscription_events")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VERIFICATION & COMPLIANCE SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ────────────────────────────────────────────────────────────────────────────────
+// VERIFICATION REQUIREMENTS - Master list of all verification types
+// ────────────────────────────────────────────────────────────────────────────────
+
+model VerificationRequirement {
+  id               String   @id @default(cuid())
+  code             String   @unique                    // Unique code like 'owner_cuit', 'employee_dni'
+  name             String                              // Display name
+  description      String?                             // Description for users
+
+  // Classification
+  category         VerificationCategory
+  appliesTo        VerificationAppliesTo
+  tier             Int      @default(2)                // 2=Required, 3=Employee, 4=Optional badges
+
+  // Requirement Settings
+  isRequired       Boolean  @default(true)
+  requiresDocument Boolean  @default(false)
+  requiresExpiration Boolean @default(false)
+  autoVerifySource String?                             // 'afip', 'sms', 'email', null for manual
+
+  // Renewal & Reminders
+  renewalPeriodDays Int?                               // null = no renewal needed
+  reminderDaysBefore Int[]  @default([30, 14, 7, 1])
+  gracePeriodDays  Int      @default(7)
+
+  // Badge Display (for Tier 4 optional badges)
+  badgeIcon        String?                             // Icon name
+  badgeLabel       String?                             // Display label
+
+  // Status
+  isActive         Boolean  @default(true)
+  displayOrder     Int      @default(0)
+
+  // Timestamps
+  createdAt        DateTime @default(now())
+
+  // Relations
+  submissions      VerificationSubmission[]
+
+  @@index([tier])
+  @@index([appliesTo])
+  @@index([isActive])
+  @@index([displayOrder])
+  @@map("verification_requirements")
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// VERIFICATION SUBMISSIONS - User/organization verification submissions
+// ────────────────────────────────────────────────────────────────────────────────
+
+model VerificationSubmission {
+  id               String   @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId           String?
+  user             User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requirementId    String
+  requirement      VerificationRequirement @relation(fields: [requirementId], references: [id])
+
+  // Submission Status
+  status           VerificationSubmissionStatus @default(pending)
+
+  // Submitted Data
+  submittedValue   String?                            // For text values like CUIT
+  documentUrl      String?                            // For uploaded documents
+  documentType     String?                            // MIME type or classification
+  documentFilename String?                            // Original filename
+
+  // Verification
+  verifiedAt       DateTime?
+  verifiedBy       VerifiedByType?
+  verifiedByUserId String?                            // Admin user ID if manual
+  rejectionReason  String?
+  rejectionCode    String?                            // For categorized rejections
+
+  // Expiration
+  expiresAt        DateTime? @db.Date
+  expiryNotifiedAt DateTime?
+
+  // Auto-verification
+  autoVerifyResponse  Json?
+  autoVerifyCheckedAt DateTime?
+
+  // Notes
+  notes            String?
+  adminNotes       String?                            // Internal notes for admins
+
+  // Timestamps
+  submittedAt      DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  reminders        VerificationReminder[]
+  complianceBlocks ComplianceBlock[]
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([requirementId])
+  @@index([status])
+  @@index([expiresAt])
+  @@unique([organizationId, requirementId, userId])
+  @@map("verification_submissions")
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// VERIFICATION REMINDERS - Notification tracking
+// ────────────────────────────────────────────────────────────────────────────────
+
+model VerificationReminder {
+  id               String   @id @default(cuid())
+  submissionId     String
+  submission       VerificationSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  recipientUserId  String
+  recipientUser    User     @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  // Reminder Details
+  reminderType     ReminderType
+  daysUntilExpiry  Int?
+  channel          NotificationChannel
+
+  // Status
+  sentAt           DateTime @default(now())
+  readAt           DateTime?
+  clickedAt        DateTime?
+
+  // Tracking
+  messageId        String?                            // External ID (email/SMS ID)
+  errorMessage     String?                            // If sending failed
+
+  @@index([submissionId])
+  @@index([recipientUserId])
+  @@index([sentAt])
+  @@index([submissionId, reminderType, daysUntilExpiry, channel])
+  @@map("verification_reminders")
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// COMPLIANCE ACKNOWLEDGMENTS - Legal agreements accepted by users
+// ────────────────────────────────────────────────────────────────────────────────
+
+model ComplianceAcknowledgment {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Acknowledgment Details
+  acknowledgmentType AcknowledgmentType
+  version          String                             // Version of the agreement
+
+  // Context
+  ipAddress        String?  @db.VarChar(45)
+  userAgent        String?
+  deviceInfo       Json?                              // Additional device info
+
+  // Timestamp
+  acknowledgedAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([acknowledgmentType])
+  @@unique([userId, acknowledgmentType, version])
+  @@map("compliance_acknowledgments")
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// COMPLIANCE BLOCKS - Access restrictions due to compliance issues
+// ────────────────────────────────────────────────────────────────────────────────
+
+model ComplianceBlock {
+  id               String   @id @default(cuid())
+  organizationId   String
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId           String?
+  user             User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Block Details
+  blockType        ComplianceBlockType
+  reason           String
+  reasonCode       String?                            // Categorized reason code
+
+  // Related Submission
+  relatedSubmissionId String?
+  relatedSubmission   VerificationSubmission? @relation(fields: [relatedSubmissionId], references: [id], onDelete: SetNull)
+
+  // Timestamps
+  blockedAt        DateTime @default(now())
+  unblockedAt      DateTime?
+  unblockedBy      String?                            // User ID of admin who unblocked
+  unblockReason    String?
+
+  // Tracking
+  createdBy        String?                            // System or admin user ID
+  notes            String?
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([blockType])
+  @@index([organizationId, userId])
+  @@map("compliance_blocks")
 }
