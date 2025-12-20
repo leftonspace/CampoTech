@@ -49,3 +49,21 @@ export {
   type EmployeeVerification,
   type EmployeeComplianceTableProps,
 } from './EmployeeComplianceTable';
+
+// Employee self-service components
+export {
+  EmployeeRequirementCard,
+  type EmployeeRequirement,
+  type EmployeeRequirementCardProps,
+} from './EmployeeRequirementCard';
+
+export {
+  EmployeeVerificationFlow,
+  type EmployeeVerificationFlowProps,
+} from './EmployeeVerificationFlow';
+
+export {
+  EmployeeBadgesSection,
+  type EmployeeBadge,
+  type EmployeeBadgesSectionProps,
+} from './EmployeeBadgesSection';
