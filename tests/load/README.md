@@ -69,6 +69,114 @@ Long-running test to detect memory leaks and resource exhaustion.
 k6 run scenarios/soak-test.js
 ```
 
+---
+
+## Phase 9: Scale & Launch Tests
+
+These tests validate CampoTech's readiness for 100K businesses at scale.
+
+### 5. 100K Scale Test (`scale-100k.js`) - Phase 9.1.1
+
+Full-scale test simulating 100,000 concurrent users (100K businesses, 500K total users).
+
+- **Target:** 100,000 concurrent users
+- **Duration:** 30 minutes
+- **Requirements:** k6 Cloud or distributed infrastructure
+- **Thresholds:**
+  - p95 response time < 2000ms
+  - p99 response time < 5000ms
+  - Error rate < 5%
+
+```bash
+# Run on k6 Cloud (recommended for this scale)
+k6 cloud scenarios/scale-100k.js
+
+# Or distributed (requires multiple machines)
+k6 run --vus 100000 --duration 30m scenarios/scale-100k.js
+```
+
+### 6. API Degradation Test (`api-degradation.js`) - Phase 9.1.3
+
+Tests graceful degradation when external APIs (AFIP, OpenAI, MercadoPago) fail.
+
+- **Target:** 100-200 concurrent users
+- **Duration:** 15 minutes
+- **Focus:** Circuit breakers, fallbacks, user experience during outages
+- **Validates:**
+  - AFIP circuit breaker and invoice queuing
+  - AI fallback to human escalation
+  - MercadoPago manual payment fallback
+
+```bash
+# Run all degradation scenarios
+k6 run scenarios/api-degradation.js
+
+# Test specific API degradation
+k6 run --env DEGRADATION_TARGET=afip scenarios/api-degradation.js
+k6 run --env DEGRADATION_TARGET=openai scenarios/api-degradation.js
+k6 run --env DEGRADATION_TARGET=mercadopago scenarios/api-degradation.js
+```
+
+### 7. Partition Performance Test (`partition-performance.js`) - Phase 9.1.4
+
+Validates database partitioning effectiveness for large tables.
+
+- **Target:** 200 concurrent users
+- **Duration:** 13 minutes
+- **Focus:** Query performance with partition pruning
+- **Tables Tested:**
+  - jobs (monthly partitions)
+  - whatsapp_messages (weekly partitions)
+  - technician_locations (daily partitions)
+  - audit_logs (monthly partitions)
+
+```bash
+k6 run scenarios/partition-performance.js
+```
+
+**Key Metrics:**
+- `recent_query_time`: Should be fast (single partition)
+- `historical_query_time`: Slower but acceptable (cross-partition)
+- `partition_pruning_success`: Rate of queries meeting partition targets
+
+### 8. Queue Stress Test (`queue-stress.js`) - Phase 9.1.5
+
+Stress tests the BullMQ queue system under high load.
+
+- **Target:** 1,000-2,000 concurrent users
+- **Duration:** 18 minutes (includes spike scenario)
+- **Focus:** Queue throughput, SLA compliance, DLQ monitoring
+- **Queue Tiers:**
+  - Realtime (< 5 seconds SLA)
+  - Background (< 60 seconds SLA)
+  - Batch (minutes to hours)
+
+```bash
+k6 run scenarios/queue-stress.js
+```
+
+**Key Metrics:**
+- `*_queue_dispatch_time`: How fast jobs are added
+- `sla_compliance`: Rate of jobs meeting their SLA
+- `*_sla_breaches`: Count of SLA violations
+- `dlq_items`: Items in dead letter queue
+
+---
+
+## Launch Checklist API
+
+Automated pre-launch verification endpoint:
+
+```bash
+# Check launch readiness
+curl https://staging-api.campotech.com.ar/api/admin/launch-checklist | jq
+```
+
+Returns:
+- Overall readiness status
+- Blocking issues vs warnings
+- Category-by-category results (technical, legal, business, infrastructure)
+
 ## Configuration
 
 ### Environment Variables
