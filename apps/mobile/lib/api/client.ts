@@ -345,6 +345,132 @@ export const api = {
     },
   },
 
+  // Map data (dispatcher live map)
+  map: {
+    getTechnicianLocations: (params?: { onlineOnly?: boolean }) => {
+      const query = params?.onlineOnly !== undefined
+        ? `?onlineOnly=${params.onlineOnly}`
+        : '';
+      return apiRequest<{
+        technicians: Array<{
+          id: string;
+          name: string;
+          phone: string;
+          avatar: string | null;
+          specialty: string | null;
+          skillLevel: string | null;
+          isOnline: boolean;
+          lastSeen: string | null;
+          location: {
+            lat: number;
+            lng: number;
+            accuracy: number | null;
+            heading: number | null;
+            speed: number | null;
+          } | null;
+          currentJob: {
+            id: string;
+            jobNumber: string;
+            status: string;
+            description: string | null;
+            scheduledDate: string;
+            scheduledTimeSlot: unknown | null;
+            customerName: string | null;
+            address: string | null;
+          } | null;
+          tracking: {
+            sessionId: string;
+            status: string;
+            etaMinutes: number | null;
+            movementMode: string;
+          } | null;
+        }>;
+        stats: {
+          total: number;
+          online: number;
+          enRoute: number;
+          working: number;
+          available: number;
+        };
+        updatedAt: string;
+      }>(`/tracking/locations${query}`);
+    },
+
+    getMapData: (params?: { layers?: string[]; date?: string }) => {
+      const queryParams = new URLSearchParams();
+      if (params?.layers) queryParams.set('layers', params.layers.join(','));
+      if (params?.date) queryParams.set('date', params.date);
+      const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
+      return apiRequest<{
+        customers: Array<{
+          id: string;
+          name: string;
+          lat: number;
+          lng: number;
+          address: string;
+          phone: string;
+          jobCount: number;
+          lastJobDate: string | null;
+          hasActiveJob: boolean;
+        }>;
+        technicians: Array<{
+          id: string;
+          name: string;
+          lat: number;
+          lng: number;
+          status: 'en_linea' | 'en_camino' | 'trabajando' | 'sin_conexion';
+          currentJobId: string | null;
+          currentJobNumber: string | null;
+          lastUpdated: string | null;
+          avatarUrl: string | null;
+          specialty: string | null;
+          phone: string;
+          currentCustomerName: string | null;
+          etaMinutes: number | null;
+          heading: number | null;
+          locationSource: 'current' | 'home' | 'office';
+          nextJob: {
+            id: string;
+            jobNumber: string;
+            customerName: string;
+            scheduledTime: string | null;
+          } | null;
+        }>;
+        todayJobs: Array<{
+          id: string;
+          jobNumber: string;
+          lat: number;
+          lng: number;
+          status: string;
+          customerId: string;
+          customerName: string;
+          customerPhone: string;
+          technicianId: string | null;
+          technicianName: string | null;
+          scheduledTime: string | null;
+          arrivedAt: string | null;
+          address: string;
+          description: string;
+          serviceType: string;
+        }>;
+        stats: {
+          totalCustomers: number;
+          customersWithLocation: number;
+          totalTechnicians: number;
+          techniciansOnline: number;
+          techniciansEnRoute: number;
+          techniciansWorking: number;
+          techniciansOffline: number;
+          todayJobsTotal: number;
+          todayJobsPending: number;
+          todayJobsInProgress: number;
+          todayJobsCompleted: number;
+        };
+        updatedAt: string;
+      }>(`/map/data${query}`);
+    },
+  },
+
   // Employee invites
   invites: {
     get: (token: string) =>
