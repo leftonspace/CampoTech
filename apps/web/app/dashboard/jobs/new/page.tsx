@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowLeft, Search, Calendar, Clock, Users, MapPin, X, Check, Wrench, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Search, Calendar, Clock, Users, MapPin, X, Check, Wrench, AlertTriangle, Repeat, CalendarRange, CalendarDays } from 'lucide-react';
 import Link from 'next/link';
 import AddressAutocomplete, { ParsedAddress } from '@/components/ui/AddressAutocomplete';
 
@@ -24,6 +24,51 @@ interface Customer {
   phone: string;
   address?: CustomerAddress;
 }
+
+// Job duration types
+type JobDurationType = 'SINGLE_VISIT' | 'MULTI_DAY' | 'MULTIPLE_VISITS' | 'RECURRING' | 'FLEXIBLE';
+
+const DURATION_TYPES: { value: JobDurationType; label: string; description: string; icon: React.ReactNode }[] = [
+  {
+    value: 'SINGLE_VISIT',
+    label: 'Visita única',
+    description: 'Un solo día, una sola visita',
+    icon: <Calendar className="h-5 w-5" />,
+  },
+  {
+    value: 'MULTI_DAY',
+    label: 'Varios días consecutivos',
+    description: 'Trabajo que dura múltiples días seguidos',
+    icon: <CalendarRange className="h-5 w-5" />,
+  },
+  {
+    value: 'MULTIPLE_VISITS',
+    label: 'Múltiples visitas',
+    description: 'Varias visitas separadas en el tiempo',
+    icon: <CalendarDays className="h-5 w-5" />,
+  },
+  {
+    value: 'RECURRING',
+    label: 'Mantenimiento recurrente',
+    description: 'Se repite periódicamente',
+    icon: <Repeat className="h-5 w-5" />,
+  },
+  {
+    value: 'FLEXIBLE',
+    label: 'Horario flexible',
+    description: 'Se puede programar en un rango de fechas',
+    icon: <Clock className="h-5 w-5" />,
+  },
+];
+
+const RECURRENCE_PATTERNS = [
+  { value: 'WEEKLY', label: 'Semanal' },
+  { value: 'BIWEEKLY', label: 'Quincenal' },
+  { value: 'MONTHLY', label: 'Mensual' },
+  { value: 'QUARTERLY', label: 'Trimestral' },
+  { value: 'BIANNUAL', label: 'Semestral' },
+  { value: 'ANNUAL', label: 'Anual' },
+];
 
 export default function NewJobPage() {
   const router = useRouter();
@@ -63,6 +108,18 @@ export default function NewJobPage() {
     scheduledTimeStart: '',
     scheduledTimeEnd: '',
     assignedToIds: [] as string[],
+    // Duration configuration
+    durationType: 'SINGLE_VISIT' as JobDurationType,
+    // Multi-day
+    durationDays: 2,
+    // Multiple visits
+    visitCount: 2,
+    visitIntervalDays: 7,
+    // Recurring
+    recurrencePattern: 'MONTHLY',
+    recurrenceCount: 6,
+    // Flexible
+    flexibleEndDate: '',
   });
   const [showTeamDropdown, setShowTeamDropdown] = useState(false);
   const [startPeriod, setStartPeriod] = useState<'AM' | 'PM'>('AM');
@@ -205,8 +262,26 @@ export default function NewJobPage() {
     setIsSubmitting(true);
     setError('');
 
+    // Build duration config based on type
+    const durationConfig = {
+      durationType: formData.durationType,
+      ...(formData.durationType === 'MULTI_DAY' && { durationDays: formData.durationDays }),
+      ...(formData.durationType === 'MULTIPLE_VISITS' && {
+        visitCount: formData.visitCount,
+        visitIntervalDays: formData.visitIntervalDays,
+      }),
+      ...(formData.durationType === 'RECURRING' && {
+        recurrencePattern: formData.recurrencePattern,
+        recurrenceCount: formData.recurrenceCount,
+      }),
+      ...(formData.durationType === 'FLEXIBLE' && {
+        flexibleEndDate: formData.flexibleEndDate,
+      }),
+    };
+
     const response = await api.jobs.create({
       ...formData,
+      ...durationConfig,
       customerId: selectedCustomer.id,
       technicianIds: formData.assignedToIds,
       serviceType: formData.serviceType,
@@ -412,10 +487,172 @@ export default function NewJobPage() {
           </select>
         </div>
 
-        {/* Schedule */}
+        {/* Duration Type Selector */}
+        <div>
+          <label className="label mb-2 block">Tipo de programación</label>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {DURATION_TYPES.map((type) => (
+              <button
+                key={type.value}
+                type="button"
+                onClick={() => setFormData({ ...formData, durationType: type.value })}
+                className={`flex items-start gap-3 rounded-lg border-2 p-3 text-left transition-all ${
+                  formData.durationType === type.value
+                    ? 'border-primary-500 bg-primary-50'
+                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                }`}
+              >
+                <span className={formData.durationType === type.value ? 'text-primary-600' : 'text-gray-400'}>
+                  {type.icon}
+                </span>
+                <div>
+                  <p className={`font-medium ${formData.durationType === type.value ? 'text-primary-700' : 'text-gray-700'}`}>
+                    {type.label}
+                  </p>
+                  <p className="text-xs text-gray-500">{type.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Multi-day configuration */}
+        {formData.durationType === 'MULTI_DAY' && (
+          <div className="rounded-lg border border-primary-200 bg-primary-50/50 p-4">
+            <h4 className="mb-3 font-medium text-gray-900">Configuración de trabajo multi-día</h4>
+            <div>
+              <label htmlFor="durationDays" className="label mb-1 block">
+                Cantidad de días consecutivos
+              </label>
+              <input
+                id="durationDays"
+                type="number"
+                min={2}
+                max={30}
+                value={formData.durationDays}
+                onChange={(e) => setFormData({ ...formData, durationDays: parseInt(e.target.value) || 2 })}
+                className="input w-32"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                El trabajo se programará desde la fecha inicio por {formData.durationDays} días consecutivos
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Multiple visits configuration */}
+        {formData.durationType === 'MULTIPLE_VISITS' && (
+          <div className="rounded-lg border border-primary-200 bg-primary-50/50 p-4">
+            <h4 className="mb-3 font-medium text-gray-900">Configuración de múltiples visitas</h4>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="visitCount" className="label mb-1 block">
+                  Cantidad de visitas
+                </label>
+                <input
+                  id="visitCount"
+                  type="number"
+                  min={2}
+                  max={20}
+                  value={formData.visitCount}
+                  onChange={(e) => setFormData({ ...formData, visitCount: parseInt(e.target.value) || 2 })}
+                  className="input"
+                />
+              </div>
+              <div>
+                <label htmlFor="visitIntervalDays" className="label mb-1 block">
+                  Días entre visitas
+                </label>
+                <input
+                  id="visitIntervalDays"
+                  type="number"
+                  min={1}
+                  max={90}
+                  value={formData.visitIntervalDays}
+                  onChange={(e) => setFormData({ ...formData, visitIntervalDays: parseInt(e.target.value) || 7 })}
+                  className="input"
+                />
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Se programarán {formData.visitCount} visitas con {formData.visitIntervalDays} días de diferencia entre cada una
+            </p>
+          </div>
+        )}
+
+        {/* Recurring configuration */}
+        {formData.durationType === 'RECURRING' && (
+          <div className="rounded-lg border border-primary-200 bg-primary-50/50 p-4">
+            <h4 className="mb-3 font-medium text-gray-900">Configuración de mantenimiento recurrente</h4>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="recurrencePattern" className="label mb-1 block">
+                  Frecuencia
+                </label>
+                <select
+                  id="recurrencePattern"
+                  value={formData.recurrencePattern}
+                  onChange={(e) => setFormData({ ...formData, recurrencePattern: e.target.value })}
+                  className="input"
+                >
+                  {RECURRENCE_PATTERNS.map((pattern) => (
+                    <option key={pattern.value} value={pattern.value}>
+                      {pattern.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="recurrenceCount" className="label mb-1 block">
+                  Cantidad de repeticiones
+                </label>
+                <input
+                  id="recurrenceCount"
+                  type="number"
+                  min={2}
+                  max={24}
+                  value={formData.recurrenceCount}
+                  onChange={(e) => setFormData({ ...formData, recurrenceCount: parseInt(e.target.value) || 6 })}
+                  className="input"
+                />
+              </div>
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Se crearán {formData.recurrenceCount} servicios con frecuencia {RECURRENCE_PATTERNS.find(p => p.value === formData.recurrencePattern)?.label.toLowerCase()}
+            </p>
+          </div>
+        )}
+
+        {/* Flexible schedule configuration */}
+        {formData.durationType === 'FLEXIBLE' && (
+          <div className="rounded-lg border border-primary-200 bg-primary-50/50 p-4">
+            <h4 className="mb-3 font-medium text-gray-900">Rango de fechas flexible</h4>
+            <p className="mb-3 text-sm text-gray-600">
+              El cliente puede ser contactado en cualquier momento dentro del rango seleccionado
+            </p>
+            <div>
+              <label htmlFor="flexibleEndDate" className="label mb-1 block">
+                Fecha límite (hasta cuándo puede programarse)
+              </label>
+              <input
+                id="flexibleEndDate"
+                type="date"
+                value={formData.flexibleEndDate}
+                onChange={(e) => setFormData({ ...formData, flexibleEndDate: e.target.value })}
+                className="input w-48"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Schedule - date picker with contextual label */}
         <div>
           <label htmlFor="scheduledDate" className="label mb-1 block">
-            Fecha
+            {formData.durationType === 'SINGLE_VISIT' && 'Fecha'}
+            {formData.durationType === 'MULTI_DAY' && 'Fecha de inicio'}
+            {formData.durationType === 'MULTIPLE_VISITS' && 'Fecha de primera visita'}
+            {formData.durationType === 'RECURRING' && 'Fecha de primer servicio'}
+            {formData.durationType === 'FLEXIBLE' && 'Fecha más temprana disponible'}
           </label>
           <div className="relative">
             <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
