@@ -128,6 +128,8 @@ model User {
   inventoryTransactions InventoryTransaction[] @relation("PerformedTransactions")
   // Job Assignments (many-to-many)
   jobAssignments       JobAssignment[]        @relation("TechnicianAssignments")
+  // Job Visits (for multi-visit/recurring jobs)
+  jobVisits            JobVisit[]             @relation("TechnicianVisits")
   // WhatsApp
   assignedWaConversations WaConversation[]     @relation("WaConversationAssignee")
   sentWaMessages          WaMessage[]          @relation("WaMessageSender")
@@ -213,6 +215,27 @@ model Job {
   estimatedDuration Int?        // minutes
   actualDuration    Int?        // minutes
 
+  // ─── Job Duration Configuration ───────────────────────────────────────────────
+  durationType        JobDurationType    @default(SINGLE_VISIT)
+
+  // For MULTI_DAY jobs
+  durationDays        Int?               // Number of consecutive days (e.g., 5 for a 5-day job)
+  endDate             DateTime?          // Calculated end date for multi-day jobs
+
+  // For MULTIPLE_VISITS jobs
+  visitCount          Int?               // Total number of visits (e.g., 3)
+  visitIntervalDays   Int?               // Days between visits (e.g., 7 for weekly)
+
+  // For RECURRING jobs
+  recurrencePattern   RecurrencePattern? // How often it repeats
+  recurrenceInterval  Int?               // For CUSTOM pattern (e.g., every 45 days)
+  recurrenceEndDate   DateTime?          // When to stop recurring
+  recurrenceCount     Int?               // Alternative: stop after N occurrences
+
+  // For FLEXIBLE jobs
+  flexibleStartDate   DateTime?          // Earliest possible date
+  flexibleEndDate     DateTime?          // Latest possible date
+
   customerId     String
   technicianId   String?
   createdById    String
@@ -236,8 +259,10 @@ model Job {
   jobPhotos      JobPhoto[]   @relation("JobPhotos")
   trackingSessions TrackingSession[] @relation("JobTrackingSessions")
   assignments    JobAssignment[] @relation("JobAssignments")
+  visits         JobVisit[]      @relation("JobVisits")
 
   @@index([status])
+  @@index([durationType])
   @@index([scheduledDate])
   @@index([technicianId])
   @@index([organizationId])
@@ -299,6 +324,27 @@ enum Urgency {
   URGENTE
 }
 
+// Job duration type - how the job is scheduled
+enum JobDurationType {
+  SINGLE_VISIT      // Standard - one day, one visit (default)
+  MULTI_DAY         // Spans multiple consecutive days (e.g., 5-day renovation)
+  MULTIPLE_VISITS   // Multiple separate visits (e.g., 3 inspections over a month)
+  RECURRING         // Repeats on a schedule (e.g., AC service every 6 months)
+  FLEXIBLE          // Can be done anytime within a date range
+}
+
+// Recurrence pattern for recurring jobs
+enum RecurrencePattern {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  QUARTERLY
+  BIANNUAL
+  ANNUAL
+  CUSTOM
+}
+
 // ────────────────────────────────────────────────────────────────────────────────
 // JOB ASSIGNMENTS - Many-to-many relationship for multiple technicians per job
 // ────────────────────────────────────────────────────────────────────────────────
@@ -317,6 +363,34 @@ model JobAssignment {
   @@index([jobId])
   @@index([technicianId])
   @@map("job_assignments")
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// JOB VISITS - Individual visits for multi-visit and recurring jobs
+// ────────────────────────────────────────────────────────────────────────────────
+
+model JobVisit {
+  id                String    @id @default(cuid())
+  jobId             String
+  visitNumber       Int       // 1, 2, 3... for ordering
+  scheduledDate     DateTime
+  scheduledTimeSlot Json?     // { start: "09:00", end: "11:00" }
+  status            JobStatus @default(PENDING)
+  startedAt         DateTime?
+  completedAt       DateTime?
+  notes             String?
+  technicianId      String?   // Can assign different technician per visit
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  job        Job   @relation("JobVisits", fields: [jobId], references: [id], onDelete: Cascade)
+  technician User? @relation("TechnicianVisits", fields: [technicianId], references: [id])
+
+  @@unique([jobId, visitNumber])
+  @@index([jobId])
+  @@index([scheduledDate])
+  @@index([status])
+  @@map("job_visits")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
