@@ -5,7 +5,18 @@
 
 import { prisma } from '@/lib/prisma';
 
-export type AuditAction = 'CREATE' | 'UPDATE' | 'DELETE' | 'VIEW' | 'LOGIN' | 'LOGOUT' | 'EXPORT';
+export type AuditAction =
+  | 'CREATE'
+  | 'UPDATE'
+  | 'DELETE'
+  | 'VIEW'
+  | 'LOGIN'
+  | 'LOGOUT'
+  | 'EXPORT'
+  | 'acknowledgment_accepted'
+  | 'verification_submit'
+  | 'document_upload'
+  | 'cuit_validation';
 
 export interface AuditEntry {
   userId: string;

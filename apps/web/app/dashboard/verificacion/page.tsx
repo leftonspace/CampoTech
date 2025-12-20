@@ -751,7 +751,7 @@ function UploadModal({ isOpen, onClose, requirementCode, requirementName, onUplo
         <DocumentUpload
           requirementCode={requirementCode}
           onUploadComplete={handleUploadComplete}
-          onError={(error) => console.error('Upload error:', error)}
+          onUploadError={(error: string) => console.error('Upload error:', error)}
         />
 
         <div className="mt-4 flex justify-end">

@@ -13,7 +13,7 @@
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 import * as Sentry from '@sentry/nextjs';
-import { blockManager } from '@/lib/subscription/block-manager';
+import { blockManager } from '@/lib/services/block-manager';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES

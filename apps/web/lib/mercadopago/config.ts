@@ -7,7 +7,17 @@
  */
 
 import type { SubscriptionTier } from '@/lib/config/tier-limits';
-import type { BillingCycle } from '@prisma/client';
+import type { BillingCycle } from '@/lib/types/subscription';
+
+/**
+ * Check if MercadoPago is properly configured
+ */
+export function isMercadoPagoConfigured(): boolean {
+  return !!(
+    process.env.MERCADOPAGO_ACCESS_TOKEN &&
+    process.env.MERCADOPAGO_PUBLIC_KEY
+  );
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SUBSCRIPTION PLANS

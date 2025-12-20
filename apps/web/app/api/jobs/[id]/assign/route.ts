@@ -55,13 +55,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
 
       // Check if employee can be assigned jobs (verification status)
-      const verificationCheck = await canEmployeeBeAssignedJobs(userId);
-      if (!verificationCheck.canBeAssigned) {
+      const verificationCheck = await canEmployeeBeAssignedJobs(userId, session.organizationId);
+      if (!verificationCheck.canAssign) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Este empleado no puede recibir trabajos. Verificación pendiente.',
-            verificationStatus: verificationCheck.status,
+            error: verificationCheck.reason || 'Este empleado no puede recibir trabajos. Verificación pendiente.',
             verificationLink: `/dashboard/settings/team?employee=${userId}&tab=verification`,
           },
           { status: 403 }
