@@ -79,10 +79,9 @@ CREATE TABLE IF NOT EXISTS login_lockouts (
         CHECK (identifier_type IN ('phone', 'email', 'user_id'))
 );
 
--- Index for active lockout check
-CREATE INDEX IF NOT EXISTS idx_login_lockouts_active
-    ON login_lockouts(identifier, identifier_type, locked_until)
-    WHERE locked_until > NOW();
+-- Index for lockout lookup (filter by locked_until in application code)
+CREATE INDEX IF NOT EXISTS idx_login_lockouts_lookup
+    ON login_lockouts(identifier, identifier_type, locked_until);
 
 -- ═══════════════════════════════════════════════════════════════════════════════
 -- COMMENTS
