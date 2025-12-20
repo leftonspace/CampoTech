@@ -23,7 +23,7 @@ Sentry.init({
   debug: process.env.NODE_ENV !== 'production',
 
   // Filter sensitive data
-  beforeSend(event) {
+  beforeSend(event: Sentry.ErrorEvent) {
     if (event.request?.headers) {
       delete event.request.headers['authorization'];
       delete event.request.headers['cookie'];
