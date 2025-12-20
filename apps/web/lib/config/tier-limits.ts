@@ -5,14 +5,14 @@
  * Defines resource limits and pricing for each subscription tier.
  * Designed for Argentine SMB market (1-50 employees typical).
  *
- * Pricing in USD (converted to ARS at checkout via Mercado Pago):
+ * Pricing in ARS (Argentine Pesos):
  * - FREE: $0/month - Trial/limited functionality
- * - BASICO (Inicial): $25/month - For independent workers
- * - PROFESIONAL: $55/month - For small businesses (2-5 employees)
- * - EMPRESARIAL: $120/month - For medium businesses (6+ employees)
+ * - INICIAL: $25,000/month - For independent workers
+ * - PROFESIONAL: $55,000/month - For small businesses (2-5 employees)
+ * - EMPRESA: $120,000/month - For medium businesses (6+ employees)
  */
 
-export type SubscriptionTier = 'FREE' | 'BASICO' | 'PROFESIONAL' | 'EMPRESARIAL';
+export type SubscriptionTier = 'FREE' | 'INICIAL' | 'PROFESIONAL' | 'EMPRESA';
 
 export interface TierLimits {
   // Core Resources
@@ -74,7 +74,7 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     priceDisplay: 'Gratis',
   },
 
-  BASICO: {
+  INICIAL: {
     maxUsers: 1,
     maxJobsPerMonth: 50,
     maxCustomers: 100,
@@ -106,7 +106,7 @@ export const TIER_LIMITS: Record<SubscriptionTier, TierLimits> = {
     priceDisplay: '$55/mes',
   },
 
-  EMPRESARIAL: {
+  EMPRESA: {
     maxUsers: UNLIMITED,
     maxJobsPerMonth: UNLIMITED,
     maxCustomers: UNLIMITED,
@@ -136,10 +136,10 @@ export const TIER_CONFIGS: TierConfig[] = [
     isDefault: true,
   },
   {
-    id: 'BASICO',
+    id: 'INICIAL',
     name: 'Inicial',
     description: 'Para trabajadores independientes',
-    limits: TIER_LIMITS.BASICO,
+    limits: TIER_LIMITS.INICIAL,
   },
   {
     id: 'PROFESIONAL',
@@ -148,10 +148,10 @@ export const TIER_CONFIGS: TierConfig[] = [
     limits: TIER_LIMITS.PROFESIONAL,
   },
   {
-    id: 'EMPRESARIAL',
+    id: 'EMPRESA',
     name: 'Empresa',
     description: 'Para empresas medianas (6+ empleados)',
-    limits: TIER_LIMITS.EMPRESARIAL,
+    limits: TIER_LIMITS.EMPRESA,
   },
 ];
 
@@ -316,7 +316,7 @@ export function getUpgradeOptions(
   currentTier: SubscriptionTier,
   limitType: LimitType
 ): Array<{ tier: SubscriptionTier; tierName: string; limit: string; price: string }> {
-  const tierOrder: SubscriptionTier[] = ['FREE', 'BASICO', 'PROFESIONAL', 'EMPRESARIAL'];
+  const tierOrder: SubscriptionTier[] = ['FREE', 'INICIAL', 'PROFESIONAL', 'EMPRESA'];
   const currentIndex = tierOrder.indexOf(currentTier);
 
   return tierOrder
@@ -339,9 +339,9 @@ export function getUpgradeOptions(
 export function getTierOrder(tier: SubscriptionTier): number {
   const order: Record<SubscriptionTier, number> = {
     FREE: 0,
-    BASICO: 1,
+    INICIAL: 1,
     PROFESIONAL: 2,
-    EMPRESARIAL: 3,
+    EMPRESA: 3,
   };
   return order[tier] ?? 0;
 }
@@ -357,7 +357,7 @@ export function isTierHigher(tierA: SubscriptionTier, tierB: SubscriptionTier): 
  * Get the minimum tier required for a specific limit value
  */
 export function getMinimumTierForLimit(limitType: LimitType, requiredValue: number): SubscriptionTier {
-  const tierOrder: SubscriptionTier[] = ['FREE', 'BASICO', 'PROFESIONAL', 'EMPRESARIAL'];
+  const tierOrder: SubscriptionTier[] = ['FREE', 'INICIAL', 'PROFESIONAL', 'EMPRESA'];
 
   for (const tier of tierOrder) {
     const limitValue = getLimit(tier, limitType);
@@ -366,7 +366,7 @@ export function getMinimumTierForLimit(limitType: LimitType, requiredValue: numb
     }
   }
 
-  return 'EMPRESARIAL'; // Default to highest tier
+  return 'EMPRESA'; // Default to highest tier
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

@@ -40,6 +40,7 @@ export const TIMEZONE = 'America/Argentina/Buenos_Aires';
 
 export interface TrialStatus {
   isActive: boolean;
+  isTrialing: boolean; // Alias for isActive
   daysRemaining: number;
   trialEndsAt: Date | null;
   isExpired: boolean;
@@ -249,6 +250,7 @@ class TrialManager {
       if (!org) {
         return {
           isActive: false,
+          isTrialing: false,
           daysRemaining: 0,
           trialEndsAt: null,
           isExpired: true,
@@ -265,6 +267,7 @@ class TrialManager {
 
       return {
         isActive,
+        isTrialing,
         daysRemaining,
         trialEndsAt,
         isExpired: isTrialing ? isExpired : org.subscriptionStatus === 'expired',
@@ -274,6 +277,7 @@ class TrialManager {
       console.error('[TrialManager] Error getting trial status:', error);
       return {
         isActive: false,
+        isTrialing: false,
         daysRemaining: 0,
         trialEndsAt: null,
         isExpired: true,

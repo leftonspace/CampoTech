@@ -105,6 +105,8 @@ export interface UseAccessStatusResult {
   error: string | null;
   /** Refetch the access status */
   refetch: () => void;
+  /** Whether the organization has a soft block */
+  isSoftBlocked: boolean;
   /** Whether there are any blocking issues */
   hasBlockingIssues: boolean;
   /** Whether there are any warnings */
@@ -188,11 +190,14 @@ export function useAccessStatus(options?: {
     null
   ) ?? null;
 
+  const isSoftBlocked = accessStatus?.isSoftBlocked ?? false;
+
   return {
     accessStatus: accessStatus ?? null,
     isLoading,
     error: error instanceof Error ? error.message : error ? String(error) : null,
     refetch,
+    isSoftBlocked,
     hasBlockingIssues,
     hasWarnings,
     primaryBlockReason,

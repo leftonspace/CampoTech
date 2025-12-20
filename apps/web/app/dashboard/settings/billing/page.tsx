@@ -839,7 +839,8 @@ export default function BillingPage() {
         <h2 className="text-xl font-bold text-gray-900 mb-4">Elegí tu plan</h2>
         <PlanSelector
           currentTier={data.tier.id}
-          currentBillingCycle="MONTHLY"
+          currentCycle="MONTHLY"
+          plans={[]}
         />
       </div>
 

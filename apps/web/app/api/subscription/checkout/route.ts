@@ -16,7 +16,7 @@ import { isMercadoPagoConfigured as checkMPConfig } from '@/lib/mercadopago/clie
 import { prisma } from '@/lib/prisma';
 import { logAuditEntry } from '@/lib/audit/logger';
 import type { SubscriptionTier } from '@/lib/config/tier-limits';
-import type { BillingCycle } from '@prisma/client';
+import type { BillingCycle } from '@/lib/types/subscription';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // POST - Create Checkout Preference

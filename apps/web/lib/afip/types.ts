@@ -226,7 +226,7 @@ export interface CUITAutoVerifyResponse {
   matchedServices?: MappedServiceType[];
   domicilioFiscal?: DomicilioFiscal;
   validatedAt: string;
-  source: 'afip_api' | 'afip_padron' | 'cache';
+  source: 'afip_api' | 'afip_padron' | 'cache' | 'manual';
   error?: string;
 }
 

@@ -48,7 +48,7 @@ export async function GET(): Promise<NextResponse> {
         isTrialing: trialStatus.isTrialing,
         daysRemaining: trialStatus.daysRemaining,
         trialEndsAt: trialStatus.trialEndsAt?.toISOString() || null,
-        hasTrialExpired: trialStatus.hasExpired,
+        hasTrialExpired: trialStatus.isExpired,
       },
     });
   } catch (error) {

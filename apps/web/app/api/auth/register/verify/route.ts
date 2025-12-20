@@ -156,8 +156,8 @@ export async function POST(request: NextRequest) {
           },
         },
         isNewUser: true,
-        trial: trialResult.success ? {
-          trialEndsAt: trialResult.trialEndsAt,
+        trial: trialResult.success && trialResult.subscription ? {
+          trialEndsAt: trialResult.subscription.currentPeriodEnd,
           daysRemaining: TRIAL_DAYS,
         } : null,
       },

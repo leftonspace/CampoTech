@@ -43,6 +43,7 @@ function getJwtSecret(): Uint8Array {
 const JWT_SECRET = getJwtSecret();
 
 export interface TokenPayload extends JWTPayload {
+  id: string; // Alias for userId for compatibility
   userId: string;
   email: string | null;
   role: string;
@@ -53,8 +54,12 @@ export interface TokenPayload extends JWTPayload {
  * Create access token with reduced expiration (24h)
  * For longer sessions, use createTokenPair from auth-security.ts
  */
-export async function createToken(payload: TokenPayload): Promise<string> {
-  return new SignJWT({ ...payload })
+export async function createToken(payload: Omit<TokenPayload, 'id'> & { id?: string }): Promise<string> {
+  const tokenPayload = {
+    ...payload,
+    id: payload.id || payload.userId, // Ensure id is always set
+  };
+  return new SignJWT({ ...tokenPayload })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime(ACCESS_TOKEN_EXPIRY)
