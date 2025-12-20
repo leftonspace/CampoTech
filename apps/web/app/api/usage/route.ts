@@ -96,7 +96,7 @@ export async function GET(): Promise<NextResponse> {
 
     if (criticalLimits.length > 0 || approachingLimits.length >= 2) {
       // Find next tier
-      const tierOrder = ['FREE', 'BASICO', 'PROFESIONAL', 'EMPRESARIAL'] as const;
+      const tierOrder = ['FREE', 'INICIAL', 'PROFESIONAL', 'EMPRESA'] as const;
       const currentIndex = tierOrder.indexOf(summary.tier);
       const nextTier = currentIndex < tierOrder.length - 1 ? tierOrder[currentIndex + 1] : null;
 

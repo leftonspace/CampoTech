@@ -17,7 +17,7 @@ import {
   getNotificationUrl,
 } from './config';
 import type { SubscriptionTier } from '@/lib/config/tier-limits';
-import type { BillingCycle } from '@prisma/client';
+import type { BillingCycle } from '@/lib/types/subscription';
 import { prisma } from '@/lib/prisma';
 
 // ═══════════════════════════════════════════════════════════════════════════════

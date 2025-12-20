@@ -14,7 +14,7 @@
  */
 
 import { getOrCreateEmailProvider, EmailResult } from '@/lib/email';
-import { SubscriptionTier, BillingCycle } from '@prisma/client';
+import type { SubscriptionTier, BillingCycle } from '@/lib/types/subscription';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES

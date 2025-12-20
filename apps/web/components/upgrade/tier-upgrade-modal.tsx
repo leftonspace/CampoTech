@@ -28,9 +28,9 @@ interface TierUpgradeModalProps {
 
 const TIER_NAMES: Record<SubscriptionTier, string> = {
   FREE: 'Gratis',
-  BASICO: 'Inicial',
+  INICIAL: 'Inicial',
   PROFESIONAL: 'Profesional',
-  EMPRESARIAL: 'Empresa',
+  EMPRESA: 'Empresa',
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════

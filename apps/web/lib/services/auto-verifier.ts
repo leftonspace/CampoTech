@@ -11,8 +11,45 @@
  * - null: Manual review required
  */
 
-import { VerificationSubmission, VerificationRequirement } from '@prisma/client';
 import { afipClient, validateCUITFormat } from '@/lib/afip/client';
+import type { VerificationSubmissionStatus } from '@/lib/types';
+
+// Local interface definitions matching Prisma models
+interface VerificationSubmission {
+  id: string;
+  organizationId: string;
+  userId: string | null;
+  requirementId: string;
+  status: VerificationSubmissionStatus;
+  submittedValue: string | null;
+  documentUrl: string | null;
+  expiresAt: Date | null;
+  verificationData: Record<string, unknown> | null;
+  reviewedBy: string | null;
+  reviewNotes: string | null;
+  reviewedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+interface VerificationRequirement {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  category: string;
+  tier: number;
+  isRequired: boolean;
+  isActive: boolean;
+  displayOrder: number;
+  icon: string | null;
+  badgeLabel: string | null;
+  appliesTo: string;
+  autoVerifySource: string | null;
+  validationRules: Record<string, unknown> | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
 import {
   matchActivityToServices,
   calculateActivityMatchScore,
