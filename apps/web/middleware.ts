@@ -1,9 +1,10 @@
 /**
- * CampoTech Edge Middleware (Phase 6.1)
- * =====================================
+ * CampoTech Edge Middleware (Phase 6.1 + 6.3)
+ * ============================================
  *
  * Next.js Edge Middleware for:
  * - Rate limiting with tier-based limits
+ * - API versioning headers
  * - Request logging
  * - Security headers
  *
@@ -12,6 +13,8 @@
  * - BASICO (Inicial): 100 req/min
  * - PROFESIONAL: 500 req/min
  * - EMPRESARIAL: 2000 req/min
+ *
+ * API Version: 1
  */
 
 import { NextResponse, type NextRequest } from 'next/server';
@@ -65,6 +68,20 @@ type SubscriptionTier = keyof typeof RATE_LIMITS;
  * Auth endpoint stricter limit
  */
 const AUTH_RATE_LIMIT = 10; // 10 requests per minute
+
+/**
+ * API Version Configuration (Phase 6.3)
+ */
+const API_VERSION = '1';
+const API_VERSION_HEADER = 'X-API-Version';
+
+/**
+ * Paths that should NOT receive API version headers
+ */
+const NO_VERSION_HEADER_PATHS = [
+  '/api/health',
+  '/api/webhooks/',
+];
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SLIDING WINDOW RATE LIMITER (in-memory for Edge Runtime)
@@ -190,6 +207,21 @@ function isAuthPath(pathname: string): boolean {
 }
 
 /**
+ * Check if path is an API route that should have version headers
+ */
+function isApiRoute(pathname: string): boolean {
+  return pathname.startsWith('/api/');
+}
+
+/**
+ * Check if path should have API version headers
+ */
+function shouldAddVersionHeader(pathname: string): boolean {
+  if (!isApiRoute(pathname)) return false;
+  return !NO_VERSION_HEADER_PATHS.some(path => pathname.startsWith(path));
+}
+
+/**
  * Get subscription tier from cache or token
  * In production, this would query Upstash Redis
  */
@@ -307,6 +339,11 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  // Add API version header for API routes (Phase 6.3)
+  if (shouldAddVersionHeader(pathname)) {
+    response.headers.set(API_VERSION_HEADER, API_VERSION);
+  }
 
   return response;
 }
