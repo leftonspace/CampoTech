@@ -109,3 +109,103 @@ export interface Job {
   technicianId?: string;
   technicianName?: string;
 }
+
+// ────────────────────────────────────────────────────────────────────────────────
+// SUBSCRIPTION TYPES
+// ────────────────────────────────────────────────────────────────────────────────
+
+export type SubscriptionTier = 'FREE' | 'INICIAL' | 'PROFESIONAL' | 'EMPRESA';
+export type SubscriptionStatus = 'none' | 'trialing' | 'active' | 'past_due' | 'cancelled' | 'expired' | 'paused';
+export type BillingCycle = 'MONTHLY' | 'YEARLY';
+export type PaymentStatus = 'pending' | 'processing' | 'completed' | 'failed' | 'refunded';
+
+export interface SubscriptionListItem {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  ownerName: string;
+  ownerEmail: string;
+  cuit: string | null;
+  tier: SubscriptionTier;
+  status: SubscriptionStatus;
+  billingCycle: BillingCycle;
+  priceUsd: number | null;
+  trialEndsAt: string | null;
+  currentPeriodEnd: string | null;
+  createdAt: string;
+  userCount: number;
+  jobCount: number;
+}
+
+export interface SubscriptionDetail extends SubscriptionListItem {
+  currentPeriodStart: string;
+  mpSubscriptionId: string | null;
+  mpPayerId: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  cancelAtPeriodEnd: boolean;
+  gracePeriodEndsAt: string | null;
+  updatedAt: string;
+}
+
+export interface SubscriptionPaymentItem {
+  id: string;
+  subscriptionId: string;
+  organizationId: string;
+  amount: number;
+  currency: string;
+  status: PaymentStatus;
+  paymentType: 'initial' | 'recurring' | 'upgrade' | 'downgrade' | 'reactivation';
+  paymentMethod: string | null;
+  billingCycle: BillingCycle;
+  periodStart: string;
+  periodEnd: string;
+  mpPaymentId: string | null;
+  failureReason: string | null;
+  failureCode: string | null;
+  retryCount: number;
+  nextRetryAt: string | null;
+  processedAt: string | null;
+  createdAt: string;
+}
+
+export interface SubscriptionEventItem {
+  id: string;
+  subscriptionId: string | null;
+  organizationId: string;
+  eventType: string;
+  eventData: Record<string, unknown>;
+  actorType: string | null;
+  actorId: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+}
+
+export interface AdminSubscriptionNote {
+  id: string;
+  subscriptionId: string;
+  adminId: string;
+  adminName: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface RevenueMetrics {
+  mrr: number;
+  arr: number;
+  revenueThisMonth: number;
+  trialToPayConversion: number;
+  churnRate: number;
+  revenueByMonth: { month: string; revenue: number }[];
+  revenueByTier: { tier: string; revenue: number; count: number; percentage: number }[];
+}
+
+export interface SubscriptionFilters {
+  status?: SubscriptionStatus | 'all';
+  tier?: SubscriptionTier | 'all';
+  search?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  page?: number;
+  limit?: number;
+}
