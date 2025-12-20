@@ -18,3 +18,10 @@ export {
   type SelfieVerificationProps,
   type VerificationResult,
 } from './SelfieVerification';
+export {
+  AcknowledgmentModal,
+  InlineAcknowledgment,
+  type AcknowledgmentModalProps,
+  type AcknowledgmentResult,
+  type InlineAcknowledgmentProps,
+} from './AcknowledgmentModal';

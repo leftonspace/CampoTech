@@ -22,6 +22,7 @@ import {
   UserVerificationStatus,
 } from '@prisma/client';
 import { autoVerifier } from './auto-verifier';
+import { acknowledgmentService } from './acknowledgment-service';
 import type {
   RequirementWithStatus,
   CombinedStatus,
@@ -30,6 +31,7 @@ import type {
   Badge,
   SubmissionInput,
 } from './verification-types';
+import type { MissingAcknowledgment } from './acknowledgment-service';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -418,6 +420,47 @@ class VerificationManagerClass {
     });
 
     return approvedCount >= requirements.length;
+  }
+
+  /**
+   * Check if org can complete Tier 2 (documents + acknowledgments)
+   */
+  async canCompleteTier2(
+    orgId: string,
+    ownerId: string
+  ): Promise<{
+    canComplete: boolean;
+    documentsComplete: boolean;
+    missingAcknowledgments: MissingAcknowledgment[];
+  }> {
+    // Check if all documents are complete
+    const documentsComplete = await this.checkTier2Complete(orgId);
+
+    // Check if all acknowledgments are complete
+    const { missing: missingAcknowledgments } =
+      await acknowledgmentService.canCompleteTier2(ownerId);
+
+    return {
+      canComplete: documentsComplete && missingAcknowledgments.length === 0,
+      documentsComplete,
+      missingAcknowledgments,
+    };
+  }
+
+  /**
+   * Check if owner can add first employee (acknowledgment check)
+   */
+  async canAddFirstEmployee(ownerId: string): Promise<{
+    canAdd: boolean;
+    missingAcknowledgments: MissingAcknowledgment[];
+  }> {
+    const { missing: missingAcknowledgments } =
+      await acknowledgmentService.canAddFirstEmployee(ownerId);
+
+    return {
+      canAdd: missingAcknowledgments.length === 0,
+      missingAcknowledgments,
+    };
   }
 
   /**
