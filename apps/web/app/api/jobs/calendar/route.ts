@@ -67,6 +67,22 @@ export async function GET(request: NextRequest) {
     let jobs: any[];
     let jobVisits: any[] = [];
 
+    // Track customers who have completed jobs (for "first visit" indicator)
+    const customersWithCompletedJobs = new Set<string>();
+    try {
+      const completedJobs = await prisma.job.findMany({
+        where: {
+          organizationId: session.organizationId,
+          status: 'COMPLETED',
+        },
+        select: { customerId: true },
+        distinct: ['customerId'],
+      });
+      completedJobs.forEach((job) => customersWithCompletedJobs.add(job.customerId));
+    } catch {
+      // If query fails, continue without first visit info
+    }
+
     try {
       jobs = await prisma.job.findMany({
         where,
@@ -261,6 +277,11 @@ export async function GET(request: NextRequest) {
       };
     };
 
+    // Helper to determine if this is a first visit for the customer
+    const isFirstVisitForCustomer = (customerId: string) => {
+      return !customersWithCompletedJobs.has(customerId);
+    };
+
     // Track job IDs that have visits to avoid duplicates
     const jobsWithVisits = new Set<string>();
 
@@ -270,6 +291,7 @@ export async function GET(request: NextRequest) {
       const timeSlot = visit.scheduledTimeSlot as { start?: string; end?: string } | null;
       const job = visit.job;
       const totalVisits = job.visitCount || 1;
+      const durationType = job.durationType || (totalVisits > 1 ? 'MULTIPLE_VISITS' : 'SINGLE_VISIT');
 
       return createEvent(
         `visit-${visit.id}`,
@@ -284,6 +306,8 @@ export async function GET(request: NextRequest) {
           visitId: visit.id,
           visitNumber: visit.visitNumber,
           totalVisits,
+          durationType,
+          isFirstVisit: isFirstVisitForCustomer(job.customerId),
           status: visit.status,
           urgency: job.urgency,
           serviceType: job.serviceType,
@@ -313,6 +337,7 @@ export async function GET(request: NextRequest) {
       .filter((job) => !jobsWithVisits.has(job.id) && (!job.visits || job.visits.length === 0))
       .map((job) => {
         const timeSlot = job.scheduledTimeSlot as { start?: string; end?: string } | null;
+        const durationType = job.durationType || 'SINGLE_VISIT';
 
         return createEvent(
           job.id,
@@ -322,7 +347,12 @@ export async function GET(request: NextRequest) {
           job.status,
           job.estimatedDuration,
           {
+            jobId: job.id,
             jobNumber: job.jobNumber,
+            visitNumber: 1,
+            totalVisits: 1,
+            durationType,
+            isFirstVisit: isFirstVisitForCustomer(job.customerId),
             status: job.status,
             urgency: job.urgency,
             serviceType: job.serviceType,
