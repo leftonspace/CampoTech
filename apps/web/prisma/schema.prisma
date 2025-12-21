@@ -3445,9 +3445,14 @@ model BusinessPublicProfile {
   responseRate    Float    @default(0)  // % of requests responded to (0-100)
   responseTime    Int      @default(0)  // Average minutes to respond
 
-  // Verification badges
-  cuitVerified      Boolean  @default(false)
-  insuranceVerified Boolean  @default(false)
+  // Verification badges (core - synced from VerificationSubmission)
+  cuitVerified        Boolean  @default(false)
+  insuranceVerified   Boolean  @default(false)
+  backgroundCheck     Boolean  @default(false)  // Antecedentes verificados
+  professionalLicense Boolean  @default(false)  // Has any professional license (gasista, electricista, etc.)
+
+  // Optional badges (Tier 4) - JSON array of {code, icon, label} for approved badges
+  optionalBadges      Json     @default("[]")   // e.g., [{"code":"gasista_matriculado","icon":"flame","label":"Gasista Matriculado"}]
 
   isActive        Boolean  @default(true)
 

@@ -583,6 +583,9 @@ class VerificationManagerClass {
         lastComplianceCheck: new Date(),
       },
     });
+
+    // Sync badge data to BusinessPublicProfile for marketplace display
+    await this.syncBadgesToPublicProfile(orgId);
   }
 
   /**
@@ -627,6 +630,91 @@ class VerificationManagerClass {
   // ─────────────────────────────────────────────────────────────────────────────
   // BADGES & COMPLIANCE
   // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Sync badge data to BusinessPublicProfile
+   * Called after verification status changes to update marketplace display
+   */
+  async syncBadgesToPublicProfile(orgId: string): Promise<void> {
+    try {
+      // Get all approved Tier 4 (optional badges) submissions
+      const tier4Submissions = await prisma.verificationSubmission.findMany({
+        where: {
+          organizationId: orgId,
+          status: 'approved',
+          requirement: {
+            tier: 4,
+            isActive: true,
+          },
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gt: new Date() } },
+          ],
+        },
+        include: { requirement: true },
+      });
+
+      // Get approved Tier 2 submissions to check specific badges
+      const tier2Submissions = await prisma.verificationSubmission.findMany({
+        where: {
+          organizationId: orgId,
+          status: 'approved',
+          requirement: {
+            tier: 2,
+            isActive: true,
+          },
+          OR: [
+            { expiresAt: null },
+            { expiresAt: { gt: new Date() } },
+          ],
+        },
+        include: { requirement: true },
+      });
+
+      // Determine core badge flags
+      const submissionCodes = [...tier2Submissions, ...tier4Submissions]
+        .map((s) => s.requirement.code);
+
+      const cuitVerified = submissionCodes.some((code) =>
+        ['cuit_validation', 'afip_status'].includes(code)
+      );
+      const insuranceVerified = submissionCodes.some((code) =>
+        ['insurance_policy', 'seguro_rc'].includes(code)
+      );
+      const backgroundCheck = submissionCodes.some((code) =>
+        ['background_check', 'antecedentes_penales'].includes(code)
+      );
+      const professionalLicense = submissionCodes.some((code) =>
+        ['gasista_matriculado', 'electricista_matriculado', 'plomero_matriculado'].includes(code)
+      );
+
+      // Build optional badges array
+      type BadgeSubmission = (typeof tier4Submissions)[number];
+      const optionalBadges = tier4Submissions
+        .filter((s: BadgeSubmission) => s.requirement.badgeIcon && s.requirement.badgeLabel)
+        .map((s: BadgeSubmission) => ({
+          code: s.requirement.code,
+          icon: s.requirement.badgeIcon,
+          label: s.requirement.badgeLabel,
+        }));
+
+      // Update BusinessPublicProfile
+      await prisma.businessPublicProfile.updateMany({
+        where: { organizationId: orgId },
+        data: {
+          cuitVerified,
+          insuranceVerified,
+          backgroundCheck,
+          professionalLicense,
+          optionalBadges,
+        },
+      });
+
+      console.log(`[Badge] Synced badges to public profile for org ${orgId}`);
+    } catch (error) {
+      console.error(`[Badge] Error syncing badges for org ${orgId}:`, error);
+    }
+  }
 
   /**
    * Get badges earned by organization (Tier 4 approved submissions)
