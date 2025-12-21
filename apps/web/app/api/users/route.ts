@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Transform users to include computed jobCount and avgRating
-    const usersWithStats = users.map((user) => {
+    const usersWithStats = users.map((user: typeof users[number]) => {
       // Use the higher of the two job counts (they may overlap)
       // jobAssignments is the more accurate count for multi-technician jobs
       const jobCount = Math.max(
@@ -95,9 +95,9 @@ export async function GET(request: NextRequest) {
       );
 
       // Calculate average rating from reviews
-      const ratings = user.technicianReviews.map((r) => r.rating).filter((r): r is number => r !== null);
+      const ratings = user.technicianReviews.map((r: { rating: number | null }) => r.rating).filter((r: number | null): r is number => r !== null);
       const avgRating = ratings.length > 0
-        ? Number((ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1))
+        ? Number((ratings.reduce((sum: number, r: number) => sum + r, 0) / ratings.length).toFixed(1))
         : null;
 
       // Remove internal fields and add computed ones

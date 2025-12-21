@@ -110,7 +110,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         optionalBadges: typeof profile.optionalBadges === 'string'
           ? JSON.parse(profile.optionalBadges)
           : profile.optionalBadges,
-        recentReviews: reviews.map((r) => ({
+        recentReviews: reviews.map((r: typeof reviews[number]) => ({
           id: r.id,
           rating: r.rating,
           comment: r.comment,
