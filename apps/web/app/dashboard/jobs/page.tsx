@@ -51,6 +51,21 @@ interface TechnicianOption {
   jobCount?: number;
 }
 
+// Represents either a single-visit job or one visit from a multi-visit job
+interface JobOrVisitRow {
+  job: Job;
+  visit?: {
+    id: string;
+    visitNumber: number;
+    scheduledDate: string;
+    scheduledTimeSlot?: { start?: string; end?: string } | null;
+    status: string;
+    technician?: { id: string; name: string } | null;
+  };
+  isVisitRow: boolean;
+  totalVisits: number;
+}
+
 const PRIORITY_LABELS: Record<string, string> = {
   low: 'Baja',
   normal: 'Normal',
@@ -138,9 +153,13 @@ export default function JobsPage() {
   };
   const technicians: TechnicianOption[] = techniciansData?.data || [];
 
-  // Client-side filtering
-  const jobs = useMemo(() => {
-    return allJobs?.filter((job) => {
+  // Client-side filtering and expanding visits into rows
+  const jobRows = useMemo((): JobOrVisitRow[] => {
+    if (!allJobs) return [];
+
+    const rows: JobOrVisitRow[] = [];
+
+    for (const job of allJobs) {
       // Search filter
       if (search) {
         const searchFields = [
@@ -152,22 +171,73 @@ export default function JobsPage() {
           job.address,
           ...(job.assignments?.map((a) => a.technician?.name) || []),
         ];
-        if (!searchMatchesAny(searchFields, search)) return false;
+        if (!searchMatchesAny(searchFields, search)) continue;
       }
 
       // Priority filter
-      if (priorityFilter && job.priority !== priorityFilter) return false;
+      if (priorityFilter && job.priority !== priorityFilter) continue;
 
-      // Technician filter
-      if (technicianFilter) {
-        const hasAssignment = job.assignments?.some(
-          (a) => a.technician?.id === technicianFilter
-        );
-        if (!hasAssignment && job.assignedTo?.id !== technicianFilter) return false;
+      // Check if job has visits to expand
+      const jobAny = job as any;
+      const visits = jobAny.visits as Array<{
+        id: string;
+        visitNumber: number;
+        scheduledDate: string;
+        scheduledTimeSlot?: { start?: string; end?: string } | null;
+        status: string;
+        technicianId?: string;
+        technician?: { id: string; name: string } | null;
+      }> | undefined;
+
+      if (visits && visits.length > 0) {
+        // Expand into individual visit rows
+        for (const visit of visits) {
+          // Technician filter - check visit technician
+          if (technicianFilter) {
+            const visitTechId = visit.technician?.id || visit.technicianId;
+            if (visitTechId !== technicianFilter) continue;
+          }
+
+          rows.push({
+            job,
+            visit: {
+              id: visit.id,
+              visitNumber: visit.visitNumber,
+              scheduledDate: visit.scheduledDate,
+              scheduledTimeSlot: visit.scheduledTimeSlot,
+              status: visit.status,
+              technician: visit.technician,
+            },
+            isVisitRow: true,
+            totalVisits: visits.length,
+          });
+        }
+      } else {
+        // Single-visit job - show as regular row
+        // Technician filter for non-visit jobs
+        if (technicianFilter) {
+          const hasAssignment = job.assignments?.some(
+            (a) => a.technician?.id === technicianFilter
+          );
+          if (!hasAssignment && job.assignedTo?.id !== technicianFilter) continue;
+        }
+
+        rows.push({
+          job,
+          isVisitRow: false,
+          totalVisits: 1,
+        });
       }
+    }
 
-      return true;
+    // Sort by scheduled date (visit date if available, otherwise job date)
+    rows.sort((a, b) => {
+      const dateA = a.visit?.scheduledDate || a.job.scheduledDate || '';
+      const dateB = b.visit?.scheduledDate || b.job.scheduledDate || '';
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
     });
+
+    return rows;
   }, [allJobs, search, priorityFilter, technicianFilter]);
 
   const hasActiveFilters = search || statusFilter || priorityFilter || technicianFilter || durationTypeFilter;
@@ -453,11 +523,14 @@ export default function JobsPage() {
               </div>
             </div>
           ))
-        ) : jobs?.length ? (
-          jobs.map((job) => (
+        ) : jobRows.length ? (
+          jobRows.map((row) => (
             <JobCard
-              key={job.id}
-              job={job}
+              key={row.visit ? `visit-${row.visit.id}` : row.job.id}
+              job={row.job}
+              visit={row.visit}
+              isVisitRow={row.isVisitRow}
+              totalVisits={row.totalVisits}
               openMenuId={openMenuId}
               onMenuClick={handleMenuClick}
               onAction={handleAction}
@@ -562,6 +635,16 @@ function StatCard({ title, value, icon, color = 'default', loading }: StatCardPr
 
 interface JobCardProps {
   job: Job;
+  visit?: {
+    id: string;
+    visitNumber: number;
+    scheduledDate: string;
+    scheduledTimeSlot?: { start?: string; end?: string } | null;
+    status: string;
+    technician?: { id: string; name: string } | null;
+  };
+  isVisitRow: boolean;
+  totalVisits: number;
   openMenuId: string | null;
   onMenuClick: (jobId: string, e: React.MouseEvent) => void;
   onAction: (action: string, job: Job, e: React.MouseEvent) => void;
@@ -569,9 +652,11 @@ interface JobCardProps {
   onCardClick: (job: Job) => void;
 }
 
-function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick, onCardClick }: JobCardProps) {
-  const hasAssignment = job.assignments && job.assignments.length > 0;
-  const isCompleted = job.status === 'COMPLETED' || job.status === 'CANCELLED';
+function JobCard({ job, visit, isVisitRow, totalVisits, openMenuId, onMenuClick, onAction, onAssignClick, onCardClick }: JobCardProps) {
+  // For visit rows, use visit-specific data; otherwise use job data
+  const displayStatus = visit?.status || job.status;
+  const hasAssignment = visit?.technician || (job.assignments && job.assignments.length > 0);
+  const isCompleted = displayStatus === 'COMPLETED' || displayStatus === 'CANCELLED';
   const canCancel = !isCompleted;
   const canAssign = !isCompleted;
   const isUrgent = job.priority === 'urgent' || job.priority === 'high';
@@ -579,20 +664,18 @@ function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick, onCard
   // Multi-visit job info
   const jobAny = job as any;
   const durationType = jobAny.durationType || 'SINGLE_VISIT';
-  const visitCount = jobAny.visitCount || jobAny.visits?.length || 1;
-  const isMultiVisit = durationType === 'MULTIPLE_VISITS' || visitCount > 1;
   const isRecurring = durationType === 'RECURRING';
 
-  // Parse time slot from JSON or use direct fields
+  // Parse time slot - prefer visit time slot if available
   let timeSlot = '';
-  if (job.scheduledTimeStart && job.scheduledTimeEnd) {
+  const timeSlotSource = visit?.scheduledTimeSlot || (job as any).scheduledTimeSlot;
+  if (job.scheduledTimeStart && job.scheduledTimeEnd && !visit) {
     timeSlot = `${job.scheduledTimeStart} - ${job.scheduledTimeEnd}`;
-  } else if (job.scheduledTimeStart) {
+  } else if (job.scheduledTimeStart && !visit) {
     timeSlot = job.scheduledTimeStart;
-  } else if ('scheduledTimeSlot' in job && job.scheduledTimeSlot) {
+  } else if (timeSlotSource) {
     try {
-      const slotData = job.scheduledTimeSlot;
-      const slot = typeof slotData === 'string' ? JSON.parse(slotData) : slotData;
+      const slot = typeof timeSlotSource === 'string' ? JSON.parse(timeSlotSource) : timeSlotSource;
       if (slot?.start && slot?.end) {
         timeSlot = `${slot.start} - ${slot.end}`;
       } else if (slot?.start) {
@@ -627,27 +710,25 @@ function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick, onCard
         <div className="flex-1 min-w-0 space-y-2">
           {/* Job ID + Badges */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-gray-500 font-mono">{job.jobNumber}</span>
+            <span className="text-sm text-gray-500 font-mono">
+              {job.jobNumber}
+              {isVisitRow && visit && (
+                <span className="text-primary-600 font-semibold"> ({visit.visitNumber}/{totalVisits})</span>
+              )}
+            </span>
             <span className={cn(
               'px-2.5 py-0.5 text-xs font-medium rounded-full',
-              STATUS_BADGE_COLORS[job.status]
+              STATUS_BADGE_COLORS[displayStatus] || STATUS_BADGE_COLORS['PENDING']
             )}>
-              {JOB_STATUS_LABELS[job.status]}
+              {JOB_STATUS_LABELS[displayStatus] || displayStatus}
             </span>
             {isUrgent && (
               <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-red-500 text-white">
                 {PRIORITY_LABELS[job.priority]}
               </span>
             )}
-            {/* Multi-visit badge */}
-            {isMultiVisit && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 border border-blue-200">
-                <CalendarDays className="h-3 w-3" />
-                {visitCount} visitas
-              </span>
-            )}
-            {/* Recurring badge */}
-            {isRecurring && (
+            {/* Recurring badge - only show on visit rows */}
+            {isRecurring && isVisitRow && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700 border border-purple-200">
                 <Repeat className="h-3 w-3" />
                 Recurrente
@@ -683,7 +764,11 @@ function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick, onCard
         <div className="lg:w-40 space-y-1">
           <div className="flex items-center gap-2 text-sm">
             <Calendar className="h-4 w-4 text-gray-400" />
-            <span className="text-gray-700">{job.scheduledDate ? formatDate(job.scheduledDate) : 'Sin fecha'}</span>
+            <span className="text-gray-700">
+              {visit?.scheduledDate
+                ? formatDate(visit.scheduledDate)
+                : (job.scheduledDate ? formatDate(job.scheduledDate) : 'Sin fecha')}
+            </span>
           </div>
           {timeSlot && (
             <div className="flex items-center gap-2 text-sm">
@@ -695,14 +780,25 @@ function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick, onCard
 
         {/* Section 4: Technician - lg:w-36 */}
         <div className="lg:w-36">
-          {hasAssignment ? (
+          {visit?.technician ? (
+            // Visit-specific technician
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-teal-50 border border-teal-200 flex items-center justify-center">
                 <User className="h-4 w-4 text-teal-600" />
               </div>
               <span className="text-sm text-gray-700 truncate">
-                {job.assignments![0].technician?.name}
-                {job.assignments!.length > 1 && (
+                {visit.technician.name}
+              </span>
+            </div>
+          ) : hasAssignment && job.assignments && job.assignments.length > 0 ? (
+            // Job-level technician (for non-visit rows)
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-teal-50 border border-teal-200 flex items-center justify-center">
+                <User className="h-4 w-4 text-teal-600" />
+              </div>
+              <span className="text-sm text-gray-700 truncate">
+                {job.assignments[0].technician?.name}
+                {job.assignments.length > 1 && (
                   <span className="text-gray-400">...</span>
                 )}
               </span>
