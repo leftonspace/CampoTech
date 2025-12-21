@@ -25,6 +25,27 @@ interface Customer {
   address?: CustomerAddress;
 }
 
+// Visit structure for multi-visit jobs
+interface JobVisit {
+  id: string;
+  date: string;
+  timeStart: string;
+  timeEnd: string;
+  timePeriodStart: 'AM' | 'PM';
+  timePeriodEnd: 'AM' | 'PM';
+  technicianIds: string[];
+}
+
+const createEmptyVisit = (): JobVisit => ({
+  id: Math.random().toString(36).substring(7),
+  date: '',
+  timeStart: '',
+  timeEnd: '',
+  timePeriodStart: 'AM',
+  timePeriodEnd: 'PM',
+  technicianIds: [],
+});
+
 const RECURRENCE_PATTERNS = [
   { value: 'WEEKLY', label: 'Semanal' },
   { value: 'BIWEEKLY', label: 'Quincenal' },
@@ -74,19 +95,15 @@ export default function NewJobPage() {
     address: '',
     serviceType: '',
     priority: 'normal',
-    scheduledDate: '',
-    scheduledEndDate: '', // Optional - for multi-day jobs
-    scheduledTimeStart: '',
-    scheduledTimeEnd: '',
-    assignedToIds: [] as string[],
     // Recurring option
     isRecurring: false,
     recurrencePattern: 'MONTHLY',
     recurrenceCount: 6,
   });
-  const [showTeamDropdown, setShowTeamDropdown] = useState(false);
-  const [startPeriod, setStartPeriod] = useState<'AM' | 'PM'>('AM');
-  const [endPeriod, setEndPeriod] = useState<'AM' | 'PM'>('PM');
+
+  // Multi-visit support - each visit has its own date, time, and technicians
+  const [visits, setVisits] = useState<JobVisit[]>([createEmptyVisit()]);
+  const [activeVisitDropdown, setActiveVisitDropdown] = useState<string | null>(null);
 
   // Fetch service types from API (configurable by business owner)
   const { data: serviceTypesData } = useQuery({
@@ -149,6 +166,36 @@ export default function NewJobPage() {
     if (period === 'PM' && hours !== 12) h += 12;
     if (period === 'AM' && hours === 12) h = 0;
     return `${String(h).padStart(2, '0')}:${String(minutes || 0).padStart(2, '0')}`;
+  };
+
+  // Visit management functions
+  const addVisit = () => {
+    setVisits([...visits, createEmptyVisit()]);
+  };
+
+  const removeVisit = (visitId: string) => {
+    if (visits.length > 1) {
+      setVisits(visits.filter(v => v.id !== visitId));
+    }
+  };
+
+  const updateVisit = (visitId: string, field: keyof JobVisit, value: string | string[]) => {
+    setVisits(visits.map(v =>
+      v.id === visitId ? { ...v, [field]: value } : v
+    ));
+  };
+
+  const toggleVisitTechnician = (visitId: string, techId: string) => {
+    setVisits(visits.map(v => {
+      if (v.id !== visitId) return v;
+      const isSelected = v.technicianIds.includes(techId);
+      return {
+        ...v,
+        technicianIds: isSelected
+          ? v.technicianIds.filter(id => id !== techId)
+          : [...v.technicianIds, techId]
+      };
+    }));
   };
 
   // Auto-fill address when customer is selected
@@ -252,22 +299,48 @@ export default function NewJobPage() {
       return;
     }
 
+    // Validate at least the first visit has a date
+    if (!visits[0].date) {
+      setError('Seleccioná al menos una fecha para el trabajo');
+      return;
+    }
+
     setIsSubmitting(true);
     setError('');
 
-    // Build job data with simplified scheduling
+    // Convert visits to API format
+    const formattedVisits = visits
+      .filter(v => v.date) // Only include visits with dates
+      .map(v => ({
+        date: v.date,
+        timeStart: convertTo24h(v.timeStart, v.timePeriodStart),
+        timeEnd: convertTo24h(v.timeEnd, v.timePeriodEnd),
+        technicianIds: v.technicianIds,
+      }));
+
+    // Determine duration type based on visits
+    let durationType = 'SINGLE_VISIT';
+    if (formData.isRecurring) {
+      durationType = 'RECURRING';
+    } else if (formattedVisits.length > 1) {
+      durationType = 'MULTIPLE_VISITS';
+    }
+
+    // Build job data
     const jobData = {
       ...formData,
       customerId: selectedCustomer.id,
-      technicianIds: formData.assignedToIds,
       serviceType: formData.serviceType || 'OTRO',
-      scheduledTimeStart: convertTo24h(formData.scheduledTimeStart, startPeriod),
-      scheduledTimeEnd: convertTo24h(formData.scheduledTimeEnd, endPeriod),
-      // Duration type based on dates
-      durationType: formData.scheduledEndDate ? 'MULTI_DAY' : 'SINGLE_VISIT',
+      durationType,
+      // First visit data for backwards compatibility
+      scheduledDate: formattedVisits[0].date,
+      scheduledTimeStart: formattedVisits[0].timeStart,
+      scheduledTimeEnd: formattedVisits[0].timeEnd,
+      technicianIds: formattedVisits[0].technicianIds,
+      // All visits for multi-visit jobs
+      visits: formattedVisits,
       // Recurring config
       ...(formData.isRecurring && {
-        durationType: 'RECURRING',
         recurrencePattern: formData.recurrencePattern,
         recurrenceCount: formData.recurrenceCount,
       }),
@@ -521,47 +594,225 @@ export default function NewJobPage() {
           </select>
         </div>
 
-        {/* Schedule - Simplified: Start Date + Optional End Date */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="scheduledDate" className="label mb-1 block">
-              Fecha de inicio *
-            </label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                id="scheduledDate"
-                type="date"
-                value={formData.scheduledDate}
-                onChange={(e) =>
-                  setFormData({ ...formData, scheduledDate: e.target.value })
-                }
-                className="input pl-10"
-                required
-              />
-            </div>
+        {/* Visits Section - Multi-visit support */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <label className="label">Programación de visitas *</label>
+            {visits.length === 1 && (
+              <span className="text-xs text-gray-500">Agregá más visitas si el trabajo tiene múltiples fechas</span>
+            )}
           </div>
-          <div>
-            <label htmlFor="scheduledEndDate" className="label mb-1 block">
-              Fecha de fin <span className="text-gray-400 font-normal">(opcional)</span>
-            </label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                id="scheduledEndDate"
-                type="date"
-                value={formData.scheduledEndDate}
-                onChange={(e) =>
-                  setFormData({ ...formData, scheduledEndDate: e.target.value })
-                }
-                className="input pl-10"
-                min={formData.scheduledDate}
-              />
+
+          {visits.map((visit, index) => (
+            <div
+              key={visit.id}
+              className={`rounded-lg border p-4 ${index === 0 ? 'border-primary-200 bg-primary-50/30' : 'border-gray-200'}`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium text-gray-900">
+                  {visits.length === 1 ? 'Fecha y hora' : `Visita ${index + 1}`}
+                </h4>
+                {visits.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeVisit(visit.id)}
+                    className="text-sm text-red-600 hover:underline"
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
+
+              {/* Date */}
+              <div className="grid gap-4 sm:grid-cols-2 mb-4">
+                <div>
+                  <label className="label mb-1 block text-sm">Fecha {index === 0 && '*'}</label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="date"
+                      value={visit.date}
+                      onChange={(e) => updateVisit(visit.id, 'date', e.target.value)}
+                      className="input pl-10"
+                      required={index === 0}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Time inputs */}
+              <div className="grid gap-4 sm:grid-cols-2 mb-4">
+                <div>
+                  <label className="label mb-1 block text-sm">Hora inicio</label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="09:00"
+                        value={visit.timeStart}
+                        onChange={(e) => {
+                          let val = e.target.value.replace(/[^0-9:]/g, '');
+                          if (val.length === 2 && !val.includes(':')) val += ':';
+                          if (val.length > 5) val = val.slice(0, 5);
+                          updateVisit(visit.id, 'timeStart', val);
+                        }}
+                        className="input pl-10"
+                        maxLength={5}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => updateVisit(visit.id, 'timePeriodStart', visit.timePeriodStart === 'AM' ? 'PM' : 'AM')}
+                      className="flex h-[42px] w-14 items-center justify-center rounded-lg border-2 border-primary-500 bg-primary-50 font-semibold text-primary-700 text-sm"
+                    >
+                      {visit.timePeriodStart}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="label mb-1 block text-sm">Hora fin</label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="05:00"
+                        value={visit.timeEnd}
+                        onChange={(e) => {
+                          let val = e.target.value.replace(/[^0-9:]/g, '');
+                          if (val.length === 2 && !val.includes(':')) val += ':';
+                          if (val.length > 5) val = val.slice(0, 5);
+                          updateVisit(visit.id, 'timeEnd', val);
+                        }}
+                        className="input pl-10"
+                        maxLength={5}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => updateVisit(visit.id, 'timePeriodEnd', visit.timePeriodEnd === 'AM' ? 'PM' : 'AM')}
+                      className="flex h-[42px] w-14 items-center justify-center rounded-lg border-2 border-primary-500 bg-primary-50 font-semibold text-primary-700 text-sm"
+                    >
+                      {visit.timePeriodEnd}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Technician assignment per visit */}
+              <div>
+                <label className="label mb-1 block text-sm">Técnico(s) para esta visita</label>
+
+                {/* Selected technicians */}
+                {visit.technicianIds.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-1">
+                    {visit.technicianIds.map((techId) => {
+                      const member = teamMembers?.find((m) => m.id === techId) ||
+                        (currentUser?.id === techId ? { id: currentUser.id, name: currentUser.name, role: 'CURRENT' } : null);
+                      if (!member) return null;
+                      return (
+                        <span
+                          key={techId}
+                          className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-2 py-0.5 text-xs text-primary-700"
+                        >
+                          {member.name}
+                          <button
+                            type="button"
+                            onClick={() => toggleVisitTechnician(visit.id, techId)}
+                            className="hover:bg-primary-200 rounded-full"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Technician dropdown */}
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setActiveVisitDropdown(activeVisitDropdown === visit.id ? null : visit.id)}
+                    className="input flex w-full items-center justify-between pl-10 text-left text-sm"
+                  >
+                    <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <span className={visit.technicianIds.length === 0 ? 'text-gray-400' : ''}>
+                      {visit.technicianIds.length === 0
+                        ? 'Seleccionar técnicos...'
+                        : `${visit.technicianIds.length} seleccionado(s)`}
+                    </span>
+                    <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {activeVisitDropdown === visit.id && (
+                    <div className="absolute z-20 mt-1 w-full rounded-md border bg-white shadow-lg">
+                      <div className="max-h-48 overflow-auto py-1">
+                        {currentUser && (
+                          <button
+                            type="button"
+                            onClick={() => toggleVisitTechnician(visit.id, currentUser.id)}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
+                          >
+                            <span className={`flex h-4 w-4 items-center justify-center rounded border ${
+                              visit.technicianIds.includes(currentUser.id)
+                                ? 'border-primary-600 bg-primary-600 text-white'
+                                : 'border-gray-300'
+                            }`}>
+                              {visit.technicianIds.includes(currentUser.id) && <Check className="h-3 w-3" />}
+                            </span>
+                            <span>Yo ({currentUser.name})</span>
+                          </button>
+                        )}
+                        {teamMembers?.filter(m => m.id !== currentUser?.id).map((member) => (
+                          <button
+                            key={member.id}
+                            type="button"
+                            onClick={() => toggleVisitTechnician(visit.id, member.id)}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
+                          >
+                            <span className={`flex h-4 w-4 items-center justify-center rounded border ${
+                              visit.technicianIds.includes(member.id)
+                                ? 'border-primary-600 bg-primary-600 text-white'
+                                : 'border-gray-300'
+                            }`}>
+                              {visit.technicianIds.includes(member.id) && <Check className="h-3 w-3" />}
+                            </span>
+                            <span>{member.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <div className="border-t px-3 py-2">
+                        <button
+                          type="button"
+                          onClick={() => setActiveVisitDropdown(null)}
+                          className="w-full text-center text-xs text-primary-600 hover:underline"
+                        >
+                          Cerrar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-            <p className="mt-1 text-xs text-gray-500">
-              Solo para trabajos de varios días consecutivos
-            </p>
-          </div>
+          ))}
+
+          {/* Add visit button */}
+          <button
+            type="button"
+            onClick={addVisit}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 py-3 text-gray-600 hover:border-primary-400 hover:text-primary-600 transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+            Agregar otra visita
+          </button>
+          <p className="text-xs text-gray-500 text-center">
+            Para trabajos con múltiples fechas no consecutivas o con diferentes horarios/técnicos por día
+          </p>
         </div>
 
         {/* Recurring option */}
@@ -579,7 +830,7 @@ export default function NewJobPage() {
             </div>
           </label>
           <p className="mt-1 ml-7 text-sm text-gray-500">
-            Se repite periódicamente (ej: limpieza mensual de filtros)
+            Se repite automáticamente (ej: limpieza mensual de filtros)
           </p>
 
           {formData.isRecurring && (
@@ -622,263 +873,14 @@ export default function NewJobPage() {
           )}
         </div>
 
-        {/* Time inputs with AM/PM toggle */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="scheduledTimeStart" className="label mb-1 block">
-              Hora inicio
-            </label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input
-                  id="scheduledTimeStart"
-                  type="text"
-                  placeholder="09:00"
-                  value={formData.scheduledTimeStart}
-                  onChange={(e) => {
-                    // Allow only numbers and colon, format as HH:MM
-                    let val = e.target.value.replace(/[^0-9:]/g, '');
-                    if (val.length === 2 && !val.includes(':')) val += ':';
-                    if (val.length > 5) val = val.slice(0, 5);
-                    setFormData({ ...formData, scheduledTimeStart: val });
-                  }}
-                  className="input pl-10"
-                  maxLength={5}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => setStartPeriod(startPeriod === 'AM' ? 'PM' : 'AM')}
-                className="flex h-[42px] w-16 items-center justify-center rounded-lg border-2 border-primary-500 bg-primary-50 font-semibold text-primary-700 transition-all hover:bg-primary-100 active:scale-95"
-              >
-                {startPeriod}
-              </button>
-            </div>
-          </div>
-          <div>
-            <label htmlFor="scheduledTimeEnd" className="label mb-1 block">
-              Hora fin
-            </label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                <input
-                  id="scheduledTimeEnd"
-                  type="text"
-                  placeholder="05:00"
-                  value={formData.scheduledTimeEnd}
-                  onChange={(e) => {
-                    // Allow only numbers and colon, format as HH:MM
-                    let val = e.target.value.replace(/[^0-9:]/g, '');
-                    if (val.length === 2 && !val.includes(':')) val += ':';
-                    if (val.length > 5) val = val.slice(0, 5);
-                    setFormData({ ...formData, scheduledTimeEnd: val });
-                  }}
-                  className="input pl-10"
-                  maxLength={5}
-                />
-              </div>
-              <button
-                type="button"
-                onClick={() => setEndPeriod(endPeriod === 'AM' ? 'PM' : 'AM')}
-                className="flex h-[42px] w-16 items-center justify-center rounded-lg border-2 border-primary-500 bg-primary-50 font-semibold text-primary-700 transition-all hover:bg-primary-100 active:scale-95"
-              >
-                {endPeriod}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Team member assignment - Multi-select */}
-        <div>
-          <label className="label mb-1 block">
-            Asignar a (múltiples técnicos)
-          </label>
-
-          {/* Availability warning */}
-          {formData.scheduledDate && availabilityData?.data?.availableCount === 0 && (
-            <div className="mb-2 flex items-center gap-2 rounded-md bg-amber-50 p-2 text-sm text-amber-700">
-              <AlertTriangle className="h-4 w-4" />
-              <span>No hay técnicos disponibles para esta fecha/hora</span>
-            </div>
-          )}
-
-          {/* Selected technicians display */}
-          {formData.assignedToIds.length > 0 && (
-            <div className="mb-2 flex flex-wrap gap-2">
-              {formData.assignedToIds.map((id) => {
-                const member = teamMembers?.find((m) => m.id === id) ||
-                  (currentUser?.id === id ? { id: currentUser.id, name: currentUser.name, role: 'CURRENT' } : null);
-                if (!member) return null;
-                return (
-                  <span
-                    key={id}
-                    className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-3 py-1 text-sm text-primary-700"
-                  >
-                    {member.name}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setFormData({
-                          ...formData,
-                          assignedToIds: formData.assignedToIds.filter((tid) => tid !== id),
-                        })
-                      }
-                      className="ml-1 rounded-full p-0.5 hover:bg-primary-200"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </span>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Dropdown trigger */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowTeamDropdown(!showTeamDropdown)}
-              className="input flex w-full items-center justify-between pl-10 text-left"
-            >
-              <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <span className={formData.assignedToIds.length === 0 ? 'text-gray-400' : ''}>
-                {formData.assignedToIds.length === 0
-                  ? 'Seleccionar técnicos...'
-                  : `${formData.assignedToIds.length} técnico(s) seleccionado(s)`}
-              </span>
-              <svg className="h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-
-            {/* Dropdown menu */}
-            {showTeamDropdown && (
-              <div className="absolute z-20 mt-1 w-full rounded-md border bg-white shadow-lg">
-                <div className="max-h-60 overflow-auto py-1">
-                  {/* Current user option */}
-                  {currentUser && (() => {
-                    const status = getAvailabilityStatus(currentUser.id);
-                    return (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const isSelected = formData.assignedToIds.includes(currentUser.id);
-                          setFormData({
-                            ...formData,
-                            assignedToIds: isSelected
-                              ? formData.assignedToIds.filter((id) => id !== currentUser.id)
-                              : [...formData.assignedToIds, currentUser.id],
-                          });
-                        }}
-                        className="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-gray-50"
-                      >
-                        <span className={`flex h-4 w-4 items-center justify-center rounded border ${
-                          formData.assignedToIds.includes(currentUser.id)
-                            ? 'border-primary-600 bg-primary-600 text-white'
-                            : 'border-gray-300'
-                        }`}>
-                          {formData.assignedToIds.includes(currentUser.id) && (
-                            <Check className="h-3 w-3" />
-                          )}
-                        </span>
-                        <span className="flex-1">
-                          <span className="font-medium">Yo ({currentUser.name})</span>
-                        </span>
-                        {status && (
-                          <span className={`text-xs ${status.isAvailable ? 'text-green-600' : 'text-amber-600'}`}>
-                            {status.isAvailable
-                              ? status.jobCount > 0 ? `✓ ${status.jobCount} trabajo(s)` : '✓ Disponible'
-                              : '⚠ No disponible'}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })()}
-
-                  {/* Team members */}
-                  {getSortedTeamMembers()
-                    .filter((member) => member.id !== currentUser?.id)
-                    .map((member) => {
-                      const status = getAvailabilityStatus(member.id);
-                      return (
-                        <button
-                          key={member.id}
-                          type="button"
-                          onClick={() => {
-                            const isSelected = formData.assignedToIds.includes(member.id);
-                            setFormData({
-                              ...formData,
-                              assignedToIds: isSelected
-                                ? formData.assignedToIds.filter((id) => id !== member.id)
-                                : [...formData.assignedToIds, member.id],
-                            });
-                          }}
-                          className="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-gray-50"
-                        >
-                          <span className={`flex h-4 w-4 items-center justify-center rounded border ${
-                            formData.assignedToIds.includes(member.id)
-                              ? 'border-primary-600 bg-primary-600 text-white'
-                              : 'border-gray-300'
-                          }`}>
-                            {formData.assignedToIds.includes(member.id) && (
-                              <Check className="h-3 w-3" />
-                            )}
-                          </span>
-                          <span className="flex-1">
-                            <span className="font-medium">{member.name}</span>
-                            <span className="ml-1 text-sm text-gray-500">
-                              {member.role === 'TECHNICIAN' ? '(Técnico)' : member.role === 'DISPATCHER' ? '(Despachador)' : ''}
-                            </span>
-                          </span>
-                          {/* Availability indicator */}
-                          {status && (
-                            <span className={`text-xs ${status.isAvailable ? 'text-green-600' : 'text-amber-600'}`}>
-                              {status.isAvailable
-                                ? status.jobCount > 0 ? `✓ ${status.jobCount} trabajo(s)` : '✓ Disponible'
-                                : '⚠ No disponible'}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-
-                  {(!teamMembers || teamMembers.length === 0) && !currentUser && (
-                    <div className="px-4 py-2 text-sm text-gray-500">
-                      No hay miembros del equipo disponibles
-                    </div>
-                  )}
-                </div>
-
-                {/* Close dropdown button */}
-                <div className="border-t px-4 py-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowTeamDropdown(false)}
-                    className="w-full text-center text-sm text-primary-600 hover:underline"
-                  >
-                    Cerrar
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-            <Link
-              href="/dashboard/settings/team"
-              className="text-primary-600 hover:underline"
-            >
-              + Agregar nuevo miembro al equipo
-            </Link>
-            {formData.scheduledDate && (
-              <span className="text-gray-500">
-                Disponibilidad para el {new Date(formData.scheduledDate + 'T12:00:00').toLocaleDateString('es-AR')}
-                {formData.scheduledTimeStart && ` a las ${formData.scheduledTimeStart} ${startPeriod}`}
-              </span>
-            )}
-          </div>
+        {/* Add team member link */}
+        <div className="text-sm">
+          <Link
+            href="/dashboard/settings/team"
+            className="text-primary-600 hover:underline"
+          >
+            + Agregar nuevo miembro al equipo
+          </Link>
         </div>
 
         {error && <p className="text-sm text-danger-500">{error}</p>}
