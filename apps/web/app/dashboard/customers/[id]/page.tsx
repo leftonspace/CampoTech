@@ -17,7 +17,9 @@ import {
   Briefcase,
   Save,
   X,
+  MessageCircle,
 } from 'lucide-react';
+import { generateCustomerWhatsAppLink } from '@/lib/whatsapp-links';
 
 interface Customer {
   id: string;
@@ -375,6 +377,18 @@ export default function CustomerDetailPage() {
           <div className="card p-6">
             <h2 className="mb-4 font-medium text-gray-900">Acciones rápidas</h2>
             <div className="space-y-2">
+              {/* WhatsApp button */}
+              {customer.phone && (
+                <a
+                  href={generateCustomerWhatsAppLink(customer.phone, customer.name)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-outline w-full justify-center bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Enviar WhatsApp
+                </a>
+              )}
               <Link
                 href={`/dashboard/jobs/new?customerId=${customer.id}`}
                 className="btn-primary w-full justify-center"

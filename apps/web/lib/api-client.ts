@@ -439,6 +439,18 @@ export const api = {
         ),
     },
     stats: () => apiRequest<unknown>('/whatsapp/stats'),
+    usage: {
+      get: () => apiRequest<unknown>('/whatsapp/usage'),
+    },
+    provision: {
+      status: () => apiRequest<unknown>('/whatsapp/provision'),
+      available: () => apiRequest<unknown[]>('/whatsapp/provision/available'),
+      start: (data: { numberId: string }) =>
+        apiRequest('/whatsapp/provision', { method: 'POST', body: data }),
+      verify: (data: { code: string } | { resend: boolean }) =>
+        apiRequest('/whatsapp/provision/verify', { method: 'POST', body: data }),
+      release: () => apiRequest('/whatsapp/provision', { method: 'DELETE' }),
+    },
   },
 
   // Voice AI
