@@ -240,15 +240,20 @@ export async function POST(request: NextRequest) {
     }> = body.visits || [];
 
     // Expand recurring visits into individual visit records
+    // Track configIndex to group visits by their original "Visita" configuration
     const expandedVisits: Array<{
       date: Date;
       timeStart?: string;
       timeEnd?: string;
       technicianIds?: string[];
       isFromRecurrence?: boolean;
+      configIndex: number; // Which "Visita" config this came from (1, 2, 3...)
     }> = [];
 
-    for (const visit of rawVisits) {
+    // Each entry in rawVisits is one "Visita" configuration from the form
+    rawVisits.forEach((visit, configIdx) => {
+      const configIndex = configIdx + 1; // 1-based index
+
       if (visit.isRecurring && visit.recurrencePattern && visit.recurrenceCount) {
         // Generate all dates for this recurring visit
         const recurringDates = generateRecurringDates(
@@ -256,7 +261,7 @@ export async function POST(request: NextRequest) {
           visit.recurrencePattern,
           visit.recurrenceCount
         );
-        // Add each recurring date as a separate visit
+        // Add each recurring date as a separate visit, all sharing the same configIndex
         for (const date of recurringDates) {
           expandedVisits.push({
             date,
@@ -264,6 +269,7 @@ export async function POST(request: NextRequest) {
             timeEnd: visit.timeEnd,
             technicianIds: visit.technicianIds,
             isFromRecurrence: true,
+            configIndex,
           });
         }
       } else {
@@ -274,9 +280,10 @@ export async function POST(request: NextRequest) {
           timeEnd: visit.timeEnd,
           technicianIds: visit.technicianIds,
           isFromRecurrence: false,
+          configIndex,
         });
       }
-    }
+    });
 
     // Determine duration type and visit count
     const hasRecurrence = rawVisits.some(v => v.isRecurring);
@@ -311,9 +318,11 @@ export async function POST(request: NextRequest) {
             })),
           },
           // Create JobVisit records for all expanded visits (including recurring)
+          // visitConfigIndex groups visits by their original "Visita" config from the form
           visits: expandedVisits.length > 0 ? {
             create: expandedVisits.map((visit, index) => ({
               visitNumber: index + 1,
+              visitConfigIndex: visit.configIndex,
               scheduledDate: visit.date,
               scheduledTimeSlot: visit.timeStart || visit.timeEnd
                 ? { start: visit.timeStart || '', end: visit.timeEnd || '' }
