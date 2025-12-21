@@ -26,6 +26,8 @@ import {
   ExternalLink,
   Users,
   Plus,
+  CalendarDays,
+  Repeat,
 } from 'lucide-react';
 import { cn, formatCurrency, formatPhone, formatAddress, formatDate, formatDateTime, getInitials, JOB_STATUS_LABELS, JOB_STATUS_COLORS } from '@/lib/utils';
 import { Job, Customer } from '@/types';
@@ -365,6 +367,98 @@ export default function JobDetailModal({
                   </div>
                 )}
               </div>
+
+              {/* Visits Section (for multi-visit jobs) */}
+              {(() => {
+                const jobAny = job as any;
+                const visits = jobAny.visits || [];
+                const durationType = jobAny.durationType || 'SINGLE_VISIT';
+                const isMultiVisit = durationType === 'MULTIPLE_VISITS' || durationType === 'RECURRING' || visits.length > 1;
+
+                if (!isMultiVisit && visits.length === 0) return null;
+
+                return (
+                  <div className="p-6 border-b">
+                    <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
+                      {durationType === 'RECURRING' ? (
+                        <>
+                          <Repeat className="h-4 w-4" />
+                          Visitas Recurrentes
+                        </>
+                      ) : (
+                        <>
+                          <CalendarDays className="h-4 w-4" />
+                          Visitas Programadas ({visits.length})
+                        </>
+                      )}
+                    </h3>
+                    {visits.length > 0 ? (
+                      <div className="space-y-2">
+                        {visits.map((visit: any) => {
+                          const visitTimeSlot = visit.scheduledTimeSlot as { start?: string; end?: string } | null;
+                          const visitTime = visitTimeSlot?.start && visitTimeSlot?.end
+                            ? `${visitTimeSlot.start} - ${visitTimeSlot.end}`
+                            : visitTimeSlot?.start || '';
+
+                          return (
+                            <div
+                              key={visit.id}
+                              className={cn(
+                                'flex items-center justify-between p-3 rounded-lg border',
+                                visit.status === 'COMPLETED' ? 'bg-green-50 border-green-200' :
+                                visit.status === 'IN_PROGRESS' ? 'bg-orange-50 border-orange-200' :
+                                'bg-gray-50 border-gray-200'
+                              )}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className={cn(
+                                  'w-8 h-8 rounded-full flex items-center justify-center font-medium text-sm',
+                                  visit.status === 'COMPLETED' ? 'bg-green-200 text-green-700' :
+                                  visit.status === 'IN_PROGRESS' ? 'bg-orange-200 text-orange-700' :
+                                  'bg-gray-200 text-gray-700'
+                                )}>
+                                  {visit.visitNumber}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2 text-sm">
+                                    <Calendar className="h-3.5 w-3.5 text-gray-400" />
+                                    <span className="font-medium">{formatDate(visit.scheduledDate)}</span>
+                                    {visitTime && (
+                                      <>
+                                        <Clock className="h-3.5 w-3.5 text-gray-400 ml-1" />
+                                        <span className="text-gray-600">{visitTime}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                  {visit.technician && (
+                                    <div className="flex items-center gap-1 mt-1 text-xs text-gray-500">
+                                      <User className="h-3 w-3" />
+                                      {visit.technician.name}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <span className={cn(
+                                'px-2 py-0.5 text-xs font-medium rounded-full',
+                                JOB_STATUS_COLORS[visit.status]
+                              )}>
+                                {JOB_STATUS_LABELS[visit.status]}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        {durationType === 'RECURRING'
+                          ? 'Las visitas recurrentes se generarán automáticamente'
+                          : 'No hay visitas programadas'
+                        }
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Status Actions (if not final) */}
               {!isFinal && (
