@@ -205,11 +205,14 @@ export default function NewJobPage() {
   // Convert 12h to 24h format for API
   const convertTo24h = (time12h: string, period: 'AM' | 'PM'): string => {
     if (!time12h) return '';
-    const [hours, minutes] = time12h.split(':').map(Number);
+    // Handle flexible input: "1", "11", "1:30", "11:30"
+    const parts = time12h.split(':');
+    const hours = parseInt(parts[0]) || 0;
+    const minutes = parts[1] ? parseInt(parts[1]) || 0 : 0;
     let h = hours;
     if (period === 'PM' && hours !== 12) h += 12;
     if (period === 'AM' && hours === 12) h = 0;
-    return `${String(h).padStart(2, '0')}:${String(minutes || 0).padStart(2, '0')}`;
+    return `${String(h).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   };
 
   // Visit management functions
@@ -399,16 +402,42 @@ export default function NewJobPage() {
       durationType = 'MULTIPLE_VISITS';
     }
 
-    // Build job data
+    // Map priority to urgency for API
+    const priorityToUrgency: Record<string, string> = {
+      low: 'LOW',
+      normal: 'NORMAL',
+      high: 'HIGH',
+      urgent: 'URGENT',
+    };
+
+    // Valid service type enum values (database constraint)
+    const validServiceTypes = [
+      'INSTALACION_SPLIT', 'REPARACION_SPLIT', 'MANTENIMIENTO_SPLIT',
+      'INSTALACION_CALEFACTOR', 'REPARACION_CALEFACTOR', 'MANTENIMIENTO_CALEFACTOR',
+      'OTRO'
+    ];
+    // Default to OTRO if custom service type isn't in the enum
+    const serviceType = validServiceTypes.includes(formData.serviceType)
+      ? formData.serviceType
+      : 'OTRO';
+
+    // Build job data with correct field names for API
+    // Combine title into description if both exist
+    const fullDescription = formData.title
+      ? (formData.description ? `${formData.title}\n\n${formData.description}` : formData.title)
+      : formData.description;
+
     const jobData = {
-      ...formData,
+      description: fullDescription || 'Sin descripción',
+      serviceType: serviceType,
+      urgency: priorityToUrgency[formData.priority] || 'NORMAL',
       customerId: selectedCustomer.id,
-      serviceType: formData.serviceType || 'OTRO',
       durationType,
       // First visit data for backwards compatibility
       scheduledDate: formattedVisits[0].date,
-      scheduledTimeStart: formattedVisits[0].timeStart,
-      scheduledTimeEnd: formattedVisits[0].timeEnd,
+      scheduledTimeSlot: formattedVisits[0].timeStart || formattedVisits[0].timeEnd
+        ? { start: formattedVisits[0].timeStart || '', end: formattedVisits[0].timeEnd || '' }
+        : null,
       technicianIds: formattedVisits[0].technicianIds,
       // All visits for multi-visit jobs (now includes per-visit recurrence)
       visits: formattedVisits,
@@ -741,12 +770,11 @@ export default function NewJobPage() {
                       <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                       <input
                         type="text"
-                        placeholder="09:00"
+                        placeholder="9:00"
                         value={visit.timeStart}
                         onChange={(e) => {
-                          let val = e.target.value.replace(/[^0-9:]/g, '');
-                          if (val.length === 2 && !val.includes(':')) val += ':';
-                          if (val.length > 5) val = val.slice(0, 5);
+                          // Allow flexible input: 1, 11, 1:30, 11:30
+                          const val = e.target.value.replace(/[^0-9:]/g, '').slice(0, 5);
                           updateVisit(visit.id, 'timeStart', val);
                         }}
                         className="input pl-10"
@@ -769,12 +797,11 @@ export default function NewJobPage() {
                       <Clock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                       <input
                         type="text"
-                        placeholder="05:00"
+                        placeholder="5:00"
                         value={visit.timeEnd}
                         onChange={(e) => {
-                          let val = e.target.value.replace(/[^0-9:]/g, '');
-                          if (val.length === 2 && !val.includes(':')) val += ':';
-                          if (val.length > 5) val = val.slice(0, 5);
+                          // Allow flexible input: 1, 11, 1:30, 11:30
+                          const val = e.target.value.replace(/[^0-9:]/g, '').slice(0, 5);
                           updateVisit(visit.id, 'timeEnd', val);
                         }}
                         className="input pl-10"
