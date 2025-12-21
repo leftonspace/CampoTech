@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { RefreshCw, Clock, User } from 'lucide-react';
+import { RefreshCw, Clock, User, Star, Repeat, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDateBuenosAires, getBuenosAiresNow, TIMEZONE } from '@/lib/timezone';
 
@@ -16,7 +16,14 @@ export interface CalendarEvent {
   backgroundColor: string;
   borderColor?: string;
   extendedProps: {
+    jobId?: string;
     jobNumber: string;
+    visitId?: string;
+    visitNumber?: number;
+    totalVisits?: number;
+    durationType?: 'SINGLE_VISIT' | 'MULTIPLE_VISITS' | 'RECURRING';
+    isFirstVisit?: boolean;
+    isVisit?: boolean;
     status: string;
     urgency: string;
     serviceType?: string;
@@ -339,6 +346,13 @@ function SidePanelJobCard({
     ? SERVICE_TYPE_LABELS[job.serviceType] || job.serviceType
     : job.description || 'Servicio';
 
+  // Visit type info
+  const isRecurring = job.durationType === 'RECURRING';
+  const isMultiVisit = job.durationType === 'MULTIPLE_VISITS' || (job.totalVisits && job.totalVisits > 1);
+  const visitNumber = job.visitNumber || 1;
+  const totalVisits = job.totalVisits || 1;
+  const isFirstVisit = job.isFirstVisit;
+
   // Get technician name abbreviation (first name + last initial)
   const getTechnicianAbbrev = (name: string) => {
     const parts = name.split(' ');
@@ -369,6 +383,33 @@ function SidePanelJobCard({
 
       {/* Service type / description */}
       <h4 className="font-medium text-gray-900 mb-1.5">{serviceLabel}</h4>
+
+      {/* Badges row: first visit, visit type */}
+      <div className="flex flex-wrap gap-1.5 mb-2">
+        {/* First visit badge */}
+        {isFirstVisit && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">
+            <Star className="h-3 w-3" />
+            Primera visita
+          </span>
+        )}
+
+        {/* Recurring badge */}
+        {isRecurring && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700">
+            <Repeat className="h-3 w-3" />
+            Recurrente
+          </span>
+        )}
+
+        {/* Multi-visit badge with visit number */}
+        {isMultiVisit && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+            <CalendarDays className="h-3 w-3" />
+            {visitNumber}/{totalVisits}
+          </span>
+        )}
+      </div>
 
       {/* Technician */}
       {job.technician ? (

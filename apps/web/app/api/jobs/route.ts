@@ -28,6 +28,46 @@ function transformJobTimeSlot(job: any): any {
   };
 }
 
+// Generate recurring dates based on pattern
+function generateRecurringDates(
+  startDate: Date,
+  pattern: string,
+  count: number
+): Date[] {
+  const dates: Date[] = [new Date(startDate)];
+
+  for (let i = 1; i < count; i++) {
+    const nextDate = new Date(startDate);
+
+    switch (pattern) {
+      case 'WEEKLY':
+        nextDate.setDate(nextDate.getDate() + (7 * i));
+        break;
+      case 'BIWEEKLY':
+        nextDate.setDate(nextDate.getDate() + (14 * i));
+        break;
+      case 'MONTHLY':
+        nextDate.setMonth(nextDate.getMonth() + i);
+        break;
+      case 'QUARTERLY':
+        nextDate.setMonth(nextDate.getMonth() + (3 * i));
+        break;
+      case 'BIANNUAL':
+        nextDate.setMonth(nextDate.getMonth() + (6 * i));
+        break;
+      case 'ANNUAL':
+        nextDate.setFullYear(nextDate.getFullYear() + i);
+        break;
+      default:
+        nextDate.setDate(nextDate.getDate() + (7 * i)); // Default to weekly
+    }
+
+    dates.push(nextDate);
+  }
+
+  return dates;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
@@ -189,7 +229,7 @@ export async function POST(request: NextRequest) {
         : [];
 
     // Parse visits array for multi-visit jobs
-    const visits: Array<{
+    const rawVisits: Array<{
       date: string;
       timeStart?: string;
       timeEnd?: string;
@@ -199,10 +239,49 @@ export async function POST(request: NextRequest) {
       recurrenceCount?: number;
     }> = body.visits || [];
 
+    // Expand recurring visits into individual visit records
+    const expandedVisits: Array<{
+      date: Date;
+      timeStart?: string;
+      timeEnd?: string;
+      technicianIds?: string[];
+      isFromRecurrence?: boolean;
+    }> = [];
+
+    for (const visit of rawVisits) {
+      if (visit.isRecurring && visit.recurrencePattern && visit.recurrenceCount) {
+        // Generate all dates for this recurring visit
+        const recurringDates = generateRecurringDates(
+          new Date(visit.date),
+          visit.recurrencePattern,
+          visit.recurrenceCount
+        );
+        // Add each recurring date as a separate visit
+        for (const date of recurringDates) {
+          expandedVisits.push({
+            date,
+            timeStart: visit.timeStart,
+            timeEnd: visit.timeEnd,
+            technicianIds: visit.technicianIds,
+            isFromRecurrence: true,
+          });
+        }
+      } else {
+        // Non-recurring visit, add as-is
+        expandedVisits.push({
+          date: new Date(visit.date),
+          timeStart: visit.timeStart,
+          timeEnd: visit.timeEnd,
+          technicianIds: visit.technicianIds,
+          isFromRecurrence: false,
+        });
+      }
+    }
+
     // Determine duration type and visit count
-    const durationType = body.durationType || 'SINGLE_VISIT';
-    const visitCount = visits.length > 1 ? visits.length : null;
-    const hasRecurrence = visits.some(v => v.isRecurring);
+    const hasRecurrence = rawVisits.some(v => v.isRecurring);
+    const durationType = body.durationType || (hasRecurrence ? 'RECURRING' : (expandedVisits.length > 1 ? 'MULTIPLE_VISITS' : 'SINGLE_VISIT'));
+    const visitCount = expandedVisits.length > 1 ? expandedVisits.length : null;
 
     // Try to create job with assignments and visits
     let job;
@@ -223,19 +302,19 @@ export async function POST(request: NextRequest) {
           // Multi-visit fields
           durationType: durationType as any,
           visitCount,
-          recurrencePattern: hasRecurrence ? (visits[0]?.recurrencePattern as any) : null,
-          recurrenceCount: hasRecurrence ? visits[0]?.recurrenceCount : null,
+          recurrencePattern: hasRecurrence ? (rawVisits.find(v => v.isRecurring)?.recurrencePattern as any) : null,
+          recurrenceCount: hasRecurrence ? rawVisits.find(v => v.isRecurring)?.recurrenceCount : null,
           // Create job assignments for all technicians
           assignments: {
             create: technicianIds.map((techId: string) => ({
               technicianId: techId,
             })),
           },
-          // Create JobVisit records for multi-visit jobs
-          visits: visits.length > 0 ? {
-            create: visits.map((visit, index) => ({
+          // Create JobVisit records for all expanded visits (including recurring)
+          visits: expandedVisits.length > 0 ? {
+            create: expandedVisits.map((visit, index) => ({
               visitNumber: index + 1,
-              scheduledDate: new Date(visit.date),
+              scheduledDate: visit.date,
               scheduledTimeSlot: visit.timeStart || visit.timeEnd
                 ? { start: visit.timeStart || '', end: visit.timeEnd || '' }
                 : null,
