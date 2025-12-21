@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
@@ -16,32 +16,39 @@ import {
   Shield,
   ExternalLink,
   AlertTriangle,
+  Smartphone,
+  Bot,
+  QrCode,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 interface WhatsAppSettings {
-  configured: boolean;
-  phoneNumberId?: string;
-  displayPhoneNumber?: string;
-  businessAccountId?: string;
-  verifiedName?: string;
-  qualityRating?: 'GREEN' | 'YELLOW' | 'RED';
-  messagingLimit?: string;
-  webhookConfigured?: boolean;
-  panicMode?: {
-    active: boolean;
-    reason?: string;
-    triggeredAt?: string;
-  };
+  integrationType: 'NONE' | 'WAME_LINK' | 'BSP_API';
+  isConfigured: boolean;
+  personalNumber?: string;
+  displayPersonalNumber?: string;
+  hasPersonalNumber: boolean;
+  hasBspCredentials: boolean;
+  hasPhoneNumberId: boolean;
+  hasBusinessAccountId: boolean;
+  hasAccessToken: boolean;
+  hasAppSecret: boolean;
+  hasWebhookVerifyToken: boolean;
+  subscriptionTier: string;
+  canUseBsp: boolean;
 }
 
 export default function WhatsAppSettingsPage() {
   const queryClient = useQueryClient();
-  const [showCredentials, setShowCredentials] = useState(false);
+  const [showBspCredentials, setShowBspCredentials] = useState(false);
+  const [personalNumber, setPersonalNumber] = useState('');
   const [phoneNumberId, setPhoneNumberId] = useState('');
   const [businessAccountId, setBusinessAccountId] = useState('');
   const [accessToken, setAccessToken] = useState('');
   const [appSecret, setAppSecret] = useState('');
   const [webhookVerifyToken, setWebhookVerifyToken] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['settings-whatsapp'],
@@ -50,6 +57,44 @@ export default function WhatsAppSettingsPage() {
 
   const settings = data?.data as WhatsAppSettings | undefined;
 
+  // Initialize personal number from settings
+  useEffect(() => {
+    if (settings?.personalNumber) {
+      setPersonalNumber(settings.personalNumber);
+    }
+  }, [settings?.personalNumber]);
+
+  const savePersonalNumberMutation = useMutation({
+    mutationFn: (number: string) =>
+      fetch('/api/settings/whatsapp', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personalNumber: number }),
+      }).then((res) => res.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings-whatsapp'] });
+    },
+  });
+
+  const saveBspCredentialsMutation = useMutation({
+    mutationFn: (data: {
+      phoneNumberId: string;
+      businessAccountId: string;
+      accessToken: string;
+      appSecret: string;
+      webhookVerifyToken: string;
+    }) =>
+      fetch('/api/settings/whatsapp', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }).then((res) => res.json()),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings-whatsapp'] });
+      setShowBspCredentials(false);
+    },
+  });
+
   const testMutation = useMutation({
     mutationFn: () => api.settings.whatsapp.testConnection(),
     onSuccess: () => {
@@ -57,29 +102,12 @@ export default function WhatsAppSettingsPage() {
     },
   });
 
-  const saveMutation = useMutation({
-    mutationFn: (data: {
-      phoneNumberId: string;
-      businessAccountId: string;
-      accessToken: string;
-      appSecret: string;
-      webhookVerifyToken: string;
-    }) => api.settings.whatsapp.save(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings-whatsapp'] });
-      setShowCredentials(false);
-    },
-  });
+  const handleSavePersonalNumber = () => {
+    savePersonalNumberMutation.mutate(personalNumber);
+  };
 
-  const resolvePanicMutation = useMutation({
-    mutationFn: () => api.settings.whatsapp.resolvePanic(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['settings-whatsapp'] });
-    },
-  });
-
-  const handleSave = () => {
-    saveMutation.mutate({
+  const handleSaveBspCredentials = () => {
+    saveBspCredentialsMutation.mutate({
       phoneNumberId,
       businessAccountId,
       accessToken,
@@ -88,30 +116,27 @@ export default function WhatsAppSettingsPage() {
     });
   };
 
-  const getQualityBadge = (rating: string) => {
-    switch (rating) {
-      case 'GREEN':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-success-50 text-success-700">
-            Buena calidad
-          </span>
-        );
-      case 'YELLOW':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-warning-50 text-warning-700">
-            Calidad media
-          </span>
-        );
-      case 'RED':
-        return (
-          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-danger-50 text-danger-700">
-            Calidad baja
-          </span>
-        );
-      default:
-        return null;
+  const handleCopyWaLink = () => {
+    if (settings?.personalNumber) {
+      const waLink = `https://wa.me/${settings.personalNumber}`;
+      navigator.clipboard.writeText(waLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
+
+  const formatPhoneInput = (value: string) => {
+    // Allow only digits, +, spaces, and dashes
+    return value.replace(/[^\d+\s\-]/g, '');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent" />
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -125,48 +150,21 @@ export default function WhatsAppSettingsPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-bold text-gray-900">WhatsApp Business</h1>
-          <p className="text-gray-500">Configuración de mensajería</p>
+          <p className="text-gray-500">Configurá tu integración de WhatsApp</p>
         </div>
       </div>
 
-      {/* Panic mode alert */}
-      {settings?.panicMode?.active && (
-        <div className="p-4 bg-danger-50 border border-danger-200 rounded-lg">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-danger-500 mt-0.5" />
-            <div className="flex-1">
-              <h3 className="font-medium text-danger-800">Modo Pánico Activado</h3>
-              <p className="text-sm text-danger-700 mt-1">
-                {settings.panicMode.reason || 'Se detectaron problemas críticos'}
-              </p>
-              {settings.panicMode.triggeredAt && (
-                <p className="text-xs text-danger-600 mt-1">
-                  Activado: {new Date(settings.panicMode.triggeredAt).toLocaleString('es-AR')}
-                </p>
-              )}
-              <button
-                onClick={() => resolvePanicMutation.mutate()}
-                disabled={resolvePanicMutation.isPending}
-                className="mt-3 btn-outline text-danger-600 border-danger-300 hover:bg-danger-100"
-              >
-                {resolvePanicMutation.isPending ? 'Resolviendo...' : 'Resolver manualmente'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Status card */}
+      {/* Status Overview */}
       <div className="card p-6">
         <div className="flex items-center gap-4">
           <div
             className={`rounded-full p-3 ${
-              settings?.configured
+              settings?.isConfigured
                 ? 'bg-success-50 text-success-500'
                 : 'bg-warning-50 text-warning-500'
             }`}
           >
-            {settings?.configured ? (
+            {settings?.isConfigured ? (
               <CheckCircle className="h-6 w-6" />
             ) : (
               <AlertCircle className="h-6 w-6" />
@@ -174,212 +172,342 @@ export default function WhatsAppSettingsPage() {
           </div>
           <div className="flex-1">
             <p className="font-medium text-gray-900">
-              {settings?.configured ? 'WhatsApp configurado' : 'No configurado'}
+              {settings?.isConfigured
+                ? 'WhatsApp configurado'
+                : 'No configurado'}
             </p>
             <p className="text-sm text-gray-500">
-              {settings?.configured
-                ? `${settings.displayPhoneNumber || 'Número configurado'}`
-                : 'Configurá tus credenciales de WhatsApp Business API'}
+              {settings?.integrationType === 'WAME_LINK' && settings?.displayPersonalNumber
+                ? `Usando número personal: ${settings.displayPersonalNumber}`
+                : settings?.integrationType === 'BSP_API'
+                ? 'WhatsApp Business API activo'
+                : 'Configurá tu número de WhatsApp para empezar'}
             </p>
           </div>
-          {settings?.configured && (
-            <button
-              onClick={() => testMutation.mutate()}
-              disabled={testMutation.isPending}
-              className="btn-outline"
-            >
-              <RefreshCw
-                className={`mr-2 h-4 w-4 ${testMutation.isPending ? 'animate-spin' : ''}`}
-              />
-              Probar
-            </button>
-          )}
         </div>
-
-        {/* Status details */}
-        {settings?.configured && (
-          <div className="mt-4 pt-4 border-t grid gap-3 sm:grid-cols-2">
-            {settings.verifiedName && (
-              <div className="flex items-center gap-2 text-sm">
-                <Building2 className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-600">{settings.verifiedName}</span>
-              </div>
-            )}
-            {settings.qualityRating && (
-              <div className="flex items-center gap-2 text-sm">
-                <Shield className="h-4 w-4 text-gray-400" />
-                {getQualityBadge(settings.qualityRating)}
-              </div>
-            )}
-            {settings.messagingLimit && (
-              <div className="flex items-center gap-2 text-sm">
-                <MessageCircle className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-600">Límite: {settings.messagingLimit}</span>
-              </div>
-            )}
-            {settings.webhookConfigured !== undefined && (
-              <div className="flex items-center gap-2 text-sm">
-                {settings.webhookConfigured ? (
-                  <CheckCircle className="h-4 w-4 text-success-500" />
-                ) : (
-                  <AlertCircle className="h-4 w-4 text-warning-500" />
-                )}
-                <span className="text-gray-600">
-                  Webhook {settings.webhookConfigured ? 'configurado' : 'pendiente'}
-                </span>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* Credentials form */}
+      {/* Personal Number Section (wa.me links) */}
       <div className="card p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-medium text-gray-900">Credenciales</h2>
-          {settings?.configured && !showCredentials && (
-            <button
-              onClick={() => setShowCredentials(true)}
-              className="text-sm text-primary-600 hover:underline"
-            >
-              Editar
-            </button>
-          )}
+        <div className="flex items-center gap-3 mb-4">
+          <div className="rounded-full p-2 bg-green-100 text-green-600">
+            <Smartphone className="h-5 w-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-medium text-gray-900">Número Personal</h2>
+            <p className="text-sm text-gray-500">
+              Usá tu WhatsApp personal para que tus clientes te contacten
+            </p>
+          </div>
         </div>
 
-        {(!settings?.configured || showCredentials) && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSave();
-            }}
-            className="space-y-4"
-          >
-            <div>
-              <label className="label mb-1 block">
-                <Phone className="inline h-4 w-4 mr-1" />
-                Phone Number ID
-              </label>
+        <div className="space-y-4">
+          <div>
+            <label className="label mb-1 block">
+              <Phone className="inline h-4 w-4 mr-1" />
+              Tu número de WhatsApp
+            </label>
+            <div className="flex gap-2">
               <input
-                type="text"
-                value={phoneNumberId}
-                onChange={(e) => setPhoneNumberId(e.target.value)}
-                placeholder="Ej: 123456789012345"
-                className="input"
+                type="tel"
+                value={personalNumber}
+                onChange={(e) => setPersonalNumber(formatPhoneInput(e.target.value))}
+                placeholder="Ej: +54 11 5555-1234"
+                className="input flex-1"
               />
-            </div>
-
-            <div>
-              <label className="label mb-1 block">
-                <Building2 className="inline h-4 w-4 mr-1" />
-                Business Account ID
-              </label>
-              <input
-                type="text"
-                value={businessAccountId}
-                onChange={(e) => setBusinessAccountId(e.target.value)}
-                placeholder="Ej: 123456789012345"
-                className="input"
-              />
-            </div>
-
-            <div>
-              <label className="label mb-1 block">
-                <Key className="inline h-4 w-4 mr-1" />
-                Access Token
-              </label>
-              <input
-                type="password"
-                value={accessToken}
-                onChange={(e) => setAccessToken(e.target.value)}
-                placeholder="Token de acceso permanente"
-                className="input"
-              />
-            </div>
-
-            <div>
-              <label className="label mb-1 block">
-                <Shield className="inline h-4 w-4 mr-1" />
-                App Secret
-              </label>
-              <input
-                type="password"
-                value={appSecret}
-                onChange={(e) => setAppSecret(e.target.value)}
-                placeholder="Para validación de webhooks"
-                className="input"
-              />
-            </div>
-
-            <div>
-              <label className="label mb-1 block">
-                <Key className="inline h-4 w-4 mr-1" />
-                Webhook Verify Token
-              </label>
-              <input
-                type="text"
-                value={webhookVerifyToken}
-                onChange={(e) => setWebhookVerifyToken(e.target.value)}
-                placeholder="Token personalizado para verificar webhook"
-                className="input"
-              />
-            </div>
-
-            <div className="flex gap-3">
               <button
-                type="submit"
-                disabled={saveMutation.isPending}
+                onClick={handleSavePersonalNumber}
+                disabled={savePersonalNumberMutation.isPending || !personalNumber}
                 className="btn-primary"
               >
-                {saveMutation.isPending ? 'Guardando...' : 'Guardar credenciales'}
+                {savePersonalNumberMutation.isPending ? 'Guardando...' : 'Guardar'}
               </button>
-              {showCredentials && (
-                <button
-                  type="button"
-                  onClick={() => setShowCredentials(false)}
-                  className="btn-outline"
-                >
-                  Cancelar
-                </button>
-              )}
             </div>
-          </form>
-        )}
-      </div>
+            <p className="text-xs text-gray-500 mt-1">
+              Ingresá tu número con código de país (ej: +54 para Argentina)
+            </p>
+          </div>
 
-      {/* Webhook configuration */}
-      <div className="card p-6">
-        <h2 className="mb-4 text-lg font-medium text-gray-900">
-          Configuración del Webhook
-        </h2>
-        <p className="text-sm text-gray-600 mb-4">
-          Configurá esta URL en tu aplicación de Meta Business:
-        </p>
-        <div className="p-3 bg-gray-100 rounded-lg font-mono text-sm break-all">
-          https://api.campo.tech/webhooks/whatsapp
+          {/* Preview wa.me link */}
+          {settings?.personalNumber && (
+            <div className="mt-4 p-4 bg-green-50 rounded-lg">
+              <p className="text-sm font-medium text-green-800 mb-2">
+                Tu link de WhatsApp:
+              </p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 p-2 bg-white rounded text-sm font-mono text-green-700 break-all">
+                  https://wa.me/{settings.personalNumber}
+                </code>
+                <button
+                  onClick={handleCopyWaLink}
+                  className="p-2 rounded-md hover:bg-green-100 text-green-600"
+                  title="Copiar link"
+                >
+                  {copied ? <Check className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+                </button>
+              </div>
+              <div className="mt-3 flex gap-2">
+                <a
+                  href={`https://wa.me/${settings.personalNumber}?text=${encodeURIComponent('Hola, quiero hacer una consulta')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-outline text-sm py-1.5"
+                >
+                  <ExternalLink className="h-4 w-4 mr-1" />
+                  Probar link
+                </a>
+              </div>
+            </div>
+          )}
         </div>
-        <div className="mt-4 space-y-2 text-sm text-gray-600">
-          <p><strong>Eventos a suscribir:</strong></p>
-          <ul className="list-disc list-inside space-y-1 ml-4">
-            <li>messages</li>
-            <li>message_deliveries</li>
-            <li>message_reads</li>
-            <li>messaging_handovers</li>
+
+        {/* Benefits */}
+        <div className="mt-6 pt-4 border-t">
+          <p className="text-sm font-medium text-gray-700 mb-2">Con tu número personal podés:</p>
+          <ul className="text-sm text-gray-600 space-y-1">
+            <li className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              Agregar botón de WhatsApp en facturas
+            </li>
+            <li className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              Permitir consultas desde el perfil de cliente
+            </li>
+            <li className="flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              Generar código QR para tarjetas de visita
+            </li>
           </ul>
         </div>
       </div>
 
-      {/* Help */}
+      {/* BSP API Section (Professional+ tiers) */}
+      <div className="card p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="rounded-full p-2 bg-purple-100 text-purple-600">
+            <Bot className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-medium text-gray-900">WhatsApp Business API</h2>
+            <p className="text-sm text-gray-500">
+              Automatizá respuestas con IA y obtené un número exclusivo
+            </p>
+          </div>
+          {!settings?.canUseBsp && (
+            <Link
+              href="/dashboard/settings/billing"
+              className="text-xs px-2 py-1 rounded-full bg-purple-100 text-purple-700 hover:bg-purple-200"
+            >
+              Plan Profesional
+            </Link>
+          )}
+        </div>
+
+        {settings?.canUseBsp ? (
+          <div className="space-y-4">
+            {/* BSP Status */}
+            {settings.hasBspCredentials ? (
+              <div className="p-3 rounded-lg bg-purple-50 flex items-center gap-3">
+                <CheckCircle className="h-5 w-5 text-purple-600" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-purple-800">
+                    WhatsApp Business API configurado
+                  </p>
+                  <p className="text-xs text-purple-600">
+                    Tus clientes pueden contactarte y la IA responderá automáticamente
+                  </p>
+                </div>
+                <button
+                  onClick={() => testMutation.mutate()}
+                  disabled={testMutation.isPending}
+                  className="btn-outline text-sm py-1.5"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-1 ${testMutation.isPending ? 'animate-spin' : ''}`} />
+                  Probar
+                </button>
+              </div>
+            ) : (
+              <div className="p-3 rounded-lg bg-gray-50 flex items-center gap-3">
+                <AlertCircle className="h-5 w-5 text-gray-400" />
+                <p className="text-sm text-gray-600">
+                  No has configurado las credenciales de WhatsApp Business API
+                </p>
+              </div>
+            )}
+
+            {/* Edit Credentials Button */}
+            {!showBspCredentials && (
+              <button
+                onClick={() => setShowBspCredentials(true)}
+                className="text-sm text-primary-600 hover:underline"
+              >
+                {settings.hasBspCredentials ? 'Editar credenciales' : 'Configurar credenciales'}
+              </button>
+            )}
+
+            {/* Credentials Form */}
+            {showBspCredentials && (
+              <div className="space-y-4 mt-4 p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <label className="label mb-1 block">
+                    <Phone className="inline h-4 w-4 mr-1" />
+                    Phone Number ID
+                  </label>
+                  <input
+                    type="text"
+                    value={phoneNumberId}
+                    onChange={(e) => setPhoneNumberId(e.target.value)}
+                    placeholder="Ej: 123456789012345"
+                    className="input"
+                  />
+                </div>
+
+                <div>
+                  <label className="label mb-1 block">
+                    <Building2 className="inline h-4 w-4 mr-1" />
+                    Business Account ID
+                  </label>
+                  <input
+                    type="text"
+                    value={businessAccountId}
+                    onChange={(e) => setBusinessAccountId(e.target.value)}
+                    placeholder="Ej: 123456789012345"
+                    className="input"
+                  />
+                </div>
+
+                <div>
+                  <label className="label mb-1 block">
+                    <Key className="inline h-4 w-4 mr-1" />
+                    Access Token
+                  </label>
+                  <input
+                    type="password"
+                    value={accessToken}
+                    onChange={(e) => setAccessToken(e.target.value)}
+                    placeholder="Token de acceso permanente"
+                    className="input"
+                  />
+                </div>
+
+                <div>
+                  <label className="label mb-1 block">
+                    <Shield className="inline h-4 w-4 mr-1" />
+                    App Secret
+                  </label>
+                  <input
+                    type="password"
+                    value={appSecret}
+                    onChange={(e) => setAppSecret(e.target.value)}
+                    placeholder="Para validación de webhooks"
+                    className="input"
+                  />
+                </div>
+
+                <div>
+                  <label className="label mb-1 block">
+                    <Key className="inline h-4 w-4 mr-1" />
+                    Webhook Verify Token
+                  </label>
+                  <input
+                    type="text"
+                    value={webhookVerifyToken}
+                    onChange={(e) => setWebhookVerifyToken(e.target.value)}
+                    placeholder="Token personalizado para verificar webhook"
+                    className="input"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    onClick={handleSaveBspCredentials}
+                    disabled={saveBspCredentialsMutation.isPending}
+                    className="btn-primary"
+                  >
+                    {saveBspCredentialsMutation.isPending ? 'Guardando...' : 'Guardar credenciales'}
+                  </button>
+                  <button
+                    onClick={() => setShowBspCredentials(false)}
+                    className="btn-outline"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Webhook Info */}
+            {settings.hasBspCredentials && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                <h3 className="text-sm font-medium text-gray-700 mb-2">
+                  URL del Webhook
+                </h3>
+                <code className="block p-2 bg-white rounded text-sm font-mono break-all">
+                  https://api.campo.tech/webhooks/whatsapp
+                </code>
+                <p className="text-xs text-gray-500 mt-2">
+                  Configurá esta URL en tu aplicación de Meta Business
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="p-4 bg-gray-50 rounded-lg">
+            <p className="text-sm text-gray-600 mb-3">
+              Con el plan <strong>Profesional</strong> obtenés:
+            </p>
+            <ul className="text-sm text-gray-600 space-y-2">
+              <li className="flex items-center gap-2">
+                <Bot className="h-4 w-4 text-purple-500" />
+                IA que responde automáticamente a tus clientes
+              </li>
+              <li className="flex items-center gap-2">
+                <Phone className="h-4 w-4 text-purple-500" />
+                Número de WhatsApp exclusivo para tu negocio
+              </li>
+              <li className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-purple-500" />
+                Historial completo de conversaciones
+              </li>
+            </ul>
+            <Link
+              href="/dashboard/settings/billing"
+              className="btn-primary mt-4 inline-flex"
+            >
+              Actualizar a Profesional
+            </Link>
+          </div>
+        )}
+      </div>
+
+      {/* Help Section */}
       <div className="card p-6">
         <h2 className="mb-4 text-lg font-medium text-gray-900">
-          Cómo obtener las credenciales
+          Preguntas frecuentes
         </h2>
-        <ol className="space-y-3 text-sm text-gray-600">
-          <li className="flex gap-2">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-medium text-primary-600">
-              1
-            </span>
-            <span>
+        <div className="space-y-4 text-sm">
+          <div>
+            <p className="font-medium text-gray-700">
+              ¿Cuál es la diferencia entre usar mi número personal y el Business API?
+            </p>
+            <p className="text-gray-600 mt-1">
+              Con tu número personal, los clientes te escriben directamente a tu WhatsApp.
+              Con el Business API, obtenés un número exclusivo para tu negocio y la IA puede responder automáticamente.
+            </p>
+          </div>
+          <div>
+            <p className="font-medium text-gray-700">
+              ¿Puedo usar ambos al mismo tiempo?
+            </p>
+            <p className="text-gray-600 mt-1">
+              Sí, podés tener tu número personal configurado como alternativa mientras usás el Business API.
+            </p>
+          </div>
+          <div>
+            <p className="font-medium text-gray-700">
+              ¿Cómo obtengo las credenciales del Business API?
+            </p>
+            <p className="text-gray-600 mt-1">
               Accedé a{' '}
               <a
                 href="https://developers.facebook.com"
@@ -390,33 +518,10 @@ export default function WhatsAppSettingsPage() {
                 Meta for Developers
                 <ExternalLink className="h-3 w-3" />
               </a>
-            </span>
-          </li>
-          <li className="flex gap-2">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-medium text-primary-600">
-              2
-            </span>
-            <span>Seleccioná tu app o creá una nueva de tipo Business</span>
-          </li>
-          <li className="flex gap-2">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-medium text-primary-600">
-              3
-            </span>
-            <span>Agregá el producto WhatsApp a tu aplicación</span>
-          </li>
-          <li className="flex gap-2">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-medium text-primary-600">
-              4
-            </span>
-            <span>Copiá los IDs y tokens de la sección WhatsApp &gt; API Setup</span>
-          </li>
-          <li className="flex gap-2">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-medium text-primary-600">
-              5
-            </span>
-            <span>Generá un token de acceso permanente (System User Token)</span>
-          </li>
-        </ol>
+              {' '}y seguí los pasos para configurar WhatsApp en tu app.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -60,6 +60,9 @@ model Organization {
   whatsappWebhookVerifyToken  String?
   whatsappAppSecret           String?  // Encrypted
   whatsappBusinessAccount     WhatsAppBusinessAccount?
+  // WhatsApp Personal Number (for wa.me links - INICIAL tier)
+  whatsappPersonalNumber      String?                     // Business owner's personal WhatsApp number
+  whatsappIntegrationType     WhatsAppIntegrationType     @default(NONE)
   waConversations             WaConversation[]
   waMessages                  WaMessage[]
   waTemplates                 WaTemplate[]
@@ -203,6 +206,12 @@ enum SubscriptionTier {
   INICIAL      // Inicial - Entry level paid plan
   PROFESIONAL  // Profesional - Mid-tier plan
   EMPRESA      // Empresa - Enterprise plan
+}
+
+enum WhatsAppIntegrationType {
+  NONE        // No WhatsApp integration configured
+  WAME_LINK   // wa.me links only (uses personal number)
+  BSP_API     // Full BSP integration with virtual number
 }
 
 enum SubscriptionStatus {

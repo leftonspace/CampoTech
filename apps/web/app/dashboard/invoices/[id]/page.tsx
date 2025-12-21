@@ -34,8 +34,10 @@ import {
   AlertCircle,
   Printer,
   Share2,
+  MessageCircle,
 } from 'lucide-react';
 import { Invoice, Customer } from '@/types';
+import { generateInvoiceWhatsAppLink } from '@/lib/whatsapp-links';
 
 export default function InvoiceDetailPage() {
   const params = useParams();
@@ -426,6 +428,22 @@ export default function InvoiceDetailPage() {
           <div className="card p-6">
             <h2 className="mb-4 font-medium text-gray-900">Acciones</h2>
             <div className="space-y-2">
+              {/* WhatsApp button for invoice inquiries */}
+              {invoice.customer?.phone && (
+                <a
+                  href={generateInvoiceWhatsAppLink(
+                    invoice.customer.phone,
+                    invoiceNumber,
+                    invoice.invoiceType
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-outline w-full justify-center bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Consultar por WhatsApp
+                </a>
+              )}
               {invoice.customer && (
                 <Link
                   href={`/dashboard/invoices/new?customerId=${invoice.customer.id}`}
