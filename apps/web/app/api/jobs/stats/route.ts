@@ -31,9 +31,12 @@ export async function GET() {
       scheduledTodayCount,
       completedThisMonthCount,
     ] = await Promise.all([
-      // Total jobs
+      // Total jobs (excluding cancelled - they don't count as real work)
       prisma.job.count({
-        where: { organizationId },
+        where: {
+          organizationId,
+          status: { not: 'CANCELLED' },
+        },
       }),
 
       // In progress jobs
@@ -44,7 +47,7 @@ export async function GET() {
         },
       }),
 
-      // Jobs scheduled for today
+      // Jobs scheduled for today (excluding cancelled)
       prisma.job.count({
         where: {
           organizationId,
