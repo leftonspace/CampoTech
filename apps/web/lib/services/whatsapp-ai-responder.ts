@@ -20,6 +20,10 @@ import {
   SchedulingIntelligenceResult,
   TechnicianAvailability,
 } from './scheduling-intelligence';
+import {
+  getBookingWorkflow,
+  createWorkflowContext,
+} from './workflows';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -596,7 +600,66 @@ export class WhatsAppAIResponder {
 
     if (analysis.shouldCreateJob) {
       if (analysis.confidence >= config.minConfidenceToCreateJob) {
-        // Auto-create job
+        // High-confidence job creation - try using workflow for booking intent
+        if (analysis.intent === 'booking') {
+          const workflow = getBookingWorkflow();
+
+          // Check if workflow can handle this request
+          if (workflow.canHandle(analysis.intent, analysis.extractedEntities)) {
+            // Create workflow context
+            const workflowContext = createWorkflowContext({
+              organizationId: message.organizationId,
+              conversationId: message.conversationId,
+              customerPhone: message.customerPhone,
+              customerName: context.customer?.name,
+              extractedEntities: analysis.extractedEntities,
+              schedulingContext: enrichedContext.schedulingContext,
+              aiConfidence: analysis.confidence,
+              originalMessage: textContent,
+              messageType: message.messageType,
+            });
+
+            // Execute the booking workflow
+            const workflowResult = await workflow.execute(workflowContext);
+
+            // Handle workflow result
+            if (workflowResult.success && workflowResult.jobCreated) {
+              return {
+                success: true,
+                action: 'create_job',
+                response: workflowResult.response || analysis.suggestedResponse,
+                analysis,
+                jobCreated: workflowResult.jobCreated,
+                logId,
+              };
+            } else if (workflowResult.action === 'respond') {
+              // Workflow returned early (e.g., needs clarification)
+              return {
+                success: true,
+                action: 'respond',
+                response: workflowResult.response || analysis.suggestedResponse,
+                analysis,
+                logId,
+              };
+            } else if (!workflowResult.success) {
+              // Workflow failed, transfer to human
+              console.error('[AI Responder] Booking workflow failed:', workflowResult.error);
+              return {
+                success: true,
+                action: 'transfer',
+                analysis: {
+                  ...analysis,
+                  shouldTransfer: true,
+                  transferReason: workflowResult.error || 'Workflow execution failed',
+                },
+                transferTo: config.escalationUserId || undefined,
+                logId,
+              };
+            }
+          }
+        }
+
+        // Fallback to simple job creation for non-booking intents
         const job = await this.createJob(message.organizationId, analysis, message.customerPhone);
         return {
           success: true,

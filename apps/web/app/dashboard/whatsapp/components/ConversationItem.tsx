@@ -25,6 +25,19 @@ function MessageStatus({ status }: { status: string }) {
   }
 }
 
+/**
+ * Get AI confidence color based on score
+ */
+function getAIConfidenceStyle(confidence: number): { bg: string; text: string; label: string } {
+  if (confidence >= 80) {
+    return { bg: 'bg-green-100', text: 'text-green-700', label: 'Alto' };
+  } else if (confidence >= 50) {
+    return { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Medio' };
+  } else {
+    return { bg: 'bg-red-100', text: 'text-red-700', label: 'Bajo' };
+  }
+}
+
 export default function ConversationItem({
   conversation,
   isSelected,
@@ -37,6 +50,8 @@ export default function ConversationItem({
     unreadCount,
     isInWindow,
     aiHandling,
+    aiConfidence,
+    aiResolutionStatus,
     isNewLead,
     needsAttention,
     hasPendingJob,
@@ -49,10 +64,20 @@ export default function ConversationItem({
     .slice(0, 2)
     .toUpperCase();
 
+  // Get AI confidence styling
+  const confidenceStyle = aiConfidence !== undefined ? getAIConfidenceStyle(aiConfidence) : null;
+
   // Determine which tags to show (max 2 to avoid clutter)
   const tags: Array<{ label: string; color: string; icon?: React.ReactNode }> = [];
 
-  if (aiHandling) {
+  // Show AI confidence as first tag if available
+  if (aiConfidence !== undefined && aiHandling) {
+    tags.push({
+      label: `IA ${aiConfidence}%`,
+      color: `${confidenceStyle?.bg} ${confidenceStyle?.text}`,
+      icon: <Bot className="h-3 w-3" />,
+    });
+  } else if (aiHandling) {
     tags.push({
       label: 'AI Manejando',
       color: 'bg-teal-100 text-teal-700',
