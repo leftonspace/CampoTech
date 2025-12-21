@@ -184,6 +184,11 @@ export default function WhatsAppSettingsPage() {
                 : 'Configurá tu número de WhatsApp para empezar'}
             </p>
           </div>
+          {!settings?.isConfigured && (
+            <Link href="/dashboard/settings/whatsapp/setup" className="btn-primary">
+              Configurar
+            </Link>
+          )}
         </div>
       </div>
 
