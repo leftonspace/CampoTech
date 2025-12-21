@@ -311,7 +311,7 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
         )}
 
         {/* Media content */}
-        {message.type !== 'text' && message.type !== 'template' && message.type !== 'ai_action' && (
+        {message.type !== 'text' && message.type !== 'template' && (
           <div className="mb-2">{renderMediaContent()}</div>
         )}
 
