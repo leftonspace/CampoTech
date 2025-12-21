@@ -229,11 +229,13 @@ export async function POST(request: NextRequest) {
         : [];
 
     // Parse visits array for multi-visit jobs
+    // The frontend sends visitConfigIndex to indicate which "Visita" block each entry belongs to
     const rawVisits: Array<{
       date: string;
       timeStart?: string;
       timeEnd?: string;
       technicianIds?: string[];
+      visitConfigIndex?: number; // From frontend - which "Visita" block this came from
       isRecurring?: boolean;
       recurrencePattern?: string;
       recurrenceCount?: number;
@@ -250,9 +252,11 @@ export async function POST(request: NextRequest) {
       configIndex: number; // Which "Visita" config this came from (1, 2, 3...)
     }> = [];
 
-    // Each entry in rawVisits is one "Visita" configuration from the form
-    rawVisits.forEach((visit, configIdx) => {
-      const configIndex = configIdx + 1; // 1-based index
+    // Each entry in rawVisits may already have a visitConfigIndex from the frontend
+    // (for expanded date ranges) or we fall back to array index
+    rawVisits.forEach((visit, idx) => {
+      // Use frontend-provided configIndex, or fall back to array index + 1
+      const configIndex = visit.visitConfigIndex || (idx + 1);
 
       if (visit.isRecurring && visit.recurrencePattern && visit.recurrenceCount) {
         // Generate all dates for this recurring visit

@@ -96,6 +96,13 @@ export function JobCard({ event, onClose }: JobCardProps) {
   const totalVisits = job.totalVisits || 1;
   const isFirstVisit = job.isFirstVisit;
 
+  // Visita config info (for multi-config jobs)
+  const visitConfigIndex = job.visitConfigIndex || 1;
+  const totalConfigs = job.totalConfigs || 1;
+  const configTotalDates = job.configTotalDates || 1;
+  const visitNumberInConfig = job.visitNumberInConfig || 1;
+  const hasMultipleConfigs = totalConfigs > 1;
+
   // Get the actual job ID for links (not the event ID which might be "visit-xxx")
   const jobId = job.jobId || event.id.replace('visit-', '');
 
@@ -151,11 +158,19 @@ export function JobCard({ event, onClose }: JobCardProps) {
               </span>
             )}
 
-            {/* Multi-visit badge with visit number */}
-            {isMultiVisit && (
+            {/* Visita config badge (when there are multiple configs) */}
+            {hasMultipleConfigs && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full bg-primary-100 text-primary-700 border border-primary-200">
+                <CalendarDays className="h-3 w-3" />
+                Visita {visitConfigIndex}/{totalConfigs}
+              </span>
+            )}
+
+            {/* Date count within this config */}
+            {configTotalDates > 1 && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
                 <CalendarDays className="h-3 w-3" />
-                Visita {visitNumber}/{totalVisits}
+                {visitNumberInConfig}/{configTotalDates}
               </span>
             )}
           </div>
