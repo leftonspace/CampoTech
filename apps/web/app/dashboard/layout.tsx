@@ -26,7 +26,6 @@ import {
   LogOut,
   Menu,
   X,
-  Bell,
   MessageCircle,
   BarChart3,
   MapPin,
@@ -36,7 +35,6 @@ import {
   UsersRound,
   Lock,
   Eye,
-  Clock,
   Search,
   ChevronDown,
   ChevronLeft,
@@ -45,6 +43,7 @@ import {
   User,
 } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo } from 'react';
+import NotificationCenter from '@/components/notifications/NotificationCenter';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // NAVIGATION ITEMS
@@ -116,14 +115,12 @@ export default function DashboardLayout({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [upgradeModal, setUpgradeModal] = useState<{
     isOpen: boolean;
     moduleName?: string;
     feature?: FeatureId;
   }>({ isOpen: false });
-  const notificationRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
   const { user, logout } = useAuth();
@@ -182,9 +179,6 @@ export default function DashboardLayout({
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (notificationRef.current && !notificationRef.current.contains(event.target as Node)) {
-        setNotificationsOpen(false);
-      }
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setUserMenuOpen(false);
       }
@@ -370,31 +364,8 @@ export default function DashboardLayout({
 
             {/* Right Section */}
             <div className="flex items-center gap-3">
-              {/* Notifications */}
-              <div className="relative" ref={notificationRef}>
-                <button
-                  onClick={() => setNotificationsOpen(!notificationsOpen)}
-                  className="relative rounded-md p-2 text-muted-foreground hover:bg-muted"
-                >
-                  <Bell className="w-5 h-5" />
-                  <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center rounded-full bg-accent text-accent-foreground text-xs font-medium">
-                    3
-                  </span>
-                </button>
-
-                {notificationsOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-80 rounded-xl border bg-card shadow-lg z-50 animate-scale-in">
-                    <div className="border-b px-4 py-3">
-                      <h3 className="font-medium text-foreground">Notificaciones</h3>
-                    </div>
-                    <div className="p-8 text-center">
-                      <Bell className="mx-auto h-8 w-8 text-muted-foreground/30" />
-                      <p className="mt-2 text-sm text-muted-foreground">No hay notificaciones</p>
-                      <p className="text-xs text-muted-foreground/60">Las notificaciones aparecerán aquí</p>
-                    </div>
-                  </div>
-                )}
-              </div>
+              {/* Notifications - Uses real notification system */}
+              <NotificationCenter />
 
               {/* User Menu */}
               <div className="relative" ref={userMenuRef}>
