@@ -2750,11 +2750,46 @@ model WhatsAppBusinessAccount {
   displayPhoneNumber    String?  // +54 11 1234-5678
   businessName          String?
 
+  // BSP Provider Info (Phase 2)
+  bspProvider           WhatsAppBSPProviderType @default(META_DIRECT)
+  bspAccountId          String?    // Provider's account ID
+  bspPhoneNumberSid     String?    // Provider's phone number SID/ID
+
+  // Provisioning Status (for BSP-provisioned numbers)
+  provisioningStatus    ProvisioningStatus @default(NOT_STARTED)
+  provisionedAt         DateTime?
+  verificationCode      String?    // Temporary, cleared after verification
+  verificationExpiresAt DateTime?
+
+  // Usage & Billing (for metered providers)
+  monthlyMessageCount   Int        @default(0)
+  lastBillingReset      DateTime   @default(now())
+
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
   @@index([organizationId])
+  @@index([bspProvider])
+  @@index([provisioningStatus])
   @@map("whatsapp_business_accounts")
+}
+
+// BSP Provider Types
+enum WhatsAppBSPProviderType {
+  META_DIRECT      // Manual Meta credentials (org's own account)
+  DIALOG_360       // 360dialog partner integration
+  TWILIO           // Twilio WhatsApp
+}
+
+// Provisioning Status for BSP numbers
+enum ProvisioningStatus {
+  NOT_STARTED
+  NUMBER_SELECTED
+  VERIFICATION_PENDING
+  VERIFIED
+  ACTIVE
+  SUSPENDED
+  RELEASED
 }
 
 enum WaAccountStatus {
