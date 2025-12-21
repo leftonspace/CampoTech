@@ -200,7 +200,7 @@ export async function onJobStatusChange(
           message,
           organizationId: job.organizationId,
         },
-        { priority: 'high' }
+        { priority: 1 } // high priority
       );
 
       console.log(`[WhatsApp] Queued ${newStatus} notification for job ${jobId}`);
@@ -249,7 +249,7 @@ export async function onJobAssigned(
           message,
           organizationId: job.organizationId,
         },
-        { priority: 'normal' }
+        { priority: 5 } // normal priority
       );
 
       console.log(`[WhatsApp] Queued assignment notification for technician ${technicianId}`);
