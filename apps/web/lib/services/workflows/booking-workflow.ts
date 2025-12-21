@@ -377,19 +377,18 @@ const createJobStep: WorkflowStep = {
       }
 
       // Create the job
+      const preferredTime = context.extractedEntities.preferredTime;
       const job = await prisma.job.create({
         data: {
           organizationId: context.organizationId,
           customerId: context.customerId!,
           jobNumber,
-          serviceType: serviceData?.serviceType || context.extractedEntities.serviceType || 'general',
+          serviceType: serviceData?.serviceType || context.extractedEntities.serviceType || 'OTRO',
           description: context.extractedEntities.problemDescription || `Trabajo creado por WhatsApp AI: ${context.metadata.originalMessage.substring(0, 200)}`,
-          address: context.extractedEntities.address || null,
-          priority: context.extractedEntities.urgency === 'urgente' ? 'urgent' : 'normal',
+          urgency: context.extractedEntities.urgency === 'urgente' ? 'URGENT' : 'NORMAL',
           status: 'PENDING',
-          source: 'whatsapp_ai',
           scheduledDate,
-          scheduledTimeStart: context.extractedEntities.preferredTime || null,
+          scheduledTimeSlot: preferredTime ? { start: preferredTime, end: null } : null,
         },
       });
 
