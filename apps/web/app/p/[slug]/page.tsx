@@ -76,29 +76,28 @@ export default async function PublicBusinessProfilePage({ params }: PageProps) {
     notFound();
   }
 
-  // Fetch recent reviews
-  const reviews: Array<{
-    id: string;
-    rating: number | null;
-    comment: string | null;
-    createdAt: Date;
-    customer: { name: string } | null;
-  }> = await prisma.review.findMany({
+  // Fetch recent reviews (only submitted reviews with ratings)
+  const reviews = await prisma.review.findMany({
     where: {
       organizationId: profile.organization.id,
       rating: { not: null },
-      comment: { not: null },
+      submittedAt: { not: null }, // Only show submitted reviews
     },
-    orderBy: { createdAt: 'desc' },
-    take: 5,
+    orderBy: { submittedAt: 'desc' },
+    take: 10,
     select: {
       id: true,
       rating: true,
       comment: true,
-      createdAt: true,
+      submittedAt: true,
       customer: {
         select: {
           name: true,
+        },
+      },
+      job: {
+        select: {
+          serviceType: true,
         },
       },
     },
@@ -228,31 +227,44 @@ export default async function PublicBusinessProfilePage({ params }: PageProps) {
             {/* Reviews */}
             {reviews.length > 0 && (
               <div className="bg-white rounded-xl p-6 shadow-sm">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Reseñas recientes</h2>
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                  Reseñas de clientes ({profile.totalReviews})
+                </h2>
                 <div className="space-y-4">
                   {reviews.map((review) => (
                     <div key={review.id} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="flex">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`h-4 w-4 ${
-                                i < (review.rating || 0)
-                                  ? 'fill-yellow-400 text-yellow-400'
-                                  : 'text-gray-300'
-                              }`}
-                            />
-                          ))}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <div className="flex">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`h-4 w-4 ${
+                                  i < (review.rating || 0)
+                                    ? 'fill-yellow-400 text-yellow-400'
+                                    : 'text-gray-300'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-sm font-medium text-gray-700">
+                            {review.customer?.name || 'Cliente'}
+                          </span>
                         </div>
-                        <span className="text-sm text-gray-500">
-                          {review.customer?.name || 'Cliente'}
-                        </span>
+                        {review.job?.serviceType && (
+                          <span className="text-xs text-gray-400 capitalize">
+                            {review.job.serviceType.toLowerCase().replace('_', ' ')}
+                          </span>
+                        )}
                       </div>
-                      {review.comment && (
+                      {review.comment ? (
                         <p className="text-gray-600 text-sm">
                           <Quote className="h-3 w-3 inline mr-1 text-gray-400" />
                           {review.comment}
+                        </p>
+                      ) : (
+                        <p className="text-gray-400 text-sm italic">
+                          Sin comentario
                         </p>
                       )}
                     </div>

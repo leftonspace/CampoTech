@@ -60,6 +60,23 @@ export async function GET(request: NextRequest) {
           skillLevel: true,
           avatar: true,
           isActive: true,
+          createdAt: true,
+          // Count jobs assigned to this user (both legacy and new assignment model)
+          _count: {
+            select: {
+              assignedJobs: true,      // Legacy: Job.technicianId
+              jobAssignments: true,    // New: JobAssignment table
+            },
+          },
+          // Include reviews to calculate average rating
+          technicianReviews: {
+            where: {
+              rating: { not: null },
+            },
+            select: {
+              rating: true,
+            },
+          },
         },
         orderBy: { name: 'asc' },
         skip: (page - 1) * limit,
@@ -68,11 +85,36 @@ export async function GET(request: NextRequest) {
       prisma.user.count({ where }),
     ]);
 
+    // Transform users to include computed jobCount and avgRating
+    const usersWithStats = users.map((user) => {
+      // Use the higher of the two job counts (they may overlap)
+      // jobAssignments is the more accurate count for multi-technician jobs
+      const jobCount = Math.max(
+        user._count.assignedJobs,
+        user._count.jobAssignments
+      );
+
+      // Calculate average rating from reviews
+      const ratings = user.technicianReviews.map((r) => r.rating).filter((r): r is number => r !== null);
+      const avgRating = ratings.length > 0
+        ? Number((ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1))
+        : null;
+
+      // Remove internal fields and add computed ones
+      const { _count, technicianReviews, ...userData } = user;
+      return {
+        ...userData,
+        jobCount,
+        avgRating,
+        reviewCount: ratings.length,
+      };
+    });
+
     // Normalize user role for permission checking
     const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Filter data based on user role
-    const filteredUsers = filterEntitiesByRole(users, 'user', userRole);
+    const filteredUsers = filterEntitiesByRole(usersWithStats, 'user', userRole);
     const fieldMeta = getEntityFieldMetadata('user', userRole);
 
     return NextResponse.json({

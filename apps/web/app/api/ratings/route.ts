@@ -105,39 +105,46 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Update organization's average rating
+ * Update organization's BusinessPublicProfile with rating metrics
  * This runs asynchronously after rating submission
  */
 async function updateOrganizationRating(organizationId: string) {
   try {
-    // Calculate average rating
+    // Calculate average rating from all submitted reviews
     const result = await prisma.review.aggregate({
       where: {
         organizationId,
         rating: { not: null },
+        submittedAt: { not: null }, // Only count submitted reviews (not pending)
       },
       _avg: { rating: true },
       _count: { rating: true },
     });
 
-    const avgRating = result._avg.rating;
+    const avgRating = result._avg.rating || 0;
     const totalReviews = result._count.rating;
 
-    // Update organization with new average
-    // Note: You may need to add these fields to the Organization model
-    // For now, we'll just log the update
-    console.log(
-      `[Rating] Organization ${organizationId}: avg=${avgRating?.toFixed(2)}, count=${totalReviews}`
-    );
+    // Count total completed jobs for this organization
+    const totalJobs = await prisma.job.count({
+      where: {
+        organizationId,
+        status: 'COMPLETED',
+      },
+    });
 
-    // TODO: If Organization model has rating fields, update them:
-    // await prisma.organization.update({
-    //   where: { id: organizationId },
-    //   data: {
-    //     averageRating: avgRating,
-    //     totalReviews,
-    //   },
-    // });
+    // Update BusinessPublicProfile with new metrics
+    await prisma.businessPublicProfile.updateMany({
+      where: { organizationId },
+      data: {
+        averageRating: Number(avgRating.toFixed(2)),
+        totalReviews,
+        totalJobs,
+      },
+    });
+
+    console.log(
+      `[Rating] Updated BusinessPublicProfile for org ${organizationId}: avg=${avgRating.toFixed(2)}, reviews=${totalReviews}, jobs=${totalJobs}`
+    );
   } catch (error) {
     console.error('Error updating organization rating:', error);
   }
