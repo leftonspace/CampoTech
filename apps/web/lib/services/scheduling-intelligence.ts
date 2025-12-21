@@ -444,8 +444,7 @@ export class SchedulingIntelligenceService {
       include: {
         job: {
           select: {
-            scheduledTimeStart: true,
-            scheduledTimeEnd: true,
+            scheduledTimeSlot: true,
             estimatedDuration: true,
           },
         },
@@ -457,17 +456,17 @@ export class SchedulingIntelligenceService {
     type AssignmentType = {
       technicianId: string;
       job: {
-        scheduledTimeStart: string | null;
-        scheduledTimeEnd: string | null;
+        scheduledTimeSlot: { start?: string; end?: string } | null;
         estimatedDuration: number | null;
       };
     };
     existingJobs.forEach((assignment: AssignmentType) => {
-      if (!assignment.job.scheduledTimeStart) return;
+      const timeSlot = assignment.job.scheduledTimeSlot;
+      if (!timeSlot?.start) return;
 
-      const jobStart = timeToMinutes(assignment.job.scheduledTimeStart);
-      const jobEnd = assignment.job.scheduledTimeEnd
-        ? timeToMinutes(assignment.job.scheduledTimeEnd)
+      const jobStart = timeToMinutes(timeSlot.start);
+      const jobEnd = timeSlot.end
+        ? timeToMinutes(timeSlot.end)
         : jobStart + (assignment.job.estimatedDuration || 60);
 
       const busy = busyTimesMap.get(assignment.technicianId) || [];

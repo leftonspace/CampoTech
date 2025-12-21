@@ -18,6 +18,17 @@ function isTableNotFoundError(error: unknown): boolean {
   );
 }
 
+// Transform scheduledTimeSlot JSON to separate start/end fields for frontend compatibility
+function transformJobTimeSlot(job: any): any {
+  if (!job) return job;
+  const timeSlot = job.scheduledTimeSlot as { start?: string; end?: string } | null;
+  return {
+    ...job,
+    scheduledTimeStart: timeSlot?.start || null,
+    scheduledTimeEnd: timeSlot?.end || null,
+  };
+}
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
@@ -98,8 +109,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // Transform scheduledTimeSlot to separate fields for frontend compatibility
+    const transformedJob = transformJobTimeSlot(job);
+
     // Filter data based on user role
-    const filteredData = filterEntityByRole(job, 'job', userRole);
+    const filteredData = filterEntityByRole(transformedJob, 'job', userRole);
     const fieldMeta = getEntityFieldMetadata('job', userRole);
 
     return NextResponse.json({
@@ -222,7 +236,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     return NextResponse.json({
       success: true,
-      data: job,
+      data: transformJobTimeSlot(job),
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error');
