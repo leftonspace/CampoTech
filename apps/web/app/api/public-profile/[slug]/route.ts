@@ -42,8 +42,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         totalJobs: true,
         responseRate: true,
         responseTime: true,
+        // Verification badges
         cuitVerified: true,
         insuranceVerified: true,
+        backgroundCheck: true,
+        professionalLicense: true,
+        optionalBadges: true,
         organization: {
           select: {
             id: true,
@@ -88,10 +92,24 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       },
     });
 
+    // Build verification object for consumer-mobile compatibility
+    const verification = {
+      cuitVerified: profile.cuitVerified,
+      insuranceVerified: profile.insuranceVerified,
+      backgroundCheck: profile.backgroundCheck,
+      professionalLicense: profile.professionalLicense,
+    };
+
     return NextResponse.json({
       success: true,
       data: {
         ...profile,
+        // Add verification object for consumer-mobile
+        verification,
+        // Parse optionalBadges if it's a string
+        optionalBadges: typeof profile.optionalBadges === 'string'
+          ? JSON.parse(profile.optionalBadges)
+          : profile.optionalBadges,
         recentReviews: reviews.map((r) => ({
           id: r.id,
           rating: r.rating,

@@ -27,6 +27,16 @@ import {
   CalendarPlus,
   UserPlus,
   Send,
+  Building2,
+  Shield,
+  Flame,
+  Droplet,
+  BadgeCheck,
+  UserCheck,
+  Car,
+  Wrench,
+  FileCheck,
+  Award,
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -687,66 +697,137 @@ function AIFeatureSection() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function VerificationSection() {
+  const requiredVerifications = [
+    { icon: Building2, label: 'CUIT validado con AFIP', auto: true },
+    { icon: CheckCircle2, label: 'Estado activo en AFIP', auto: true },
+    { icon: FileCheck, label: 'Actividad económica verificada', auto: true },
+    { icon: UserCheck, label: 'DNI del titular', auto: false },
+    { icon: User, label: 'Selfie con DNI', auto: false },
+  ];
+
+  const optionalBadges = [
+    { icon: Flame, label: 'Gasista Matriculado', color: 'text-orange-500', bg: 'bg-orange-500/10' },
+    { icon: Zap, label: 'Electricista Matriculado', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
+    { icon: Droplet, label: 'Plomero Matriculado', color: 'text-blue-500', bg: 'bg-blue-500/10' },
+    { icon: Shield, label: 'Seguro de Responsabilidad Civil', color: 'text-green-500', bg: 'bg-green-500/10' },
+    { icon: BadgeCheck, label: 'Antecedentes Verificados', color: 'text-purple-500', bg: 'bg-purple-500/10' },
+    { icon: FileText, label: 'ART Vigente', color: 'text-teal-500', bg: 'bg-teal-500/10' },
+    { icon: Car, label: 'Flota Asegurada', color: 'text-slate-500', bg: 'bg-slate-500/10' },
+    { icon: Wrench, label: 'Herramientas Certificadas', color: 'text-amber-500', bg: 'bg-amber-500/10' },
+  ];
+
   return (
     <section className="py-20 px-4 sm:px-6 lg:px-8 bg-primary/5">
       <div className="max-w-7xl mx-auto">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div className="order-2 lg:order-1">
-            <div className="bg-card rounded-xl border border-border p-8 shadow-lg">
-              <div className="flex items-center justify-between mb-6">
-                <h4 className="font-semibold text-foreground">Verificación de Empresa</h4>
-                <div className="flex items-center gap-2 text-success text-sm">
-                  <ShieldCheck className="w-4 h-4" />
-                  Verificado
-                </div>
+        {/* Header */}
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
+            <ShieldCheck className="w-4 h-4" />
+            Confianza verificada
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+            Verificamos todo para que tus clientes confíen
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+            Cada técnico en CampoTech pasa por un proceso de verificación. Tus clientes ven los badges de confianza en tu perfil y saben que trabajás en regla.
+          </p>
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-12">
+          {/* Required Verifications */}
+          <div>
+            <div className="flex items-center gap-2 mb-6">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                <ShieldCheck className="w-4 h-4 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Verificaciones Obligatorias</h3>
+                <p className="text-sm text-muted-foreground">Requeridas para usar CampoTech</p>
+              </div>
+            </div>
+
+            <div className="bg-card rounded-xl border border-border p-6 shadow-lg">
+              <div className="space-y-4">
+                {requiredVerifications.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-success/10 rounded-lg flex items-center justify-center">
+                      <item.icon className="w-5 h-5 text-success" />
+                    </div>
+                    <div className="flex-1">
+                      <span className="text-foreground">{item.label}</span>
+                      {item.auto && (
+                        <span className="ml-2 text-xs bg-success/20 text-success px-2 py-0.5 rounded-full">
+                          Automático
+                        </span>
+                      )}
+                    </div>
+                    <Check className="w-5 h-5 text-success" />
+                  </div>
+                ))}
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between py-3 border-b border-border">
-                  <span className="text-muted-foreground">CUIT</span>
-                  <span className="font-mono text-foreground">30-71234567-9</span>
-                </div>
-                <div className="flex items-center justify-between py-3 border-b border-border">
-                  <span className="text-muted-foreground">Razón Social</span>
-                  <span className="text-foreground">Servicios Técnicos SRL</span>
-                </div>
-                <div className="flex items-center justify-between py-3 border-b border-border">
-                  <span className="text-muted-foreground">Condición IVA</span>
-                  <span className="text-foreground">Responsable Inscripto</span>
-                </div>
-                <div className="flex items-center justify-between py-3">
-                  <span className="text-muted-foreground">Estado AFIP</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-success rounded-full" />
-                    <span className="text-success">Activo</span>
-                  </div>
+              <div className="mt-6 pt-6 border-t border-border">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Building2 className="w-4 h-4" />
+                  <span>Validación directa con AFIP en tiempo real</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="order-1 lg:order-2">
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
-              <ShieldCheck className="w-4 h-4" />
-              Seguridad garantizada
+          {/* Optional Badges */}
+          <div>
+            <div className="flex items-center gap-2 mb-6">
+              <div className="w-8 h-8 bg-accent/10 rounded-lg flex items-center justify-center">
+                <Award className="w-4 h-4 text-accent" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Badges Opcionales</h3>
+                <p className="text-sm text-muted-foreground">Destacá tu perfil con más certificaciones</p>
+              </div>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-6">
-              Verificación automática con AFIP
-            </h2>
-            <p className="text-lg text-muted-foreground mb-8">
-              Validamos cada empresa con CUIT directamente contra los registros de AFIP. Tus clientes saben que trabajan con un negocio habilitado.
-            </p>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-card rounded-lg p-4 border border-border">
-                <div className="text-2xl font-bold text-primary mb-1">100%</div>
-                <div className="text-sm text-muted-foreground">Validación CUIT</div>
+            <div className="bg-card rounded-xl border border-border p-6 shadow-lg">
+              <div className="grid grid-cols-2 gap-3">
+                {optionalBadges.map((badge, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 p-3 rounded-lg border border-border hover:border-primary/30 transition-colors"
+                  >
+                    <div className={`w-8 h-8 ${badge.bg} rounded-lg flex items-center justify-center`}>
+                      <badge.icon className={`w-4 h-4 ${badge.color}`} />
+                    </div>
+                    <span className="text-sm text-foreground">{badge.label}</span>
+                  </div>
+                ))}
               </div>
-              <div className="bg-card rounded-lg p-4 border border-border">
-                <div className="text-2xl font-bold text-success mb-1">Automático</div>
-                <div className="text-sm text-muted-foreground">Sin papeleos</div>
+
+              <div className="mt-6 pt-6 border-t border-border">
+                <p className="text-sm text-muted-foreground">
+                  Los badges se muestran en tu perfil público, en la app del cliente y en el marketplace. Más badges = más confianza = más trabajos.
+                </p>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Stats */}
+        <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-card rounded-lg p-4 border border-border text-center">
+            <div className="text-2xl font-bold text-primary mb-1">100%</div>
+            <div className="text-sm text-muted-foreground">Validación AFIP</div>
+          </div>
+          <div className="bg-card rounded-lg p-4 border border-border text-center">
+            <div className="text-2xl font-bold text-success mb-1">Automático</div>
+            <div className="text-sm text-muted-foreground">Sin papeleos</div>
+          </div>
+          <div className="bg-card rounded-lg p-4 border border-border text-center">
+            <div className="text-2xl font-bold text-accent mb-1">8+</div>
+            <div className="text-sm text-muted-foreground">Badges disponibles</div>
+          </div>
+          <div className="bg-card rounded-lg p-4 border border-border text-center">
+            <div className="text-2xl font-bold text-warning mb-1">Visible</div>
+            <div className="text-sm text-muted-foreground">En app y marketplace</div>
           </div>
         </div>
       </div>
