@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
@@ -126,6 +126,24 @@ export default function NewJobPage() {
   // Multi-visit support - each visit has its own date, time, and technicians
   const [visits, setVisits] = useState<JobVisit[]>([createEmptyVisit()]);
   const [activeVisitDropdown, setActiveVisitDropdown] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setActiveVisitDropdown(null);
+      }
+    };
+
+    if (activeVisitDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [activeVisitDropdown]);
 
   // Fetch service types from API (configurable by business owner)
   const { data: serviceTypesData } = useQuery({
@@ -795,7 +813,7 @@ export default function NewJobPage() {
                 )}
 
                 {/* Technician dropdown */}
-                <div className="relative">
+                <div className="relative" ref={activeVisitDropdown === visit.id ? dropdownRef : null}>
                   <button
                     type="button"
                     onClick={() => setActiveVisitDropdown(activeVisitDropdown === visit.id ? null : visit.id)}
