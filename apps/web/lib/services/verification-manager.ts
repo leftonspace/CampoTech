@@ -20,6 +20,7 @@ import type {
   UserVerificationStatus,
 } from '@/lib/types';
 import { autoVerifier } from './auto-verifier';
+import { whatsAppProfileSync } from './whatsapp-profile-sync.service';
 
 // Prisma model types for internal use
 type VerificationSubmission = Awaited<ReturnType<typeof prisma.verificationSubmission.findFirst>> & {};
@@ -711,6 +712,20 @@ class VerificationManagerClass {
       });
 
       console.log(`[Badge] Synced badges to public profile for org ${orgId}`);
+
+      // Also sync badges to WhatsApp Business Profile (if BSP configured)
+      // Run async without waiting to not block the main flow
+      whatsAppProfileSync.syncBadgesToWhatsApp(orgId).then((result) => {
+        if (result.success && !result.skipped) {
+          console.log(`[Badge] Synced badges to WhatsApp for org ${orgId}`);
+        } else if (result.skipped) {
+          console.log(`[Badge] WhatsApp sync skipped for org ${orgId}: ${result.reason}`);
+        } else if (!result.success) {
+          console.error(`[Badge] WhatsApp sync failed for org ${orgId}: ${result.error}`);
+        }
+      }).catch((err) => {
+        console.error(`[Badge] WhatsApp sync error for org ${orgId}:`, err);
+      });
     } catch (error) {
       console.error(`[Badge] Error syncing badges for org ${orgId}:`, error);
     }

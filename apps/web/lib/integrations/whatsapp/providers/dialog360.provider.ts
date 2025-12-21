@@ -46,6 +46,8 @@ import {
   type WebhookMessage,
   type WebhookStatus,
   type PhoneInfo,
+  type BusinessProfile,
+  type BusinessProfileResponse,
 } from './dialog360.types';
 
 import crypto from 'crypto';
@@ -989,6 +991,135 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
       ENTERPRISE: 50000,
     };
     return limits[tier] || 0;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // Business Profile Management
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Get the current business profile
+   */
+  async getBusinessProfile(organizationId: string): Promise<BusinessProfile | null> {
+    try {
+      const { prisma } = await import('@/lib/prisma');
+
+      const account = await prisma.whatsAppBusinessAccount.findUnique({
+        where: { organizationId },
+        select: { accessToken: true, provisioningStatus: true },
+      });
+
+      if (!account?.accessToken) {
+        return null;
+      }
+
+      const response = await fetch(
+        `${this.wabaApiUrl}/v1/settings/business/profile`,
+        {
+          method: 'GET',
+          headers: {
+            'D360-API-KEY': account.accessToken,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json() as Dialog360Error;
+        console.error('[Dialog360] Failed to get business profile:', error);
+        return null;
+      }
+
+      const data = await response.json() as BusinessProfileResponse;
+      return data.data?.[0] || null;
+    } catch (error) {
+      console.error('[Dialog360] Error getting business profile:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update the business profile (description, about, etc.)
+   */
+  async updateBusinessProfile(
+    organizationId: string,
+    profile: BusinessProfile
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { prisma } = await import('@/lib/prisma');
+
+      const account = await prisma.whatsAppBusinessAccount.findUnique({
+        where: { organizationId },
+        select: { accessToken: true, provisioningStatus: true },
+      });
+
+      if (!account?.accessToken) {
+        return { success: false, error: 'No WhatsApp account configured' };
+      }
+
+      if (account.provisioningStatus !== 'ACTIVE' && account.provisioningStatus !== 'VERIFIED') {
+        return { success: false, error: 'WhatsApp account not active' };
+      }
+
+      // Validate field lengths
+      if (profile.about && profile.about.length > 139) {
+        return { success: false, error: 'About text exceeds 139 characters' };
+      }
+      if (profile.description && profile.description.length > 512) {
+        return { success: false, error: 'Description exceeds 512 characters' };
+      }
+      if (profile.address && profile.address.length > 256) {
+        return { success: false, error: 'Address exceeds 256 characters' };
+      }
+      if (profile.email && profile.email.length > 128) {
+        return { success: false, error: 'Email exceeds 128 characters' };
+      }
+      if (profile.websites && profile.websites.length > 2) {
+        return { success: false, error: 'Maximum 2 websites allowed' };
+      }
+
+      // Build the update payload - only include fields that are provided
+      const updatePayload: Record<string, unknown> = {
+        messaging_product: 'whatsapp',
+      };
+
+      if (profile.about !== undefined) updatePayload.about = profile.about;
+      if (profile.description !== undefined) updatePayload.description = profile.description;
+      if (profile.address !== undefined) updatePayload.address = profile.address;
+      if (profile.email !== undefined) updatePayload.email = profile.email;
+      if (profile.vertical !== undefined) updatePayload.vertical = profile.vertical;
+      if (profile.websites !== undefined) updatePayload.websites = profile.websites;
+
+      const response = await fetch(
+        `${this.wabaApiUrl}/v1/settings/business/profile`,
+        {
+          method: 'POST',
+          headers: {
+            'D360-API-KEY': account.accessToken,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updatePayload),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json() as Dialog360Error;
+        console.error('[Dialog360] Failed to update business profile:', error);
+        return {
+          success: false,
+          error: error.error?.message || 'Failed to update business profile',
+        };
+      }
+
+      console.log(`[Dialog360] Updated business profile for org ${organizationId}`);
+      return { success: true };
+    } catch (error) {
+      console.error('[Dialog360] Error updating business profile:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────
