@@ -169,37 +169,37 @@ export default function LoginPage() {
                 <label htmlFor="phone" className="label mb-1 block">
                   Teléfono
                 </label>
-                <div className="flex">
+                <div className="flex rounded-md border border-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ring-offset-background">
                   {/* Country Selector with Flag */}
                   <div className="relative" ref={dropdownRef}>
                     <button
                       type="button"
                       onClick={() => setShowCountryPicker(!showCountryPicker)}
-                      className="flex items-center gap-1 h-full px-3 border border-r-0 border-gray-300 rounded-l-lg bg-gray-50 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      className="flex items-center gap-1.5 h-10 px-3 border-r border-input bg-muted/50 rounded-l-md hover:bg-muted transition-colors focus:outline-none"
                     >
-                      <span className="text-xl">{selectedCountry.flag}</span>
-                      <span className="text-sm text-gray-700 font-medium">{countryCode}</span>
-                      <ChevronDown className="h-4 w-4 text-gray-500" />
+                      <span className="text-lg leading-none">{selectedCountry.flag}</span>
+                      <span className="text-sm text-foreground font-medium">{countryCode}</span>
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
                     </button>
 
                     {/* Country Dropdown */}
                     {showCountryPicker && (
-                      <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-72 overflow-y-auto">
-                        <div className="p-2 border-b border-gray-100">
-                          <span className="text-xs font-medium text-gray-500 uppercase">Seleccionar país</span>
+                      <div className="absolute top-full left-0 mt-1 w-64 bg-card border border-border rounded-lg shadow-lg z-50 max-h-72 overflow-y-auto">
+                        <div className="p-2 border-b border-border">
+                          <span className="text-xs font-medium text-muted-foreground uppercase">Seleccionar país</span>
                         </div>
                         {COUNTRY_CODES.map((country) => (
                           <button
                             key={country.code}
                             type="button"
                             onClick={() => handleCountryChange(country.code)}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors"
+                            className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted transition-colors"
                           >
-                            <span className="text-xl">{country.flag}</span>
-                            <span className="flex-1 text-left text-sm text-gray-700">{country.country}</span>
-                            <span className="text-sm text-gray-500">{country.code}</span>
+                            <span className="text-lg">{country.flag}</span>
+                            <span className="flex-1 text-left text-sm text-foreground">{country.country}</span>
+                            <span className="text-sm text-muted-foreground">{country.code}</span>
                             {country.code === countryCode && (
-                              <Check className="h-4 w-4 text-green-600" />
+                              <Check className="h-4 w-4 text-success" />
                             )}
                           </button>
                         ))}
@@ -214,7 +214,7 @@ export default function LoginPage() {
                     value={phone}
                     onChange={(e) => handlePhoneChange(e.target.value)}
                     placeholder={selectedCountry.placeholder}
-                    className="input flex-1 rounded-l-none"
+                    className="flex-1 h-10 px-3 py-2 text-sm bg-transparent placeholder:text-muted-foreground focus:outline-none"
                     required
                     autoFocus
                   />
