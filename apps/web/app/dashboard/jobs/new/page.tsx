@@ -207,8 +207,15 @@ export default function NewJobPage() {
     if (!time12h) return '';
     // Handle flexible input: "1", "11", "1:30", "11:30"
     const parts = time12h.split(':');
-    const hours = parseInt(parts[0]) || 0;
+    let hours = parseInt(parts[0]) || 0;
     const minutes = parts[1] ? parseInt(parts[1]) || 0 : 0;
+
+    // Normalize hours > 12 to valid 12h format (e.g., 15 -> 3)
+    // This handles cases where user types in 24h format by mistake
+    if (hours > 12) {
+      hours = hours % 12 || 12;
+    }
+
     let h = hours;
     if (period === 'PM' && hours !== 12) h += 12;
     if (period === 'AM' && hours === 12) h = 0;
@@ -402,12 +409,12 @@ export default function NewJobPage() {
       durationType = 'MULTIPLE_VISITS';
     }
 
-    // Map priority to urgency for API
+    // Map priority to urgency for API (schema only has NORMAL and URGENTE)
     const priorityToUrgency: Record<string, string> = {
-      low: 'LOW',
+      low: 'NORMAL',
       normal: 'NORMAL',
-      high: 'HIGH',
-      urgent: 'URGENT',
+      high: 'URGENTE',
+      urgent: 'URGENTE',
     };
 
     // Valid service type enum values (database constraint)
