@@ -29,6 +29,7 @@ interface Customer {
 interface JobVisit {
   id: string;
   date: string;
+  endDate: string; // Optional: if set, creates visits for each day in range
   timeStart: string;
   timeEnd: string;
   timePeriodStart: 'AM' | 'PM';
@@ -39,12 +40,33 @@ interface JobVisit {
 const createEmptyVisit = (): JobVisit => ({
   id: Math.random().toString(36).substring(7),
   date: '',
+  endDate: '',
   timeStart: '',
   timeEnd: '',
   timePeriodStart: 'AM',
   timePeriodEnd: 'PM',
   technicianIds: [],
 });
+
+// Helper to expand a date range into individual dates
+const expandDateRange = (startDate: string, endDate: string): string[] => {
+  const dates: string[] = [];
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  // Ensure we don't create too many dates (max 30 days)
+  const maxDays = 30;
+  let current = new Date(start);
+  let count = 0;
+
+  while (current <= end && count < maxDays) {
+    dates.push(current.toISOString().split('T')[0]);
+    current.setDate(current.getDate() + 1);
+    count++;
+  }
+
+  return dates;
+};
 
 const RECURRENCE_PATTERNS = [
   { value: 'WEEKLY', label: 'Semanal' },
@@ -309,15 +331,32 @@ export default function NewJobPage() {
     setIsSubmitting(true);
     setError('');
 
-    // Convert visits to API format
-    const formattedVisits = visits
+    // Convert visits to API format, expanding date ranges
+    const formattedVisits: Array<{
+      date: string;
+      timeStart: string;
+      timeEnd: string;
+      technicianIds: string[];
+    }> = [];
+
+    visits
       .filter(v => v.date) // Only include visits with dates
-      .map(v => ({
-        date: v.date,
-        timeStart: convertTo24h(v.timeStart, v.timePeriodStart),
-        timeEnd: convertTo24h(v.timeEnd, v.timePeriodEnd),
-        technicianIds: v.technicianIds,
-      }));
+      .forEach(v => {
+        const timeStart = convertTo24h(v.timeStart, v.timePeriodStart);
+        const timeEnd = convertTo24h(v.timeEnd, v.timePeriodEnd);
+        const technicianIds = v.technicianIds;
+
+        // If there's an end date, expand to individual visits for each day
+        if (v.endDate && v.endDate !== v.date) {
+          const dates = expandDateRange(v.date, v.endDate);
+          dates.forEach(date => {
+            formattedVisits.push({ date, timeStart, timeEnd, technicianIds });
+          });
+        } else {
+          // Single date visit
+          formattedVisits.push({ date: v.date, timeStart, timeEnd, technicianIds });
+        }
+      });
 
     // Determine duration type based on visits
     let durationType = 'SINGLE_VISIT';
@@ -624,10 +663,10 @@ export default function NewJobPage() {
                 )}
               </div>
 
-              {/* Date */}
+              {/* Date / Date Range */}
               <div className="grid gap-4 sm:grid-cols-2 mb-4">
                 <div>
-                  <label className="label mb-1 block text-sm">Fecha {index === 0 && '*'}</label>
+                  <label className="label mb-1 block text-sm">Fecha inicio {index === 0 && '*'}</label>
                   <div className="relative">
                     <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                     <input
@@ -638,6 +677,30 @@ export default function NewJobPage() {
                       required={index === 0}
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="label mb-1 block text-sm">
+                    Fecha fin <span className="text-gray-400 font-normal">(opcional)</span>
+                  </label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="date"
+                      value={visit.endDate}
+                      onChange={(e) => updateVisit(visit.id, 'endDate', e.target.value)}
+                      min={visit.date || undefined}
+                      className="input pl-10"
+                      placeholder="Mismo día"
+                    />
+                  </div>
+                  {visit.endDate && visit.date && (
+                    <p className="mt-1 text-xs text-primary-600">
+                      {(() => {
+                        const days = expandDateRange(visit.date, visit.endDate).length;
+                        return `${days} día${days > 1 ? 's' : ''} con el mismo horario`;
+                      })()}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -786,11 +849,17 @@ export default function NewJobPage() {
                           </button>
                         ))}
                       </div>
-                      <div className="border-t px-3 py-2">
+                      <div className="border-t px-3 py-2 space-y-1">
+                        <Link
+                          href="/dashboard/settings/team"
+                          className="block w-full text-center text-xs text-primary-600 hover:underline"
+                        >
+                          + Agregar nuevo miembro al equipo
+                        </Link>
                         <button
                           type="button"
                           onClick={() => setActiveVisitDropdown(null)}
-                          className="w-full text-center text-xs text-primary-600 hover:underline"
+                          className="w-full text-center text-xs text-gray-500 hover:underline"
                         >
                           Cerrar
                         </button>
@@ -872,16 +941,6 @@ export default function NewJobPage() {
               </p>
             </div>
           )}
-        </div>
-
-        {/* Add team member link */}
-        <div className="text-sm">
-          <Link
-            href="/dashboard/settings/team"
-            className="text-primary-600 hover:underline"
-          >
-            + Agregar nuevo miembro al equipo
-          </Link>
         </div>
 
         {error && <p className="text-sm text-danger-500">{error}</p>}
