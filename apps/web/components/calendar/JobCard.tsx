@@ -110,8 +110,8 @@ export function JobCard({ event, onClose }: JobCardProps) {
     : selectedConfig?.timeSlot || job.scheduledTimeSlot;
 
   const displayConfigDates = isViewingOriginalConfig
-    ? job.configTotalDates
-    : selectedConfig?.totalDates || 1;
+    ? (job.configTotalDates || 1)
+    : (selectedConfig?.totalDates || 1);
 
   // Format time from the selected config's time slot
   let displayStartTime = '';
