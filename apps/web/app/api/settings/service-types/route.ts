@@ -7,19 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
-
-// Default service types to seed for new organizations
-const DEFAULT_SERVICE_TYPES = [
-  { code: 'INSTALACION_SPLIT', name: 'Instalación Split', sortOrder: 1 },
-  { code: 'REPARACION_SPLIT', name: 'Reparación Split', sortOrder: 2 },
-  { code: 'MANTENIMIENTO_SPLIT', name: 'Mantenimiento Split', sortOrder: 3 },
-  { code: 'INSTALACION_CALEFACTOR', name: 'Instalación Calefactor', sortOrder: 4 },
-  { code: 'REPARACION_CALEFACTOR', name: 'Reparación Calefactor', sortOrder: 5 },
-  { code: 'MANTENIMIENTO_CALEFACTOR', name: 'Mantenimiento Calefactor', sortOrder: 6 },
-  { code: 'OTRO', name: 'Otro', sortOrder: 99 },
-];
 
 // Helper to check if table or column doesn't exist (schema mismatch)
 function isSchemaError(error: unknown): boolean {
@@ -51,39 +39,16 @@ export async function GET(request: NextRequest) {
         orderBy: { sortOrder: 'asc' },
       });
 
-      // If no service types configured, seed with defaults
-      if (serviceTypes.length === 0) {
-        const created = await prisma.serviceTypeConfig.createMany({
-          data: DEFAULT_SERVICE_TYPES.map((st) => ({
-            ...st,
-            organizationId: session.organizationId,
-          })),
-        });
-
-        // Fetch the created types
-        serviceTypes = await prisma.serviceTypeConfig.findMany({
-          where: {
-            organizationId: session.organizationId,
-            isActive: true,
-          },
-          orderBy: { sortOrder: 'asc' },
-        });
-      }
+      // Return what the business has created (could be empty)
+      // Don't auto-seed fake data - let businesses create their own service types
     } catch (queryError) {
-      // If table or column doesn't exist (schema mismatch), return default types
+      // If table or column doesn't exist (schema mismatch), return empty
       if (isSchemaError(queryError)) {
-        console.warn('ServiceTypeConfig schema mismatch - returning defaults. Run database migrations.');
+        console.warn('ServiceTypeConfig schema mismatch. Run database migrations.');
         return NextResponse.json({
           success: true,
-          data: DEFAULT_SERVICE_TYPES.map((st, index) => ({
-            id: `default-${index}`,
-            ...st,
-            isActive: true,
-            description: null,
-            color: null,
-            icon: null,
-          })),
-          _notice: 'Using default service types. Run database migrations to enable customization.',
+          data: [],
+          _notice: 'Schema not ready. Run database migrations to enable service types.',
         });
       }
       throw queryError;
