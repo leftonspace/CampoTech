@@ -404,6 +404,18 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
   async sendMessage(organizationId: string, message: OutboundMessage): Promise<SendResult> {
     try {
       const { prisma } = await import('@/lib/prisma');
+      const { WhatsAppUsageService } = await import('@/lib/services/whatsapp-usage.service');
+
+      // Check usage limits before sending
+      const usageCheck = await WhatsAppUsageService.canSendMessage(organizationId);
+      if (!usageCheck.allowed) {
+        return {
+          success: false,
+          error: usageCheck.reason || 'Límite de mensajes alcanzado',
+          errorCode: 'LIMIT_REACHED',
+          retryable: false,
+        };
+      }
 
       const account = await prisma.whatsAppBusinessAccount.findUnique({
         where: { organizationId },
