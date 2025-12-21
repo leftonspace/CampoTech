@@ -21,6 +21,7 @@ import {
   QrCode,
   Copy,
   Check,
+  BarChart3,
 } from 'lucide-react';
 
 interface WhatsAppSettings {
@@ -322,14 +323,23 @@ export default function WhatsAppSettingsPage() {
                     Tus clientes pueden contactarte y la IA responderá automáticamente
                   </p>
                 </div>
-                <button
-                  onClick={() => testMutation.mutate()}
-                  disabled={testMutation.isPending}
-                  className="btn-outline text-sm py-1.5"
-                >
-                  <RefreshCw className={`h-4 w-4 mr-1 ${testMutation.isPending ? 'animate-spin' : ''}`} />
-                  Probar
-                </button>
+                <div className="flex gap-2">
+                  <Link
+                    href="/dashboard/settings/whatsapp/usage"
+                    className="btn-outline text-sm py-1.5"
+                  >
+                    <BarChart3 className="h-4 w-4 mr-1" />
+                    Ver uso
+                  </Link>
+                  <button
+                    onClick={() => testMutation.mutate()}
+                    disabled={testMutation.isPending}
+                    className="btn-outline text-sm py-1.5"
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-1 ${testMutation.isPending ? 'animate-spin' : ''}`} />
+                    Probar
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="p-3 rounded-lg bg-gray-50 flex items-center gap-3">
