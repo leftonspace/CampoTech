@@ -231,17 +231,18 @@ export default function NewJobPage() {
     queryFn: () => api.users.list(),
   });
 
-  // Fetch availability when date is selected
+  // Fetch availability when first visit date is selected
+  const firstVisit = visits[0];
   const { data: availabilityData } = useQuery({
-    queryKey: ['employee-availability', formData.scheduledDate, convertTo24h(formData.scheduledTimeStart, startPeriod)],
+    queryKey: ['employee-availability', firstVisit?.date, convertTo24h(firstVisit?.timeStart || '', firstVisit?.timePeriodStart || 'AM')],
     queryFn: async () => {
-      const params = new URLSearchParams({ date: formData.scheduledDate });
-      const timeStr = convertTo24h(formData.scheduledTimeStart, startPeriod);
+      const params = new URLSearchParams({ date: firstVisit?.date || '' });
+      const timeStr = convertTo24h(firstVisit?.timeStart || '', firstVisit?.timePeriodStart || 'AM');
       if (timeStr) params.append('time', timeStr);
       const res = await fetch(`/api/employees/availability?${params}`);
       return res.json();
     },
-    enabled: !!formData.scheduledDate,
+    enabled: !!firstVisit?.date,
   });
 
   const customers = customersData?.data as Customer[] | undefined;

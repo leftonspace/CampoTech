@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
 
     // Fetch user's preferences from database
     const prefs = await db.notificationPreferences.findUnique({
-      where: { userId: session.user.id },
+      where: { userId: session.userId },
     });
 
     // If no preferences exist, return defaults
@@ -197,10 +197,10 @@ export async function PUT(request: NextRequest) {
 
     // Upsert preferences in database
     const updated = await db.notificationPreferences.upsert({
-      where: { userId: session.user.id },
+      where: { userId: session.userId },
       create: {
-        userId: session.user.id,
-        organizationId: session.user.organizationId,
+        userId: session.userId,
+        organizationId: session.organizationId,
         ...data,
       },
       update: data,
