@@ -3,22 +3,39 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '@/lib/auth-context';
 import { ChevronDown, Check } from 'lucide-react';
 
 type Step = 'phone' | 'otp';
 
 // Country codes for phone input with formatting
+// Using ISO country codes for flag images from flagcdn.com
 const COUNTRY_CODES = [
-  { code: '+54', country: 'Argentina', flag: '🇦🇷', format: '9 11 1234-5678', maxDigits: 12, placeholder: '9 11 1234-5678' },
-  { code: '+1', country: 'USA/Canada', flag: '🇺🇸', format: '(xxx) xxx-xxxx', maxDigits: 10, placeholder: '(555) 123-4567' },
-  { code: '+52', country: 'México', flag: '🇲🇽', format: 'xx xxxx xxxx', maxDigits: 10, placeholder: '55 1234 5678' },
-  { code: '+55', country: 'Brasil', flag: '🇧🇷', format: 'xx xxxxx-xxxx', maxDigits: 11, placeholder: '11 91234-5678' },
-  { code: '+56', country: 'Chile', flag: '🇨🇱', format: 'x xxxx xxxx', maxDigits: 9, placeholder: '9 1234 5678' },
-  { code: '+57', country: 'Colombia', flag: '🇨🇴', format: 'xxx xxx xxxx', maxDigits: 10, placeholder: '310 123 4567' },
-  { code: '+58', country: 'Venezuela', flag: '🇻🇪', format: 'xxx xxx xxxx', maxDigits: 10, placeholder: '412 123 4567' },
-  { code: '+34', country: 'España', flag: '🇪🇸', format: 'xxx xx xx xx', maxDigits: 9, placeholder: '612 34 56 78' },
+  { code: '+54', country: 'Argentina', iso: 'ar', format: '9 11 1234-5678', maxDigits: 12, placeholder: '9 11 1234-5678' },
+  { code: '+1', country: 'USA/Canada', iso: 'us', format: '(xxx) xxx-xxxx', maxDigits: 10, placeholder: '(555) 123-4567' },
+  { code: '+52', country: 'México', iso: 'mx', format: 'xx xxxx xxxx', maxDigits: 10, placeholder: '55 1234 5678' },
+  { code: '+55', country: 'Brasil', iso: 'br', format: 'xx xxxxx-xxxx', maxDigits: 11, placeholder: '11 91234-5678' },
+  { code: '+56', country: 'Chile', iso: 'cl', format: 'x xxxx xxxx', maxDigits: 9, placeholder: '9 1234 5678' },
+  { code: '+57', country: 'Colombia', iso: 'co', format: 'xxx xxx xxxx', maxDigits: 10, placeholder: '310 123 4567' },
+  { code: '+58', country: 'Venezuela', iso: 've', format: 'xxx xxx xxxx', maxDigits: 10, placeholder: '412 123 4567' },
+  { code: '+34', country: 'España', iso: 'es', format: 'xxx xx xx xx', maxDigits: 9, placeholder: '612 34 56 78' },
 ];
+
+// Flag image component using flagcdn.com
+function FlagImage({ iso, size = 20 }: { iso: string; size?: number }) {
+  return (
+    <img
+      src={`https://flagcdn.com/w${size * 2}/${iso}.png`}
+      srcSet={`https://flagcdn.com/w${size * 3}/${iso}.png 2x`}
+      width={size}
+      height={Math.round(size * 0.75)}
+      alt={iso.toUpperCase()}
+      className="rounded-sm object-cover"
+      style={{ minWidth: size }}
+    />
+  );
+}
 
 // Format phone number based on country
 const formatPhoneByCountry = (value: string, countryCode: string): string => {
@@ -177,7 +194,7 @@ export default function LoginPage() {
                       onClick={() => setShowCountryPicker(!showCountryPicker)}
                       className="flex items-center gap-1.5 h-10 px-3 border-r border-input bg-muted/50 rounded-l-md hover:bg-muted transition-colors focus:outline-none"
                     >
-                      <span className="text-lg leading-none">{selectedCountry.flag}</span>
+                      <FlagImage iso={selectedCountry.iso} size={20} />
                       <span className="text-sm text-foreground font-medium">{countryCode}</span>
                       <ChevronDown className="h-4 w-4 text-muted-foreground" />
                     </button>
@@ -195,7 +212,7 @@ export default function LoginPage() {
                             onClick={() => handleCountryChange(country.code)}
                             className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted transition-colors"
                           >
-                            <span className="text-lg">{country.flag}</span>
+                            <FlagImage iso={country.iso} size={20} />
                             <span className="flex-1 text-left text-sm text-foreground">{country.country}</span>
                             <span className="text-sm text-muted-foreground">{country.code}</span>
                             {country.code === countryCode && (
