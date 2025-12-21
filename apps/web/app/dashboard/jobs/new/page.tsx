@@ -158,16 +158,17 @@ export default function NewJobPage() {
   });
 
   // Use fetched service types - only show what the business has created
-  // Always include "Otro" as a fallback option
+  // Always include "Otro" as a fallback option (if not already present)
   const businessServiceTypes = serviceTypesData?.data?.map((st: { code: string; name: string }) => ({
     value: st.code,
     label: st.name,
   })) || [];
 
-  const SERVICE_TYPES = [
-    ...businessServiceTypes,
-    { value: 'OTRO', label: 'Otro' },
-  ];
+  // Only add OTRO if it's not already in the list
+  const hasOtro = businessServiceTypes.some((st: { value: string }) => st.value === 'OTRO');
+  const SERVICE_TYPES = hasOtro
+    ? businessServiceTypes
+    : [...businessServiceTypes, { value: 'OTRO', label: 'Otro' }];
 
   // Create service type mutation
   const handleCreateServiceType = async () => {
