@@ -59,10 +59,10 @@ function HeroSection() {
           </div>
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-tight mb-6">
             Gestión de servicios
-            <span className="text-primary"> inteligente</span> para tu negocio
+            <span className="text-primary"> inteligente</span> para técnicos y oficios
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Organizá tu equipo, seguí a tus técnicos en tiempo real y automatizá la comunicación con tus clientes. Todo en una sola plataforma.
+            Menos papeles, más trabajos. Ahorrá tiempo y cobrá más rápido.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
@@ -82,15 +82,11 @@ function HeroSection() {
           <div className="flex items-center justify-center gap-6 mt-8 text-sm text-muted-foreground flex-wrap">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-success" />
-              Sin tarjeta de crédito
+              14 días gratis, sin tarjeta
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-success" />
-              14 días gratis
-            </div>
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-success" />
-              Soporte en español
+              Cancelá cuando quieras
             </div>
           </div>
         </div>
