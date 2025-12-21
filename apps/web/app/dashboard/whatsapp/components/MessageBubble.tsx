@@ -14,23 +14,38 @@ import {
   Download,
   Maximize2,
   Bot,
+  Sparkles,
+  Zap,
+  UserPlus,
+  CalendarPlus,
+  UserCheck,
 } from 'lucide-react';
 
 export interface Message {
   id: string;
   waMessageId: string;
   direction: 'inbound' | 'outbound';
-  type: 'text' | 'image' | 'video' | 'document' | 'audio' | 'template' | 'location' | 'contacts' | 'interactive' | 'sticker';
+  type: 'text' | 'image' | 'video' | 'document' | 'audio' | 'template' | 'location' | 'contacts' | 'interactive' | 'sticker' | 'ai_action';
   content: string;
   mediaUrl?: string;
   timestamp: string;
   status: 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
   // AI-related fields
-  senderType?: 'customer' | 'ai' | 'human';
+  senderType?: 'customer' | 'ai' | 'human' | 'system';
   senderUserId?: string;
   senderUserName?: string;
   aiConfidence?: number;
-  aiActionTaken?: string;
+  aiActionTaken?: 'customer_created' | 'job_created' | 'technician_assigned' | 'schedule_confirmed' | 'suggestion' | 'conflict_detected' | 'price_quoted';
+  aiActionMetadata?: {
+    customerName?: string;
+    jobNumber?: string;
+    technicianName?: string;
+    scheduledDate?: string;
+    scheduledTime?: string;
+    serviceType?: string;
+    price?: string;
+  };
+  isProactiveSuggestion?: boolean; // AI suggested this without being asked
 }
 
 interface MessageBubbleProps {
@@ -230,15 +245,24 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
     );
   }
 
+  // AI Action Banner - system notification style (centered)
+  if (message.type === 'ai_action' || message.aiActionTaken) {
+    return <AIActionMessage message={message} formatTime={formatTime} />;
+  }
+
   // Determine bubble colors based on sender type
   let bubbleClasses = '';
   let textClasses = '';
+  let wrapperClasses = '';
 
   if (isOutbound) {
     if (isAI) {
-      // AI message - teal-500
+      // AI message - teal-500 with subtle glow for proactive suggestions
       bubbleClasses = 'bg-teal-500 text-white rounded-lg rounded-tr-none';
       textClasses = 'text-white';
+      if (message.isProactiveSuggestion) {
+        wrapperClasses = 'ring-2 ring-purple-300 ring-offset-2';
+      }
     } else {
       // Human message - teal-600 (darker)
       bubbleClasses = 'bg-teal-600 text-white rounded-lg rounded-tr-none';
@@ -252,7 +276,15 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
 
   return (
     <div className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[70%] p-3 ${bubbleClasses}`}>
+      <div className={`max-w-[70%] p-3 ${bubbleClasses} ${wrapperClasses}`}>
+        {/* Proactive suggestion indicator */}
+        {message.isProactiveSuggestion && isAI && (
+          <div className="flex items-center gap-1 mb-2 px-2 py-1 bg-purple-400/30 rounded-full w-fit">
+            <Sparkles className="h-3 w-3 text-purple-200" />
+            <span className="text-xs text-purple-100 font-medium">Sugerencia proactiva</span>
+          </div>
+        )}
+
         {/* Sender indicator for outbound messages */}
         {isOutbound && (isAI || isHuman) && (
           <div className="flex items-center gap-1 mb-1 text-xs text-white/80">
@@ -260,6 +292,14 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
               <>
                 <Bot className="h-3 w-3" />
                 <span>AI</span>
+                {message.aiConfidence && (
+                  <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] ${
+                    message.aiConfidence >= 80 ? 'bg-green-400/30' :
+                    message.aiConfidence >= 50 ? 'bg-yellow-400/30' : 'bg-red-400/30'
+                  }`}>
+                    {message.aiConfidence}%
+                  </span>
+                )}
               </>
             ) : (
               <>
@@ -271,7 +311,7 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
         )}
 
         {/* Media content */}
-        {message.type !== 'text' && message.type !== 'template' && (
+        {message.type !== 'text' && message.type !== 'template' && message.type !== 'ai_action' && (
           <div className="mb-2">{renderMediaContent()}</div>
         )}
 
@@ -296,6 +336,145 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
             {formatTime(message.timestamp)}
           </span>
           {isOutbound && <MessageStatus status={message.status} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI ACTION MESSAGE COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface AIActionMessageProps {
+  message: Message;
+  formatTime: (timestamp: string) => string;
+}
+
+const AI_ACTION_CONFIG: Record<string, {
+  icon: React.ElementType;
+  bgColor: string;
+  borderColor: string;
+  iconBg: string;
+  iconColor: string;
+  title: string;
+}> = {
+  customer_created: {
+    icon: UserPlus,
+    bgColor: 'bg-emerald-50',
+    borderColor: 'border-emerald-200',
+    iconBg: 'bg-emerald-100',
+    iconColor: 'text-emerald-600',
+    title: 'Cliente Creado',
+  },
+  job_created: {
+    icon: CalendarPlus,
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-200',
+    iconBg: 'bg-blue-100',
+    iconColor: 'text-blue-600',
+    title: 'Turno Creado',
+  },
+  technician_assigned: {
+    icon: UserCheck,
+    bgColor: 'bg-indigo-50',
+    borderColor: 'border-indigo-200',
+    iconBg: 'bg-indigo-100',
+    iconColor: 'text-indigo-600',
+    title: 'Técnico Asignado',
+  },
+  schedule_confirmed: {
+    icon: Check,
+    bgColor: 'bg-green-50',
+    borderColor: 'border-green-200',
+    iconBg: 'bg-green-100',
+    iconColor: 'text-green-600',
+    title: 'Turno Confirmado',
+  },
+  suggestion: {
+    icon: Sparkles,
+    bgColor: 'bg-purple-50',
+    borderColor: 'border-purple-200',
+    iconBg: 'bg-purple-100',
+    iconColor: 'text-purple-600',
+    title: 'Sugerencia de IA',
+  },
+  conflict_detected: {
+    icon: AlertCircle,
+    bgColor: 'bg-amber-50',
+    borderColor: 'border-amber-200',
+    iconBg: 'bg-amber-100',
+    iconColor: 'text-amber-600',
+    title: 'Conflicto Detectado',
+  },
+  price_quoted: {
+    icon: Zap,
+    bgColor: 'bg-teal-50',
+    borderColor: 'border-teal-200',
+    iconBg: 'bg-teal-100',
+    iconColor: 'text-teal-600',
+    title: 'Precio Informado',
+  },
+};
+
+function AIActionMessage({ message, formatTime }: AIActionMessageProps) {
+  const actionType = message.aiActionTaken || 'suggestion';
+  const config = AI_ACTION_CONFIG[actionType] || AI_ACTION_CONFIG.suggestion;
+  const Icon = config.icon;
+  const metadata = message.aiActionMetadata;
+
+  // Build detail items
+  const details: string[] = [];
+  if (metadata?.customerName) details.push(`Cliente: ${metadata.customerName}`);
+  if (metadata?.jobNumber) details.push(`Turno: ${metadata.jobNumber}`);
+  if (metadata?.technicianName) details.push(`Técnico: ${metadata.technicianName}`);
+  if (metadata?.scheduledDate) {
+    const dateStr = new Date(metadata.scheduledDate).toLocaleDateString('es-AR', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+    });
+    details.push(`Fecha: ${dateStr}${metadata.scheduledTime ? ` ${metadata.scheduledTime}` : ''}`);
+  }
+  if (metadata?.serviceType) details.push(`Servicio: ${metadata.serviceType}`);
+  if (metadata?.price) details.push(`Precio: ${metadata.price}`);
+
+  return (
+    <div className="flex justify-center my-2">
+      <div className={`max-w-sm ${config.bgColor} ${config.borderColor} border rounded-lg p-3 shadow-sm`}>
+        <div className="flex items-start gap-3">
+          {/* Icon */}
+          <div className={`flex-shrink-0 p-2 rounded-full ${config.iconBg}`}>
+            <Icon className={`h-4 w-4 ${config.iconColor}`} />
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <Bot className="h-3 w-3 text-gray-400" />
+              <span className="text-xs text-gray-500">IA</span>
+              <span className="text-xs text-gray-400">•</span>
+              <span className="text-xs text-gray-500">{formatTime(message.timestamp)}</span>
+            </div>
+
+            <h4 className="font-semibold text-sm mt-1 text-gray-900">
+              {config.title}
+            </h4>
+
+            {/* Details */}
+            {details.length > 0 && (
+              <div className="mt-2 space-y-0.5">
+                {details.map((detail, idx) => (
+                  <p key={idx} className="text-xs text-gray-600">{detail}</p>
+                ))}
+              </div>
+            )}
+
+            {/* Additional text content */}
+            {message.content && !details.length && (
+              <p className="text-xs text-gray-600 mt-1">{message.content}</p>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -2903,6 +2903,13 @@ model WaMessage {
   // Reply context
   replyToId             String?  // ID of message being replied to
 
+  // AI-related fields
+  senderType            String?  // 'customer' | 'ai' | 'human' | 'system'
+  aiConfidence          Int?     // 0-100 confidence score
+  aiActionTaken         String?  // 'customer_created' | 'job_created' | 'technician_assigned' | etc.
+  aiActionMetadata      Json?    // Additional data about the action
+  isProactiveSuggestion Boolean  @default(false) // AI suggested without being asked
+
   createdAt             DateTime @default(now())
 
   @@index([conversationId, createdAt])
