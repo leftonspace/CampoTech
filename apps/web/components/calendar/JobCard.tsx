@@ -12,6 +12,9 @@ import {
   ExternalLink,
   Edit,
   Navigation,
+  Star,
+  Repeat,
+  CalendarDays,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 import { CalendarEvent } from './CalendarView';
@@ -86,6 +89,16 @@ export function JobCard({ event, onClose }: JobCardProps) {
 
   const mapsUrl = job.customer ? getGoogleMapsUrl(job.customer.address) : null;
 
+  // Visit type info
+  const isRecurring = job.durationType === 'RECURRING';
+  const isMultiVisit = job.durationType === 'MULTIPLE_VISITS' || (job.totalVisits && job.totalVisits > 1);
+  const visitNumber = job.visitNumber || 1;
+  const totalVisits = job.totalVisits || 1;
+  const isFirstVisit = job.isFirstVisit;
+
+  // Get the actual job ID for links (not the event ID which might be "visit-xxx")
+  const jobId = job.jobId || event.id.replace('visit-', '');
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
@@ -111,7 +124,7 @@ export function JobCard({ event, onClose }: JobCardProps) {
         {/* Content */}
         <div className="p-4 space-y-4">
           {/* Status and urgency */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${status.color}`}>
               {status.label}
             </span>
@@ -119,6 +132,30 @@ export function JobCard({ event, onClose }: JobCardProps) {
               <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-700">
                 <AlertCircle className="h-3 w-3" />
                 Urgente
+              </span>
+            )}
+
+            {/* First visit badge */}
+            {isFirstVisit && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full bg-yellow-100 text-yellow-700">
+                <Star className="h-3 w-3" />
+                Primera visita
+              </span>
+            )}
+
+            {/* Recurring badge */}
+            {isRecurring && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700">
+                <Repeat className="h-3 w-3" />
+                Recurrente
+              </span>
+            )}
+
+            {/* Multi-visit badge with visit number */}
+            {isMultiVisit && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700">
+                <CalendarDays className="h-3 w-3" />
+                Visita {visitNumber}/{totalVisits}
               </span>
             )}
           </div>
@@ -255,14 +292,14 @@ export function JobCard({ event, onClose }: JobCardProps) {
             Cerrar
           </button>
           <Link
-            href={`/dashboard/jobs/${event.id}?edit=true`}
+            href={`/dashboard/jobs/${jobId}?edit=true`}
             className="flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200"
           >
             <Edit className="h-4 w-4" />
             Editar
           </Link>
           <Link
-            href={`/dashboard/jobs/${event.id}`}
+            href={`/dashboard/jobs/${jobId}`}
             className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
           >
             Ver detalles
