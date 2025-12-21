@@ -143,9 +143,11 @@ export async function onJobStatusChange(
         const technicianName = job.technician?.name ||
           job.assignments?.[0]?.technician?.name ||
           'un técnico';
-        const timeSlot = job.scheduledTimeStart && job.scheduledTimeEnd
-          ? `${job.scheduledTimeStart} - ${job.scheduledTimeEnd}`
-          : job.scheduledTimeStart || 'horario a confirmar';
+        // scheduledTimeSlot is a JSON field: { start: "09:00", end: "11:00" }
+        const slot = job.scheduledTimeSlot as { start?: string; end?: string } | null;
+        const timeSlot = slot?.start && slot?.end
+          ? `${slot.start} - ${slot.end}`
+          : slot?.start || 'horario a confirmar';
 
         message = `Hola ${customerName}, su turno ${jobNumber} ha sido confirmado para el ${scheduledDate || 'próximamente'} (${timeSlot}). ${technicianName} lo/la atenderá. ¡Gracias por confiar en ${job.organization.name}!`;
         break;
@@ -232,8 +234,10 @@ export async function onJobAssigned(
     if (technician?.phone) {
       const customerName = job.customer?.name || 'Cliente';
       const scheduledDate = job.scheduledDate ? formatDate(job.scheduledDate) : 'fecha a confirmar';
-      const address = job.address || job.customer?.address || 'dirección a confirmar';
-      const timeSlot = job.scheduledTimeStart || 'horario a confirmar';
+      const address = job.customer?.address || 'dirección a confirmar';
+      // scheduledTimeSlot is a JSON field: { start: "09:00", end: "11:00" }
+      const slot = job.scheduledTimeSlot as { start?: string; end?: string } | null;
+      const timeSlot = slot?.start || 'horario a confirmar';
 
       const message = `Hola ${technician.name}, te asignaron un nuevo trabajo:\n\n` +
         `Cliente: ${customerName}\n` +

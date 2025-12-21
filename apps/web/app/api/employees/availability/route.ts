@@ -130,30 +130,45 @@ export async function GET(request: NextRequest) {
     const endOfDay = new Date(targetDate);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const assignedJobs = await prisma.jobAssignment.findMany({
-      where: {
-        job: {
-          organizationId: session.organizationId,
-          scheduledDate: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
-          status: {
-            notIn: ['COMPLETED', 'CANCELLED'],
+    // Try to get assigned jobs, but handle case where JobAssignment table doesn't exist
+    let assignedJobs: Array<{
+      technicianId: string;
+      jobId: string;
+      job: {
+        id: string;
+        scheduledTimeSlot: { start?: string; end?: string } | null;
+        estimatedDuration: number | null;
+      };
+    }> = [];
+
+    try {
+      assignedJobs = await prisma.jobAssignment.findMany({
+        where: {
+          job: {
+            organizationId: session.organizationId,
+            scheduledDate: {
+              gte: startOfDay,
+              lte: endOfDay,
+            },
+            status: {
+              notIn: ['COMPLETED', 'CANCELLED'],
+            },
           },
         },
-      },
-      include: {
-        job: {
-          select: {
-            id: true,
-            scheduledTimeStart: true,
-            scheduledTimeEnd: true,
-            estimatedDuration: true,
+        include: {
+          job: {
+            select: {
+              id: true,
+              scheduledTimeSlot: true,
+              estimatedDuration: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (err) {
+      // JobAssignment table might not exist yet - continue without job conflicts
+      console.warn('JobAssignment query failed (table may not exist):', err);
+    }
 
     // Get current locations if requested
     let locations: Map<string, { lat: number; lng: number; updatedAt: Date }> = new Map();
@@ -184,7 +199,7 @@ export async function GET(request: NextRequest) {
 
     // Count jobs per employee
     const jobCountMap = new Map<string, number>();
-    assignedJobs.forEach((assignment: { jobId: string; technicianId: string; job: { scheduledDate: Date | null; scheduledTimeStart: string | null; scheduledTimeEnd: string | null; estimatedDuration: number | null } }) => {
+    assignedJobs.forEach((assignment) => {
       const count = jobCountMap.get(assignment.technicianId) || 0;
       jobCountMap.set(assignment.technicianId, count + 1);
     });
@@ -231,15 +246,16 @@ export async function GET(request: NextRequest) {
 
       // Check for job conflicts at the requested time
       if (isAvailable) {
-        const conflictingJobs = assignedJobs.filter((a: { jobId: string; technicianId: string; job: { scheduledDate: Date | null; scheduledTimeStart: string | null; scheduledTimeEnd: string | null; estimatedDuration: number | null } }) => {
+        const conflictingJobs = assignedJobs.filter((a) => {
           if (a.technicianId !== employee.id) return false;
 
-          // Use separate time fields from Prisma schema
-          if (!a.job.scheduledTimeStart) return false;
+          // Use scheduledTimeSlot JSON field: { start: "09:00", end: "11:00" }
+          const timeSlot = a.job.scheduledTimeSlot;
+          if (!timeSlot || !timeSlot.start) return false;
 
-          const jobStart = timeToMinutes(a.job.scheduledTimeStart);
-          const jobEnd = a.job.scheduledTimeEnd
-            ? timeToMinutes(a.job.scheduledTimeEnd)
+          const jobStart = timeToMinutes(timeSlot.start);
+          const jobEnd = timeSlot.end
+            ? timeToMinutes(timeSlot.end)
             : jobStart + (a.job.estimatedDuration || 60);
 
           // Check if target time overlaps with job
