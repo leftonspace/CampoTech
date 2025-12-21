@@ -493,6 +493,47 @@ export interface MessageTemplate {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// BUSINESS PROFILE TYPES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Business profile information that can be updated via API
+ * See: https://developers.facebook.com/docs/whatsapp/cloud-api/reference/business-profiles
+ */
+export interface BusinessProfile {
+  /** About text (max 139 chars) */
+  about?: string;
+  /** Business address (max 256 chars) */
+  address?: string;
+  /** Business description (max 512 chars, but recommended 256 for display) */
+  description?: string;
+  /** Business email (max 128 chars) */
+  email?: string;
+  /** Industry vertical */
+  vertical?: string;
+  /** Business websites (max 2 URLs, each max 256 chars) */
+  websites?: string[];
+  /** Profile picture handle (from media upload) */
+  profile_picture_handle?: string;
+}
+
+/**
+ * Response when fetching business profile
+ */
+export interface BusinessProfileResponse {
+  data: Array<{
+    about?: string;
+    address?: string;
+    description?: string;
+    email?: string;
+    messaging_product: 'whatsapp';
+    profile_picture_url?: string;
+    vertical?: string;
+    websites?: string[];
+  }>;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MEDIA TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
