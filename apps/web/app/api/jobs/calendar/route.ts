@@ -285,17 +285,84 @@ export async function GET(request: NextRequest) {
     // Track job IDs that have visits to avoid duplicates
     const jobsWithVisits = new Set<string>();
 
+    // Group visits by job and visitConfigIndex to calculate totals
+    const visitsByJobAndConfig = new Map<string, Map<number, typeof jobVisits>>();
+    for (const visit of jobVisits) {
+      jobsWithVisits.add(visit.jobId);
+      const configIndex = (visit as any).visitConfigIndex || 1;
+
+      if (!visitsByJobAndConfig.has(visit.jobId)) {
+        visitsByJobAndConfig.set(visit.jobId, new Map());
+      }
+      const jobConfigs = visitsByJobAndConfig.get(visit.jobId)!;
+      if (!jobConfigs.has(configIndex)) {
+        jobConfigs.set(configIndex, []);
+      }
+      jobConfigs.get(configIndex)!.push(visit);
+    }
+
+    // Build config summaries for navigation between configs
+    const getConfigSummaries = (jobId: string) => {
+      const jobConfigs = visitsByJobAndConfig.get(jobId);
+      if (!jobConfigs || jobConfigs.size <= 1) return [];
+
+      const summaries: Array<{
+        configIndex: number;
+        totalDates: number;
+        firstDate: string;
+        lastDate: string;
+        timeSlot: { start?: string; end?: string } | null;
+        technician: { id: string; name: string; avatar?: string | null } | null;
+      }> = [];
+
+      for (const [configIndex, visits] of jobConfigs) {
+        const sorted = [...visits].sort((a, b) =>
+          new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
+        );
+        const firstVisit = sorted[0];
+        const lastVisit = sorted[sorted.length - 1];
+
+        summaries.push({
+          configIndex,
+          totalDates: visits.length,
+          firstDate: firstVisit.scheduledDate.toISOString(),
+          lastDate: lastVisit.scheduledDate.toISOString(),
+          timeSlot: firstVisit.scheduledTimeSlot as { start?: string; end?: string } | null,
+          technician: firstVisit.technician
+            ? { id: firstVisit.technician.id, name: firstVisit.technician.name, avatar: firstVisit.technician.avatar }
+            : null,
+        });
+      }
+
+      return summaries.sort((a, b) => a.configIndex - b.configIndex);
+    };
+
     // Transform job visits for calendar (from multi-visit jobs)
     const visitEvents = jobVisits.map((visit) => {
-      jobsWithVisits.add(visit.jobId);
       const timeSlot = visit.scheduledTimeSlot as { start?: string; end?: string } | null;
       const job = visit.job;
       const totalVisits = job.visitCount || 1;
       const durationType = job.durationType || (totalVisits > 1 ? 'MULTIPLE_VISITS' : 'SINGLE_VISIT');
 
+      // Get config info for this visit
+      const visitConfigIndex = (visit as any).visitConfigIndex || 1;
+      const jobConfigs = visitsByJobAndConfig.get(visit.jobId);
+      const totalConfigs = jobConfigs?.size || 1;
+      const configVisits = jobConfigs?.get(visitConfigIndex) || [];
+      const configTotalDates = configVisits.length;
+
+      // Get visit number within this config (not overall)
+      const sortedConfigVisits = [...configVisits].sort((a, b) =>
+        new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
+      );
+      const visitNumberInConfig = sortedConfigVisits.findIndex(v => v.id === visit.id) + 1;
+
+      // Get all config summaries for navigation
+      const allConfigs = getConfigSummaries(visit.jobId);
+
       return createEvent(
         `visit-${visit.id}`,
-        `${job.jobNumber} (${visit.visitNumber}/${totalVisits}) - ${job.customer.name}`,
+        `${job.jobNumber} - ${job.customer.name}`,
         visit.scheduledDate,
         timeSlot,
         visit.status,
@@ -306,6 +373,11 @@ export async function GET(request: NextRequest) {
           visitId: visit.id,
           visitNumber: visit.visitNumber,
           totalVisits,
+          visitConfigIndex,
+          totalConfigs,
+          configTotalDates,
+          visitNumberInConfig,
+          allConfigs, // For navigation between configs
           durationType,
           isFirstVisit: isFirstVisitForCustomer(job.customerId),
           status: visit.status,
