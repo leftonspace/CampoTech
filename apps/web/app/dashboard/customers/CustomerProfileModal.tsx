@@ -4,25 +4,22 @@ import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import {
-  X,
   User,
   Mail,
   Phone,
   MapPin,
   Star,
   Edit2,
-  Briefcase,
   FileText,
   MessageSquare,
   Copy,
-  ExternalLink,
   Calendar,
   Clock,
   Crown,
   ClipboardList,
   ChevronRight,
 } from 'lucide-react';
-import { cn, formatCurrency, formatPhone, formatAddress, formatDate, formatRelativeTime, getInitials } from '@/lib/utils';
+import { cn, formatCurrency, formatPhone, formatAddress, formatDate, getInitials } from '@/lib/utils';
 import { Customer, Job, Invoice } from '@/types';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -79,6 +76,7 @@ export default function CustomerProfileModal({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('trabajos');
   const [copied, setCopied] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState(false);
 
   // Fetch customer details
   const { data, isLoading, error } = useQuery({
@@ -114,11 +112,21 @@ export default function CustomerProfileModal({
     }
   };
 
-  const handleWhatsApp = () => {
+  const handleCopyEmail = () => {
+    if (customer?.email) {
+      navigator.clipboard.writeText(customer.email);
+      setCopiedEmail(true);
+      setTimeout(() => setCopiedEmail(false), 2000);
+    }
+  };
+
+  const handlePhoneClick = () => {
     if (customer?.phone) {
+      // Navigate to WhatsApp page and start new conversation with this customer
       const cleanPhone = customer.phone.replace(/\D/g, '');
       const whatsappPhone = cleanPhone.startsWith('54') ? cleanPhone : `54${cleanPhone}`;
-      window.open(`https://wa.me/${whatsappPhone}`, '_blank');
+      router.push(`/dashboard/whatsapp?phone=${whatsappPhone}&name=${encodeURIComponent(customer.name)}`);
+      onClose();
     }
   };
 
@@ -191,19 +199,23 @@ export default function CustomerProfileModal({
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-gray-500">
-                  {customer.customerNumber || `CL-${customer.id.slice(-4).toUpperCase()}`}
-                </p>
+                {customer.customerNumber && (
+                  <p className="text-sm text-gray-500">{customer.customerNumber}</p>
+                )}
               </div>
             </div>
           ) : null}
 
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            <X className="h-5 w-5 text-gray-500" />
-          </button>
+          {/* Edit button in top-right corner */}
+          {onEdit && customer && (
+            <button
+              onClick={() => onEdit(customerId!)}
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Editar cliente"
+            >
+              <Edit2 className="h-5 w-5 text-gray-500" />
+            </button>
+          )}
         </div>
 
         {/* Stats Row */}
@@ -257,18 +269,30 @@ export default function CustomerProfileModal({
                   {customer.email && (
                     <div className="flex items-center gap-3">
                       <Mail className="h-4 w-4 text-gray-400" />
-                      <a href={`mailto:${customer.email}`} className="text-sm text-gray-700 hover:text-teal-600">
-                        {customer.email}
-                      </a>
+                      <span className="text-sm text-gray-700">{customer.email}</span>
+                      <button
+                        onClick={handleCopyEmail}
+                        className="p-1 hover:bg-gray-100 rounded transition-colors"
+                        title="Copiar email"
+                      >
+                        <Copy className="h-3.5 w-3.5 text-gray-400" />
+                      </button>
+                      {copiedEmail && <span className="text-xs text-green-600">Copiado!</span>}
                     </div>
                   )}
                   <div className="flex items-center gap-3">
                     <Phone className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm text-gray-700">{formatPhone(customer.phone)}</span>
+                    <button
+                      onClick={handlePhoneClick}
+                      className="text-sm text-gray-700 hover:text-teal-600 hover:underline transition-colors"
+                      title="Abrir conversación en WhatsApp"
+                    >
+                      {formatPhone(customer.phone)}
+                    </button>
                     <button
                       onClick={handleCopyPhone}
                       className="p-1 hover:bg-gray-100 rounded transition-colors"
-                      title="Copiar"
+                      title="Copiar teléfono"
                     >
                       <Copy className="h-3.5 w-3.5 text-gray-400" />
                     </button>
@@ -279,38 +303,6 @@ export default function CustomerProfileModal({
                       <MapPin className="h-4 w-4 text-gray-400" />
                       <span className="text-sm text-gray-700">{addressStr}</span>
                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Quick Actions */}
-              <div className="p-6 border-b">
-                <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                  Acciones Rápidas
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    onClick={handleWhatsApp}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                    WhatsApp
-                  </button>
-                  <button
-                    onClick={handleNewJob}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 transition-colors"
-                  >
-                    <Briefcase className="h-4 w-4" />
-                    Nuevo Trabajo
-                  </button>
-                  {onEdit && (
-                    <button
-                      onClick={() => onEdit(customerId!)}
-                      className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-                    >
-                      <Edit2 className="h-4 w-4" />
-                      Editar
-                    </button>
                   )}
                 </div>
               </div>
