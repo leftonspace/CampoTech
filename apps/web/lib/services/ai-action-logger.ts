@@ -113,7 +113,7 @@ export async function logAIAction(params: LogAIActionParams): Promise<string | n
         responseStatus: 'ai_action',
         extractedEntities: metadata || {},
       },
-    }).catch(err => {
+    }).catch((err: Error) => {
       console.error('[AI Action Logger] Failed to log to AIConversationLog:', err);
     });
 

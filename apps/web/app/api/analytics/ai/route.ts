@@ -87,27 +87,30 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
+    // Define type for log entries
+    type AILogEntry = typeof aiLogs[number];
+
     // Calculate summary stats
-    const totalConversations = new Set(aiLogs.map(l => l.conversationId)).size;
-    const aiResolved = aiLogs.filter(l => l.responseStatus === 'sent').length;
-    const transferred = aiLogs.filter(l => l.responseStatus === 'transferred').length;
+    const totalConversations = new Set(aiLogs.map((l: AILogEntry) => l.conversationId)).size;
+    const aiResolved = aiLogs.filter((l: AILogEntry) => l.responseStatus === 'sent').length;
+    const transferred = aiLogs.filter((l: AILogEntry) => l.responseStatus === 'transferred').length;
     const confidenceScores = aiLogs
-      .filter(l => l.confidenceScore !== null)
-      .map(l => l.confidenceScore as number);
+      .filter((l: AILogEntry) => l.confidenceScore !== null)
+      .map((l: AILogEntry) => l.confidenceScore as number);
     const avgConfidence = confidenceScores.length > 0
-      ? Math.round(confidenceScores.reduce((a, b) => a + b, 0) / confidenceScores.length)
+      ? Math.round(confidenceScores.reduce((a: number, b: number) => a + b, 0) / confidenceScores.length)
       : 0;
 
     // Confidence distribution
     const confidenceDistribution = {
-      high: confidenceScores.filter(c => c >= 80).length,
-      medium: confidenceScores.filter(c => c >= 50 && c < 80).length,
-      low: confidenceScores.filter(c => c < 50).length,
+      high: confidenceScores.filter((c: number) => c >= 80).length,
+      medium: confidenceScores.filter((c: number) => c >= 50 && c < 80).length,
+      low: confidenceScores.filter((c: number) => c < 50).length,
     };
 
     // Intent breakdown
     const intentCounts = new Map<string, number>();
-    aiLogs.forEach(log => {
+    aiLogs.forEach((log: AILogEntry) => {
       if (log.detectedIntent) {
         const count = intentCounts.get(log.detectedIntent) || 0;
         intentCounts.set(log.detectedIntent, count + 1);
@@ -131,20 +134,20 @@ export async function GET(request: NextRequest) {
       const nextDate = new Date(date);
       nextDate.setDate(nextDate.getDate() + 1);
 
-      const dayLogs = aiLogs.filter(l =>
+      const dayLogs = aiLogs.filter((l: AILogEntry) =>
         l.createdAt >= date && l.createdAt < nextDate
       );
 
       dailyStats.push({
         date: date.toISOString().split('T')[0],
         total: dayLogs.length,
-        resolved: dayLogs.filter(l => l.responseStatus === 'sent').length,
-        transferred: dayLogs.filter(l => l.responseStatus === 'transferred').length,
+        resolved: dayLogs.filter((l: AILogEntry) => l.responseStatus === 'sent').length,
+        transferred: dayLogs.filter((l: AILogEntry) => l.responseStatus === 'transferred').length,
       });
     }
 
     // Booking stats
-    const bookingIntents = aiLogs.filter(l => l.detectedIntent === 'booking');
+    const bookingIntents = aiLogs.filter((l: AILogEntry) => l.detectedIntent === 'booking');
     const bookingsCompleted = await prisma.job.count({
       where: {
         organizationId: session.organizationId,
@@ -163,12 +166,12 @@ export async function GET(request: NextRequest) {
 
     // Get top questions (from question intents)
     const questionLogs = aiLogs
-      .filter(l => l.detectedIntent === 'question' && l.customerMessage)
+      .filter((l: AILogEntry) => l.detectedIntent === 'question' && l.customerMessage)
       .slice(0, 20);
 
     // Group similar questions (simplified - just take first 50 chars)
     const questionCounts = new Map<string, number>();
-    questionLogs.forEach(log => {
+    questionLogs.forEach((log: AILogEntry) => {
       if (log.customerMessage) {
         const key = log.customerMessage.substring(0, 50).toLowerCase();
         const count = questionCounts.get(key) || 0;

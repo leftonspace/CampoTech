@@ -532,12 +532,13 @@ export class AIStaffAssistant {
       },
     });
 
-    const completedJobs = jobs.filter(j => j.status === 'COMPLETED').length;
-    const cancelledJobs = jobs.filter(j => j.status === 'CANCELLED').length;
-    const totalSpent = jobs.reduce((sum, j) => sum + (Number(j.totalAmount) || 0), 0);
+    type JobEntry = typeof jobs[number];
+    const completedJobs = jobs.filter((j: JobEntry) => j.status === 'COMPLETED').length;
+    const cancelledJobs = jobs.filter((j: JobEntry) => j.status === 'CANCELLED').length;
+    const totalSpent = jobs.reduce((sum: number, j: JobEntry) => sum + (Number(j.totalAmount) || 0), 0);
     const lastService = jobs
-      .filter(j => j.completedAt)
-      .sort((a, b) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0];
+      .filter((j: JobEntry) => j.completedAt)
+      .sort((a: JobEntry, b: JobEntry) => (b.completedAt?.getTime() || 0) - (a.completedAt?.getTime() || 0))[0];
 
     const insights: CustomerInsights = {
       name: customer.name,
@@ -767,8 +768,9 @@ export class AIStaffAssistant {
       return 'Sin mensajes previos';
     }
 
+    type MessageEntry = typeof messages[number];
     return messages
-      .map(m => {
+      .map((m: MessageEntry) => {
         const sender = m.direction === 'inbound' ? 'CLIENTE' : 'EMPRESA';
         const time = m.createdAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
         return `[${time}] ${sender}: ${m.body || '[Sin texto]'}`;

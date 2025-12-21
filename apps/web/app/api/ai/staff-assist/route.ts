@@ -14,8 +14,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
+import { getSession } from '@/lib/auth';
 import { getAIStaffAssistant, StaffAssistantAction } from '@/lib/services/ai-staff-assistant';
 import { prisma } from '@/lib/prisma';
 
@@ -33,8 +32,8 @@ const VALID_ACTIONS: StaffAssistantAction[] = [
 export async function POST(req: NextRequest) {
   try {
     // Check authentication
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    const session = await getSession();
+    if (!session) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -72,7 +71,7 @@ export async function POST(req: NextRequest) {
     // Verify user has access to this organization
     const userOrg = await prisma.organizationMember.findFirst({
       where: {
-        userId: session.user.id,
+        userId: session.userId,
         organizationId: conversation.organizationId,
       },
     });
@@ -89,7 +88,7 @@ export async function POST(req: NextRequest) {
     const result = await assistant.processRequest({
       organizationId: conversation.organizationId,
       conversationId,
-      userId: session.user.id,
+      userId: session.userId,
       action: action as StaffAssistantAction,
       query,
       context,
@@ -108,7 +107,7 @@ export async function POST(req: NextRequest) {
         aiResponse: result.result.substring(0, 500),
         responseStatus: result.success ? 'staff_assist' : 'error',
       },
-    }).catch(err => {
+    }).catch((err: Error) => {
       console.error('Failed to log staff assist:', err);
     });
 
