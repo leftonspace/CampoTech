@@ -51,6 +51,30 @@ interface TechnicianOption {
   jobCount?: number;
 }
 
+// Represents either a single-visit job or one "Visita" config from a multi-visit job
+interface JobOrVisitRow {
+  job: Job;
+  visitConfig?: {
+    configIndex: number; // The original "Visita" config number (1, 2, 3...)
+    visits: Array<{
+      id: string;
+      visitNumber: number;
+      scheduledDate: string;
+      scheduledTimeSlot?: { start?: string; end?: string } | null;
+      status: string;
+      technician?: { id: string; name: string } | null;
+    }>;
+    // Summary info for this config
+    firstDate: string;
+    lastDate: string;
+    totalDates: number;
+    technician?: { id: string; name: string } | null;
+    timeSlot?: { start?: string; end?: string } | null;
+  };
+  isVisitRow: boolean;
+  totalConfigs: number; // How many "Visita" configs the job has
+}
+
 const PRIORITY_LABELS: Record<string, string> = {
   low: 'Baja',
   normal: 'Normal',
@@ -138,9 +162,13 @@ export default function JobsPage() {
   };
   const technicians: TechnicianOption[] = techniciansData?.data || [];
 
-  // Client-side filtering
-  const jobs = useMemo(() => {
-    return allJobs?.filter((job) => {
+  // Client-side filtering and grouping visits by their original "Visita" config
+  const jobRows = useMemo((): JobOrVisitRow[] => {
+    if (!allJobs) return [];
+
+    const rows: JobOrVisitRow[] = [];
+
+    for (const job of allJobs) {
       // Search filter
       if (search) {
         const searchFields = [
@@ -152,22 +180,107 @@ export default function JobsPage() {
           job.address,
           ...(job.assignments?.map((a) => a.technician?.name) || []),
         ];
-        if (!searchMatchesAny(searchFields, search)) return false;
+        if (!searchMatchesAny(searchFields, search)) continue;
       }
 
       // Priority filter
-      if (priorityFilter && job.priority !== priorityFilter) return false;
+      if (priorityFilter && job.priority !== priorityFilter) continue;
 
-      // Technician filter
-      if (technicianFilter) {
-        const hasAssignment = job.assignments?.some(
-          (a) => a.technician?.id === technicianFilter
-        );
-        if (!hasAssignment && job.assignedTo?.id !== technicianFilter) return false;
+      // Check if job has visits
+      const jobAny = job as any;
+      const visits = jobAny.visits as Array<{
+        id: string;
+        visitNumber: number;
+        visitConfigIndex?: number;
+        scheduledDate: string;
+        scheduledTimeSlot?: { start?: string; end?: string } | null;
+        status: string;
+        technicianId?: string;
+        technician?: { id: string; name: string } | null;
+      }> | undefined;
+
+      if (visits && visits.length > 0) {
+        // Group visits by visitConfigIndex (each "Visita" config from the form)
+        const configGroups = new Map<number, typeof visits>();
+
+        for (const visit of visits) {
+          // Default to 1 if visitConfigIndex not set (legacy data)
+          const configIndex = visit.visitConfigIndex || 1;
+          if (!configGroups.has(configIndex)) {
+            configGroups.set(configIndex, []);
+          }
+          configGroups.get(configIndex)!.push(visit);
+        }
+
+        // Create one row per config group
+        const totalConfigs = configGroups.size;
+
+        for (const [configIndex, configVisits] of configGroups) {
+          // Sort visits by date within this config
+          configVisits.sort((a, b) =>
+            new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
+          );
+
+          const firstVisit = configVisits[0];
+          const lastVisit = configVisits[configVisits.length - 1];
+
+          // Technician filter - check if any visit in this config matches
+          if (technicianFilter) {
+            const hasMatchingTech = configVisits.some(v => {
+              const visitTechId = v.technician?.id || v.technicianId;
+              return visitTechId === technicianFilter;
+            });
+            if (!hasMatchingTech) continue;
+          }
+
+          rows.push({
+            job,
+            visitConfig: {
+              configIndex,
+              visits: configVisits.map(v => ({
+                id: v.id,
+                visitNumber: v.visitNumber,
+                scheduledDate: v.scheduledDate,
+                scheduledTimeSlot: v.scheduledTimeSlot,
+                status: v.status,
+                technician: v.technician,
+              })),
+              firstDate: firstVisit.scheduledDate,
+              lastDate: lastVisit.scheduledDate,
+              totalDates: configVisits.length,
+              technician: firstVisit.technician,
+              timeSlot: firstVisit.scheduledTimeSlot,
+            },
+            isVisitRow: true,
+            totalConfigs,
+          });
+        }
+      } else {
+        // Single-visit job - show as regular row
+        // Technician filter for non-visit jobs
+        if (technicianFilter) {
+          const hasAssignment = job.assignments?.some(
+            (a) => a.technician?.id === technicianFilter
+          );
+          if (!hasAssignment && job.assignedTo?.id !== technicianFilter) continue;
+        }
+
+        rows.push({
+          job,
+          isVisitRow: false,
+          totalConfigs: 1,
+        });
       }
+    }
 
-      return true;
+    // Sort by first scheduled date
+    rows.sort((a, b) => {
+      const dateA = a.visitConfig?.firstDate || a.job.scheduledDate || '';
+      const dateB = b.visitConfig?.firstDate || b.job.scheduledDate || '';
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
     });
+
+    return rows;
   }, [allJobs, search, priorityFilter, technicianFilter]);
 
   const hasActiveFilters = search || statusFilter || priorityFilter || technicianFilter || durationTypeFilter;
@@ -453,11 +566,14 @@ export default function JobsPage() {
               </div>
             </div>
           ))
-        ) : jobs?.length ? (
-          jobs.map((job) => (
+        ) : jobRows.length ? (
+          jobRows.map((row) => (
             <JobCard
-              key={job.id}
-              job={job}
+              key={row.visitConfig ? `config-${row.job.id}-${row.visitConfig.configIndex}` : row.job.id}
+              job={row.job}
+              visitConfig={row.visitConfig}
+              isVisitRow={row.isVisitRow}
+              totalConfigs={row.totalConfigs}
               openMenuId={openMenuId}
               onMenuClick={handleMenuClick}
               onAction={handleAction}
@@ -562,6 +678,24 @@ function StatCard({ title, value, icon, color = 'default', loading }: StatCardPr
 
 interface JobCardProps {
   job: Job;
+  visitConfig?: {
+    configIndex: number;
+    visits: Array<{
+      id: string;
+      visitNumber: number;
+      scheduledDate: string;
+      scheduledTimeSlot?: { start?: string; end?: string } | null;
+      status: string;
+      technician?: { id: string; name: string } | null;
+    }>;
+    firstDate: string;
+    lastDate: string;
+    totalDates: number;
+    technician?: { id: string; name: string } | null;
+    timeSlot?: { start?: string; end?: string } | null;
+  };
+  isVisitRow: boolean;
+  totalConfigs: number;
   openMenuId: string | null;
   onMenuClick: (jobId: string, e: React.MouseEvent) => void;
   onAction: (action: string, job: Job, e: React.MouseEvent) => void;
@@ -569,9 +703,19 @@ interface JobCardProps {
   onCardClick: (job: Job) => void;
 }
 
-function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick, onCardClick }: JobCardProps) {
-  const hasAssignment = job.assignments && job.assignments.length > 0;
-  const isCompleted = job.status === 'COMPLETED' || job.status === 'CANCELLED';
+function JobCard({ job, visitConfig, isVisitRow, totalConfigs, openMenuId, onMenuClick, onAction, onAssignClick, onCardClick }: JobCardProps) {
+  // For visit config rows, calculate aggregate status
+  const pendingCount = visitConfig?.visits.filter(v => v.status === 'PENDING').length || 0;
+  const completedCount = visitConfig?.visits.filter(v => v.status === 'COMPLETED').length || 0;
+  const totalVisitDates = visitConfig?.totalDates || 1;
+
+  // Display status: show job status for single jobs, or summary for visit configs
+  const displayStatus = visitConfig
+    ? (completedCount === totalVisitDates ? 'COMPLETED' : (pendingCount === totalVisitDates ? 'PENDING' : 'IN_PROGRESS'))
+    : job.status;
+
+  const hasAssignment = visitConfig?.technician || (job.assignments && job.assignments.length > 0);
+  const isCompleted = displayStatus === 'COMPLETED' || displayStatus === 'CANCELLED';
   const canCancel = !isCompleted;
   const canAssign = !isCompleted;
   const isUrgent = job.priority === 'urgent' || job.priority === 'high';
@@ -579,20 +723,18 @@ function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick, onCard
   // Multi-visit job info
   const jobAny = job as any;
   const durationType = jobAny.durationType || 'SINGLE_VISIT';
-  const visitCount = jobAny.visitCount || jobAny.visits?.length || 1;
-  const isMultiVisit = durationType === 'MULTIPLE_VISITS' || visitCount > 1;
   const isRecurring = durationType === 'RECURRING';
 
-  // Parse time slot from JSON or use direct fields
+  // Parse time slot - prefer visit config time slot if available
   let timeSlot = '';
-  if (job.scheduledTimeStart && job.scheduledTimeEnd) {
+  const timeSlotSource = visitConfig?.timeSlot || (job as any).scheduledTimeSlot;
+  if (job.scheduledTimeStart && job.scheduledTimeEnd && !visitConfig) {
     timeSlot = `${job.scheduledTimeStart} - ${job.scheduledTimeEnd}`;
-  } else if (job.scheduledTimeStart) {
+  } else if (job.scheduledTimeStart && !visitConfig) {
     timeSlot = job.scheduledTimeStart;
-  } else if ('scheduledTimeSlot' in job && job.scheduledTimeSlot) {
+  } else if (timeSlotSource) {
     try {
-      const slotData = job.scheduledTimeSlot;
-      const slot = typeof slotData === 'string' ? JSON.parse(slotData) : slotData;
+      const slot = typeof timeSlotSource === 'string' ? JSON.parse(timeSlotSource) : timeSlotSource;
       if (slot?.start && slot?.end) {
         timeSlot = `${slot.start} - ${slot.end}`;
       } else if (slot?.start) {
@@ -627,27 +769,32 @@ function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick, onCard
         <div className="flex-1 min-w-0 space-y-2">
           {/* Job ID + Badges */}
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm text-gray-500 font-mono">{job.jobNumber}</span>
+            <span className="text-sm text-gray-500 font-mono">
+              {job.jobNumber}
+              {isVisitRow && visitConfig && totalConfigs > 1 && (
+                <span className="text-primary-600 font-semibold"> (Visita {visitConfig.configIndex}/{totalConfigs})</span>
+              )}
+            </span>
             <span className={cn(
               'px-2.5 py-0.5 text-xs font-medium rounded-full',
-              STATUS_BADGE_COLORS[job.status]
+              STATUS_BADGE_COLORS[displayStatus] || STATUS_BADGE_COLORS['PENDING']
             )}>
-              {JOB_STATUS_LABELS[job.status]}
+              {JOB_STATUS_LABELS[displayStatus] || displayStatus}
             </span>
             {isUrgent && (
               <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-red-500 text-white">
                 {PRIORITY_LABELS[job.priority]}
               </span>
             )}
-            {/* Multi-visit badge */}
-            {isMultiVisit && (
+            {/* Show date count for visit configs */}
+            {visitConfig && visitConfig.totalDates > 1 && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 border border-blue-200">
                 <CalendarDays className="h-3 w-3" />
-                {visitCount} visitas
+                {visitConfig.totalDates} fechas
               </span>
             )}
             {/* Recurring badge */}
-            {isRecurring && (
+            {isRecurring && isVisitRow && (
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700 border border-purple-200">
                 <Repeat className="h-3 w-3" />
                 Recurrente
@@ -679,11 +826,17 @@ function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick, onCard
           )}
         </div>
 
-        {/* Section 3: Schedule - lg:w-40 */}
-        <div className="lg:w-40 space-y-1">
+        {/* Section 3: Schedule - lg:w-48 */}
+        <div className="lg:w-48 space-y-1">
           <div className="flex items-center gap-2 text-sm">
             <Calendar className="h-4 w-4 text-gray-400" />
-            <span className="text-gray-700">{job.scheduledDate ? formatDate(job.scheduledDate) : 'Sin fecha'}</span>
+            <span className="text-gray-700">
+              {visitConfig
+                ? (visitConfig.firstDate === visitConfig.lastDate
+                    ? formatDate(visitConfig.firstDate)
+                    : `${formatDate(visitConfig.firstDate)} - ${formatDate(visitConfig.lastDate)}`)
+                : (job.scheduledDate ? formatDate(job.scheduledDate) : 'Sin fecha')}
+            </span>
           </div>
           {timeSlot && (
             <div className="flex items-center gap-2 text-sm">
@@ -695,14 +848,25 @@ function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick, onCard
 
         {/* Section 4: Technician - lg:w-36 */}
         <div className="lg:w-36">
-          {hasAssignment ? (
+          {visitConfig?.technician ? (
+            // Visit config technician
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-teal-50 border border-teal-200 flex items-center justify-center">
                 <User className="h-4 w-4 text-teal-600" />
               </div>
               <span className="text-sm text-gray-700 truncate">
-                {job.assignments![0].technician?.name}
-                {job.assignments!.length > 1 && (
+                {visitConfig.technician.name}
+              </span>
+            </div>
+          ) : hasAssignment && job.assignments && job.assignments.length > 0 ? (
+            // Job-level technician (for non-visit rows)
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-teal-50 border border-teal-200 flex items-center justify-center">
+                <User className="h-4 w-4 text-teal-600" />
+              </div>
+              <span className="text-sm text-gray-700 truncate">
+                {job.assignments[0].technician?.name}
+                {job.assignments.length > 1 && (
                   <span className="text-gray-400">...</span>
                 )}
               </span>
