@@ -62,9 +62,17 @@ export interface ConversationListItem {
     timestamp: string;
     direction: WAMessageDirection;
     status: string;
+    senderType?: 'customer' | 'ai' | 'human';
   };
   unreadCount: number;
   isInWindow: boolean;
+  // AI-related fields
+  aiHandling?: boolean;
+  aiConfidence?: number; // 0-100 confidence score
+  aiResolutionStatus?: 'resolved' | 'pending' | 'transferred';
+  needsAttention?: boolean;
+  isNewLead?: boolean;
+  hasPendingJob?: boolean;
 }
 
 export interface MessageListItem {
@@ -207,6 +215,8 @@ export async function listConversations(
 
   const now = new Date();
   const windowCutoff = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
   let where: any = { organizationId };
 
@@ -232,20 +242,97 @@ export async function listConversations(
     },
   });
 
-  return conversations.map((conv: typeof conversations[number]) => ({
-    id: conv.id,
-    customerId: conv.customerId,
-    customerName: conv.customer?.name || conv.customerName || 'Desconocido',
-    customerPhone: conv.customerPhone,
-    lastMessage: {
-      content: conv.lastMessagePreview || '',
-      timestamp: conv.lastMessageAt.toISOString(),
-      direction: (conv.lastMessageDirection as WAMessageDirection) || 'inbound',
-      status: conv.lastMessageStatus || 'sent',
+  // Get conversation IDs for AI log lookup
+  const conversationIds = conversations.map((c: { id: string }) => c.id);
+
+  // Fetch latest AI interaction for each conversation (today only)
+  const aiLogs = await db.aIConversationLog.findMany({
+    where: {
+      organizationId,
+      conversationId: { in: conversationIds },
+      createdAt: { gte: today },
     },
-    unreadCount: conv.unreadCount,
-    isInWindow: conv.lastMessageAt >= windowCutoff,
-  }));
+    orderBy: { createdAt: 'desc' },
+    distinct: ['conversationId'],
+    select: {
+      conversationId: true,
+      confidenceScore: true,
+      responseStatus: true,
+      detectedIntent: true,
+    },
+  });
+
+  // Create a map of conversation ID to AI data
+  type AILogEntry = { conversationId: string; confidenceScore: number | null; responseStatus: string | null; detectedIntent: string | null };
+  const aiLogMap = new Map<string, AILogEntry>(
+    aiLogs.map((log: AILogEntry) => [log.conversationId, log])
+  );
+
+  // Check for pending jobs per conversation
+  const pendingJobs = await db.job.findMany({
+    where: {
+      organizationId,
+      status: { in: ['PENDING', 'ASSIGNED'] },
+      customer: {
+        phone: { in: conversations.map((c: { customerPhone: string }) => c.customerPhone) },
+      },
+    },
+    select: {
+      customer: { select: { phone: true } },
+    },
+  });
+
+  type JobEntry = { customer: { phone: string } | null };
+  const phonesWithPendingJobs = new Set(
+    pendingJobs.map((j: JobEntry) => j.customer?.phone).filter(Boolean)
+  );
+
+  return conversations.map((conv: typeof conversations[number]) => {
+    const aiLog = aiLogMap.get(conv.id);
+    const isNewCustomer = conv.customer === null;
+    const hasPendingJob = phonesWithPendingJobs.has(conv.customerPhone);
+
+    // Determine if AI is handling this conversation
+    const aiHandling = aiLog?.responseStatus === 'sent';
+
+    // Determine if needs attention (low confidence or transferred)
+    const needsAttention =
+      (aiLog?.confidenceScore !== null && aiLog?.confidenceScore !== undefined && aiLog.confidenceScore < 50) ||
+      aiLog?.responseStatus === 'transferred';
+
+    // Determine sender type of last message
+    let senderType: 'customer' | 'ai' | 'human' = 'customer';
+    if (conv.lastMessageDirection === 'outbound') {
+      senderType = aiLog?.responseStatus === 'sent' ? 'ai' : 'human';
+    }
+
+    return {
+      id: conv.id,
+      customerId: conv.customerId,
+      customerName: conv.customer?.name || conv.customerName || 'Desconocido',
+      customerPhone: conv.customerPhone,
+      lastMessage: {
+        content: conv.lastMessagePreview || '',
+        timestamp: conv.lastMessageAt.toISOString(),
+        direction: (conv.lastMessageDirection as WAMessageDirection) || 'inbound',
+        status: conv.lastMessageStatus || 'sent',
+        senderType,
+      },
+      unreadCount: conv.unreadCount,
+      isInWindow: conv.lastMessageAt >= windowCutoff,
+      // AI fields
+      aiHandling,
+      aiConfidence: aiLog?.confidenceScore ?? undefined,
+      aiResolutionStatus: aiLog?.responseStatus === 'sent'
+        ? 'resolved'
+        : aiLog?.responseStatus === 'transferred'
+        ? 'transferred'
+        : 'pending',
+      needsAttention,
+      isNewLead: isNewCustomer,
+      hasPendingJob,
+    };
+  });
 }
 
 /**

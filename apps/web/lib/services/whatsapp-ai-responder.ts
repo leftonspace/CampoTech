@@ -9,10 +9,21 @@
  * - Context-aware responses using organization's AI configuration
  * - Voice note transcription via Whisper
  * - Argentinian Spanish natural language
+ * - **Scheduling Intelligence**: Consults employee schedules, workload, and
+ *   distance to make informed booking decisions
  */
 
 import OpenAI from 'openai';
 import { prisma } from '@/lib/prisma';
+import {
+  getSchedulingIntelligenceService,
+  SchedulingIntelligenceResult,
+  TechnicianAvailability,
+} from './scheduling-intelligence';
+import {
+  getBookingWorkflow,
+  createWorkflowContext,
+} from './workflows';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -89,6 +100,8 @@ export interface ConversationContext {
     serviceType: string;
     scheduledDate?: Date;
   };
+  /** Scheduling intelligence data - populated when booking intent is detected */
+  schedulingContext?: SchedulingIntelligenceResult;
 }
 
 export type DetectedIntent =
@@ -136,6 +149,72 @@ export interface AIResponse {
 // PROMPTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
+/**
+ * Build scheduling intelligence section of the prompt
+ * This gives the AI real-time data about technician availability, workload, and scheduling
+ */
+function buildSchedulingPrompt(schedulingData: SchedulingIntelligenceResult): string {
+  if (!schedulingData.isWorkingDay) {
+    return `
+INFORMACIÓN DE AGENDA:
+⚠️ ${schedulingData.summary}
+${schedulingData.alternativeSuggestions.length > 0
+  ? `Días alternativos disponibles: ${schedulingData.alternativeSuggestions.join(', ')}`
+  : ''}`;
+  }
+
+  // Build technician availability summary
+  const technicianSummary = schedulingData.technicians
+    .filter(t => t.isAvailable)
+    .map(t => {
+      const workloadIcon = {
+        low: '🟢',
+        medium: '🟡',
+        high: '🟠',
+        full: '🔴'
+      }[t.workloadLevel];
+      return `  - ${t.name}${t.specialty ? ` (${t.specialty})` : ''}: ${workloadIcon} ${t.currentJobCount}/${t.maxDailyJobs} trabajos${t.distanceKm ? `, ${t.distanceKm}km` : ''}`;
+    })
+    .join('\n');
+
+  // Build available time slots
+  const availableSlots = schedulingData.availableSlots
+    .filter(s => s.availableTechnicians > 0)
+    .slice(0, 6)
+    .map(s => `  - ${s.start}-${s.end}: ${s.availableTechnicians} técnico(s) ${s.confidence === 'high' ? '✓' : ''}`)
+    .join('\n');
+
+  // Build conflict info if any
+  const conflictInfo = schedulingData.hasConflict
+    ? `\n⚠️ CONFLICTO DETECTADO: ${schedulingData.conflictReason}
+${schedulingData.alternativeSuggestions.length > 0
+  ? `Alternativas sugeridas: ${schedulingData.alternativeSuggestions.join(', ')}`
+  : ''}`
+    : '';
+
+  return `
+INFORMACIÓN DE AGENDA EN TIEMPO REAL:
+${schedulingData.summary}
+
+Horario de atención: ${schedulingData.businessHours?.open || '?'} - ${schedulingData.businessHours?.close || '?'}
+
+TÉCNICOS DISPONIBLES (carga de trabajo actual):
+${technicianSummary || '  No hay técnicos disponibles'}
+
+HORARIOS CON DISPONIBILIDAD:
+${availableSlots || '  Sin horarios disponibles'}
+
+${schedulingData.bestSlot ? `MEJOR HORARIO RECOMENDADO: ${schedulingData.bestSlot.start}${schedulingData.bestSlot.bestTechnician ? ` con ${schedulingData.bestSlot.bestTechnician.name}` : ''}` : ''}
+${conflictInfo}
+
+INSTRUCCIONES DE AGENDA:
+- Usá esta información para ofrecer horarios REALES con disponibilidad.
+- NO inventes horarios que no estén en la lista de disponibilidad.
+- Si el cliente pide un horario sin disponibilidad, sugerí las alternativas.
+- Mencioná el nombre del técnico cuando sea relevante.
+- Si hay conflicto, explicá amablemente y ofrecé alternativas.`;
+}
+
 function buildSystemPrompt(config: AIConfiguration, context: ConversationContext): string {
   const toneInstructions = {
     friendly_professional: 'Sé amigable pero profesional. Usá "vos" en lugar de "tú". Sé cálido pero eficiente.',
@@ -174,6 +253,11 @@ TRABAJO ACTIVO:
 ${context.activeJob.scheduledDate ? `- Fecha programada: ${context.activeJob.scheduledDate.toLocaleDateString('es-AR')}` : ''}`
     : '';
 
+  // Build scheduling intelligence context
+  const schedulingContext = context.schedulingContext
+    ? buildSchedulingPrompt(context.schedulingContext)
+    : '';
+
   return `Sos el asistente virtual de ${config.companyName || 'la empresa'} por WhatsApp.
 
 SOBRE LA EMPRESA:
@@ -206,6 +290,8 @@ ${customerContext}
 ${activeJobContext}
 
 ${config.customInstructions ? `INSTRUCCIONES ADICIONALES:\n${config.customInstructions}` : ''}
+
+${schedulingContext}
 
 INSTRUCCIONES DE COMPORTAMIENTO:
 1. ${toneInstructions[config.aiTone as keyof typeof toneInstructions] || toneInstructions.friendly_professional}
@@ -266,12 +352,161 @@ function buildConversationMessages(
 export class WhatsAppAIResponder {
   private client: OpenAI;
   private model: string;
+  private schedulingService = getSchedulingIntelligenceService();
+
+  // Keywords that suggest booking intent
+  private static BOOKING_KEYWORDS = [
+    'turno', 'cita', 'reservar', 'agendar', 'programar', 'fecha', 'horario',
+    'disponibilidad', 'mañana', 'tarde', 'lunes', 'martes', 'miércoles',
+    'jueves', 'viernes', 'sábado', 'semana', 'próximo', 'hoy', 'disponible',
+    'cuándo', 'cuando', 'puedo', 'pueden', 'venir', 'ir', 'visita'
+  ];
 
   constructor(apiKey?: string, model = 'gpt-4o-mini') {
     this.client = new OpenAI({
       apiKey: apiKey || process.env.OPENAI_API_KEY,
     });
     this.model = model;
+  }
+
+  /**
+   * Check if message might be about booking/scheduling
+   */
+  private mightBeBookingRelated(text: string): boolean {
+    const lowerText = text.toLowerCase();
+    return WhatsAppAIResponder.BOOKING_KEYWORDS.some(keyword =>
+      lowerText.includes(keyword)
+    );
+  }
+
+  /**
+   * Extract date from message text (simple extraction)
+   */
+  private extractDateFromText(text: string): Date | null {
+    const today = new Date();
+    const lowerText = text.toLowerCase();
+
+    // Check for "hoy" (today)
+    if (lowerText.includes('hoy')) {
+      return today;
+    }
+
+    // Check for "mañana" (tomorrow)
+    if (lowerText.includes('mañana')) {
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return tomorrow;
+    }
+
+    // Check for day names
+    const dayNames = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+    for (let i = 0; i < dayNames.length; i++) {
+      if (lowerText.includes(dayNames[i])) {
+        const targetDay = i;
+        const currentDay = today.getDay();
+        let daysUntil = targetDay - currentDay;
+        if (daysUntil <= 0) daysUntil += 7; // Next week
+        const targetDate = new Date(today);
+        targetDate.setDate(today.getDate() + daysUntil);
+        return targetDate;
+      }
+    }
+
+    // Check for "próxima semana" or "semana que viene"
+    if (lowerText.includes('próxima semana') || lowerText.includes('semana que viene')) {
+      const nextWeek = new Date(today);
+      nextWeek.setDate(today.getDate() + 7);
+      return nextWeek;
+    }
+
+    // Default to tomorrow for general availability questions
+    if (lowerText.includes('disponibilidad') || lowerText.includes('disponible')) {
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      return tomorrow;
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract time from message text (simple extraction)
+   */
+  private extractTimeFromText(text: string): string | undefined {
+    const lowerText = text.toLowerCase();
+
+    // Check for specific time mentions (e.g., "a las 10", "10:30", "14hs")
+    const timePattern = /(\d{1,2})[:\s]?(\d{2})?\s*(hs|hrs|horas|am|pm)?/i;
+    const match = text.match(timePattern);
+
+    if (match) {
+      let hours = parseInt(match[1]);
+      const minutes = match[2] ? parseInt(match[2]) : 0;
+      const period = match[3]?.toLowerCase();
+
+      // Adjust for PM
+      if (period === 'pm' && hours < 12) hours += 12;
+      if (period === 'am' && hours === 12) hours = 0;
+
+      // Assume PM for typical business hours if not specified
+      if (!period && hours >= 1 && hours <= 7) hours += 12;
+
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    }
+
+    // Check for morning/afternoon
+    if (lowerText.includes('mañana') && !lowerText.includes('mañana temprano')) {
+      // "mañana" could mean tomorrow or morning - context dependent
+      if (lowerText.includes('a la mañana') || lowerText.includes('por la mañana')) {
+        return '09:00';
+      }
+    }
+
+    if (lowerText.includes('tarde') || lowerText.includes('por la tarde')) {
+      return '14:00';
+    }
+
+    if (lowerText.includes('mediodía') || lowerText.includes('mediodia')) {
+      return '12:00';
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Fetch scheduling context if message seems booking-related
+   */
+  private async fetchSchedulingContext(
+    text: string,
+    organizationId: string,
+    serviceType?: string
+  ): Promise<SchedulingIntelligenceResult | undefined> {
+    if (!this.mightBeBookingRelated(text)) {
+      return undefined;
+    }
+
+    const extractedDate = this.extractDateFromText(text);
+    if (!extractedDate) {
+      // Default to tomorrow if booking-related but no date detected
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      extractedDate || tomorrow;
+    }
+
+    const dateStr = (extractedDate || new Date()).toISOString().split('T')[0];
+    const requestedTime = this.extractTimeFromText(text);
+
+    try {
+      return await this.schedulingService.getSchedulingContext({
+        organizationId,
+        date: dateStr,
+        requestedTime,
+        serviceType,
+      });
+    } catch (error) {
+      console.error('Failed to fetch scheduling context:', error);
+      return undefined;
+    }
   }
 
   /**
@@ -323,8 +558,21 @@ export class WhatsAppAIResponder {
       );
     }
 
-    // Analyze with GPT-4o-mini
-    const analysis = await this.analyzeMessage(textContent, config, context);
+    // Fetch scheduling context if message seems booking-related
+    // This gives the AI real-time data about technician availability, workload, etc.
+    const schedulingContext = await this.fetchSchedulingContext(
+      textContent,
+      message.organizationId
+    );
+
+    // Enrich context with scheduling intelligence
+    const enrichedContext: ConversationContext = {
+      ...context,
+      schedulingContext,
+    };
+
+    // Analyze with GPT-4o-mini (now with scheduling intelligence)
+    const analysis = await this.analyzeMessage(textContent, config, enrichedContext);
 
     // Log the interaction
     const logId = await this.logInteraction(message, textContent, analysis);
@@ -352,7 +600,66 @@ export class WhatsAppAIResponder {
 
     if (analysis.shouldCreateJob) {
       if (analysis.confidence >= config.minConfidenceToCreateJob) {
-        // Auto-create job
+        // High-confidence job creation - try using workflow for booking intent
+        if (analysis.intent === 'booking') {
+          const workflow = getBookingWorkflow();
+
+          // Check if workflow can handle this request
+          if (workflow.canHandle(analysis.intent, analysis.extractedEntities)) {
+            // Create workflow context
+            const workflowContext = createWorkflowContext({
+              organizationId: message.organizationId,
+              conversationId: message.conversationId,
+              customerPhone: message.customerPhone,
+              customerName: context.customer?.name,
+              extractedEntities: analysis.extractedEntities,
+              schedulingContext: enrichedContext.schedulingContext,
+              aiConfidence: analysis.confidence,
+              originalMessage: textContent,
+              messageType: message.messageType,
+            });
+
+            // Execute the booking workflow
+            const workflowResult = await workflow.execute(workflowContext);
+
+            // Handle workflow result
+            if (workflowResult.success && workflowResult.jobCreated) {
+              return {
+                success: true,
+                action: 'create_job',
+                response: workflowResult.response || analysis.suggestedResponse,
+                analysis,
+                jobCreated: workflowResult.jobCreated,
+                logId,
+              };
+            } else if (workflowResult.action === 'respond') {
+              // Workflow returned early (e.g., needs clarification)
+              return {
+                success: true,
+                action: 'respond',
+                response: workflowResult.response || analysis.suggestedResponse,
+                analysis,
+                logId,
+              };
+            } else if (!workflowResult.success) {
+              // Workflow failed, transfer to human
+              console.error('[AI Responder] Booking workflow failed:', workflowResult.error);
+              return {
+                success: true,
+                action: 'transfer',
+                analysis: {
+                  ...analysis,
+                  shouldTransfer: true,
+                  transferReason: workflowResult.error || 'Workflow execution failed',
+                },
+                transferTo: config.escalationUserId || undefined,
+                logId,
+              };
+            }
+          }
+        }
+
+        // Fallback to simple job creation for non-booking intents
         const job = await this.createJob(message.organizationId, analysis, message.customerPhone);
         return {
           success: true,
