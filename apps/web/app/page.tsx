@@ -9,7 +9,6 @@ import {
   Calendar,
   ShieldCheck,
   Users,
-  Truck,
   FileText,
   CheckCircle2,
   ArrowRight,
@@ -37,6 +36,16 @@ import {
   Wrench,
   FileCheck,
   Award,
+  Plus,
+  ChevronDown,
+  Gift,
+  Store,
+  TrendingUp,
+  Heart,
+  BarChart3,
+  Receipt,
+  Package,
+  type LucideIcon,
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -140,88 +149,372 @@ function HeroSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// FEATURES GRID SECTION
+// FEATURES GRID SECTION - EXPANDABLE CARDS
 // ═══════════════════════════════════════════════════════════════════════════════
 
+interface FeatureData {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: LucideIcon;
+  iconBg: string;
+  iconColor: string;
+  examples: {
+    scenario: string;
+    before: string;
+    after: string;
+  }[];
+}
+
+interface MoreFeature {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  free?: boolean;
+}
+
+const features: FeatureData[] = [
+  {
+    id: 'map',
+    title: 'Mapa en Tiempo Real',
+    subtitle: 'Sabé dónde está tu equipo',
+    icon: MapPin,
+    iconBg: 'bg-primary/10',
+    iconColor: 'text-primary',
+    examples: [
+      {
+        scenario: 'Un cliente llama con urgencia en Palermo',
+        before: 'Llamás a cada técnico para ver quién está cerca. Perdés 15 minutos.',
+        after: 'Mirás el mapa, ves que Juan está a 10 cuadras terminando un trabajo. Lo asignás en 2 clicks.',
+      },
+      {
+        scenario: 'El cliente pregunta "¿a qué hora llega?"',
+        before: 'Llamás al técnico, no te atiende, quedás mal con el cliente.',
+        after: 'Ves que está a 20 min en el mapa. Le mandás ubicación en vivo al cliente.',
+      },
+    ],
+  },
+  {
+    id: 'whatsapp',
+    title: 'WhatsApp Inteligente',
+    subtitle: 'Tu asistente 24/7',
+    icon: MessageSquare,
+    iconBg: 'bg-success/10',
+    iconColor: 'text-success',
+    examples: [
+      {
+        scenario: 'Te escriben a las 11pm pidiendo turno',
+        before: 'Lo ves a la mañana, el cliente ya llamó a otro.',
+        after: 'La IA responde al instante, agenda el turno y te avisa. Ganaste el trabajo dormido.',
+      },
+      {
+        scenario: 'Estás en un trabajo y te llegan 5 consultas',
+        before: 'No podés responder, perdés clientes potenciales.',
+        after: 'La IA contesta precios, disponibilidad y crea fichas de cliente automáticamente.',
+      },
+    ],
+  },
+  {
+    id: 'calendar',
+    title: 'Agenda Inteligente',
+    subtitle: 'Nunca más pisar turnos',
+    icon: Calendar,
+    iconBg: 'bg-accent/10',
+    iconColor: 'text-accent',
+    examples: [
+      {
+        scenario: 'Agendás un trabajo y te olvidás que ya tenías otro',
+        before: 'Llegás tarde, el cliente se enoja, perdés plata.',
+        after: 'El sistema te avisa antes de agendar: "Ojo, ya tenés un trabajo a esa hora".',
+      },
+      {
+        scenario: 'Un cliente cancela de último momento',
+        before: 'Ese hueco queda vacío, perdiste media mañana.',
+        after: 'El sistema muestra el hueco libre. Movés otro trabajo o tomás uno nuevo.',
+      },
+    ],
+  },
+  {
+    id: 'team',
+    title: 'Gestión de Equipo',
+    subtitle: 'Controlá tu gente',
+    icon: Users,
+    iconBg: 'bg-info/10',
+    iconColor: 'text-info',
+    examples: [
+      {
+        scenario: 'Un técnico se enferma a la mañana',
+        before: 'Caos. Llamás a todos, reasignás a mano, perdés tiempo.',
+        after: 'Ves todos sus trabajos, los reasignás con drag & drop en 2 minutos.',
+      },
+      {
+        scenario: 'Un cliente dice que el técnico nunca llegó',
+        before: 'Tu palabra contra la del técnico. Quilombo.',
+        after: 'Mirás el historial: hora de llegada, fotos del trabajo, firma digital del cliente.',
+      },
+    ],
+  },
+  {
+    id: 'billing',
+    title: 'Facturación AFIP',
+    subtitle: 'Cobrá en regla',
+    icon: FileText,
+    iconBg: 'bg-primary/10',
+    iconColor: 'text-primary',
+    examples: [
+      {
+        scenario: 'Terminás un trabajo y el cliente pide factura',
+        before: 'Anotás en un papel, después lo cargás. A veces te olvidás.',
+        after: 'Generás la factura desde el celular en 30 segundos. Llega al mail del cliente al toque.',
+      },
+      {
+        scenario: 'Fin de mes y tenés que hacer los números',
+        before: '3 horas juntando papeles, facturas y comprobantes.',
+        after: 'Un click: reporte de facturación listo para tu contador.',
+      },
+    ],
+  },
+];
+
+const moreFeatures: MoreFeature[] = [
+  {
+    icon: Store,
+    title: 'Marketplace Gratuito',
+    description: 'Clientes te encuentran en nuestra app. Recibí trabajos nuevos sin pagar comisión.',
+    free: true,
+  },
+  {
+    icon: TrendingUp,
+    title: 'Leads Gratis',
+    description: 'Te mandamos clientes verificados de tu zona. Solo pagás tu suscripción mensual.',
+    free: true,
+  },
+  {
+    icon: Bot,
+    title: 'IA WhatsApp Incluida',
+    description: 'El asistente inteligente está incluido en tu plan. No hay costo extra por mensaje.',
+    free: true,
+  },
+  {
+    icon: BarChart3,
+    title: 'Reportes y Analytics',
+    description: 'Sabé cuánto facturás, qué servicios rinden más y dónde mejorar.',
+  },
+  {
+    icon: Receipt,
+    title: 'Presupuestos Digitales',
+    description: 'Mandá presupuestos profesionales desde el celu. El cliente acepta con un click.',
+  },
+  {
+    icon: Package,
+    title: 'Inventario de Materiales',
+    description: 'Controlá stock, costos y sabé qué material usó cada técnico en cada trabajo.',
+  },
+  {
+    icon: Bell,
+    title: 'Recordatorios Automáticos',
+    description: 'Avisá al cliente un día antes. Reducí cancelaciones de último momento.',
+  },
+  {
+    icon: Heart,
+    title: 'Historial de Clientes',
+    description: 'Cada cliente tiene su ficha: trabajos anteriores, equipos, preferencias.',
+  },
+];
+
+function FeatureCard({ feature, isExpanded, onToggle }: {
+  feature: FeatureData;
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  const IconComponent = feature.icon;
+
+  return (
+    <div
+      className={`bg-card rounded-xl border transition-all duration-300 cursor-pointer ${
+        isExpanded
+          ? 'border-primary shadow-lg col-span-1 md:col-span-2 lg:col-span-3'
+          : 'border-border hover:border-primary/50'
+      }`}
+      onClick={onToggle}
+    >
+      <div className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-4">
+            <div className={`w-12 h-12 ${feature.iconBg} rounded-lg flex items-center justify-center flex-shrink-0`}>
+              <IconComponent className={`w-6 h-6 ${feature.iconColor}`} />
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-foreground">{feature.title}</h3>
+              <p className="text-muted-foreground">{feature.subtitle}</p>
+            </div>
+          </div>
+          <ChevronDown
+            className={`w-5 h-5 text-muted-foreground transition-transform duration-300 ${
+              isExpanded ? 'rotate-180' : ''
+            }`}
+          />
+        </div>
+
+        {isExpanded && (
+          <div className="mt-6 grid md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+            {feature.examples.map((example, idx) => (
+              <div key={idx} className="bg-muted/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-xs font-bold text-primary">
+                    {idx + 1}
+                  </div>
+                  <span className="font-medium text-foreground">{example.scenario}</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2">
+                    <X className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                    <div>
+                      <span className="text-xs text-destructive font-medium">ANTES:</span>
+                      <p className="text-sm text-muted-foreground">{example.before}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Check className="w-4 h-4 text-success mt-0.5 flex-shrink-0" />
+                    <div>
+                      <span className="text-xs text-success font-medium">CON CAMPOTECH:</span>
+                      <p className="text-sm text-foreground">{example.after}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!isExpanded && (
+          <p className="mt-2 text-sm text-primary">Click para ver ejemplos →</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MoreFeaturesCard({ isExpanded, onToggle }: {
+  isExpanded: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div
+      className={`bg-gradient-to-br from-primary/5 to-accent/5 rounded-xl border transition-all duration-300 cursor-pointer ${
+        isExpanded
+          ? 'border-primary shadow-lg col-span-1 md:col-span-2 lg:col-span-3'
+          : 'border-primary/30 hover:border-primary'
+      }`}
+      onClick={onToggle}
+    >
+      <div className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Plus className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-foreground">Y mucho más...</h3>
+              <p className="text-muted-foreground">Descubrí todo lo que incluye CampoTech</p>
+            </div>
+          </div>
+          <ChevronDown
+            className={`w-5 h-5 text-muted-foreground transition-transform duration-300 ${
+              isExpanded ? 'rotate-180' : ''
+            }`}
+          />
+        </div>
+
+        {isExpanded && (
+          <div className="mt-6 animate-in fade-in slide-in-from-top-2 duration-300">
+            {/* Free value proposition */}
+            <div className="bg-success/10 border border-success/30 rounded-lg p-4 mb-6">
+              <div className="flex items-center gap-2 mb-2">
+                <Gift className="w-5 h-5 text-success" />
+                <span className="font-semibold text-success">Incluido sin costo extra</span>
+              </div>
+              <p className="text-sm text-foreground">
+                En CampoTech creemos que todos ganan. Los clientes encuentran técnicos verificados y vos conseguís más trabajos.
+                <strong className="text-success"> No cobramos comisión por lead ni por trabajo cerrado.</strong> Solo pagás tu suscripción mensual.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {moreFeatures.map((feat, idx) => (
+                <div
+                  key={idx}
+                  className={`rounded-lg p-4 border ${
+                    feat.free
+                      ? 'bg-success/5 border-success/30'
+                      : 'bg-card border-border'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <feat.icon className={`w-5 h-5 ${feat.free ? 'text-success' : 'text-primary'}`} />
+                    <span className="font-medium text-foreground text-sm">{feat.title}</span>
+                    {feat.free && (
+                      <span className="text-[10px] bg-success/20 text-success px-1.5 py-0.5 rounded-full">
+                        GRATIS
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{feat.description}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Trust message */}
+            <div className="mt-6 text-center bg-primary/5 rounded-lg p-4">
+              <p className="text-foreground">
+                <strong>Nuestra misión:</strong> Que los argentinos vuelvan a confiar cuando llaman a un técnico.
+                Verificamos a cada profesional para que el cliente sepa que está en buenas manos.
+                <span className="text-primary font-medium"> Más confianza = más trabajos para vos.</span>
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!isExpanded && (
+          <p className="mt-2 text-sm text-primary font-medium">Click para ver todas las funciones →</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function FeaturesSection() {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const handleToggle = (id: string) => {
+    setExpandedId(expandedId === id ? null : id);
+  };
+
   return (
     <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-            Todo lo que necesitás para gestionar tu negocio
+            Herramientas pensadas para técnicos y oficios
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Herramientas potentes diseñadas para empresas de servicios en Argentina
+            Hacé click en cada función para ver cómo te ayuda en el día a día
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Live Map */}
-          <div className="bg-card rounded-xl p-6 border border-border hover:border-primary/50 transition-colors group">
-            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-              <MapPin className="w-6 h-6 text-primary" />
-            </div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">Mapa en Tiempo Real</h3>
-            <p className="text-muted-foreground">
-              Seguí la ubicación de tu equipo en vivo. Asigná trabajos al técnico más cercano y optimizá rutas automáticamente.
-            </p>
-          </div>
-
-          {/* WhatsApp AI */}
-          <div className="bg-card rounded-xl p-6 border border-border hover:border-primary/50 transition-colors group">
-            <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-success/20 transition-colors">
-              <MessageSquare className="w-6 h-6 text-success" />
-            </div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">WhatsApp Inteligente</h3>
-            <p className="text-muted-foreground">
-              Tu asistente responde consultas, agenda turnos y crea fichas de clientes automáticamente. Configuralo a tu medida.
-            </p>
-          </div>
-
-          {/* Smart Scheduling */}
-          <div className="bg-card rounded-xl p-6 border border-border hover:border-primary/50 transition-colors group">
-            <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-accent/20 transition-colors">
-              <Calendar className="w-6 h-6 text-accent" />
-            </div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">Agenda Inteligente</h3>
-            <p className="text-muted-foreground">
-              Evitá superposiciones automáticamente. El sistema detecta conflictos y sugiere horarios disponibles al instante.
-            </p>
-          </div>
-
-          {/* Team Management */}
-          <div className="bg-card rounded-xl p-6 border border-border hover:border-primary/50 transition-colors group">
-            <div className="w-12 h-12 bg-info/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-info/20 transition-colors">
-              <Users className="w-6 h-6 text-info" />
-            </div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">Gestión de Equipo</h3>
-            <p className="text-muted-foreground">
-              Controlá horarios, asistencia y rendimiento. Cada técnico tiene su perfil con historial completo de trabajos.
-            </p>
-          </div>
-
-          {/* Fleet Management */}
-          <div className="bg-card rounded-xl p-6 border border-border hover:border-primary/50 transition-colors group">
-            <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-warning/20 transition-colors">
-              <Truck className="w-6 h-6 text-warning" />
-            </div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">Control de Flota</h3>
-            <p className="text-muted-foreground">
-              Seguimiento de vehículos, alertas de mantenimiento y control de combustible. Todo en un solo lugar.
-            </p>
-          </div>
-
-          {/* AFIP Integration */}
-          <div className="bg-card rounded-xl p-6 border border-border hover:border-primary/50 transition-colors group">
-            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
-              <FileText className="w-6 h-6 text-primary" />
-            </div>
-            <h3 className="text-xl font-semibold text-foreground mb-2">Facturación AFIP</h3>
-            <p className="text-muted-foreground">
-              Generá facturas electrónicas directo a AFIP. Presupuestos, seguimiento de pagos y reportes fiscales incluidos.
-            </p>
-          </div>
+          {features.map((feature) => (
+            <FeatureCard
+              key={feature.id}
+              feature={feature}
+              isExpanded={expandedId === feature.id}
+              onToggle={() => handleToggle(feature.id)}
+            />
+          ))}
+          <MoreFeaturesCard
+            isExpanded={expandedId === 'more'}
+            onToggle={() => handleToggle('more')}
+          />
         </div>
       </div>
     </section>
