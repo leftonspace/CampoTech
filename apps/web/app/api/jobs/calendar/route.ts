@@ -301,6 +301,42 @@ export async function GET(request: NextRequest) {
       jobConfigs.get(configIndex)!.push(visit);
     }
 
+    // Build config summaries for navigation between configs
+    const getConfigSummaries = (jobId: string) => {
+      const jobConfigs = visitsByJobAndConfig.get(jobId);
+      if (!jobConfigs || jobConfigs.size <= 1) return [];
+
+      const summaries: Array<{
+        configIndex: number;
+        totalDates: number;
+        firstDate: string;
+        lastDate: string;
+        timeSlot: { start?: string; end?: string } | null;
+        technician: { id: string; name: string; avatar?: string | null } | null;
+      }> = [];
+
+      for (const [configIndex, visits] of jobConfigs) {
+        const sorted = [...visits].sort((a, b) =>
+          new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
+        );
+        const firstVisit = sorted[0];
+        const lastVisit = sorted[sorted.length - 1];
+
+        summaries.push({
+          configIndex,
+          totalDates: visits.length,
+          firstDate: firstVisit.scheduledDate.toISOString(),
+          lastDate: lastVisit.scheduledDate.toISOString(),
+          timeSlot: firstVisit.scheduledTimeSlot as { start?: string; end?: string } | null,
+          technician: firstVisit.technician
+            ? { id: firstVisit.technician.id, name: firstVisit.technician.name, avatar: firstVisit.technician.avatar }
+            : null,
+        });
+      }
+
+      return summaries.sort((a, b) => a.configIndex - b.configIndex);
+    };
+
     // Transform job visits for calendar (from multi-visit jobs)
     const visitEvents = jobVisits.map((visit) => {
       const timeSlot = visit.scheduledTimeSlot as { start?: string; end?: string } | null;
@@ -321,6 +357,9 @@ export async function GET(request: NextRequest) {
       );
       const visitNumberInConfig = sortedConfigVisits.findIndex(v => v.id === visit.id) + 1;
 
+      // Get all config summaries for navigation
+      const allConfigs = getConfigSummaries(visit.jobId);
+
       return createEvent(
         `visit-${visit.id}`,
         `${job.jobNumber} - ${job.customer.name}`,
@@ -338,6 +377,7 @@ export async function GET(request: NextRequest) {
           totalConfigs,
           configTotalDates,
           visitNumberInConfig,
+          allConfigs, // For navigation between configs
           durationType,
           isFirstVisit: isFirstVisitForCustomer(job.customerId),
           status: visit.status,
