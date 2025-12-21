@@ -364,11 +364,13 @@ export default function NewJobPage() {
     setError('');
 
     // Convert visits to API format, expanding date ranges and including recurrence
+    // Include visitConfigIndex so the backend knows which expanded dates belong to the same "Visita" config
     const formattedVisits: Array<{
       date: string;
       timeStart: string;
       timeEnd: string;
       technicianIds: string[];
+      visitConfigIndex: number; // Which "Visita" block this came from (1, 2, 3...)
       isRecurring?: boolean;
       recurrencePattern?: string;
       recurrenceCount?: number;
@@ -376,7 +378,8 @@ export default function NewJobPage() {
 
     visits
       .filter(v => v.date) // Only include visits with dates
-      .forEach(v => {
+      .forEach((v, configIdx) => {
+        const visitConfigIndex = configIdx + 1; // 1-based index for the original "Visita" config
         const timeStart = convertTo24h(v.timeStart, v.timePeriodStart);
         const timeEnd = convertTo24h(v.timeEnd, v.timePeriodEnd);
         const technicianIds = v.technicianIds;
@@ -387,14 +390,15 @@ export default function NewJobPage() {
         } : {};
 
         // If there's an end date, expand to individual visits for each day
+        // All expanded dates share the same visitConfigIndex
         if (v.endDate && v.endDate !== v.date) {
           const dates = expandDateRange(v.date, v.endDate);
           dates.forEach(date => {
-            formattedVisits.push({ date, timeStart, timeEnd, technicianIds, ...recurrenceInfo });
+            formattedVisits.push({ date, timeStart, timeEnd, technicianIds, visitConfigIndex, ...recurrenceInfo });
           });
         } else {
           // Single date visit
-          formattedVisits.push({ date: v.date, timeStart, timeEnd, technicianIds, ...recurrenceInfo });
+          formattedVisits.push({ date: v.date, timeStart, timeEnd, technicianIds, visitConfigIndex, ...recurrenceInfo });
         }
       });
 
