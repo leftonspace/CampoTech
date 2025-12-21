@@ -38,10 +38,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Extract subscription tier from organization settings
-    const settings = user.organization.settings as Record<string, unknown> | null;
-    const subscriptionTier = (settings?.subscriptionTier as string) || 'FREE';
-
     return NextResponse.json({
       success: true,
       data: {
@@ -50,10 +46,13 @@ export async function GET(request: NextRequest) {
         email: user.email,
         phone: user.phone,
         role: user.role,
+        organizationId: user.organizationId,
         organization: {
           id: user.organization.id,
           name: user.organization.name,
-          subscriptionTier,
+          subscriptionTier: user.organization.subscriptionTier || 'FREE',
+          subscriptionStatus: user.organization.subscriptionStatus || 'none',
+          verificationStatus: user.organization.verificationStatus || 'pending',
         },
       },
     });
