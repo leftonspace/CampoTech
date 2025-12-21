@@ -77,7 +77,13 @@ export default async function PublicBusinessProfilePage({ params }: PageProps) {
   }
 
   // Fetch recent reviews
-  const reviews = await prisma.review.findMany({
+  const reviews: Array<{
+    id: string;
+    rating: number | null;
+    comment: string | null;
+    createdAt: Date;
+    customer: { name: string } | null;
+  }> = await prisma.review.findMany({
     where: {
       organizationId: profile.organization.id,
       rating: { not: null },
@@ -328,7 +334,7 @@ export default async function PublicBusinessProfilePage({ params }: PageProps) {
               <div className="bg-white rounded-xl p-6 shadow-sm">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Especialidades</h2>
                 <div className="flex flex-wrap gap-2">
-                  {profile.categories.map((cat, idx) => (
+                  {(profile.categories as string[]).map((cat: string, idx: number) => (
                     <span
                       key={idx}
                       className="px-3 py-1 bg-primary-50 text-primary-700 text-sm rounded-full"
