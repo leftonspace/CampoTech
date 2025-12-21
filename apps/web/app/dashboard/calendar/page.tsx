@@ -207,45 +207,47 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Technician filter pills - always visible */}
-      <div className="mb-4 rounded-lg bg-white p-4 shadow-sm">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-medium text-gray-900">Filtrar por técnico</h3>
-          {selectedTechnicianId && (
+      {/* Technician filter pills - only show when there are multiple team members */}
+      {technicians.length > 1 && (
+        <div className="mb-4 rounded-lg bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-medium text-gray-900">Filtrar por técnico</h3>
+            {selectedTechnicianId && (
+              <button
+                onClick={() => setSelectedTechnicianId(undefined)}
+                className="text-sm text-primary-600 hover:underline"
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setSelectedTechnicianId(undefined)}
-              className="text-sm text-primary-600 hover:underline"
-            >
-              Limpiar filtros
-            </button>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setSelectedTechnicianId(undefined)}
-            className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-              !selectedTechnicianId
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Todos
-          </button>
-          {technicians.map((tech) => (
-            <button
-              key={tech.id}
-              onClick={() => setSelectedTechnicianId(tech.id)}
               className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-                selectedTechnicianId === tech.id
+                !selectedTechnicianId
                   ? 'bg-primary-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
-              {tech.name}
+              Todos
             </button>
-          ))}
+            {technicians.map((tech) => (
+              <button
+                key={tech.id}
+                onClick={() => setSelectedTechnicianId(tech.id)}
+                className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+                  selectedTechnicianId === tech.id
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {tech.name}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Calendar */}
       <div className="flex-1 rounded-lg bg-white shadow-sm overflow-hidden">
