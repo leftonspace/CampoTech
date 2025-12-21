@@ -61,23 +61,28 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Fetch recent reviews for this organization
+    // Fetch recent reviews for this organization (only submitted reviews with ratings)
     const reviews = await prisma.review.findMany({
       where: {
         organizationId: profile.organization.id,
         rating: { not: null },
-        comment: { not: null },
+        submittedAt: { not: null }, // Only show submitted reviews
       },
-      orderBy: { createdAt: 'desc' },
-      take: 5,
+      orderBy: { submittedAt: 'desc' },
+      take: 10,
       select: {
         id: true,
         rating: true,
         comment: true,
-        createdAt: true,
+        submittedAt: true,
         customer: {
           select: {
             name: true,
+          },
+        },
+        job: {
+          select: {
+            serviceType: true,
           },
         },
       },
@@ -87,12 +92,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       success: true,
       data: {
         ...profile,
-        recentReviews: reviews.map((r: { id: string; rating: number | null; comment: string | null; createdAt: Date; customer: { name: string } | null }) => ({
+        recentReviews: reviews.map((r) => ({
           id: r.id,
           rating: r.rating,
           comment: r.comment,
           customerName: r.customer?.name || 'Cliente',
-          createdAt: r.createdAt,
+          serviceType: r.job?.serviceType || null,
+          submittedAt: r.submittedAt,
         })),
       },
     });
