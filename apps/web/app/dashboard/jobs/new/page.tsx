@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
@@ -35,6 +35,10 @@ interface JobVisit {
   timePeriodStart: 'AM' | 'PM';
   timePeriodEnd: 'AM' | 'PM';
   technicianIds: string[];
+  // Recurrence settings per visit
+  isRecurring: boolean;
+  recurrencePattern: string;
+  recurrenceCount: number;
 }
 
 const createEmptyVisit = (): JobVisit => ({
@@ -46,6 +50,9 @@ const createEmptyVisit = (): JobVisit => ({
   timePeriodStart: 'AM',
   timePeriodEnd: 'PM',
   technicianIds: [],
+  isRecurring: false,
+  recurrencePattern: 'MONTHLY',
+  recurrenceCount: 6,
 });
 
 // Helper to expand a date range into individual dates
@@ -117,15 +124,29 @@ export default function NewJobPage() {
     address: '',
     serviceType: '',
     priority: 'normal',
-    // Recurring option
-    isRecurring: false,
-    recurrencePattern: 'MONTHLY',
-    recurrenceCount: 6,
   });
 
   // Multi-visit support - each visit has its own date, time, and technicians
   const [visits, setVisits] = useState<JobVisit[]>([createEmptyVisit()]);
   const [activeVisitDropdown, setActiveVisitDropdown] = useState<string | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setActiveVisitDropdown(null);
+      }
+    };
+
+    if (activeVisitDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [activeVisitDropdown]);
 
   // Fetch service types from API (configurable by business owner)
   const { data: serviceTypesData } = useQuery({
@@ -201,7 +222,7 @@ export default function NewJobPage() {
     }
   };
 
-  const updateVisit = (visitId: string, field: keyof JobVisit, value: string | string[]) => {
+  const updateVisit = (visitId: string, field: keyof JobVisit, value: string | string[] | boolean | number) => {
     setVisits(visits.map(v =>
       v.id === visitId ? { ...v, [field]: value } : v
     ));
@@ -331,12 +352,15 @@ export default function NewJobPage() {
     setIsSubmitting(true);
     setError('');
 
-    // Convert visits to API format, expanding date ranges
+    // Convert visits to API format, expanding date ranges and including recurrence
     const formattedVisits: Array<{
       date: string;
       timeStart: string;
       timeEnd: string;
       technicianIds: string[];
+      isRecurring?: boolean;
+      recurrencePattern?: string;
+      recurrenceCount?: number;
     }> = [];
 
     visits
@@ -345,22 +369,30 @@ export default function NewJobPage() {
         const timeStart = convertTo24h(v.timeStart, v.timePeriodStart);
         const timeEnd = convertTo24h(v.timeEnd, v.timePeriodEnd);
         const technicianIds = v.technicianIds;
+        const recurrenceInfo = v.isRecurring ? {
+          isRecurring: true,
+          recurrencePattern: v.recurrencePattern,
+          recurrenceCount: v.recurrenceCount,
+        } : {};
 
         // If there's an end date, expand to individual visits for each day
         if (v.endDate && v.endDate !== v.date) {
           const dates = expandDateRange(v.date, v.endDate);
           dates.forEach(date => {
-            formattedVisits.push({ date, timeStart, timeEnd, technicianIds });
+            formattedVisits.push({ date, timeStart, timeEnd, technicianIds, ...recurrenceInfo });
           });
         } else {
           // Single date visit
-          formattedVisits.push({ date: v.date, timeStart, timeEnd, technicianIds });
+          formattedVisits.push({ date: v.date, timeStart, timeEnd, technicianIds, ...recurrenceInfo });
         }
       });
 
+    // Check if any visit has recurrence
+    const hasRecurringVisits = visits.some(v => v.isRecurring);
+
     // Determine duration type based on visits
     let durationType = 'SINGLE_VISIT';
-    if (formData.isRecurring) {
+    if (hasRecurringVisits) {
       durationType = 'RECURRING';
     } else if (formattedVisits.length > 1) {
       durationType = 'MULTIPLE_VISITS';
@@ -377,13 +409,8 @@ export default function NewJobPage() {
       scheduledTimeStart: formattedVisits[0].timeStart,
       scheduledTimeEnd: formattedVisits[0].timeEnd,
       technicianIds: formattedVisits[0].technicianIds,
-      // All visits for multi-visit jobs
+      // All visits for multi-visit jobs (now includes per-visit recurrence)
       visits: formattedVisits,
-      // Recurring config
-      ...(formData.isRecurring && {
-        recurrencePattern: formData.recurrencePattern,
-        recurrenceCount: formData.recurrenceCount,
-      }),
     };
 
     const response = await api.jobs.create(jobData);
@@ -795,7 +822,7 @@ export default function NewJobPage() {
                 )}
 
                 {/* Technician dropdown */}
-                <div className="relative">
+                <div className="relative" ref={activeVisitDropdown === visit.id ? dropdownRef : null}>
                   <button
                     type="button"
                     onClick={() => setActiveVisitDropdown(activeVisitDropdown === visit.id ? null : visit.id)}
@@ -867,6 +894,55 @@ export default function NewJobPage() {
                     </div>
                   )}
                 </div>
+
+              {/* Recurrence option per visit */}
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={visit.isRecurring}
+                    onChange={(e) => updateVisit(visit.id, 'isRecurring', e.target.checked)}
+                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                  />
+                  <div className="flex items-center gap-2">
+                    <Repeat className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm font-medium text-gray-700">Repetir esta visita</span>
+                  </div>
+                </label>
+
+                {visit.isRecurring && (
+                  <div className="mt-3 ml-7 grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="label mb-1 block text-xs">Frecuencia</label>
+                      <select
+                        value={visit.recurrencePattern}
+                        onChange={(e) => updateVisit(visit.id, 'recurrencePattern', e.target.value)}
+                        className="input text-sm"
+                      >
+                        {RECURRENCE_PATTERNS.map((pattern) => (
+                          <option key={pattern.value} value={pattern.value}>
+                            {pattern.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="label mb-1 block text-xs">Repeticiones</label>
+                      <input
+                        type="number"
+                        min={2}
+                        max={24}
+                        value={visit.recurrenceCount}
+                        onChange={(e) => updateVisit(visit.id, 'recurrenceCount', parseInt(e.target.value) || 6)}
+                        className="input text-sm"
+                      />
+                    </div>
+                    <p className="sm:col-span-2 text-xs text-gray-500">
+                      Se crearán {visit.recurrenceCount} visitas con frecuencia {RECURRENCE_PATTERNS.find(p => p.value === visit.recurrencePattern)?.label.toLowerCase()}
+                    </p>
+                  </div>
+                )}
+              </div>
               </div>
             </div>
           ))}
@@ -883,64 +959,6 @@ export default function NewJobPage() {
           <p className="text-xs text-gray-500 text-center">
             Para trabajos con múltiples fechas no consecutivas o con diferentes horarios/técnicos por día
           </p>
-        </div>
-
-        {/* Recurring option */}
-        <div className="rounded-lg border border-gray-200 p-4">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={formData.isRecurring}
-              onChange={(e) => setFormData({ ...formData, isRecurring: e.target.checked })}
-              className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-            />
-            <div className="flex items-center gap-2">
-              <Repeat className="h-5 w-5 text-gray-400" />
-              <span className="font-medium text-gray-900">Mantenimiento recurrente</span>
-            </div>
-          </label>
-          <p className="mt-1 ml-7 text-sm text-gray-500">
-            Se repite automáticamente (ej: limpieza mensual de filtros)
-          </p>
-
-          {formData.isRecurring && (
-            <div className="mt-4 ml-7 grid gap-4 sm:grid-cols-2">
-              <div>
-                <label htmlFor="recurrencePattern" className="label mb-1 block">
-                  Frecuencia
-                </label>
-                <select
-                  id="recurrencePattern"
-                  value={formData.recurrencePattern}
-                  onChange={(e) => setFormData({ ...formData, recurrencePattern: e.target.value })}
-                  className="input"
-                >
-                  {RECURRENCE_PATTERNS.map((pattern) => (
-                    <option key={pattern.value} value={pattern.value}>
-                      {pattern.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="recurrenceCount" className="label mb-1 block">
-                  Cantidad de repeticiones
-                </label>
-                <input
-                  id="recurrenceCount"
-                  type="number"
-                  min={2}
-                  max={24}
-                  value={formData.recurrenceCount}
-                  onChange={(e) => setFormData({ ...formData, recurrenceCount: parseInt(e.target.value) || 6 })}
-                  className="input"
-                />
-              </div>
-              <p className="sm:col-span-2 text-xs text-gray-500">
-                Se crearán {formData.recurrenceCount} servicios con frecuencia {RECURRENCE_PATTERNS.find(p => p.value === formData.recurrencePattern)?.label.toLowerCase()}
-              </p>
-            </div>
-          )}
         </div>
 
         {error && <p className="text-sm text-danger-500">{error}</p>}
