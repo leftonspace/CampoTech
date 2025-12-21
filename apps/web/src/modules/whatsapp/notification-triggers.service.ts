@@ -193,15 +193,15 @@ export async function onJobStatusChange(
 
     if (message) {
       // Queue the WhatsApp message for sending
-      await dispatch({
-        type: 'whatsapp.send',
-        data: {
+      await dispatch(
+        'whatsapp.send',
+        {
           to: customerPhone,
           message,
           organizationId: job.organizationId,
         },
-        priority: 'high',
-      });
+        { priority: 'high' }
+      );
 
       console.log(`[WhatsApp] Queued ${newStatus} notification for job ${jobId}`);
     }
@@ -228,7 +228,7 @@ export async function onJobAssigned(
     if (!hasBspApi) return;
 
     // Notify technician about new assignment
-    const technician = job.technician || job.assignments?.find(a => a.technicianId === technicianId)?.technician;
+    const technician = job.technician || job.assignments?.find((a: { technicianId: string }) => a.technicianId === technicianId)?.technician;
     if (technician?.phone) {
       const customerName = job.customer?.name || 'Cliente';
       const scheduledDate = job.scheduledDate ? formatDate(job.scheduledDate) : 'fecha a confirmar';
@@ -242,15 +242,15 @@ export async function onJobAssigned(
         `Dirección: ${typeof address === 'string' ? address : JSON.stringify(address)}\n` +
         `Servicio: ${job.serviceType || 'Ver detalles en la app'}`;
 
-      await dispatch({
-        type: 'whatsapp.send',
-        data: {
+      await dispatch(
+        'whatsapp.send',
+        {
           to: technician.phone,
           message,
           organizationId: job.organizationId,
         },
-        priority: 'normal',
-      });
+        { priority: 'normal' }
+      );
 
       console.log(`[WhatsApp] Queued assignment notification for technician ${technicianId}`);
     }

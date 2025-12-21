@@ -430,8 +430,8 @@ export function EmployeeComplianceTable({
         comparison = a.name.localeCompare(b.name);
         break;
       case 'status':
-        const statusOrder = { suspended: 0, not_started: 1, partial: 2, verified: 3 };
-        comparison = statusOrder[a.status] - statusOrder[b.status];
+        const statusOrder: Record<string, number> = { suspended: 0, not_started: 1, partial: 2, verified: 3 };
+        comparison = (statusOrder[a.status] ?? 99) - (statusOrder[b.status] ?? 99);
         break;
       case 'expiry':
         if (!a.nextExpiry && !b.nextExpiry) comparison = 0;

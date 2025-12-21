@@ -87,7 +87,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       success: true,
       data: {
         ...profile,
-        recentReviews: reviews.map((r) => ({
+        recentReviews: reviews.map((r: { id: string; rating: number | null; comment: string | null; createdAt: Date; customer: { name: string } | null }) => ({
           id: r.id,
           rating: r.rating,
           comment: r.comment,
