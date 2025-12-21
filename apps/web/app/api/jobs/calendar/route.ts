@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
         select: { customerId: true },
         distinct: ['customerId'],
       });
-      completedJobs.forEach((job) => customersWithCompletedJobs.add(job.customerId));
+      completedJobs.forEach((job: { customerId: string }) => customersWithCompletedJobs.add(job.customerId));
     } catch {
       // If query fails, continue without first visit info
     }
