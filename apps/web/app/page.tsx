@@ -37,7 +37,6 @@ import {
   FileCheck,
   Award,
   Plus,
-  ChevronDown,
   Gift,
   Store,
   TrendingUp,
@@ -322,42 +321,73 @@ const moreFeatures: MoreFeature[] = [
   },
 ];
 
-function FeatureCard({ feature, isExpanded, onToggle }: {
+function FeatureCard({ feature, onOpen }: {
   feature: FeatureData;
-  isExpanded: boolean;
-  onToggle: () => void;
+  onOpen: () => void;
 }) {
   const IconComponent = feature.icon;
 
   return (
     <div
-      className={`bg-card rounded-xl border transition-all duration-300 cursor-pointer ${
-        isExpanded
-          ? 'border-primary shadow-lg col-span-1 md:col-span-2 lg:col-span-3'
-          : 'border-border hover:border-primary/50'
-      }`}
-      onClick={onToggle}
+      className="bg-card rounded-xl border border-border transition-all duration-200 cursor-pointer hover:border-primary hover:shadow-lg hover:scale-[1.02] hover:bg-primary/5 group"
+      onClick={onOpen}
     >
       <div className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-4">
-            <div className={`w-12 h-12 ${feature.iconBg} rounded-lg flex items-center justify-center flex-shrink-0`}>
-              <IconComponent className={`w-6 h-6 ${feature.iconColor}`} />
+        <div className="flex items-start gap-4">
+          <div className={`w-12 h-12 ${feature.iconBg} rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110`}>
+            <IconComponent className={`w-6 h-6 ${feature.iconColor}`} />
+          </div>
+          <div>
+            <h3 className="text-xl font-semibold text-foreground group-hover:text-primary transition-colors">{feature.title}</h3>
+            <p className="text-muted-foreground">{feature.subtitle}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FeatureModal({ feature, onClose }: {
+  feature: FeatureData;
+  onClose: () => void;
+}) {
+  const IconComponent = feature.icon;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      {/* Blurred backdrop */}
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
+
+      {/* Modal content */}
+      <div
+        className="relative bg-card rounded-xl border border-border shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-muted/80 transition-colors z-10"
+        >
+          <X className="w-4 h-4 text-muted-foreground" />
+        </button>
+
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-6 pr-8">
+            <div className={`w-14 h-14 ${feature.iconBg} rounded-xl flex items-center justify-center flex-shrink-0`}>
+              <IconComponent className={`w-7 h-7 ${feature.iconColor}`} />
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-foreground">{feature.title}</h3>
+              <h3 className="text-2xl font-bold text-foreground">{feature.title}</h3>
               <p className="text-muted-foreground">{feature.subtitle}</p>
             </div>
           </div>
-          <ChevronDown
-            className={`w-5 h-5 text-muted-foreground transition-transform duration-300 ${
-              isExpanded ? 'rotate-180' : ''
-            }`}
-          />
-        </div>
 
-        {isExpanded && (
-          <div className="mt-6 grid md:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+          {/* Examples */}
+          <div className="space-y-4">
             {feature.examples.map((example, idx) => (
               <div key={idx} className="bg-muted/30 rounded-lg p-4">
                 <div className="flex items-center gap-2 mb-3">
@@ -366,7 +396,7 @@ function FeatureCard({ feature, isExpanded, onToggle }: {
                   </div>
                   <span className="font-medium text-foreground">{example.scenario}</span>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   <div className="flex items-start gap-2">
                     <X className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
                     <div>
@@ -385,110 +415,124 @@ function FeatureCard({ feature, isExpanded, onToggle }: {
               </div>
             ))}
           </div>
-        )}
-
-        {!isExpanded && (
-          <p className="mt-2 text-sm text-primary">Click para ver ejemplos →</p>
-        )}
+        </div>
       </div>
     </div>
   );
 }
 
-function MoreFeaturesCard({ isExpanded, onToggle }: {
-  isExpanded: boolean;
-  onToggle: () => void;
+function MoreFeaturesCard({ onOpen }: {
+  onOpen: () => void;
 }) {
   return (
     <div
-      className={`bg-gradient-to-br from-primary/5 to-accent/5 rounded-xl border transition-all duration-300 cursor-pointer ${
-        isExpanded
-          ? 'border-primary shadow-lg col-span-1 md:col-span-2 lg:col-span-3'
-          : 'border-primary/30 hover:border-primary'
-      }`}
-      onClick={onToggle}
+      className="bg-gradient-to-br from-primary/5 to-accent/5 rounded-xl border border-primary/30 transition-all duration-200 cursor-pointer hover:border-primary hover:shadow-lg hover:scale-[1.02] group"
+      onClick={onOpen}
     >
       <div className="p-6">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Plus className="w-6 h-6 text-primary" />
+        <div className="flex items-start gap-4">
+          <div className="w-12 h-12 bg-primary/20 rounded-lg flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110">
+            <Plus className="w-6 h-6 text-primary" />
+          </div>
+          <div>
+            <h3 className="text-xl font-semibold text-foreground group-hover:text-primary transition-colors">Y mucho más...</h3>
+            <p className="text-muted-foreground">Descubrí todo lo que incluye CampoTech</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MoreFeaturesModal({ onClose }: {
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      {/* Blurred backdrop */}
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" />
+
+      {/* Modal content */}
+      <div
+        className="relative bg-card rounded-xl border border-border shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-full bg-muted hover:bg-muted/80 transition-colors z-10"
+        >
+          <X className="w-4 h-4 text-muted-foreground" />
+        </button>
+
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-center gap-4 mb-6 pr-8">
+            <div className="w-14 h-14 bg-primary/20 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Plus className="w-7 h-7 text-primary" />
             </div>
             <div>
-              <h3 className="text-xl font-semibold text-foreground">Y mucho más...</h3>
-              <p className="text-muted-foreground">Descubrí todo lo que incluye CampoTech</p>
+              <h3 className="text-2xl font-bold text-foreground">Todas las funciones</h3>
+              <p className="text-muted-foreground">Todo lo que incluye CampoTech</p>
             </div>
           </div>
-          <ChevronDown
-            className={`w-5 h-5 text-muted-foreground transition-transform duration-300 ${
-              isExpanded ? 'rotate-180' : ''
-            }`}
-          />
-        </div>
 
-        {isExpanded && (
-          <div className="mt-6 animate-in fade-in slide-in-from-top-2 duration-300">
-            {/* Free value proposition */}
-            <div className="bg-success/10 border border-success/30 rounded-lg p-4 mb-6">
-              <div className="flex items-center gap-2 mb-2">
-                <Gift className="w-5 h-5 text-success" />
-                <span className="font-semibold text-success">Incluido sin costo extra</span>
-              </div>
-              <p className="text-sm text-foreground">
-                En CampoTech creemos que todos ganan. Los clientes encuentran técnicos verificados y vos conseguís más trabajos.
-                <strong className="text-success"> No cobramos comisión por lead ni por trabajo cerrado.</strong> Solo pagás tu suscripción mensual.
-              </p>
+          {/* Free value proposition */}
+          <div className="bg-success/10 border border-success/30 rounded-lg p-4 mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Gift className="w-5 h-5 text-success" />
+              <span className="font-semibold text-success">Incluido sin costo extra</span>
             </div>
+            <p className="text-sm text-foreground">
+              En CampoTech creemos que todos ganan. Los clientes encuentran técnicos verificados y vos conseguís más trabajos.
+              <strong className="text-success"> No cobramos comisión por lead ni por trabajo cerrado.</strong> Solo pagás tu suscripción mensual.
+            </p>
+          </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {moreFeatures.map((feat, idx) => (
-                <div
-                  key={idx}
-                  className={`rounded-lg p-4 border ${
-                    feat.free
-                      ? 'bg-success/5 border-success/30'
-                      : 'bg-card border-border'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <feat.icon className={`w-5 h-5 ${feat.free ? 'text-success' : 'text-primary'}`} />
-                    <span className="font-medium text-foreground text-sm">{feat.title}</span>
-                    {feat.free && (
-                      <span className="text-[10px] bg-success/20 text-success px-1.5 py-0.5 rounded-full">
-                        GRATIS
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{feat.description}</p>
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {moreFeatures.map((feat, idx) => (
+              <div
+                key={idx}
+                className={`rounded-lg p-4 border ${
+                  feat.free
+                    ? 'bg-success/5 border-success/30'
+                    : 'bg-muted/30 border-border'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <feat.icon className={`w-5 h-5 ${feat.free ? 'text-success' : 'text-primary'}`} />
+                  <span className="font-medium text-foreground text-sm">{feat.title}</span>
+                  {feat.free && (
+                    <span className="text-[10px] bg-success/20 text-success px-1.5 py-0.5 rounded-full">
+                      GRATIS
+                    </span>
+                  )}
                 </div>
-              ))}
-            </div>
-
-            {/* Trust message */}
-            <div className="mt-6 text-center bg-primary/5 rounded-lg p-4">
-              <p className="text-foreground">
-                <strong>Nuestra misión:</strong> Que los argentinos vuelvan a confiar cuando llaman a un técnico.
-                Verificamos a cada profesional para que el cliente sepa que está en buenas manos.
-                <span className="text-primary font-medium"> Más confianza = más trabajos para vos.</span>
-              </p>
-            </div>
+                <p className="text-xs text-muted-foreground">{feat.description}</p>
+              </div>
+            ))}
           </div>
-        )}
 
-        {!isExpanded && (
-          <p className="mt-2 text-sm text-primary font-medium">Click para ver todas las funciones →</p>
-        )}
+          {/* Trust message */}
+          <div className="mt-6 text-center bg-primary/5 rounded-lg p-4">
+            <p className="text-foreground">
+              <strong>Nuestra misión:</strong> Que los argentinos vuelvan a confiar cuando llaman a un técnico.
+              Verificamos a cada profesional para que el cliente sepa que está en buenas manos.
+              <span className="text-primary font-medium"> Más confianza = más trabajos para vos.</span>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
 function FeaturesSection() {
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-
-  const handleToggle = (id: string) => {
-    setExpandedId(expandedId === id ? null : id);
-  };
+  const [selectedFeature, setSelectedFeature] = useState<FeatureData | null>(null);
+  const [showMoreFeatures, setShowMoreFeatures] = useState(false);
 
   return (
     <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 bg-muted/30">
@@ -507,16 +551,29 @@ function FeaturesSection() {
             <FeatureCard
               key={feature.id}
               feature={feature}
-              isExpanded={expandedId === feature.id}
-              onToggle={() => handleToggle(feature.id)}
+              onOpen={() => setSelectedFeature(feature)}
             />
           ))}
           <MoreFeaturesCard
-            isExpanded={expandedId === 'more'}
-            onToggle={() => handleToggle('more')}
+            onOpen={() => setShowMoreFeatures(true)}
           />
         </div>
       </div>
+
+      {/* Feature Modal */}
+      {selectedFeature && (
+        <FeatureModal
+          feature={selectedFeature}
+          onClose={() => setSelectedFeature(null)}
+        />
+      )}
+
+      {/* More Features Modal */}
+      {showMoreFeatures && (
+        <MoreFeaturesModal
+          onClose={() => setShowMoreFeatures(false)}
+        />
+      )}
     </section>
   );
 }
@@ -1129,43 +1186,6 @@ function VerificationSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// STATS SECTION
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function StatsSection() {
-  return (
-    <section className="py-20 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-            Empresas de servicios confían en nosotros
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-          <div className="text-center">
-            <div className="text-4xl sm:text-5xl font-bold text-primary mb-2">500+</div>
-            <div className="text-muted-foreground">Empresas activas</div>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl sm:text-5xl font-bold text-primary mb-2">15K</div>
-            <div className="text-muted-foreground">Trabajos por mes</div>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl sm:text-5xl font-bold text-primary mb-2">98%</div>
-            <div className="text-muted-foreground">Satisfacción</div>
-          </div>
-          <div className="text-center">
-            <div className="text-4xl sm:text-5xl font-bold text-primary mb-2">24/7</div>
-            <div className="text-muted-foreground">Soporte técnico</div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
 // PRICING DATA
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1355,7 +1375,6 @@ export default function LandingPage() {
         <FeaturesSection />
         <AIFeatureSection />
         <VerificationSection />
-        <StatsSection />
         <PricingSection />
         <CTASection />
       </main>
