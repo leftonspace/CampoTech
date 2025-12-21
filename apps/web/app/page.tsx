@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { PublicHeader, PublicFooter } from '@/components/layout';
 import {
@@ -17,6 +18,15 @@ import {
   Zap,
   Check,
   X,
+  ChevronLeft,
+  ChevronRight,
+  Bot,
+  User,
+  Mic,
+  Clock,
+  CalendarPlus,
+  UserPlus,
+  Send,
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -213,95 +223,461 @@ function FeaturesSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// AI FEATURE HIGHLIGHT SECTION
+// WHATSAPP CONVERSATION DATA
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface Contact {
+  id: string;
+  name: string;
+  phone: string;
+  lastMessage: string;
+  time: string;
+  unread?: number;
+  aiConfidence?: number;
+}
+
+interface ChatMessage {
+  id: string;
+  type: 'inbound' | 'outbound' | 'ai-response';
+  content: string;
+  time: string;
+  isVoice?: boolean;
+}
+
+interface AIAction {
+  type: 'alert' | 'success' | 'info';
+  title: string;
+  description: string;
+  actions?: { label: string; icon: React.ReactNode }[];
+}
+
+interface ConversationScenario {
+  id: string;
+  title: string;
+  description: string;
+  contacts: Contact[];
+  activeContactId: string;
+  messages: ChatMessage[];
+  aiPanel: {
+    status: 'active' | 'monitoring' | 'off';
+    actions: AIAction[];
+  };
+}
+
+const conversationScenarios: ConversationScenario[] = [
+  // Scenario 1: AI Auto-Response & Booking
+  {
+    id: 'auto-booking',
+    title: 'Reserva Automática',
+    description: 'La IA responde, agenda y notifica automáticamente',
+    contacts: [
+      { id: '1', name: 'María García', phone: '+54 11 5555-1234', lastMessage: 'Necesito un técnico para mañana', time: '14:32', unread: 1, aiConfidence: 94 },
+      { id: '2', name: 'Carlos Ruiz', phone: '+54 11 5555-5678', lastMessage: 'Gracias, confirmado!', time: '13:15', aiConfidence: 88 },
+      { id: '3', name: 'Ana López', phone: '+54 11 5555-9012', lastMessage: '¿Cuánto sale la instalación?', time: '12:40', aiConfidence: 91 },
+    ],
+    activeContactId: '1',
+    messages: [
+      { id: 'm1', type: 'inbound', content: 'Hola! Necesito un técnico para instalar un aire acondicionado mañana a la tarde', time: '14:32' },
+      { id: 'm2', type: 'ai-response', content: '¡Hola María! Con gusto te ayudo. Tenemos disponibilidad mañana a las 15:00 o 17:00. El costo de instalación de split es $45.000. ¿Qué horario te queda mejor?', time: '14:32' },
+      { id: 'm3', type: 'inbound', content: 'A las 15 me viene perfecto. Mi dirección es Av. Corrientes 1234, 5to B', time: '14:33' },
+      { id: 'm4', type: 'ai-response', content: '¡Perfecto! Tu turno quedó agendado para mañana a las 15:00hs. El técnico Juan te va a estar contactando 30 min antes de llegar. ¿Necesitás algo más?', time: '14:33' },
+    ],
+    aiPanel: {
+      status: 'active',
+      actions: [
+        { type: 'success', title: 'Turno Creado', description: 'Instalación Split - Mañana 15:00hs', actions: [{ label: 'Ver turno', icon: <CalendarPlus className="w-3 h-3" /> }] },
+        { type: 'success', title: 'Cliente Creado', description: 'María García agregada a la base', actions: [{ label: 'Ver ficha', icon: <UserPlus className="w-3 h-3" /> }] },
+        { type: 'info', title: 'Técnico Notificado', description: 'Juan recibió la asignación por WhatsApp', actions: [{ label: 'Ver mensaje', icon: <Send className="w-3 h-3" /> }] },
+      ],
+    },
+  },
+  // Scenario 2: AI Advisory - Schedule Conflict
+  {
+    id: 'schedule-conflict',
+    title: 'Conflicto de Agenda',
+    description: 'La IA detecta errores y sugiere alternativas',
+    contacts: [
+      { id: '1', name: 'Roberto Méndez', phone: '+54 11 4444-1234', lastMessage: 'Quiero el lunes a las 14hs', time: '10:15', unread: 1, aiConfidence: 87 },
+      { id: '2', name: 'Lucía Fernández', phone: '+54 11 4444-5678', lastMessage: 'Ok, nos vemos el martes', time: '09:30', aiConfidence: 92 },
+      { id: '3', name: 'Diego Torres', phone: '+54 11 4444-9012', lastMessage: 'Trabajo completado ✓', time: 'Ayer', aiConfidence: 95 },
+    ],
+    activeContactId: '1',
+    messages: [
+      { id: 'm1', type: 'inbound', content: 'Buenos días, necesito que vengan a revisar una pérdida de agua', time: '10:12' },
+      { id: 'm2', type: 'outbound', content: 'Hola Roberto! Sí, podemos ir. ¿Qué día te queda bien?', time: '10:13' },
+      { id: 'm3', type: 'inbound', content: 'El lunes a las 14hs me viene perfecto', time: '10:15' },
+    ],
+    aiPanel: {
+      status: 'monitoring',
+      actions: [
+        { type: 'alert', title: '⚠️ Conflicto Detectado', description: 'Lunes 14hs ya tiene 2 trabajos asignados. Riesgo de superposición.', actions: [{ label: 'Ver agenda', icon: <Calendar className="w-3 h-3" /> }] },
+        { type: 'info', title: 'Horarios Disponibles', description: 'Lunes: 10:00, 16:30 | Martes: Todo el día', actions: [] },
+        { type: 'info', title: 'Respuesta Sugerida', description: '"El lunes 14hs tenemos la agenda completa. ¿Te sirve a las 16:30 o preferís el martes?"', actions: [{ label: 'Usar', icon: <Send className="w-3 h-3" /> }] },
+      ],
+    },
+  },
+  // Scenario 3: Human to Human (AI Monitoring)
+  {
+    id: 'human-chat',
+    title: 'Chat Humano',
+    description: 'Conversación normal con IA en segundo plano',
+    contacts: [
+      { id: '1', name: 'Patricia Sosa', phone: '+54 11 3333-1234', lastMessage: '🎤 Audio (0:23)', time: '16:45', unread: 1, aiConfidence: 78 },
+      { id: '2', name: 'Martín Acosta', phone: '+54 11 3333-5678', lastMessage: 'Dale, te espero', time: '15:20', aiConfidence: 85 },
+      { id: '3', name: 'Empresa ABC', phone: '+54 11 3333-9012', lastMessage: 'Presupuesto recibido', time: '14:00', aiConfidence: 90 },
+    ],
+    activeContactId: '1',
+    messages: [
+      { id: 'm1', type: 'inbound', content: 'Hola! El técnico que vino ayer fue muy amable, quedó todo perfecto', time: '16:40' },
+      { id: 'm2', type: 'outbound', content: 'Qué bueno Patricia! Me alegra mucho. ¿Quedó funcionando bien el equipo?', time: '16:42' },
+      { id: 'm3', type: 'inbound', content: '🎤 Audio (0:23): "Sí, anda bárbaro. Quería consultarte si hacen mantenimiento también, porque me dijeron que hay que hacerlo una vez al año..."', time: '16:45', isVoice: true },
+    ],
+    aiPanel: {
+      status: 'monitoring',
+      actions: [
+        { type: 'info', title: '🎤 Audio Transcripto', description: 'Cliente consulta por servicio de mantenimiento anual', actions: [] },
+        { type: 'info', title: 'Oportunidad Detectada', description: 'Potencial venta de contrato de mantenimiento', actions: [] },
+        { type: 'info', title: 'Dato Sugerido', description: 'Mantenimiento preventivo: $25.000/año (incluye 2 visitas)', actions: [{ label: 'Insertar', icon: <Send className="w-3 h-3" /> }] },
+      ],
+    },
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI FEATURE HIGHLIGHT SECTION WITH CAROUSEL
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function AIFeatureSection() {
-  return (
-    <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto">
-        <div className="grid lg:grid-cols-2 gap-12 items-center">
-          <div>
-            <div className="inline-flex items-center gap-2 bg-accent/10 text-accent px-4 py-2 rounded-full text-sm font-medium mb-6">
-              <Sparkles className="w-4 h-4" />
-              Asistente Inteligente
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-6">
-              Tu copiloto en cada conversación
-            </h2>
-            <p className="text-lg text-muted-foreground mb-8">
-              Mientras chateás con clientes por WhatsApp, tu asistente trabaja en segundo plano: detecta oportunidades, previene errores de agenda y te sugiere la mejor respuesta.
-            </p>
+  const [currentSlide, setCurrentSlide] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-success/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <CheckCircle2 className="w-5 h-5 text-success" />
+  const nextSlide = useCallback(() => {
+    setCurrentSlide((prev) => (prev + 1) % conversationScenarios.length);
+  }, []);
+
+  const prevSlide = useCallback(() => {
+    setCurrentSlide((prev) => (prev - 1 + conversationScenarios.length) % conversationScenarios.length);
+  }, []);
+
+  // Auto-advance every 5 seconds
+  useEffect(() => {
+    if (isPaused) return;
+    const timer = setInterval(nextSlide, 5000);
+    return () => clearInterval(timer);
+  }, [isPaused, nextSlide]);
+
+  const scenario = conversationScenarios[currentSlide];
+  const activeContact = scenario.contacts.find(c => c.id === scenario.activeContactId);
+
+  return (
+    <section id="how-it-works" className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-background to-muted/30">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <div className="inline-flex items-center gap-2 bg-success/10 text-success px-4 py-2 rounded-full text-sm font-medium mb-6">
+            <Sparkles className="w-4 h-4" />
+            Asistente Inteligente con WhatsApp
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+            Tu copiloto en cada conversación
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+            La IA trabaja en segundo plano: responde consultas, detecta conflictos de agenda,
+            crea fichas de clientes y notifica a tu equipo. <span className="text-foreground font-medium">Entiende audios de voz</span> y responde siempre por texto.
+          </p>
+        </div>
+
+        {/* Carousel Navigation Dots */}
+        <div className="flex items-center justify-center gap-2 mb-6">
+          {conversationScenarios.map((s, idx) => (
+            <button
+              key={s.id}
+              onClick={() => setCurrentSlide(idx)}
+              className={`transition-all ${
+                idx === currentSlide
+                  ? 'w-8 h-2 bg-primary rounded-full'
+                  : 'w-2 h-2 bg-muted-foreground/30 rounded-full hover:bg-muted-foreground/50'
+              }`}
+              aria-label={`Ir a escenario ${idx + 1}`}
+            />
+          ))}
+        </div>
+
+        {/* Scenario Title */}
+        <div className="text-center mb-6">
+          <h3 className="text-xl font-semibold text-foreground">{scenario.title}</h3>
+          <p className="text-sm text-muted-foreground">{scenario.description}</p>
+        </div>
+
+        {/* Main Chat Interface */}
+        <div
+          className="bg-card rounded-2xl border border-border shadow-2xl overflow-hidden"
+          onMouseEnter={() => setIsPaused(true)}
+          onMouseLeave={() => setIsPaused(false)}
+        >
+          <div className="grid grid-cols-1 lg:grid-cols-12">
+            {/* Left: Contact List */}
+            <div className="lg:col-span-3 border-r border-border bg-muted/30">
+              <div className="p-4 border-b border-border">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-success rounded-full flex items-center justify-center">
+                      <MessageSquare className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="font-semibold text-foreground text-sm">WhatsApp</span>
+                  </div>
+                  <span className="text-xs bg-success/20 text-success px-2 py-0.5 rounded-full">Conectado</span>
                 </div>
-                <div>
-                  <h4 className="font-semibold text-foreground">Detección de conflictos</h4>
-                  <p className="text-muted-foreground text-sm">Si un cliente pide un horario ocupado, te avisa y sugiere alternativas.</p>
+                {/* Stats Row */}
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <div className="text-lg font-bold text-foreground">3</div>
+                    <div className="text-[10px] text-muted-foreground">Hoy</div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-bold text-success">
+                      {Math.round(scenario.contacts.reduce((acc, c) => acc + (c.aiConfidence || 0), 0) / scenario.contacts.length)}%
+                    </div>
+                    <div className="text-[10px] text-muted-foreground">IA Resuelto</div>
+                  </div>
+                  <div>
+                    <div className="text-lg font-bold text-warning">{scenario.contacts.filter(c => c.unread).length}</div>
+                    <div className="text-[10px] text-muted-foreground">Pendientes</div>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-success/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <CheckCircle2 className="w-5 h-5 text-success" />
+
+              {/* Contact List */}
+              <div className="divide-y divide-border">
+                {scenario.contacts.map((contact) => (
+                  <div
+                    key={contact.id}
+                    className={`p-3 cursor-pointer transition-colors ${
+                      contact.id === scenario.activeContactId
+                        ? 'bg-primary/10 border-l-2 border-l-primary'
+                        : 'hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+                        <User className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-foreground text-sm truncate">{contact.name}</span>
+                          <span className="text-[10px] text-muted-foreground">{contact.time}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">{contact.lastMessage}</p>
+                        <div className="flex items-center justify-between mt-1">
+                          <span className="text-[10px] text-muted-foreground">{contact.phone}</span>
+                          {contact.aiConfidence && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${
+                              contact.aiConfidence >= 90 ? 'bg-success/20 text-success' :
+                              contact.aiConfidence >= 80 ? 'bg-warning/20 text-warning' :
+                              'bg-muted text-muted-foreground'
+                            }`}>
+                              IA {contact.aiConfidence}%
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {contact.unread && (
+                        <span className="w-5 h-5 bg-success rounded-full flex items-center justify-center text-[10px] text-white font-medium">
+                          {contact.unread}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Center: Chat Messages */}
+            <div className="lg:col-span-5 flex flex-col bg-[url('/chat-bg.png')] bg-repeat bg-muted/10">
+              {/* Chat Header */}
+              <div className="p-3 border-b border-border bg-card flex items-center gap-3">
+                <div className="w-10 h-10 bg-muted rounded-full flex items-center justify-center">
+                  <User className="w-5 h-5 text-muted-foreground" />
                 </div>
-                <div>
-                  <h4 className="font-semibold text-foreground">Creación automática de fichas</h4>
-                  <p className="text-muted-foreground text-sm">Extrae datos del chat y crea perfiles de cliente sin que tengas que escribir nada.</p>
+                <div className="flex-1">
+                  <div className="font-semibold text-foreground">{activeContact?.name}</div>
+                  <div className="text-xs text-muted-foreground">{activeContact?.phone}</div>
                 </div>
               </div>
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 bg-success/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <CheckCircle2 className="w-5 h-5 text-success" />
+
+              {/* Messages */}
+              <div className="flex-1 p-4 space-y-3 min-h-[280px] overflow-y-auto">
+                {scenario.messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`flex ${msg.type === 'inbound' ? 'justify-start' : 'justify-end'}`}
+                  >
+                    <div
+                      className={`max-w-[85%] rounded-lg px-3 py-2 ${
+                        msg.type === 'inbound'
+                          ? 'bg-white border border-border rounded-tl-none'
+                          : msg.type === 'ai-response'
+                          ? 'bg-success/20 border border-success/30 rounded-tr-none'
+                          : 'bg-primary/10 border border-primary/20 rounded-tr-none'
+                      }`}
+                    >
+                      {msg.type === 'ai-response' && (
+                        <div className="flex items-center gap-1 text-[10px] text-success font-medium mb-1">
+                          <Bot className="w-3 h-3" />
+                          Respuesta IA
+                        </div>
+                      )}
+                      {msg.isVoice && (
+                        <div className="flex items-center gap-2 mb-1">
+                          <Mic className="w-4 h-4 text-muted-foreground" />
+                          <div className="flex-1 h-1 bg-muted rounded-full">
+                            <div className="w-3/4 h-full bg-muted-foreground/50 rounded-full" />
+                          </div>
+                        </div>
+                      )}
+                      <p className="text-sm text-foreground">{msg.content}</p>
+                      <div className="text-[10px] text-muted-foreground text-right mt-1">{msg.time}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Input Bar */}
+              <div className="p-3 border-t border-border bg-card">
+                <div className="flex items-center gap-2 bg-muted rounded-full px-4 py-2">
+                  <input
+                    type="text"
+                    placeholder="Escribí un mensaje..."
+                    className="flex-1 bg-transparent text-sm outline-none text-foreground placeholder:text-muted-foreground"
+                    readOnly
+                  />
+                  <Mic className="w-5 h-5 text-muted-foreground" />
                 </div>
-                <div>
-                  <h4 className="font-semibold text-foreground">Respuestas configurables</h4>
-                  <p className="text-muted-foreground text-sm">Personalizá el tono, servicios y precios que tu asistente ofrece a cada consulta.</p>
+              </div>
+            </div>
+
+            {/* Right: AI Assistant Panel */}
+            <div className="lg:col-span-4 border-l border-border bg-gradient-to-b from-primary/5 to-background">
+              <div className="p-4 border-b border-border">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                      scenario.aiPanel.status === 'active' ? 'bg-success/20' : 'bg-primary/20'
+                    }`}>
+                      <Bot className={`w-4 h-4 ${
+                        scenario.aiPanel.status === 'active' ? 'text-success' : 'text-primary'
+                      }`} />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-foreground text-sm">Asistente IA</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {scenario.aiPanel.status === 'active' ? 'Respondiendo automáticamente' : 'Monitoreando conversación'}
+                      </div>
+                    </div>
+                  </div>
+                  <div className={`w-2 h-2 rounded-full animate-pulse ${
+                    scenario.aiPanel.status === 'active' ? 'bg-success' : 'bg-primary'
+                  }`} />
+                </div>
+              </div>
+
+              {/* AI Actions */}
+              <div className="p-4 space-y-3">
+                {scenario.aiPanel.actions.map((action, idx) => (
+                  <div
+                    key={idx}
+                    className={`rounded-lg p-3 border ${
+                      action.type === 'alert'
+                        ? 'bg-warning/10 border-warning/30'
+                        : action.type === 'success'
+                        ? 'bg-success/10 border-success/30'
+                        : 'bg-muted/50 border-border'
+                    }`}
+                  >
+                    <div className={`text-sm font-medium mb-1 ${
+                      action.type === 'alert' ? 'text-warning' :
+                      action.type === 'success' ? 'text-success' :
+                      'text-foreground'
+                    }`}>
+                      {action.title}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{action.description}</p>
+                    {action.actions && action.actions.length > 0 && (
+                      <div className="flex gap-2 mt-2">
+                        {action.actions.map((btn, btnIdx) => (
+                          <button
+                            key={btnIdx}
+                            className="inline-flex items-center gap-1 text-[10px] text-primary hover:underline"
+                          >
+                            {btn.icon}
+                            {btn.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* Voice Memo Note */}
+                <div className="mt-4 p-3 bg-muted/50 rounded-lg border border-border">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Mic className="w-4 h-4" />
+                    <span>La IA transcribe audios de voz automáticamente pero siempre responde por texto</span>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Chat Preview */}
-          <div className="bg-card rounded-xl border border-border p-6 shadow-lg">
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border">
-              <div className="w-10 h-10 bg-success rounded-full flex items-center justify-center">
-                <MessageSquare className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <div className="font-semibold text-foreground">WhatsApp Business</div>
-                <div className="text-xs text-muted-foreground">Conectado • 3 conversaciones activas</div>
-              </div>
+        {/* Navigation Arrows */}
+        <div className="flex items-center justify-center gap-4 mt-6">
+          <button
+            onClick={prevSlide}
+            className="p-2 rounded-full bg-muted hover:bg-muted/80 transition-colors"
+            aria-label="Escenario anterior"
+          >
+            <ChevronLeft className="w-5 h-5 text-foreground" />
+          </button>
+          <span className="text-sm text-muted-foreground">
+            {currentSlide + 1} / {conversationScenarios.length}
+          </span>
+          <button
+            onClick={nextSlide}
+            className="p-2 rounded-full bg-muted hover:bg-muted/80 transition-colors"
+            aria-label="Escenario siguiente"
+          >
+            <ChevronRight className="w-5 h-5 text-foreground" />
+          </button>
+        </div>
+
+        {/* Feature List */}
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 bg-success/10 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Bot className="w-5 h-5 text-success" />
             </div>
-
-            <div className="space-y-4">
-              {/* Customer message */}
-              <div className="flex justify-start">
-                <div className="bg-muted rounded-lg rounded-tl-none px-4 py-2 max-w-[80%]">
-                  <p className="text-sm text-foreground">Hola, necesito un plomero para el lunes a las 14hs</p>
-                </div>
-              </div>
-
-              {/* AI Alert */}
-              <div className="bg-warning/10 border border-warning/30 rounded-lg p-3">
-                <div className="flex items-center gap-2 text-warning text-sm font-medium mb-1">
-                  <Bell className="w-4 h-4" />
-                  Alerta del asistente
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Lunes 14hs ya tiene un trabajo asignado. Horarios disponibles: 10hs, 16hs o martes completo.
-                </p>
-              </div>
-
-              {/* Suggested response */}
-              <div className="flex justify-end">
-                <div className="bg-primary/10 border border-primary/30 rounded-lg rounded-tr-none px-4 py-2 max-w-[80%]">
-                  <div className="text-xs text-primary font-medium mb-1">Respuesta sugerida</div>
-                  <p className="text-sm text-foreground">¡Hola! El lunes a las 14hs ya está ocupado. ¿Te sirve a las 16hs o preferís el martes?</p>
-                </div>
-              </div>
+            <div>
+              <h4 className="font-semibold text-foreground">Respuestas automáticas</h4>
+              <p className="text-muted-foreground text-sm">Agenda turnos, crea clientes y notifica técnicos sin intervención manual.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 bg-warning/10 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Bell className="w-5 h-5 text-warning" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground">Detección de conflictos</h4>
+              <p className="text-muted-foreground text-sm">Te avisa si hay superposiciones y sugiere horarios disponibles.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Mic className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h4 className="font-semibold text-foreground">Transcripción de audios</h4>
+              <p className="text-muted-foreground text-sm">Entiende notas de voz de clientes y te muestra el texto.</p>
             </div>
           </div>
         </div>
