@@ -15,6 +15,7 @@ import {
   Moon,
   Volume2,
   VolumeX,
+  Check,
 } from 'lucide-react';
 
 interface NotificationPreferences {
@@ -60,6 +61,7 @@ export default function NotificationSettingsPage() {
   const queryClient = useQueryClient();
   const [hasChanges, setHasChanges] = useState(false);
   const [localPrefs, setLocalPrefs] = useState<NotificationPreferences | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['notification-preferences'],
@@ -81,6 +83,9 @@ export default function NotificationSettingsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notification-preferences'] });
       setHasChanges(false);
+      setSaveSuccess(true);
+      // Hide success message after 3 seconds
+      setTimeout(() => setSaveSuccess(false), 3000);
     },
   });
 
@@ -164,14 +169,27 @@ export default function NotificationSettingsPage() {
             <p className="text-gray-500">Configurá cómo y cuándo recibís notificaciones</p>
           </div>
         </div>
-        {hasChanges && (
+        {(hasChanges || saveSuccess) && (
           <button
             onClick={handleSave}
-            disabled={updateMutation.isPending}
-            className="btn-primary"
+            disabled={updateMutation.isPending || saveSuccess}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-300 ${
+              saveSuccess
+                ? 'bg-green-600 text-white cursor-default'
+                : 'btn-primary'
+            }`}
           >
-            <Save className="mr-2 h-4 w-4" />
-            {updateMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
+            {saveSuccess ? (
+              <>
+                <Check className="h-4 w-4" />
+                Guardado
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                {updateMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
+              </>
+            )}
           </button>
         )}
       </div>
@@ -382,15 +400,28 @@ export default function NotificationSettingsPage() {
       </div>
 
       {/* Save button (mobile) */}
-      {hasChanges && (
+      {(hasChanges || saveSuccess) && (
         <div className="fixed bottom-4 left-4 right-4 sm:hidden">
           <button
             onClick={handleSave}
-            disabled={updateMutation.isPending}
-            className="btn-primary w-full py-3"
+            disabled={updateMutation.isPending || saveSuccess}
+            className={`w-full py-3 flex items-center justify-center gap-2 rounded-lg font-medium transition-all duration-300 ${
+              saveSuccess
+                ? 'bg-green-600 text-white cursor-default'
+                : 'btn-primary'
+            }`}
           >
-            <Save className="mr-2 h-4 w-4" />
-            {updateMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
+            {saveSuccess ? (
+              <>
+                <Check className="h-4 w-4" />
+                Guardado
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4" />
+                {updateMutation.isPending ? 'Guardando...' : 'Guardar cambios'}
+              </>
+            )}
           </button>
         </div>
       )}

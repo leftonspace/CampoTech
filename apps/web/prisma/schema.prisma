@@ -3095,19 +3095,22 @@ model Notification {
 
 // NotificationPreferences - User notification settings
 model NotificationPreferences {
-  id                String   @id @default(cuid())
-  userId            String   @unique
-  organizationId    String
-  webEnabled        Boolean  @default(true)
-  pushEnabled       Boolean  @default(true)
-  emailEnabled      Boolean  @default(false)
-  whatsappEnabled   Boolean  @default(true)
-  smsEnabled        Boolean  @default(false)
-  reminderIntervals Json?    // Array of minutes before appointment
-  quietHoursStart   String?  // "22:00"
-  quietHoursEnd     String?  // "08:00"
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  organizationId      String
+  webEnabled          Boolean  @default(true)
+  pushEnabled         Boolean  @default(true)
+  emailEnabled        Boolean  @default(false)
+  whatsappEnabled     Boolean  @default(true)
+  smsEnabled          Boolean  @default(false)
+  eventPreferences    Json?    // Per-event channel preferences: { "job_assigned": { "whatsapp": true, "push": true } }
+  reminderIntervals   Json?    // Array of minutes before appointment: [1440, 60, 30]
+  quietHoursEnabled   Boolean  @default(false)
+  quietHoursStart     String?  @default("22:00")
+  quietHoursEnd       String?  @default("08:00")
+  quietHoursTimezone  String?  @default("America/Argentina/Buenos_Aires")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
