@@ -9,6 +9,7 @@
  * - Inbound messages from customers
  * - Message status updates (sent, delivered, read, failed)
  * - Account status changes
+ * - AI-powered automatic responses
  *
  * Documentation: https://docs.360dialog.com/whatsapp-api/whatsapp-api/webhook
  */
@@ -16,6 +17,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Dialog360Provider } from '@/lib/integrations/whatsapp/providers/dialog360.provider';
 import { prisma } from '@/lib/prisma';
+import {
+  getWhatsAppAIResponder,
+  getAIConfiguration,
+  getConversationContext,
+  isAIAssistantEnabled,
+  type IncomingMessage as AIIncomingMessage,
+} from '@/lib/services/whatsapp-ai-responder';
 import type {
   WebhookPayload,
   WebhookMessage,
@@ -302,7 +310,7 @@ async function processInboundMessage(
     }
 
     // Create the message record
-    await prisma.whatsAppMessage.create({
+    const savedMessage = await prisma.whatsAppMessage.create({
       data: {
         conversationId: conversation.id,
         whatsappMessageId: message.id,
@@ -322,7 +330,18 @@ async function processInboundMessage(
 
     console.log('[Dialog360 Webhook] Message saved:', message.id);
 
-    // TODO: Trigger AI response if configured
+    // Trigger AI response if configured
+    await processAIResponse(
+      organizationId,
+      conversation.id,
+      savedMessage.id,
+      senderPhone,
+      senderName,
+      message,
+      content,
+      mediaType
+    );
+
     // TODO: Send real-time update via Pusher
 
   } catch (error) {
@@ -361,5 +380,228 @@ async function processStatusUpdate(
   } catch (error) {
     console.error('[Dialog360 Webhook] Error processing status:', error);
     throw error;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// AI RESPONSE PROCESSING
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Process AI response for an inbound message
+ *
+ * This function:
+ * 1. Checks if AI is enabled for the organization
+ * 2. Gets the AI configuration
+ * 3. Processes the message through the AI responder
+ * 4. Sends the AI-generated response back via 360dialog
+ */
+async function processAIResponse(
+  organizationId: string,
+  conversationId: string,
+  messageId: string,
+  customerPhone: string,
+  customerName: string,
+  webhookMessage: WebhookMessage,
+  textContent: string,
+  mediaType: string | null
+): Promise<void> {
+  try {
+    // Check if AI is enabled for this organization
+    const aiEnabled = await isAIAssistantEnabled(organizationId);
+    if (!aiEnabled) {
+      console.log('[Dialog360 AI] AI not enabled for organization:', organizationId);
+      return;
+    }
+
+    // Get AI configuration
+    const aiConfig = await getAIConfiguration(organizationId);
+    if (!aiConfig || !aiConfig.autoResponseEnabled) {
+      console.log('[Dialog360 AI] Auto-response not enabled:', organizationId);
+      return;
+    }
+
+    // Skip reactions and status messages - no response needed
+    if (webhookMessage.type === 'reaction') {
+      console.log('[Dialog360 AI] Skipping reaction message');
+      return;
+    }
+
+    // Map webhook message type to AI message type
+    const messageType: AIIncomingMessage['messageType'] = mediaType === 'audio' ? 'voice' :
+      mediaType === 'image' ? 'image' : 'text';
+
+    // Build the incoming message for AI processing
+    const incomingMessage: AIIncomingMessage = {
+      organizationId,
+      conversationId,
+      messageId,
+      customerPhone,
+      customerName,
+      messageType,
+      textContent,
+      // For audio messages, we'd need to fetch the media URL
+      // For now, handle text and let AI transcribe if needed
+      audioUrl: mediaType === 'audio' ? await getMediaUrl(organizationId, webhookMessage.audio?.id) : undefined,
+      imageUrl: mediaType === 'image' ? await getMediaUrl(organizationId, webhookMessage.image?.id) : undefined,
+      imageCaption: webhookMessage.image?.caption,
+    };
+
+    // Get conversation context for better AI responses
+    const context = await getConversationContext(conversationId);
+
+    // Process with AI responder
+    const responder = getWhatsAppAIResponder();
+    const aiResponse = await responder.processMessage(incomingMessage, aiConfig, context);
+
+    console.log('[Dialog360 AI] AI response:', {
+      action: aiResponse.action,
+      confidence: aiResponse.analysis.confidence,
+      intent: aiResponse.analysis.intent,
+    });
+
+    // Handle the AI response based on action
+    if (aiResponse.action === 'respond' && aiResponse.response) {
+      // Send the AI-generated response
+      await sendAIResponse(organizationId, customerPhone, aiResponse.response, conversationId);
+    } else if (aiResponse.action === 'transfer') {
+      // Mark conversation for human handoff
+      await handleTransferToHuman(organizationId, conversationId, aiResponse.transferTo, aiResponse.analysis.transferReason);
+    } else if (aiResponse.action === 'create_job' && aiResponse.response) {
+      // Job was created, send confirmation
+      await sendAIResponse(organizationId, customerPhone, aiResponse.response, conversationId);
+      if (aiResponse.jobCreated) {
+        console.log('[Dialog360 AI] Job created:', aiResponse.jobCreated.jobNumber);
+      }
+    } else if (aiResponse.action === 'confirm_job' && aiResponse.response) {
+      // Need confirmation before creating job
+      await sendAIResponse(organizationId, customerPhone, aiResponse.response, conversationId);
+    }
+
+  } catch (error) {
+    console.error('[Dialog360 AI] Error processing AI response:', error);
+    // Don't throw - we don't want AI failures to break webhook processing
+  }
+}
+
+/**
+ * Send an AI-generated response via 360dialog
+ */
+async function sendAIResponse(
+  organizationId: string,
+  to: string,
+  message: string,
+  conversationId: string
+): Promise<void> {
+  try {
+    const provider = new Dialog360Provider({
+      apiKey: process.env.DIALOG360_PARTNER_API_KEY || '',
+      partnerId: process.env.DIALOG360_PARTNER_ID || '',
+      webhookSecret: process.env.DIALOG360_WEBHOOK_SECRET,
+    });
+
+    const result = await provider.sendMessage(organizationId, {
+      to,
+      type: 'text',
+      content: {
+        type: 'text',
+        body: message,
+      },
+    });
+
+    if (result.success && result.messageId) {
+      // Save the outbound message
+      await prisma.whatsAppMessage.create({
+        data: {
+          conversationId,
+          whatsappMessageId: result.messageId,
+          direction: 'OUTBOUND',
+          type: 'TEXT',
+          content: message,
+          status: 'SENT',
+          metadata: {
+            source: 'ai_responder',
+          },
+        },
+      });
+      console.log('[Dialog360 AI] Response sent:', result.messageId);
+    } else {
+      console.error('[Dialog360 AI] Failed to send response:', result.error);
+    }
+
+  } catch (error) {
+    console.error('[Dialog360 AI] Error sending response:', error);
+  }
+}
+
+/**
+ * Handle transfer to human agent
+ */
+async function handleTransferToHuman(
+  organizationId: string,
+  conversationId: string,
+  transferToUserId?: string,
+  reason?: string
+): Promise<void> {
+  try {
+    // Update conversation status to require human attention
+    await prisma.whatsAppConversation.update({
+      where: { id: conversationId },
+      data: {
+        status: 'PENDING',
+        assignedToId: transferToUserId,
+        metadata: {
+          transferReason: reason,
+          transferredAt: new Date().toISOString(),
+          requiresHumanResponse: true,
+        },
+      },
+    });
+
+    console.log('[Dialog360 AI] Transferred to human:', { conversationId, reason });
+
+    // TODO: Send notification to assigned user via Pusher/email
+
+  } catch (error) {
+    console.error('[Dialog360 AI] Error handling transfer:', error);
+  }
+}
+
+/**
+ * Get media URL from 360dialog
+ * 360dialog requires fetching media via their API using the media ID
+ */
+async function getMediaUrl(
+  organizationId: string,
+  mediaId?: string
+): Promise<string | undefined> {
+  if (!mediaId) return undefined;
+
+  try {
+    const account = await prisma.whatsAppBusinessAccount.findUnique({
+      where: { organizationId },
+      select: { accessToken: true },
+    });
+
+    if (!account?.accessToken) return undefined;
+
+    // Fetch media URL from 360dialog
+    const response = await fetch(`https://waba.360dialog.io/v1/media/${mediaId}`, {
+      headers: {
+        'D360-API-KEY': account.accessToken,
+      },
+    });
+
+    if (!response.ok) {
+      console.error('[Dialog360 AI] Failed to fetch media URL');
+      return undefined;
+    }
+
+    const data = await response.json() as { url?: string };
+    return data.url;
+
+  } catch (error) {
+    console.error('[Dialog360 AI] Error fetching media URL:', error);
+    return undefined;
   }
 }
