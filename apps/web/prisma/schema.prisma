@@ -533,7 +533,8 @@ model JobAssignment {
 model JobVisit {
   id                String    @id @default(cuid())
   jobId             String
-  visitNumber       Int       // 1, 2, 3... for ordering
+  visitNumber       Int       // 1, 2, 3... for ordering across all visits
+  visitConfigIndex  Int       @default(1) // Groups visits by original "Visita" config (1, 2, 3...)
   scheduledDate     DateTime
   scheduledTimeSlot Json?     // { start: "09:00", end: "11:00" }
   status            JobStatus @default(PENDING)
@@ -551,6 +552,7 @@ model JobVisit {
   @@index([jobId])
   @@index([scheduledDate])
   @@index([status])
+  @@index([visitConfigIndex])
   @@map("job_visits")
 }
 
