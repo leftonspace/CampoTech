@@ -231,7 +231,7 @@ export default async function PublicBusinessProfilePage({ params }: PageProps) {
                   Reseñas de clientes ({profile.totalReviews})
                 </h2>
                 <div className="space-y-4">
-                  {reviews.map((review) => (
+                  {reviews.map((review: typeof reviews[number]) => (
                     <div key={review.id} className="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
