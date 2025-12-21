@@ -42,8 +42,9 @@ interface TeamMember {
   avatar?: string;
   isActive: boolean;
   createdAt?: string;
-  jobCount?: number;
-  rating?: number;
+  jobCount: number;
+  avgRating: number | null;
+  reviewCount: number;
 }
 
 interface TeamStats {
@@ -495,12 +496,20 @@ function EmployeeListTab({ members, loading, canEdit, onEdit, onCardClick, curre
             <div className="flex items-center justify-between mt-4 pt-4 border-t">
               <div className="flex items-center gap-1 text-sm text-gray-600">
                 <Briefcase className="h-4 w-4" />
-                <span>{member.jobCount || Math.floor(Math.random() * 200 + 50)} trabajos</span>
+                <span>{member.jobCount} {member.jobCount === 1 ? 'trabajo' : 'trabajos'}</span>
               </div>
-              <div className="flex items-center gap-1 text-sm">
-                <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
-                <span className="font-medium">{member.rating || (4 + Math.random() * 0.9).toFixed(1)}</span>
-              </div>
+              {member.avgRating !== null ? (
+                <div className="flex items-center gap-1 text-sm">
+                  <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
+                  <span className="font-medium">{member.avgRating}</span>
+                  <span className="text-gray-400 text-xs">({member.reviewCount})</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 text-sm text-gray-400">
+                  <Star className="h-4 w-4" />
+                  <span>Sin calificaciones</span>
+                </div>
+              )}
             </div>
           </div>
         );
