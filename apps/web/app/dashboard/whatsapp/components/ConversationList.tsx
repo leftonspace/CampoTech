@@ -21,6 +21,8 @@ export interface Conversation {
   isInWindow: boolean;
   // AI-related fields
   aiHandling?: boolean;
+  aiConfidence?: number; // 0-100 confidence score from AI analysis
+  aiResolutionStatus?: 'resolved' | 'pending' | 'transferred';
   isNewLead?: boolean;
   needsAttention?: boolean;
   hasPendingJob?: boolean;
