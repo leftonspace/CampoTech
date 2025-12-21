@@ -849,11 +849,17 @@ export default function NewJobPage() {
                           </button>
                         ))}
                       </div>
-                      <div className="border-t px-3 py-2">
+                      <div className="border-t px-3 py-2 space-y-1">
+                        <Link
+                          href="/dashboard/settings/team"
+                          className="block w-full text-center text-xs text-primary-600 hover:underline"
+                        >
+                          + Agregar nuevo miembro al equipo
+                        </Link>
                         <button
                           type="button"
                           onClick={() => setActiveVisitDropdown(null)}
-                          className="w-full text-center text-xs text-primary-600 hover:underline"
+                          className="w-full text-center text-xs text-gray-500 hover:underline"
                         >
                           Cerrar
                         </button>
@@ -935,16 +941,6 @@ export default function NewJobPage() {
               </p>
             </div>
           )}
-        </div>
-
-        {/* Add team member link */}
-        <div className="text-sm">
-          <Link
-            href="/dashboard/settings/team"
-            className="text-primary-600 hover:underline"
-          >
-            + Agregar nuevo miembro al equipo
-          </Link>
         </div>
 
         {error && <p className="text-sm text-danger-500">{error}</p>}
