@@ -12,6 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
+import { db } from '@/lib/db';
 
 // Default preferences
 const defaultPreferences = {
@@ -107,9 +108,39 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Fetch user's preferences from database
+    const prefs = await db.notificationPreferences.findUnique({
+      where: { userId: session.user.id },
+    });
+
+    // If no preferences exist, return defaults
+    if (!prefs) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          ...defaultPreferences,
+          eventPreferences: defaultPreferences.eventPreferences || {},
+          reminderIntervals: defaultPreferences.reminderIntervals || [60, 15],
+        },
+      });
+    }
+
+    // Map database record to API response
     return NextResponse.json({
       success: true,
-      data: defaultPreferences,
+      data: {
+        webEnabled: prefs.webEnabled,
+        pushEnabled: prefs.pushEnabled,
+        smsEnabled: prefs.smsEnabled,
+        emailEnabled: prefs.emailEnabled,
+        whatsappEnabled: prefs.whatsappEnabled,
+        eventPreferences: (prefs.eventPreferences as Record<string, Record<string, boolean>>) || {},
+        reminderIntervals: (prefs.reminderIntervals as number[]) || [60, 15],
+        quietHoursEnabled: prefs.quietHoursEnabled,
+        quietHoursStart: prefs.quietHoursStart || '22:00',
+        quietHoursEnd: prefs.quietHoursEnd || '08:00',
+        quietHoursTimezone: prefs.quietHoursTimezone || 'America/Argentina/Buenos_Aires',
+      },
     });
   } catch (error) {
     console.error('Get notification preferences error:', error);
@@ -141,8 +172,6 @@ export async function PUT(request: NextRequest) {
       smsEnabled,
       emailEnabled,
       whatsappEnabled,
-      verification,
-      subscription,
       eventPreferences,
       reminderIntervals,
       quietHoursEnabled,
@@ -151,47 +180,48 @@ export async function PUT(request: NextRequest) {
       quietHoursTimezone,
     } = body;
 
-    // Merge verification preferences (ensure critical ones stay enabled)
-    const mergedVerification = {
-      ...defaultPreferences.verification,
-      ...(verification || {}),
-      // Force critical notifications to stay enabled
-      accountBlockedEmail: true,
+    // Build data for upsert
+    const data = {
+      webEnabled: webEnabled ?? true,
+      pushEnabled: pushEnabled ?? true,
+      smsEnabled: smsEnabled ?? false,
+      emailEnabled: emailEnabled ?? false,
+      whatsappEnabled: whatsappEnabled ?? true,
+      eventPreferences: eventPreferences ?? {},
+      reminderIntervals: reminderIntervals ?? [60, 15],
+      quietHoursEnabled: quietHoursEnabled ?? false,
+      quietHoursStart: quietHoursStart ?? '22:00',
+      quietHoursEnd: quietHoursEnd ?? '08:00',
+      quietHoursTimezone: quietHoursTimezone ?? 'America/Argentina/Buenos_Aires',
     };
 
-    // Merge subscription preferences (ensure critical ones stay enabled)
-    const mergedSubscription = {
-      ...defaultPreferences.subscription,
-      ...(subscription || {}),
-      // Force critical notifications to stay enabled
-      paymentFailedEmail: true,
-    };
-
-    // Build updated preferences
-    const updatedPreferences = {
-      webEnabled: webEnabled ?? defaultPreferences.webEnabled,
-      pushEnabled: pushEnabled ?? defaultPreferences.pushEnabled,
-      smsEnabled: smsEnabled ?? defaultPreferences.smsEnabled,
-      emailEnabled: emailEnabled ?? defaultPreferences.emailEnabled,
-      whatsappEnabled: whatsappEnabled ?? defaultPreferences.whatsappEnabled,
-      verification: mergedVerification,
-      subscription: mergedSubscription,
-      eventPreferences: eventPreferences ?? defaultPreferences.eventPreferences,
-      reminderIntervals: reminderIntervals ?? defaultPreferences.reminderIntervals,
-      quietHoursEnabled: quietHoursEnabled ?? defaultPreferences.quietHoursEnabled,
-      quietHoursStart: quietHoursStart ?? defaultPreferences.quietHoursStart,
-      quietHoursEnd: quietHoursEnd ?? defaultPreferences.quietHoursEnd,
-      quietHoursTimezone: quietHoursTimezone ?? defaultPreferences.quietHoursTimezone,
-    };
-
-    // Note: In a full implementation, these would be stored per-user in the database
-    // For now, we return success with the updated preferences
-    // TODO: Add notificationPreferences field to User model and persist
+    // Upsert preferences in database
+    const updated = await db.notificationPreferences.upsert({
+      where: { userId: session.user.id },
+      create: {
+        userId: session.user.id,
+        organizationId: session.user.organizationId,
+        ...data,
+      },
+      update: data,
+    });
 
     return NextResponse.json({
       success: true,
-      data: updatedPreferences,
-      message: 'Preferencias actualizadas correctamente',
+      data: {
+        webEnabled: updated.webEnabled,
+        pushEnabled: updated.pushEnabled,
+        smsEnabled: updated.smsEnabled,
+        emailEnabled: updated.emailEnabled,
+        whatsappEnabled: updated.whatsappEnabled,
+        eventPreferences: updated.eventPreferences as Record<string, Record<string, boolean>>,
+        reminderIntervals: updated.reminderIntervals as number[],
+        quietHoursEnabled: updated.quietHoursEnabled,
+        quietHoursStart: updated.quietHoursStart,
+        quietHoursEnd: updated.quietHoursEnd,
+        quietHoursTimezone: updated.quietHoursTimezone,
+      },
+      message: 'Preferencias guardadas correctamente',
     });
   } catch (error) {
     console.error('Update notification preferences error:', error);
