@@ -19,10 +19,11 @@
 
 // Export all types
 export * from './types';
+// Note: dialog360.types are imported directly where needed to avoid conflicts
 
 // Export providers
 export { MetaDirectProvider } from './meta-direct.provider';
-// export { Dialog360Provider } from './dialog360.provider'; // Phase 3
+export { Dialog360Provider } from './dialog360.provider';
 // export { TwilioProvider } from './twilio.provider'; // Future
 
 import type {
@@ -32,6 +33,7 @@ import type {
   Dialog360Config,
 } from './types';
 import { MetaDirectProvider } from './meta-direct.provider';
+import { Dialog360Provider } from './dialog360.provider';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // PROVIDER FACTORY
@@ -49,8 +51,7 @@ export function createBSPProvider(
       return new MetaDirectProvider(config as MetaDirectConfig);
 
     case 'DIALOG_360':
-      // Will be implemented in Phase 3
-      throw new Error('360dialog provider not yet implemented');
+      return new Dialog360Provider(config as Dialog360Config);
 
     case 'TWILIO':
       // Future implementation
@@ -123,9 +124,26 @@ export async function createProviderForOrg(
   }
 
   if (bspProvider === 'DIALOG_360') {
-    // Will be implemented in Phase 3
-    console.warn(`[BSP] 360dialog provider not yet implemented`);
-    return null;
+    // 360dialog uses partner API key from environment and channel-specific API key from database
+    const partnerApiKey = process.env.DIALOG360_PARTNER_API_KEY;
+    const partnerId = process.env.DIALOG360_PARTNER_ID;
+    const channelApiKey = org.whatsappBusinessAccount?.accessToken;
+
+    if (!partnerApiKey || !partnerId) {
+      console.warn(`[BSP] 360dialog partner credentials not configured in environment`);
+      return null;
+    }
+
+    if (!channelApiKey) {
+      console.warn(`[BSP] Organization ${organizationId} has no 360dialog channel configured`);
+      return null;
+    }
+
+    return new Dialog360Provider({
+      apiKey: partnerApiKey,
+      partnerId,
+      webhookSecret: process.env.DIALOG360_WEBHOOK_SECRET,
+    });
   }
 
   console.warn(`[BSP] Unknown provider type: ${bspProvider}`);
