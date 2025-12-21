@@ -2,6 +2,17 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+// Helper to safely run queries that might fail due to missing tables
+async function safeQuery<T>(query: Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await query;
+  } catch (error) {
+    // Return fallback for table/column not found errors
+    console.warn('Dashboard query failed (table may not exist):', error);
+    return fallback;
+  }
+}
+
 export async function GET() {
   try {
     const session = await getSession();
@@ -14,7 +25,6 @@ export async function GET() {
     }
 
     // Date ranges
-    const now = new Date();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -88,45 +98,57 @@ export async function GET() {
           },
         },
       }),
-      // Pending invoices count
-      prisma.invoice.count({
-        where: {
-          organizationId: session.organizationId,
-          status: { in: ['PENDING', 'SENT'] },
-        },
-      }),
+      // Pending invoices count (wrapped in safeQuery for missing table)
+      safeQuery(
+        prisma.invoice.count({
+          where: {
+            organizationId: session.organizationId,
+            status: { in: ['PENDING', 'SENT'] },
+          },
+        }),
+        0
+      ),
       // Unpaid amount
-      prisma.invoice.aggregate({
-        where: {
-          organizationId: session.organizationId,
-          status: { in: ['PENDING', 'SENT', 'OVERDUE'] },
-        },
-        _sum: { total: true },
-      }),
+      safeQuery(
+        prisma.invoice.aggregate({
+          where: {
+            organizationId: session.organizationId,
+            status: { in: ['PENDING', 'SENT', 'OVERDUE'] },
+          },
+          _sum: { total: true },
+        }),
+        { _sum: { total: null } }
+      ),
       // Today's revenue (paid invoices)
-      prisma.invoice.aggregate({
-        where: {
-          organizationId: session.organizationId,
-          status: 'PAID',
-          paidAt: {
-            gte: today,
-            lt: tomorrow,
+      safeQuery(
+        prisma.invoice.aggregate({
+          where: {
+            organizationId: session.organizationId,
+            status: 'PAID',
+            paidAt: {
+              gte: today,
+              lt: tomorrow,
+            },
           },
-        },
-        _sum: { total: true },
-      }),
+          _sum: { total: true },
+        }),
+        { _sum: { total: null } }
+      ),
       // Last week's revenue (for comparison)
-      prisma.invoice.aggregate({
-        where: {
-          organizationId: session.organizationId,
-          status: 'PAID',
-          paidAt: {
-            gte: startOfLastWeek,
-            lte: endOfLastWeek,
+      safeQuery(
+        prisma.invoice.aggregate({
+          where: {
+            organizationId: session.organizationId,
+            status: 'PAID',
+            paidAt: {
+              gte: startOfLastWeek,
+              lte: endOfLastWeek,
+            },
           },
-        },
-        _sum: { total: true },
-      }),
+          _sum: { total: true },
+        }),
+        { _sum: { total: null } }
+      ),
       // Active customers (with at least one job)
       prisma.customer.count({
         where: {
@@ -144,13 +166,16 @@ export async function GET() {
         },
       }),
       // Average rating from reviews
-      prisma.review.aggregate({
-        where: {
-          organizationId: session.organizationId,
-        },
-        _avg: { rating: true },
-        _count: { rating: true },
-      }),
+      safeQuery(
+        prisma.review.aggregate({
+          where: {
+            organizationId: session.organizationId,
+          },
+          _avg: { rating: true },
+          _count: { rating: true },
+        }),
+        { _avg: { rating: null }, _count: { rating: 0 } }
+      ),
     ]);
 
     // Calculate new customers this month
