@@ -41,6 +41,8 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
+    const durationType = searchParams.get('durationType'); // Filter for recurring/multi-visit
+    const technicianId = searchParams.get('technicianId');
     const limit = parseInt(searchParams.get('limit') || '20');
     const page = parseInt(searchParams.get('page') || '1');
 
@@ -52,12 +54,22 @@ export async function GET(request: NextRequest) {
       where.status = status.toUpperCase();
     }
 
-    // If technician, only show their jobs
+    // Filter by duration type (SINGLE_VISIT, MULTIPLE_VISITS, RECURRING)
+    if (durationType && durationType !== 'all') {
+      where.durationType = durationType.toUpperCase();
+    }
+
+    // Filter by technician
+    if (technicianId && technicianId !== 'all') {
+      where.technicianId = technicianId;
+    }
+
+    // If technician role, only show their jobs
     if (session.role === 'TECHNICIAN') {
       where.technicianId = session.userId;
     }
 
-    // Try to include assignments, fall back to basic query if table doesn't exist
+    // Try to include assignments and visits, fall back to basic query if table doesn't exist
     let jobs;
     let total;
     try {
@@ -76,6 +88,14 @@ export async function GET(request: NextRequest) {
                 },
               },
             },
+            visits: {
+              orderBy: { visitNumber: 'asc' },
+              include: {
+                technician: {
+                  select: { id: true, name: true },
+                },
+              },
+            },
           },
           orderBy: { scheduledDate: 'asc' },
           skip: (page - 1) * limit,
@@ -84,7 +104,7 @@ export async function GET(request: NextRequest) {
         prisma.job.count({ where }),
       ]);
     } catch (includeError) {
-      // If assignments table doesn't exist, query without it
+      // If assignments/visits tables don't exist, query without them
       if (isTableNotFoundError(includeError)) {
         [jobs, total] = await Promise.all([
           prisma.job.findMany({
@@ -168,7 +188,23 @@ export async function POST(request: NextRequest) {
         ? [body.technicianId]
         : [];
 
-    // Try to create job with assignments, fall back to basic create if table doesn't exist
+    // Parse visits array for multi-visit jobs
+    const visits: Array<{
+      date: string;
+      timeStart?: string;
+      timeEnd?: string;
+      technicianIds?: string[];
+      isRecurring?: boolean;
+      recurrencePattern?: string;
+      recurrenceCount?: number;
+    }> = body.visits || [];
+
+    // Determine duration type and visit count
+    const durationType = body.durationType || 'SINGLE_VISIT';
+    const visitCount = visits.length > 1 ? visits.length : null;
+    const hasRecurrence = visits.some(v => v.isRecurring);
+
+    // Try to create job with assignments and visits
     let job;
     try {
       job = await prisma.job.create({
@@ -184,12 +220,28 @@ export async function POST(request: NextRequest) {
           technicianId: technicianIds[0] || null,
           createdById: session.userId,
           organizationId: session.organizationId,
+          // Multi-visit fields
+          durationType: durationType as any,
+          visitCount,
+          recurrencePattern: hasRecurrence ? (visits[0]?.recurrencePattern as any) : null,
+          recurrenceCount: hasRecurrence ? visits[0]?.recurrenceCount : null,
           // Create job assignments for all technicians
           assignments: {
             create: technicianIds.map((techId: string) => ({
               technicianId: techId,
             })),
           },
+          // Create JobVisit records for multi-visit jobs
+          visits: visits.length > 0 ? {
+            create: visits.map((visit, index) => ({
+              visitNumber: index + 1,
+              scheduledDate: new Date(visit.date),
+              scheduledTimeSlot: visit.timeStart || visit.timeEnd
+                ? { start: visit.timeStart || '', end: visit.timeEnd || '' }
+                : null,
+              technicianId: visit.technicianIds?.[0] || technicianIds[0] || null,
+            })),
+          } : undefined,
         },
         include: {
           customer: true,
@@ -203,10 +255,18 @@ export async function POST(request: NextRequest) {
               },
             },
           },
+          visits: {
+            orderBy: { visitNumber: 'asc' },
+            include: {
+              technician: {
+                select: { id: true, name: true },
+              },
+            },
+          },
         },
       });
     } catch (createError) {
-      // If assignments table doesn't exist, create without assignments
+      // If assignments/visits tables don't exist, create without them
       if (isTableNotFoundError(createError)) {
         job = await prisma.job.create({
           data: {
@@ -220,6 +280,8 @@ export async function POST(request: NextRequest) {
             technicianId: technicianIds[0] || null,
             createdById: session.userId,
             organizationId: session.organizationId,
+            durationType: durationType as any,
+            visitCount,
           },
           include: {
             customer: true,

@@ -27,6 +27,8 @@ import {
   TrendingUp,
   CheckCircle,
   AlertTriangle,
+  Repeat,
+  CalendarDays,
 } from 'lucide-react';
 import { Job } from '@/types';
 import JobDetailModal from './JobDetailModal';
@@ -89,6 +91,7 @@ export default function JobsPage() {
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || '');
   const [priorityFilter, setPriorityFilter] = useState<string>('');
   const [technicianFilter, setTechnicianFilter] = useState<string>('');
+  const [durationTypeFilter, setDurationTypeFilter] = useState<string>('');
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [assignModalJob, setAssignModalJob] = useState<Job | null>(null);
@@ -97,10 +100,11 @@ export default function JobsPage() {
 
   // Fetch jobs
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
-    queryKey: ['jobs', { status: statusFilter }],
+    queryKey: ['jobs', { status: statusFilter, durationType: durationTypeFilter }],
     queryFn: () => {
       const params: Record<string, string> = {};
       if (statusFilter) params.status = statusFilter;
+      if (durationTypeFilter) params.durationType = durationTypeFilter;
       return api.jobs.list(params);
     },
   });
@@ -166,13 +170,14 @@ export default function JobsPage() {
     });
   }, [allJobs, search, priorityFilter, technicianFilter]);
 
-  const hasActiveFilters = search || statusFilter || priorityFilter || technicianFilter;
+  const hasActiveFilters = search || statusFilter || priorityFilter || technicianFilter || durationTypeFilter;
 
   const clearFilters = () => {
     setSearch('');
     setStatusFilter('');
     setPriorityFilter('');
     setTechnicianFilter('');
+    setDurationTypeFilter('');
   };
 
   // Duplicate job mutation
@@ -342,9 +347,9 @@ export default function JobsPage() {
             >
               <Filter className="mr-2 h-4 w-4" />
               Más Filtros
-              {(priorityFilter || technicianFilter) && (
+              {(priorityFilter || technicianFilter || durationTypeFilter) && (
                 <span className="ml-2 rounded-full bg-primary-500 px-2 py-0.5 text-xs text-white">
-                  {[priorityFilter, technicianFilter].filter(Boolean).length}
+                  {[priorityFilter, technicianFilter, durationTypeFilter].filter(Boolean).length}
                 </span>
               )}
             </button>
@@ -400,6 +405,21 @@ export default function JobsPage() {
                       {tech.name}
                     </option>
                   ))}
+                </select>
+              </div>
+
+              {/* Duration type filter (single/multi-visit/recurring) */}
+              <div className="flex items-center gap-2">
+                <label className="text-sm font-medium text-gray-700">Tipo:</label>
+                <select
+                  value={durationTypeFilter}
+                  onChange={(e) => setDurationTypeFilter(e.target.value)}
+                  className="input w-auto py-1.5 text-sm"
+                >
+                  <option value="">Todos</option>
+                  <option value="SINGLE_VISIT">Visita única</option>
+                  <option value="MULTIPLE_VISITS">Múltiples visitas</option>
+                  <option value="RECURRING">Recurrente</option>
                 </select>
               </div>
 
@@ -556,6 +576,13 @@ function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick, onCard
   const canAssign = !isCompleted;
   const isUrgent = job.priority === 'urgent' || job.priority === 'high';
 
+  // Multi-visit job info
+  const jobAny = job as any;
+  const durationType = jobAny.durationType || 'SINGLE_VISIT';
+  const visitCount = jobAny.visitCount || jobAny.visits?.length || 1;
+  const isMultiVisit = durationType === 'MULTIPLE_VISITS' || visitCount > 1;
+  const isRecurring = durationType === 'RECURRING';
+
   // Parse time slot from JSON or use direct fields
   let timeSlot = '';
   if (job.scheduledTimeStart && job.scheduledTimeEnd) {
@@ -610,6 +637,20 @@ function JobCard({ job, openMenuId, onMenuClick, onAction, onAssignClick, onCard
             {isUrgent && (
               <span className="px-2.5 py-0.5 text-xs font-medium rounded-full bg-red-500 text-white">
                 {PRIORITY_LABELS[job.priority]}
+              </span>
+            )}
+            {/* Multi-visit badge */}
+            {isMultiVisit && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                <CalendarDays className="h-3 w-3" />
+                {visitCount} visitas
+              </span>
+            )}
+            {/* Recurring badge */}
+            {isRecurring && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700 border border-purple-200">
+                <Repeat className="h-3 w-3" />
+                Recurrente
               </span>
             )}
           </div>

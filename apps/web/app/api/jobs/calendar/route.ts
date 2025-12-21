@@ -63,8 +63,10 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
-    // Get jobs - try with assignments, fall back without if table doesn't exist
+    // Get jobs - try with assignments and visits, fall back without if tables don't exist
     let jobs: any[];
+    let jobVisits: any[] = [];
+
     try {
       jobs = await prisma.job.findMany({
         where,
@@ -97,11 +99,71 @@ export async function GET(request: NextRequest) {
               },
             },
           },
+          visits: {
+            orderBy: { visitNumber: 'asc' },
+            include: {
+              technician: {
+                select: {
+                  id: true,
+                  name: true,
+                  avatar: true,
+                  specialty: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { scheduledDate: 'asc' },
+      });
+
+      // Also get visits from multi-visit jobs that fall within the date range
+      // but whose parent job's scheduledDate might be outside the range
+      const visitsWhere: any = {
+        job: {
+          organizationId: session.organizationId,
+        },
+        scheduledDate: {
+          gte: start,
+          lte: end,
+        },
+      };
+
+      if (technicianId) {
+        visitsWhere.technicianId = technicianId;
+      }
+
+      if (status) {
+        visitsWhere.status = status;
+      }
+
+      jobVisits = await prisma.jobVisit.findMany({
+        where: visitsWhere,
+        include: {
+          job: {
+            include: {
+              customer: {
+                select: {
+                  id: true,
+                  name: true,
+                  phone: true,
+                  address: true,
+                },
+              },
+            },
+          },
+          technician: {
+            select: {
+              id: true,
+              name: true,
+              avatar: true,
+              specialty: true,
+            },
+          },
         },
         orderBy: { scheduledDate: 'asc' },
       });
     } catch (includeError) {
-      // If assignments table doesn't exist, query without it
+      // If assignments/visits tables don't exist, query without them
       if (isTableNotFoundError(includeError)) {
         jobs = await prisma.job.findMany({
           where,
@@ -125,8 +187,8 @@ export async function GET(request: NextRequest) {
           },
           orderBy: { scheduledDate: 'asc' },
         });
-        // Add empty assignments array to each job for consistency
-        jobs = jobs.map((job: any) => ({ ...job, assignments: [] }));
+        // Add empty arrays for consistency
+        jobs = jobs.map((job: any) => ({ ...job, assignments: [], visits: [] }));
       } else {
         throw includeError;
       }
@@ -148,11 +210,26 @@ export async function GET(request: NextRequest) {
       orderBy: { name: 'asc' },
     });
 
-    // Transform jobs for calendar
-    const events = jobs.map((job) => {
-      const timeSlot = job.scheduledTimeSlot as { start?: string; end?: string } | null;
-      const scheduledDate = job.scheduledDate!;
+    // Determine color based on status
+    const statusColors: Record<string, string> = {
+      PENDING: '#9CA3AF',
+      ASSIGNED: '#A78BFA',
+      EN_ROUTE: '#3B82F6',
+      IN_PROGRESS: '#F59E0B',
+      COMPLETED: '#10B981',
+      CANCELLED: '#EF4444',
+    };
 
+    // Helper to create event from job or visit
+    const createEvent = (
+      id: string,
+      title: string,
+      scheduledDate: Date,
+      timeSlot: { start?: string; end?: string } | null,
+      status: string,
+      estimatedDuration: number | null,
+      extendedProps: any
+    ) => {
       // Parse start time
       let startDateTime = new Date(scheduledDate);
       if (timeSlot?.start) {
@@ -169,30 +246,45 @@ export async function GET(request: NextRequest) {
         endDateTime.setHours(hours, minutes, 0, 0);
       } else {
         // Default 1 hour or use estimated duration
-        endDateTime = new Date(startDateTime.getTime() + (job.estimatedDuration || 60) * 60 * 1000);
+        endDateTime = new Date(startDateTime.getTime() + (estimatedDuration || 60) * 60 * 1000);
       }
 
-      // Determine color based on status
-      const statusColors: Record<string, string> = {
-        PENDING: '#9CA3AF',
-        ASSIGNED: '#A78BFA',
-        EN_ROUTE: '#3B82F6',
-        IN_PROGRESS: '#F59E0B',
-        COMPLETED: '#10B981',
-        CANCELLED: '#EF4444',
-      };
-
       return {
-        id: job.id,
-        title: `${job.jobNumber} - ${job.customer.name}`,
+        id,
+        title,
         start: startDateTime.toISOString(),
         end: endDateTime.toISOString(),
         allDay: false,
-        backgroundColor: statusColors[job.status] || '#9CA3AF',
-        borderColor: statusColors[job.status] || '#9CA3AF',
-        extendedProps: {
+        backgroundColor: statusColors[status] || '#9CA3AF',
+        borderColor: statusColors[status] || '#9CA3AF',
+        extendedProps,
+      };
+    };
+
+    // Track job IDs that have visits to avoid duplicates
+    const jobsWithVisits = new Set<string>();
+
+    // Transform job visits for calendar (from multi-visit jobs)
+    const visitEvents = jobVisits.map((visit) => {
+      jobsWithVisits.add(visit.jobId);
+      const timeSlot = visit.scheduledTimeSlot as { start?: string; end?: string } | null;
+      const job = visit.job;
+      const totalVisits = job.visitCount || 1;
+
+      return createEvent(
+        `visit-${visit.id}`,
+        `${job.jobNumber} (${visit.visitNumber}/${totalVisits}) - ${job.customer.name}`,
+        visit.scheduledDate,
+        timeSlot,
+        visit.status,
+        job.estimatedDuration,
+        {
+          jobId: job.id,
           jobNumber: job.jobNumber,
-          status: job.status,
+          visitId: visit.id,
+          visitNumber: visit.visitNumber,
+          totalVisits,
+          status: visit.status,
           urgency: job.urgency,
           serviceType: job.serviceType,
           description: job.description,
@@ -202,30 +294,73 @@ export async function GET(request: NextRequest) {
             phone: job.customer.phone,
             address: job.customer.address,
           },
-          technician: job.technician
+          technician: visit.technician
             ? {
-                id: job.technician.id,
-                name: job.technician.name,
-                avatar: job.technician.avatar,
-                specialty: job.technician.specialty,
+                id: visit.technician.id,
+                name: visit.technician.name,
+                avatar: visit.technician.avatar,
+                specialty: visit.technician.specialty,
               }
             : null,
-          assignments: job.assignments.map((a: any) => ({
-            id: a.id,
-            technician: a.technician
+          isVisit: true,
+          scheduledTimeSlot: timeSlot,
+        }
+      );
+    });
+
+    // Transform single-visit jobs for calendar (skip jobs that have visits)
+    const jobEvents = jobs
+      .filter((job) => !jobsWithVisits.has(job.id) && (!job.visits || job.visits.length === 0))
+      .map((job) => {
+        const timeSlot = job.scheduledTimeSlot as { start?: string; end?: string } | null;
+
+        return createEvent(
+          job.id,
+          `${job.jobNumber} - ${job.customer.name}`,
+          job.scheduledDate!,
+          timeSlot,
+          job.status,
+          job.estimatedDuration,
+          {
+            jobNumber: job.jobNumber,
+            status: job.status,
+            urgency: job.urgency,
+            serviceType: job.serviceType,
+            description: job.description,
+            customer: {
+              id: job.customer.id,
+              name: job.customer.name,
+              phone: job.customer.phone,
+              address: job.customer.address,
+            },
+            technician: job.technician
               ? {
-                  id: a.technician.id,
-                  name: a.technician.name,
-                  avatar: a.technician.avatar,
-                  specialty: a.technician.specialty,
+                  id: job.technician.id,
+                  name: job.technician.name,
+                  avatar: job.technician.avatar,
+                  specialty: job.technician.specialty,
                 }
               : null,
-          })),
-          estimatedDuration: job.estimatedDuration,
-          scheduledTimeSlot: timeSlot,
-        },
-      };
-    });
+            assignments: job.assignments.map((a: any) => ({
+              id: a.id,
+              technician: a.technician
+                ? {
+                    id: a.technician.id,
+                    name: a.technician.name,
+                    avatar: a.technician.avatar,
+                    specialty: a.technician.specialty,
+                  }
+                : null,
+            })),
+            estimatedDuration: job.estimatedDuration,
+            scheduledTimeSlot: timeSlot,
+            isVisit: false,
+          }
+        );
+      });
+
+    // Combine all events
+    const events = [...jobEvents, ...visitEvents];
 
     return NextResponse.json({
       success: true,

@@ -45,7 +45,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Try to fetch job with assignments, fall back without if table doesn't exist
+    // Try to fetch job with assignments and visits, fall back without if tables don't exist
     let job: any;
     try {
       job = await prisma.job.findFirst({
@@ -65,10 +65,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
               },
             },
           },
+          visits: {
+            orderBy: { visitNumber: 'asc' },
+            include: {
+              technician: {
+                select: { id: true, name: true },
+              },
+            },
+          },
         },
       });
     } catch (includeError) {
-      // If assignments table doesn't exist, query without it
+      // If assignments/visits tables don't exist, query without them
       if (isTableNotFoundError(includeError)) {
         job = await prisma.job.findFirst({
           where: {
@@ -82,9 +90,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             },
           },
         });
-        // Add empty assignments array for consistency
+        // Add empty arrays for consistency
         if (job) {
           job.assignments = [];
+          job.visits = [];
         }
       } else {
         throw includeError;
