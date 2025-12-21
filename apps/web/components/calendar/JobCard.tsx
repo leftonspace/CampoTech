@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import {
   X,
@@ -15,9 +16,11 @@ import {
   Star,
   Repeat,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
-import { CalendarEvent } from './CalendarView';
+import { CalendarEvent, ConfigSummary } from './CalendarView';
 
 interface JobCardProps {
   event: CalendarEvent;
@@ -72,6 +75,66 @@ function getGoogleMapsUrl(address: unknown): string | null {
 
 export function JobCard({ event, onClose }: JobCardProps) {
   const { extendedProps: job } = event;
+
+  // Get all configs for navigation
+  const allConfigs: ConfigSummary[] = job.allConfigs || [];
+  const hasMultipleConfigs = allConfigs.length > 1;
+
+  // State for which config is currently being viewed
+  const initialConfigIndex = job.visitConfigIndex || 1;
+  const [selectedConfigIndex, setSelectedConfigIndex] = useState(initialConfigIndex);
+
+  // Get the currently selected config's data
+  const selectedConfig = allConfigs.find(c => c.configIndex === selectedConfigIndex);
+  const isViewingOriginalConfig = selectedConfigIndex === initialConfigIndex;
+
+  // Navigation handlers
+  const canGoPrev = selectedConfigIndex > 1;
+  const canGoNext = selectedConfigIndex < (job.totalConfigs || 1);
+
+  const handlePrevConfig = () => {
+    if (canGoPrev) setSelectedConfigIndex(selectedConfigIndex - 1);
+  };
+
+  const handleNextConfig = () => {
+    if (canGoNext) setSelectedConfigIndex(selectedConfigIndex + 1);
+  };
+
+  // Use selected config's data when viewing a different config
+  const displayTechnician = isViewingOriginalConfig
+    ? job.technician
+    : selectedConfig?.technician || job.technician;
+
+  const displayTimeSlot = isViewingOriginalConfig
+    ? job.scheduledTimeSlot
+    : selectedConfig?.timeSlot || job.scheduledTimeSlot;
+
+  const displayConfigDates = isViewingOriginalConfig
+    ? job.configTotalDates
+    : selectedConfig?.totalDates || 1;
+
+  // Format time from the selected config's time slot
+  let displayStartTime = '';
+  let displayEndTime = '';
+  if (displayTimeSlot) {
+    if (displayTimeSlot.start) displayStartTime = displayTimeSlot.start;
+    if (displayTimeSlot.end) displayEndTime = displayTimeSlot.end;
+  }
+
+  // Format date range for selected config
+  let displayDateRange = '';
+  if (!isViewingOriginalConfig && selectedConfig) {
+    const firstDate = new Date(selectedConfig.firstDate).toLocaleDateString('es-AR', {
+      day: 'numeric',
+      month: 'short',
+    });
+    const lastDate = new Date(selectedConfig.lastDate).toLocaleDateString('es-AR', {
+      day: 'numeric',
+      month: 'short',
+    });
+    displayDateRange = firstDate === lastDate ? firstDate : `${firstDate} - ${lastDate}`;
+  }
+
   const status = statusLabels[job.status] || statusLabels.PENDING;
   const startTime = new Date(event.start).toLocaleTimeString('es-AR', {
     hour: '2-digit',
@@ -101,7 +164,6 @@ export function JobCard({ event, onClose }: JobCardProps) {
   const totalConfigs = job.totalConfigs || 1;
   const configTotalDates = job.configTotalDates || 1;
   const visitNumberInConfig = job.visitNumberInConfig || 1;
-  const hasMultipleConfigs = totalConfigs > 1;
 
   // Get the actual job ID for links (not the event ID which might be "visit-xxx")
   const jobId = job.jobId || event.id.replace('visit-', '');
@@ -158,12 +220,28 @@ export function JobCard({ event, onClose }: JobCardProps) {
               </span>
             )}
 
-            {/* Visita config badge (when there are multiple configs) */}
+            {/* Visita config navigation (when there are multiple configs) */}
             {hasMultipleConfigs && (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full bg-primary-100 text-primary-700 border border-primary-200">
-                <CalendarDays className="h-3 w-3" />
-                Visita {visitConfigIndex}/{totalConfigs}
-              </span>
+              <div className="inline-flex items-center gap-1 px-1 py-0.5 text-xs font-medium rounded-full bg-primary-100 text-primary-700 border border-primary-200">
+                <button
+                  onClick={handlePrevConfig}
+                  disabled={!canGoPrev}
+                  className={`p-0.5 rounded hover:bg-primary-200 ${!canGoPrev ? 'opacity-30 cursor-not-allowed' : ''}`}
+                >
+                  <ChevronLeft className="h-3 w-3" />
+                </button>
+                <span className="flex items-center gap-1 px-1">
+                  <CalendarDays className="h-3 w-3" />
+                  Visita {selectedConfigIndex}/{totalConfigs}
+                </span>
+                <button
+                  onClick={handleNextConfig}
+                  disabled={!canGoNext}
+                  className={`p-0.5 rounded hover:bg-primary-200 ${!canGoNext ? 'opacity-30 cursor-not-allowed' : ''}`}
+                >
+                  <ChevronRight className="h-3 w-3" />
+                </button>
+              </div>
             )}
 
             {/* Date count within this config */}
@@ -237,8 +315,25 @@ export function JobCard({ event, onClose }: JobCardProps) {
             </div>
           )}
 
+          {/* Viewing different config indicator */}
+          {hasMultipleConfigs && !isViewingOriginalConfig && selectedConfig && (
+            <div className="rounded-lg bg-primary-50 border border-primary-200 p-3">
+              <p className="text-xs font-medium text-primary-700 mb-1">
+                Viendo información de Visita {selectedConfigIndex}
+              </p>
+              <p className="text-sm text-primary-600">
+                {displayDateRange} • {displayConfigDates} fecha{displayConfigDates > 1 ? 's' : ''}
+              </p>
+              {displayStartTime && (
+                <p className="text-sm text-primary-600">
+                  Horario: {displayStartTime}{displayEndTime ? ` - ${displayEndTime}` : ''}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Technicians (multiple support) */}
-          {job.assignments && job.assignments.length > 0 ? (
+          {job.assignments && job.assignments.length > 0 && isViewingOriginalConfig ? (
             <div>
               <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
                 Técnico{job.assignments.length > 1 ? 's' : ''}:
@@ -267,26 +362,26 @@ export function JobCard({ event, onClose }: JobCardProps) {
                 ))}
               </div>
             </div>
-          ) : job.technician ? (
+          ) : displayTechnician ? (
             <div className="flex items-center gap-3">
               <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wide">
                 Técnico:
               </h4>
-              {job.technician.avatar ? (
+              {displayTechnician.avatar ? (
                 <img
-                  src={job.technician.avatar}
-                  alt={job.technician.name}
+                  src={displayTechnician.avatar}
+                  alt={displayTechnician.name}
                   className="h-8 w-8 rounded-full object-cover"
                 />
               ) : (
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-100 text-primary-600 text-sm font-medium">
-                  {getInitials(job.technician.name)}
+                  {getInitials(displayTechnician.name)}
                 </div>
               )}
               <div>
-                <p className="text-sm font-medium text-gray-900">{job.technician.name}</p>
-                {job.technician.specialty && (
-                  <p className="text-xs text-gray-500">{job.technician.specialty}</p>
+                <p className="text-sm font-medium text-gray-900">{displayTechnician.name}</p>
+                {displayTechnician.specialty && (
+                  <p className="text-xs text-gray-500">{displayTechnician.specialty}</p>
                 )}
               </div>
             </div>

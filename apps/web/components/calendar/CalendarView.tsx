@@ -8,6 +8,16 @@ import { formatDateBuenosAires, getBuenosAiresNow, TIMEZONE } from '@/lib/timezo
 // Use the shared timezone utilities
 const formatLocalDate = formatDateBuenosAires;
 
+// Config summary for navigation between visita configs in JobCard
+export interface ConfigSummary {
+  configIndex: number;
+  totalDates: number;
+  firstDate: string;
+  lastDate: string;
+  timeSlot: { start?: string; end?: string } | null;
+  technician: { id: string; name: string; avatar?: string | null; specialty?: string | null } | null;
+}
+
 export interface CalendarEvent {
   id: string;
   title: string;
@@ -51,6 +61,12 @@ export interface CalendarEvent {
     }>;
     estimatedDuration?: number | null;
     scheduledTimeSlot?: { start?: string; end?: string } | null;
+    // Multi-config navigation fields
+    visitConfigIndex?: number;
+    totalConfigs?: number;
+    configTotalDates?: number;
+    visitNumberInConfig?: number;
+    allConfigs?: ConfigSummary[];
   };
 }
 
