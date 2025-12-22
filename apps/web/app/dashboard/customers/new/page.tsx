@@ -37,11 +37,21 @@ const COUNTRY_CODES = [
   { code: '+1787', country: 'Puerto Rico', flag: '🇵🇷', placeholder: '787 123 4567', format: 'XXX XXX XXXX' },
   // North America
   { code: '+1', country: 'USA/Canadá', flag: '🇺🇸', placeholder: '(555) 123-4567', format: '(XXX) XXX-XXXX' },
+  // Other option - allows custom country code
+  { code: 'OTHER', country: 'Otro país', flag: '🌍', placeholder: '123 456 7890', format: '' },
 ];
 
 // Format phone number based on country code
 const formatPhoneNumber = (phone: string, countryCode: string): string => {
   const digits = phone.replace(/\D/g, '');
+
+  // For custom/unknown country codes, apply generic formatting (groups of 3-4)
+  if (countryCode === 'OTHER' || !COUNTRY_CODES.find(c => c.code === countryCode)) {
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+    if (digits.length <= 10) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6)}`;
+    return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)} ${digits.slice(10)}`;
+  }
 
   switch (countryCode) {
     case '+54': // Argentina: XX XXXX XXXX
@@ -115,7 +125,10 @@ const formatPhoneNumber = (phone: string, countryCode: string): string => {
       return `${digits.slice(0, 4)} ${digits.slice(4, 8)}`;
 
     default:
-      return digits;
+      // Generic formatting for any other code
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
   }
 };
 
@@ -124,6 +137,7 @@ export default function NewCustomerPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [countryCode, setCountryCode] = useState('+54');
+  const [customCountryCode, setCustomCountryCode] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -140,6 +154,14 @@ export default function NewCustomerPage() {
     },
     notes: '',
   });
+
+  // Get the actual country code to use (either from list or custom)
+  const getActualCountryCode = () => {
+    if (countryCode === 'OTHER') {
+      return customCountryCode.startsWith('+') ? customCountryCode : `+${customCountryCode}`;
+    }
+    return countryCode;
+  };
 
   // Handle address selection from autocomplete
   const handleAddressSelect = (parsed: ParsedAddress) => {
@@ -162,7 +184,8 @@ export default function NewCustomerPage() {
     setIsSubmitting(true);
     setError('');
 
-    const fullPhone = `${countryCode}${formData.phone.replace(/\D/g, '')}`;
+    const actualCode = getActualCountryCode();
+    const fullPhone = `${actualCode}${formData.phone.replace(/\D/g, '')}`;
 
     const response = await api.customers.create({
       name: formData.name,
@@ -227,34 +250,62 @@ export default function NewCustomerPage() {
               onChange={(e) => {
                 setCountryCode(e.target.value);
                 // Re-format phone when country changes
-                if (formData.phone) {
+                if (formData.phone && e.target.value !== 'OTHER') {
                   const digits = formData.phone.replace(/\D/g, '');
                   setFormData({ ...formData, phone: formatPhoneNumber(digits, e.target.value) });
                 }
               }}
-              className="input w-32 px-2"
+              className="input w-auto min-w-[120px] px-2"
             >
               {COUNTRY_CODES.map((c) => (
                 <option key={c.code} value={c.code}>
-                  {c.flag} {c.code}
+                  {c.flag} {c.code === 'OTHER' ? 'Otro' : c.code}
                 </option>
               ))}
             </select>
+            {countryCode === 'OTHER' && (
+              <input
+                type="text"
+                value={customCountryCode}
+                onChange={(e) => {
+                  // Only allow + and numbers
+                  const value = e.target.value.replace(/[^+\d]/g, '');
+                  // Ensure + is only at the start
+                  const cleaned = value.startsWith('+')
+                    ? '+' + value.slice(1).replace(/\+/g, '')
+                    : value.replace(/\+/g, '');
+                  setCustomCountryCode(cleaned);
+                }}
+                placeholder="+XX"
+                className="input w-20 px-2 text-center"
+                maxLength={5}
+              />
+            )}
             <input
               id="phone"
               type="tel"
               value={formData.phone}
               onChange={(e) => {
-                const formatted = formatPhoneNumber(e.target.value, countryCode);
+                const actualCode = getActualCountryCode();
+                const formatted = formatPhoneNumber(e.target.value, actualCode);
                 setFormData({ ...formData, phone: formatted });
               }}
-              placeholder={COUNTRY_CODES.find(c => c.code === countryCode)?.placeholder || '11 1234 5678'}
+              placeholder={
+                countryCode === 'OTHER'
+                  ? '123 456 7890'
+                  : (COUNTRY_CODES.find(c => c.code === countryCode)?.placeholder || '11 1234 5678')
+              }
               className="input flex-1"
               required
               onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá un número de teléfono')}
               onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
             />
           </div>
+          {countryCode === 'OTHER' && (
+            <p className="mt-1 text-xs text-gray-500">
+              Ingresá el código de país (ej: +34 para España, +49 para Alemania)
+            </p>
+          )}
         </div>
 
         {/* Email */}
