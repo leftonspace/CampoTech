@@ -72,23 +72,20 @@ export default function CustomersPage() {
   const [ultimoServicioFilter, setUltimoServicioFilter] = useState<UltimoServicioFilter>('all');
   const [openColumnFilter, setOpenColumnFilter] = useState<string | null>(null);
 
-  // Close menus when clicking outside
+  // Close column filter dropdowns when clicking outside
   useEffect(() => {
+    if (!openColumnFilter) return;
+
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Close action menu if clicking outside
-      if (menuOpen && !target.closest('.menu-container')) {
-        setMenuOpen(null);
-      }
-      // Close column filter if clicking outside
-      if (openColumnFilter && !target.closest('.column-filter-container')) {
+      if (!target.closest('.column-filter-container')) {
         setOpenColumnFilter(null);
       }
     };
 
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
-  }, [menuOpen, openColumnFilter]);
+  }, [openColumnFilter]);
 
   // Fetch customers with computed fields
   const { data, isLoading } = useQuery({
@@ -370,6 +367,14 @@ export default function CustomersPage() {
             Crear cliente
           </Link>
         </div>
+      )}
+
+      {/* Invisible overlay to close menus without triggering other actions */}
+      {menuOpen && (
+        <div
+          className="fixed inset-0 z-10"
+          onClick={() => setMenuOpen(null)}
+        />
       )}
 
       {/* Customer Profile Modal */}
