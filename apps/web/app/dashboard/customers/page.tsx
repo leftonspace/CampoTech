@@ -85,23 +85,25 @@ export default function CustomersPage() {
   const [ultimoServicioFilter, setUltimoServicioFilter] = useState<UltimoServicioFilter>('all');
   const [openColumnFilter, setOpenColumnFilter] = useState<string | null>(null);
 
-  // Close menus when clicking outside
+  // Close dropdown menus when clicking outside
   useEffect(() => {
+    if (!openColumnFilter && !menuOpen) return;
+
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      // Close action menu if clicking outside
-      if (menuOpen && !target.closest('.menu-container')) {
-        setMenuOpen(null);
-      }
       // Close column filter if clicking outside
       if (openColumnFilter && !target.closest('.column-filter-container')) {
         setOpenColumnFilter(null);
+      }
+      // Close action menu if clicking outside
+      if (menuOpen && !target.closest('.menu-container')) {
+        setMenuOpen(null);
       }
     };
 
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
-  }, [menuOpen, openColumnFilter]);
+  }, [openColumnFilter, menuOpen]);
 
   // Get the API sort parameter based on sortOrder
   const getApiSort = (sort: SortType): string => {
@@ -417,7 +419,14 @@ export default function CustomersPage() {
                 menuOpen={menuOpen === customer.id}
                 onMenuToggle={() => setMenuOpen(menuOpen === customer.id ? null : customer.id)}
                 onMenuAction={(action) => handleMenuAction(action, customer)}
-                onCardClick={() => setSelectedCustomerId(customer.id)}
+                onCardClick={() => {
+                  // If any menu is open, close it instead of opening the card
+                  if (menuOpen) {
+                    setMenuOpen(null);
+                    return;
+                  }
+                  setSelectedCustomerId(customer.id);
+                }}
               />
             ))}
             {/* Load More Card */}
@@ -1332,6 +1341,24 @@ function CustomerTable({
                 </tr>
               );
             })}
+            {filteredCustomers.length === 0 && (
+              <tr>
+                <td colSpan={9} className="px-4 py-12 text-center">
+                  <p className="text-gray-500">No hay clientes que coincidan con los filtros</p>
+                  <button
+                    onClick={() => {
+                      setTrabajosFilter('all');
+                      setFacturadoFilter('all');
+                      setRatingFilter('all');
+                      setUltimoServicioFilter('all');
+                    }}
+                    className="mt-2 text-sm text-teal-600 hover:text-teal-700 font-medium"
+                  >
+                    Limpiar filtros
+                  </button>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
