@@ -80,93 +80,191 @@ export async function GET(request: NextRequest) {
     }
     // 'jobs' and 'revenue' sorts will be applied after aggregation
 
-    const [customers, total] = await Promise.all([
-      prisma.customer.findMany({
-        where,
-        orderBy,
-        skip: (page - 1) * limit,
-        take: filter === 'frequent' || sort === 'jobs' || sort === 'revenue' ? 1000 : limit,
-        include: {
-          _count: {
-            select: { jobs: true, invoices: true },
+    // Optimized approach: avoid fetching 1000 records for complex sorts/filters
+    // For 'frequent' filter or 'jobs'/'revenue' sort, we need aggregated data
+    const needsAggregation = filter === 'frequent' || sort === 'jobs' || sort === 'revenue';
+
+    let customers: { id: string; [key: string]: unknown }[];
+    let total: number;
+    let enrichedCustomers: EnrichedCustomer[];
+
+    if (needsAggregation) {
+      // For aggregation-based queries, use a more efficient approach:
+      // 1. First get aggregated data for the organization
+      // 2. Then fetch only the customers we need
+
+      const [jobCounts, invoiceTotals, ratings, allCustomers, customerCount] = await Promise.all([
+        // Job counts per customer (for org)
+        prisma.job.groupBy({
+          by: ['customerId'],
+          where: {
+            customer: { organizationId },
+            ...(search ? {
+              customer: {
+                organizationId,
+                OR: [
+                  { name: { contains: search, mode: 'insensitive' as const } },
+                  { phone: { contains: search } },
+                  { email: { contains: search, mode: 'insensitive' as const } },
+                ],
+              },
+            } : {}),
           },
-        },
-      }),
-      prisma.customer.count({ where }),
-    ]);
+          _count: { id: true },
+        }),
 
-    // Get job counts, total spent, and ratings for all customers
-    const customerIds: string[] = customers.map((c: { id: string }) => c.id);
+        // Total spent per customer (for org)
+        prisma.invoice.groupBy({
+          by: ['customerId'],
+          where: {
+            customer: { organizationId },
+            status: { in: ['PAID', 'SENT'] },
+          },
+          _sum: { total: true },
+        }),
 
-    // Get aggregated data for all customers in one query
-    const [jobCounts, invoiceTotals, ratings] = await Promise.all([
-      // Job counts per customer
-      prisma.job.groupBy({
-        by: ['customerId'],
-        where: { customerId: { in: customerIds } },
-        _count: { id: true },
-      }),
+        // Average rating per customer (for org)
+        prisma.review.groupBy({
+          by: ['customerId'],
+          where: {
+            customer: { organizationId },
+            rating: { not: null },
+          },
+          _avg: { rating: true },
+        }),
 
-      // Total spent (paid invoices) per customer
-      prisma.invoice.groupBy({
-        by: ['customerId'],
-        where: {
-          customerId: { in: customerIds },
-          status: { in: ['PAID', 'SENT'] },
-        },
-        _sum: { total: true },
-      }),
+        // Get basic customer data (no aggregation overhead)
+        prisma.customer.findMany({
+          where,
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            email: true,
+            address: true,
+            notes: true,
+            createdAt: true,
+            updatedAt: true,
+            organizationId: true,
+            locationId: true,
+            zoneId: true,
+          },
+        }),
 
-      // Average rating per customer
-      prisma.review.groupBy({
-        by: ['customerId'],
-        where: {
-          customerId: { in: customerIds },
-          rating: { not: null },
-        },
-        _avg: { rating: true },
-      }),
-    ]);
+        prisma.customer.count({ where }),
+      ]);
 
-    // Create maps for quick lookup
-    const jobCountMap = new Map<string, number>();
-    for (const j of jobCounts) {
-      jobCountMap.set(j.customerId, j._count.id);
-    }
+      total = customerCount;
 
-    const totalSpentMap = new Map<string, number>();
-    for (const i of invoiceTotals) {
-      totalSpentMap.set(i.customerId, Number(i._sum.total) || 0);
-    }
+      // Create maps for quick lookup
+      const jobCountMap = new Map<string, number>();
+      for (const j of jobCounts) {
+        jobCountMap.set(j.customerId, j._count.id);
+      }
 
-    const ratingMap = new Map<string, number | null>();
-    for (const r of ratings) {
-      ratingMap.set(r.customerId, r._avg.rating);
-    }
+      const totalSpentMap = new Map<string, number>();
+      for (const i of invoiceTotals) {
+        totalSpentMap.set(i.customerId, Number(i._sum.total) || 0);
+      }
 
-    // Enrich customers with computed fields
-    let enrichedCustomers: EnrichedCustomer[] = customers.map((customer: { id: string }) => ({
-      ...customer,
-      jobCount: jobCountMap.get(customer.id) || 0,
-      totalSpent: totalSpentMap.get(customer.id) || 0,
-      averageRating: ratingMap.get(customer.id) || null,
-    }));
+      const ratingMap = new Map<string, number | null>();
+      for (const r of ratings) {
+        ratingMap.set(r.customerId ?? '', r._avg.rating);
+      }
 
-    // Apply 'frequent' filter (job count >= 5)
-    if (filter === 'frequent') {
-      enrichedCustomers = enrichedCustomers.filter((c: EnrichedCustomer) => c.jobCount >= 5);
-    }
+      // Enrich customers with computed fields
+      enrichedCustomers = allCustomers.map((customer) => ({
+        ...customer,
+        jobCount: jobCountMap.get(customer.id) || 0,
+        totalSpent: totalSpentMap.get(customer.id) || 0,
+        averageRating: ratingMap.get(customer.id) || null,
+      }));
 
-    // Apply sorting by jobs or revenue
-    if (sort === 'jobs') {
-      enrichedCustomers.sort((a: EnrichedCustomer, b: EnrichedCustomer) => b.jobCount - a.jobCount);
-    } else if (sort === 'revenue') {
-      enrichedCustomers.sort((a: EnrichedCustomer, b: EnrichedCustomer) => b.totalSpent - a.totalSpent);
-    }
+      // Apply 'frequent' filter (job count >= 5)
+      if (filter === 'frequent') {
+        enrichedCustomers = enrichedCustomers.filter((c) => c.jobCount >= 5);
+        total = enrichedCustomers.length;
+      }
 
-    // Apply pagination after filtering/sorting if needed
-    if (filter === 'frequent' || sort === 'jobs' || sort === 'revenue') {
+      // Apply sorting by jobs or revenue
+      if (sort === 'jobs') {
+        enrichedCustomers.sort((a, b) => b.jobCount - a.jobCount);
+      } else if (sort === 'revenue') {
+        enrichedCustomers.sort((a, b) => b.totalSpent - a.totalSpent);
+      }
+
+      // Apply pagination
       enrichedCustomers = enrichedCustomers.slice((page - 1) * limit, page * limit);
+      customers = enrichedCustomers;
+    } else {
+      // Standard case: direct database pagination (most efficient)
+      const [fetchedCustomers, customerCount] = await Promise.all([
+        prisma.customer.findMany({
+          where,
+          orderBy,
+          skip: (page - 1) * limit,
+          take: limit,
+          include: {
+            _count: {
+              select: { jobs: true, invoices: true },
+            },
+          },
+        }),
+        prisma.customer.count({ where }),
+      ]);
+
+      customers = fetchedCustomers;
+      total = customerCount;
+
+      // Get aggregated data only for the paginated customers (much smaller set)
+      const customerIds: string[] = customers.map((c) => c.id);
+
+      const [jobCounts, invoiceTotals, ratings] = await Promise.all([
+        prisma.job.groupBy({
+          by: ['customerId'],
+          where: { customerId: { in: customerIds } },
+          _count: { id: true },
+        }),
+        prisma.invoice.groupBy({
+          by: ['customerId'],
+          where: {
+            customerId: { in: customerIds },
+            status: { in: ['PAID', 'SENT'] },
+          },
+          _sum: { total: true },
+        }),
+        prisma.review.groupBy({
+          by: ['customerId'],
+          where: {
+            customerId: { in: customerIds },
+            rating: { not: null },
+          },
+          _avg: { rating: true },
+        }),
+      ]);
+
+      // Create maps for quick lookup
+      const jobCountMap = new Map<string, number>();
+      for (const j of jobCounts) {
+        jobCountMap.set(j.customerId, j._count.id);
+      }
+
+      const totalSpentMap = new Map<string, number>();
+      for (const i of invoiceTotals) {
+        totalSpentMap.set(i.customerId, Number(i._sum.total) || 0);
+      }
+
+      const ratingMap = new Map<string, number | null>();
+      for (const r of ratings) {
+        ratingMap.set(r.customerId ?? '', r._avg.rating);
+      }
+
+      enrichedCustomers = customers.map((customer) => ({
+        ...customer,
+        jobCount: jobCountMap.get(customer.id) || 0,
+        totalSpent: totalSpentMap.get(customer.id) || 0,
+        averageRating: ratingMap.get(customer.id) || null,
+      }));
     }
 
     // Normalize user role for permission checking

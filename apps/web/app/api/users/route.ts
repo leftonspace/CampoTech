@@ -68,15 +68,7 @@ export async function GET(request: NextRequest) {
               jobAssignments: true,    // New: JobAssignment table
             },
           },
-          // Include reviews to calculate average rating
-          technicianReviews: {
-            where: {
-              rating: { not: null },
-            },
-            select: {
-              rating: true,
-            },
-          },
+          // Note: Removed technicianReviews - using database aggregation instead
         },
         orderBy: { name: 'asc' },
         skip: (page - 1) * limit,
@@ -84,6 +76,31 @@ export async function GET(request: NextRequest) {
       }),
       prisma.user.count({ where }),
     ]);
+
+    // Get user IDs for aggregation query
+    const userIds = users.map((u) => u.id);
+
+    // Use database aggregation for review stats (much more efficient than fetching all reviews)
+    const reviewStats = await prisma.review.groupBy({
+      by: ['technicianId'],
+      where: {
+        technicianId: { in: userIds },
+        rating: { not: null },
+      },
+      _avg: { rating: true },
+      _count: { rating: true },
+    });
+
+    // Create a map for quick lookup
+    const reviewStatsMap = new Map<string, { avgRating: number | null; reviewCount: number }>();
+    for (const stat of reviewStats) {
+      if (stat.technicianId) {
+        reviewStatsMap.set(stat.technicianId, {
+          avgRating: stat._avg.rating ? Number(stat._avg.rating.toFixed(1)) : null,
+          reviewCount: stat._count.rating,
+        });
+      }
+    }
 
     // Transform users to include computed jobCount and avgRating
     const usersWithStats = users.map((user: typeof users[number]) => {
@@ -94,19 +111,18 @@ export async function GET(request: NextRequest) {
         user._count.jobAssignments
       );
 
-      // Calculate average rating from reviews
-      const ratings = user.technicianReviews.map((r: { rating: number | null }) => r.rating).filter((r: number | null): r is number => r !== null);
-      const avgRating = ratings.length > 0
-        ? Number((ratings.reduce((sum: number, r: number) => sum + r, 0) / ratings.length).toFixed(1))
-        : null;
+      // Get pre-computed rating stats from database aggregation
+      const stats = reviewStatsMap.get(user.id);
+      const avgRating = stats?.avgRating ?? null;
+      const reviewCount = stats?.reviewCount ?? 0;
 
       // Remove internal fields and add computed ones
-      const { _count, technicianReviews, ...userData } = user;
+      const { _count, ...userData } = user;
       return {
         ...userData,
         jobCount,
         avgRating,
-        reviewCount: ratings.length,
+        reviewCount,
       };
     });
 
