@@ -20,6 +20,7 @@ import {
   MessageCircle,
 } from 'lucide-react';
 import { generateCustomerWhatsAppLink } from '@/lib/whatsapp-links';
+import PhoneInput from '@/components/ui/PhoneInput';
 
 interface Customer {
   id: string;
@@ -49,14 +50,6 @@ interface Customer {
     createdAt: string;
   }>;
 }
-
-const COUNTRY_CODES = [
-  { code: '+54', country: 'Argentina', flag: '🇦🇷' },
-  { code: '+1', country: 'USA/Canada', flag: '🇺🇸' },
-  { code: '+52', country: 'México', flag: '🇲🇽' },
-  { code: '+55', country: 'Brasil', flag: '🇧🇷' },
-  { code: '+56', country: 'Chile', flag: '🇨🇱' },
-];
 
 const IVA_CONDITIONS = [
   { value: 'CONSUMIDOR_FINAL', label: 'Consumidor Final' },
@@ -235,15 +228,11 @@ export default function CustomerDetailPage() {
                     className="input"
                   />
                 </div>
-                <div>
-                  <label className="label mb-1 block">Teléfono</label>
-                  <input
-                    type="tel"
-                    value={editData.phone || ''}
-                    onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-                    className="input"
-                  />
-                </div>
+                <PhoneInput
+                  value={editData.phone || ''}
+                  onChange={(phone) => setEditData({ ...editData, phone })}
+                  variant="simple"
+                />
                 <div>
                   <label className="label mb-1 block">Email</label>
                   <input

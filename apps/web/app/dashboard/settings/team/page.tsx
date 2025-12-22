@@ -496,13 +496,20 @@ interface TeamMemberModalProps {
   isLoading: boolean;
 }
 
-// Country codes for phone input with validation rules
+// Country codes for phone input - Top 10 most relevant + Other
 const COUNTRY_CODES = [
-  { code: '+54', country: 'Argentina', flag: '🇦🇷', minDigits: 10, maxDigits: 11, example: '11 1234 5678' },
-  { code: '+1', country: 'USA/Canada', flag: '🇺🇸', minDigits: 10, maxDigits: 10, example: '555 123 4567' },
-  { code: '+52', country: 'México', flag: '🇲🇽', minDigits: 10, maxDigits: 10, example: '55 1234 5678' },
+  { code: '+54', country: 'Argentina', flag: '🇦🇷', minDigits: 8, maxDigits: 10, example: '11 1234 5678' },
+  { code: '+56', country: 'Chile', flag: '🇨🇱', minDigits: 8, maxDigits: 9, example: '9 1234 5678' },
+  { code: '+598', country: 'Uruguay', flag: '🇺🇾', minDigits: 7, maxDigits: 8, example: '94 123 456' },
+  { code: '+595', country: 'Paraguay', flag: '🇵🇾', minDigits: 8, maxDigits: 9, example: '981 123 456' },
   { code: '+55', country: 'Brasil', flag: '🇧🇷', minDigits: 10, maxDigits: 11, example: '11 91234 5678' },
-  { code: '+56', country: 'Chile', flag: '🇨🇱', minDigits: 9, maxDigits: 9, example: '9 1234 5678' },
+  { code: '+591', country: 'Bolivia', flag: '🇧🇴', minDigits: 7, maxDigits: 8, example: '7 123 4567' },
+  { code: '+51', country: 'Perú', flag: '🇵🇪', minDigits: 8, maxDigits: 9, example: '912 345 678' },
+  { code: '+57', country: 'Colombia', flag: '🇨🇴', minDigits: 9, maxDigits: 10, example: '310 123 4567' },
+  { code: '+52', country: 'México', flag: '🇲🇽', minDigits: 9, maxDigits: 10, example: '55 1234 5678' },
+  { code: '+1', country: 'USA/Canadá', flag: '🇺🇸', minDigits: 10, maxDigits: 10, example: '(555) 123-4567' },
+  // Other option - allows any custom country code
+  { code: 'OTHER', country: 'Otro', flag: '🌍', minDigits: 6, maxDigits: 15, example: '123 456 7890' },
 ];
 
 function TeamMemberModal({
@@ -516,6 +523,7 @@ function TeamMemberModal({
   const isSelf = member?.id === currentUserId;
 
   const [countryCode, setCountryCode] = useState('+54');
+  const [customCountryCode, setCustomCountryCode] = useState(''); // For "Otro" option
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: member?.name || '',
@@ -529,6 +537,14 @@ function TeamMemberModal({
   });
 
   const selectedCountry = COUNTRY_CODES.find(c => c.code === countryCode) || COUNTRY_CODES[0];
+
+  // Get the actual country code (from list or custom)
+  const getActualCountryCode = () => {
+    if (countryCode === 'OTHER') {
+      return customCountryCode.startsWith('+') ? customCountryCode : `+${customCountryCode}`;
+    }
+    return countryCode;
+  };
 
   const validatePhone = (phone: string): string | null => {
     const digits = phone.replace(/\D/g, '');
@@ -546,6 +562,11 @@ function TeamMemberModal({
 
     // Validate phone for new users
     if (!member) {
+      // Require custom country code when "Otro" is selected
+      if (countryCode === 'OTHER' && !customCountryCode) {
+        setPhoneError('Por favor, ingresá un código de país');
+        return;
+      }
       const error = validatePhone(formData.phone);
       if (error) {
         setPhoneError(error);
@@ -554,7 +575,8 @@ function TeamMemberModal({
     }
     setPhoneError(null);
 
-    const fullPhone = member ? formData.phone : `${countryCode}${formData.phone.replace(/\D/g, '')}`;
+    const actualCode = getActualCountryCode();
+    const fullPhone = member ? formData.phone : `${actualCode}${formData.phone.replace(/\D/g, '')}`;
     onSave({
       name: formData.name,
       phone: fullPhone,
@@ -627,10 +649,28 @@ function TeamMemberModal({
                   >
                     {COUNTRY_CODES.map((c) => (
                       <option key={c.code} value={c.code}>
-                        {c.flag} {c.code}
+                        {c.flag} {c.code === 'OTHER' ? 'Otro' : c.code}
                       </option>
                     ))}
                   </select>
+                  {countryCode === 'OTHER' && (
+                    <input
+                      type="text"
+                      value={customCountryCode}
+                      onChange={(e) => {
+                        // Only allow + and numbers
+                        const value = e.target.value.replace(/[^+\d]/g, '');
+                        // Ensure + is only at the start
+                        const cleaned = value.startsWith('+')
+                          ? '+' + value.slice(1).replace(/\+/g, '')
+                          : value.replace(/\+/g, '');
+                        setCustomCountryCode(cleaned);
+                      }}
+                      placeholder="+XX"
+                      className="input w-16 px-2 text-center"
+                      maxLength={5}
+                    />
+                  )}
                   <input
                     id="phone"
                     type="tel"
@@ -647,10 +687,15 @@ function TeamMemberModal({
                   />
                 </div>
               )}
+              {countryCode === 'OTHER' && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Ingresá el código de país (ej: +34 para España, +49 para Alemania)
+                </p>
+              )}
               {phoneError && (
                 <p className="mt-1 text-xs text-red-600">{phoneError}</p>
               )}
-              {!phoneError && !member && (
+              {!phoneError && !member && countryCode !== 'OTHER' && (
                 <p className="mt-1 text-xs text-gray-500">
                   Ej: {selectedCountry.example} ({selectedCountry.minDigits}-{selectedCountry.maxDigits} dígitos)
                 </p>
