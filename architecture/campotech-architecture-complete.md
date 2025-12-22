@@ -406,7 +406,13 @@ CLOSED → (failures >= threshold) → OPEN → (timeout) → HALF_OPEN → (pro
 
 ### Comprehensive System Interaction Map
 
-The following Mermaid diagram shows the complete web of interactions between all user types, interfaces, APIs, external systems, and background processes.
+This section provides an exhaustive view of all system interactions across the CampoTech platform, including **237+ API endpoints**, **167 database models**, **27 background workers**, **8 external integrations**, and **110+ frontend pages**.
+
+---
+
+#### Master System Architecture Diagram
+
+The following diagram shows the complete web of interactions between all user types, interfaces, APIs, external systems, and background processes.
 
 ```mermaid
 flowchart TB
@@ -415,129 +421,271 @@ flowchart TB
     %% ═══════════════════════════════════════════════════════════════════════
     subgraph USERS["👥 USER ACTORS"]
         direction TB
-        OWNER["🏢 OWNER/ADMIN<br/>Business owner<br/>Full platform access"]
-        DISPATCHER["📋 DISPATCHER<br/>Office staff<br/>Job management"]
-        TECH["🔧 TECHNICIAN<br/>Field worker<br/>Mobile-focused"]
-        ACCOUNTANT["💼 ACCOUNTANT<br/>Finance only<br/>Invoices & payments"]
-        CUSTOMER["👤 B2B CUSTOMER<br/>Business client<br/>Receives services"]
-        CONSUMER["🛒 CONSUMER<br/>Marketplace user<br/>Finds service providers"]
+        OWNER["🏢 OWNER<br/>Business owner<br/>Full platform access<br/>Billing & settings"]
+        DISPATCHER["📋 DISPATCHER<br/>Office staff<br/>Job scheduling<br/>Customer management"]
+        TECH["🔧 TECHNICIAN<br/>Field worker<br/>Mobile app focused<br/>Job completion"]
+        ACCOUNTANT["💼 ACCOUNTANT<br/>Finance only<br/>Invoices & payments<br/>Reports access"]
+        CUSTOMER["👤 B2B CUSTOMER<br/>Business client<br/>Portal & WhatsApp<br/>Service tracking"]
+        CONSUMER["🛒 CONSUMER<br/>Marketplace user<br/>Service discovery<br/>Reviews & booking"]
     end
 
     %% ═══════════════════════════════════════════════════════════════════════
-    %% FRONTEND INTERFACES
+    %% FRONTEND INTERFACES - WEB DASHBOARD
     %% ═══════════════════════════════════════════════════════════════════════
     subgraph FRONTENDS["🖥️ FRONTEND INTERFACES"]
         direction TB
-        subgraph WEB_DASHBOARD["Web Dashboard (Next.js)"]
-            DASH_HOME["📊 Dashboard Home<br/>KPIs, alerts, today's jobs"]
-            DASH_JOBS["📝 Jobs Management<br/>Create, assign, track"]
-            DASH_CUSTOMERS["👥 Customers CRM<br/>Contacts, history"]
-            DASH_INVOICES["🧾 Invoicing<br/>Create, AFIP submit"]
-            DASH_CALENDAR["📅 Calendar View<br/>Drag-drop scheduling"]
-            DASH_MAP["🗺️ Live Map<br/>Real-time technicians"]
-            DASH_FLEET["🚗 Fleet Management<br/>Vehicles, VTV, documents"]
-            DASH_INVENTORY["📦 Inventory<br/>Stock, transfers"]
-            DASH_REPORTS["📈 Reports<br/>Analytics dashboard"]
-            DASH_TEAM["👔 Team Management<br/>Users, roles, invites"]
-            DASH_SETTINGS["⚙️ Settings<br/>AFIP, MP, WhatsApp config"]
+        subgraph WEB_DASHBOARD["Web Dashboard (Next.js) - 80+ Pages"]
+            direction LR
+            subgraph DASH_CORE["Core Modules"]
+                DASH_HOME["📊 Dashboard<br/>KPIs, alerts, activity"]
+                DASH_JOBS["📝 Jobs (9 views)<br/>List, detail, calendar"]
+                DASH_CUSTOMERS["👥 Customers<br/>CRM, leads, history"]
+                DASH_DISPATCH["🚀 Dispatch<br/>AI recommendations"]
+            end
+            subgraph DASH_OPS["Operations"]
+                DASH_INVOICES["🧾 Invoicing<br/>Create, queue, AFIP"]
+                DASH_PAYMENTS["💳 Payments<br/>History, disputes"]
+                DASH_FLEET["🚗 Fleet (4 views)<br/>Vehicles, docs, VTV"]
+                DASH_INVENTORY["📦 Inventory (11)<br/>Products, stock, PO"]
+            end
+            subgraph DASH_ANALYTICS["Analytics & Admin"]
+                DASH_REPORTS["📈 Analytics (8)<br/>Revenue, ops, AI"]
+                DASH_TEAM["👔 Team<br/>Users, locations"]
+                DASH_SETTINGS["⚙️ Settings (12)<br/>Integrations config"]
+                DASH_ADMIN["🔧 Admin (8)<br/>Queues, health, DLQ"]
+            end
+            subgraph DASH_COMMS["Communications"]
+                DASH_WHATSAPP["💬 WhatsApp (4)<br/>Conversations, templates"]
+                DASH_MAP["🗺️ Live Map<br/>Real-time tracking"]
+                DASH_CALENDAR["📅 Calendar<br/>Drag-drop scheduling"]
+                DASH_COPILOT["🤖 AI Copilot<br/>Chat, actions"]
+            end
         end
 
-        subgraph MOBILE_APP["Mobile App (React Native)"]
-            MOB_JOBS["📱 My Jobs<br/>Today's schedule"]
-            MOB_JOB_DETAIL["🔍 Job Detail<br/>Customer, address, notes"]
-            MOB_PHOTOS["📸 Photos<br/>Before/during/after"]
-            MOB_SIGNATURE["✍️ Signature Capture<br/>Job completion"]
+        subgraph MOBILE_APP["Mobile App (React Native/Expo) - Technician"]
+            direction LR
+            MOB_TODAY["📱 Today's Jobs<br/>Priority schedule"]
+            MOB_JOBS["📋 All Jobs<br/>List & map view"]
+            MOB_DETAIL["🔍 Job Detail<br/>Photos, notes, status"]
+            MOB_COMPLETE["✅ Completion<br/>Signature, materials"]
+            MOB_INVENTORY["📦 Inventory<br/>Vehicle stock, scan"]
             MOB_GPS["📍 GPS Tracking<br/>Background location"]
             MOB_OFFLINE["💾 Offline Mode<br/>WatermelonDB sync"]
-            MOB_INVENTORY["📦 Vehicle Stock<br/>Materials used"]
+            MOB_ANALYTICS["📊 My Stats<br/>Performance metrics"]
         end
 
         subgraph CUSTOMER_PORTAL["Customer Portal (White-label)"]
             CP_TRACK["📍 Track Technician<br/>Live ETA map"]
             CP_HISTORY["📋 Job History<br/>Past services"]
-            CP_INVOICES["🧾 My Invoices<br/>Download, pay"]
-            CP_BOOK["📅 Book Service<br/>Schedule appointment"]
-            CP_SUPPORT["💬 Support Chat<br/>Contact business"]
+            CP_INVOICES["🧾 My Invoices<br/>Download, pay online"]
+            CP_BOOK["📅 Book Service<br/>Schedule request"]
+            CP_RATE["⭐ Rate Service<br/>Reviews & feedback"]
         end
 
         subgraph MARKETPLACE["Consumer Marketplace"]
-            MKT_SEARCH["🔍 Search Services<br/>By category, location"]
-            MKT_PROFILES["⭐ Business Profiles<br/>Reviews, portfolio"]
-            MKT_QUOTES["💬 Request Quotes<br/>Get estimates"]
-            MKT_BOOK["📅 Book & Pay<br/>Instant booking"]
-            MKT_TRACK["📍 Track Service<br/>Real-time updates"]
-            MKT_REVIEW["⭐ Leave Review<br/>Rate experience"]
+            MKT_SEARCH["🔍 Search<br/>Category, location"]
+            MKT_PROFILES["⭐ Profiles<br/>Reviews, portfolio"]
+            MKT_QUOTES["💬 Request Quotes<br/>Compare providers"]
+            MKT_BOOK["📅 Book & Pay<br/>Instant scheduling"]
+            MKT_TRACK["📍 Track<br/>Real-time updates"]
+        end
+
+        subgraph CONSUMER_MOBILE["Consumer Mobile App"]
+            CMOB_DISCOVER["🔍 Discover<br/>Services nearby"]
+            CMOB_BOOK["📅 Book<br/>Schedule service"]
+            CMOB_TRACK["📍 Track<br/>Live updates"]
+            CMOB_RATE["⭐ Rate<br/>Leave reviews"]
+        end
+
+        subgraph PUBLIC_PAGES["Public Pages"]
+            PUB_LANDING["🏠 Landing<br/>Marketing site"]
+            PUB_PROFILE["👤 Business Profile<br/>/p/[slug]"]
+            PUB_TRACK["📍 Track Job<br/>/track/[token]"]
+            PUB_RATE["⭐ Rate Job<br/>/rate/[token]"]
+            PUB_LEGAL["📜 Legal<br/>Terms, privacy"]
         end
     end
 
     %% ═══════════════════════════════════════════════════════════════════════
-    %% API LAYER
+    %% API LAYER - COMPREHENSIVE
     %% ═══════════════════════════════════════════════════════════════════════
-    subgraph API_LAYER["🔌 API LAYER (Next.js API Routes)"]
+    subgraph API_LAYER["🔌 API LAYER (Next.js API Routes) - 237+ Endpoints"]
         direction TB
-        API_AUTH["🔐 /api/auth/*<br/>Login, signup, invite"]
-        API_JOBS["📝 /api/jobs/*<br/>CRUD, assign, status"]
-        API_CUSTOMERS["👥 /api/customers/*<br/>CRM operations"]
-        API_INVOICES["🧾 /api/invoices/*<br/>Create, submit to AFIP"]
-        API_PAYMENTS["💳 /api/payments/*<br/>MP links, webhooks"]
-        API_TRACKING["📍 /api/tracking/*<br/>GPS updates, nearest"]
-        API_VEHICLES["🚗 /api/vehicles/*<br/>Fleet CRUD, docs"]
-        API_INVENTORY["📦 /api/inventory/*<br/>Stock, transactions"]
-        API_WHATSAPP["💬 /api/whatsapp/*<br/>Send, receive, voice"]
-        API_CALENDAR["📅 /api/jobs/calendar<br/>Calendar data"]
-        API_DASHBOARD["📊 /api/dashboard/*<br/>Alerts, stats"]
-        API_CONSUMER["🛒 /api/consumer/*<br/>Marketplace APIs"]
-        API_PORTAL["🚪 /api/portal/*<br/>Customer portal"]
+        subgraph API_AUTH_GROUP["Authentication (10)"]
+            API_AUTH["🔐 /api/auth/*<br/>login, register, OTP<br/>refresh, logout, session"]
+        end
+        subgraph API_CORE["Core Business (30+)"]
+            API_JOBS["📝 /api/jobs/* (9)<br/>CRUD, assign, calendar<br/>status, today, stats"]
+            API_CUSTOMERS["👥 /api/customers/* (5)<br/>CRUD, search, stats"]
+            API_LOCATIONS["📍 /api/locations/* (10)<br/>branches, zones, team<br/>capacity, settings"]
+        end
+        subgraph API_FINANCE["Finance (11)"]
+            API_INVOICES["🧾 /api/invoices/*<br/>CRUD, queue-status<br/>AFIP submission"]
+            API_PAYMENTS["💳 /api/payments/*<br/>create, list, disputes"]
+            API_SUBSCRIPTION["💰 /api/subscription/*<br/>checkout, change, cancel"]
+        end
+        subgraph API_INVENTORY_GROUP["Inventory (18)"]
+            API_INVENTORY["📦 /api/inventory/*<br/>products, categories<br/>warehouses, suppliers<br/>stock, transfers, PO<br/>movements, reports"]
+        end
+        subgraph API_WHATSAPP_GROUP["WhatsApp (21)"]
+            API_WHATSAPP["💬 /api/whatsapp/*<br/>conversations, messages<br/>templates, send, media<br/>provision, queue, stats"]
+        end
+        subgraph API_TRACKING_GROUP["Tracking (8)"]
+            API_TRACKING["📍 /api/tracking/*<br/>start, update, status<br/>subscribe, nearest, route"]
+        end
+        subgraph API_ANALYTICS_GROUP["Analytics (15)"]
+            API_ANALYTICS["📈 /api/analytics/*<br/>overview, KPIs, revenue<br/>operations, technicians<br/>customers, AI, reports"]
+        end
+        subgraph API_ADMIN_GROUP["Admin (15)"]
+            API_ADMIN["🔧 /api/admin/*<br/>dashboard, queues, DLQ<br/>capabilities, costs<br/>launch-checklist"]
+        end
+        subgraph API_OTHER["Other APIs (100+)"]
+            API_VEHICLES["🚗 /api/vehicles/*<br/>fleet, documents"]
+            API_TEAM["👔 /api/team/*<br/>users, invites"]
+            API_VERIFICATION["✓ /api/verification/*<br/>documents, CUIT"]
+            API_NOTIFICATIONS["🔔 /api/notifications/*<br/>preferences, push"]
+            API_SETTINGS["⚙️ /api/settings/*<br/>service-types, pricebook"]
+            API_COPILOT["🤖 /api/copilot/*<br/>chat, execute-action"]
+            API_DISPATCH["🚀 /api/dispatch/*<br/>availability, recommend"]
+            API_WEBHOOKS["🔗 /api/webhooks/*<br/>MP, WhatsApp, Dialog360"]
+            API_CRON["⏰ /api/cron/*<br/>7 scheduled tasks"]
+            API_V1["📡 /api/v1/*<br/>Public REST API"]
+        end
     end
 
     %% ═══════════════════════════════════════════════════════════════════════
     %% REAL-TIME LAYER
     %% ═══════════════════════════════════════════════════════════════════════
-    subgraph REALTIME["⚡ REAL-TIME (WebSocket)"]
-        WS_LOCATIONS["📍 technician_location_update<br/>15-second GPS broadcast"]
-        WS_JOB_STATUS["📋 job_status_changed<br/>Status transitions"]
-        WS_NOTIFICATIONS["🔔 notification<br/>Push to dashboard"]
-        WS_CHAT["💬 chat_message<br/>Support conversations"]
-    end
-
-    %% ═══════════════════════════════════════════════════════════════════════
-    %% BACKGROUND WORKERS
-    %% ═══════════════════════════════════════════════════════════════════════
-    subgraph WORKERS["⚙️ BACKGROUND WORKERS (BullMQ)"]
+    subgraph REALTIME["⚡ REAL-TIME LAYER"]
         direction TB
-        W_VOICE["🎤 Voice Processing<br/>Transcribe + extract job"]
-        W_AFIP["🏛️ AFIP Invoice<br/>Submit CAE requests"]
-        W_WHATSAPP["💬 WhatsApp Outbound<br/>Send messages"]
-        W_REMINDER["⏰ Reminders<br/>Job notifications"]
-        W_FLEET["🚗 Fleet Expiry<br/>Document alerts"]
-        W_INVENTORY["📦 Stock Alerts<br/>Low stock warnings"]
-        W_RECONCILIATION["💰 MP Reconciliation<br/>Payment sync"]
-        W_AGGREGATION["📱 Message Aggregation<br/>Multi-number buffer"]
+        subgraph WS_EVENTS["WebSocket Events"]
+            WS_LOCATIONS["📍 location_update<br/>15s GPS broadcast"]
+            WS_JOB_STATUS["📋 job_status<br/>Status transitions"]
+            WS_NOTIFICATIONS["🔔 notification<br/>Push to dashboard"]
+            WS_CHAT["💬 chat_message<br/>Conversations"]
+            WS_WHATSAPP["💬 whatsapp_update<br/>Message delivery"]
+        end
+        subgraph RT_FEATURES["Adaptive Features"]
+            RT_ADAPTIVE["🔄 Adaptive Client<br/>Bandwidth optimization"]
+            RT_COMPRESSION["📦 Compression<br/>Data reduction"]
+            RT_FALLBACK["🔙 Fallback<br/>SSE if WS fails"]
+        end
     end
 
     %% ═══════════════════════════════════════════════════════════════════════
-    %% EXTERNAL INTEGRATIONS
+    %% BACKGROUND WORKERS - COMPREHENSIVE
     %% ═══════════════════════════════════════════════════════════════════════
-    subgraph EXTERNAL["🌐 EXTERNAL SYSTEMS"]
+    subgraph WORKERS["⚙️ BACKGROUND WORKERS (BullMQ) - 27 Workers"]
         direction TB
-        EXT_AFIP["🏛️ AFIP<br/>Electronic invoicing<br/>CAE authorization"]
-        EXT_MP["💳 Mercado Pago<br/>Payment processing<br/>Cuotas, QR, links"]
-        EXT_WA["💬 WhatsApp Cloud<br/>Business messaging<br/>Voice notes"]
-        EXT_OPENAI["🤖 OpenAI<br/>Whisper transcription<br/>GPT extraction"]
-        EXT_GOOGLE["🗺️ Google Maps<br/>Distance Matrix<br/>Directions, Geocoding"]
-        EXT_EXPO["📱 Expo Push<br/>Mobile notifications"]
-        EXT_TWILIO["📞 Twilio/SMS<br/>Fallback messaging"]
-        EXT_SUPABASE["☁️ Supabase<br/>Auth, Storage, Realtime"]
+        subgraph W_TIER_RT["Realtime Tier (<5s SLA)"]
+            W_NOTIFICATION["🔔 Notification<br/>dispatch.worker"]
+            W_JOB_NOTIFY["📋 Job Notify<br/>job-notification.worker"]
+            W_WEBHOOK["🔗 Webhook<br/>payment-webhook.worker"]
+        end
+        subgraph W_TIER_BG["Background Tier (<60s SLA)"]
+            W_VOICE["🎤 Voice AI<br/>voice-processing.worker<br/>Whisper + GPT"]
+            W_AFIP["🏛️ AFIP Invoice<br/>afip-invoice.worker<br/>CAE submission"]
+            W_WHATSAPP["💬 WhatsApp<br/>whatsapp-outbound.worker"]
+            W_MP_PAYMENT["💳 MP Payment<br/>mp-payment.worker"]
+            W_PDF["📄 Invoice PDF<br/>invoice-pdf.worker"]
+        end
+        subgraph W_TIER_BATCH["Batch Tier (minutes-hours)"]
+            W_REMINDER["⏰ Reminders<br/>reminder.worker"]
+            W_RECONCILIATION["💰 Reconciliation<br/>mp-reconciliation.service"]
+            W_AGGREGATION["📱 Aggregation<br/>aggregation-processor.worker"]
+            W_CLEANUP["🧹 Cleanup<br/>buffer-cleanup.worker"]
+        end
+        subgraph W_FALLBACK["Fallback & Retry"]
+            W_AFIP_FB["🏛️ AFIP Fallback<br/>afip-fallback.handler"]
+            W_VOICE_FB["🎤 Voice Fallback<br/>voice-fallback.handler"]
+            W_MP_FB["💳 MP Fallback<br/>mp-fallback.handler"]
+            W_RETRY["🔄 Retry Strategy<br/>Exponential backoff"]
+        end
     end
 
     %% ═══════════════════════════════════════════════════════════════════════
-    %% DATABASE
+    %% CRON JOBS
+    %% ═══════════════════════════════════════════════════════════════════════
+    subgraph CRON["⏰ SCHEDULED JOBS (7 Cron Tasks)"]
+        CRON_ARCHIVE["📦 Archive Data<br/>Old records cleanup"]
+        CRON_BUDGET["💰 Check Budgets<br/>Alert on overages"]
+        CRON_TRIAL["⏳ Trial Expiry<br/>Notify expiring trials"]
+        CRON_SUBSCRIPTION["💳 Subscription<br/>Renewal processing"]
+        CRON_VERIFICATION["✓ Verification<br/>Document expiry alerts"]
+        CRON_PARTITIONS["🗄️ Partitions<br/>DB partition management"]
+        CRON_STORAGE["📁 Storage<br/>Optimize & cleanup"]
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% EXTERNAL INTEGRATIONS - DETAILED
+    %% ═══════════════════════════════════════════════════════════════════════
+    subgraph EXTERNAL["🌐 EXTERNAL SYSTEMS (8 Integrations)"]
+        direction TB
+        subgraph EXT_AFIP_GROUP["🏛️ AFIP Argentina"]
+            EXT_AFIP_WSAA["WSAA<br/>Auth tokens (12hr)"]
+            EXT_AFIP_WSFE["WSFEv1<br/>Invoice CAE"]
+            EXT_AFIP_PADRON["PADRON<br/>CUIT validation"]
+        end
+        subgraph EXT_MP_GROUP["💳 Mercado Pago"]
+            EXT_MP_OAUTH["OAuth 2.0<br/>Account connect"]
+            EXT_MP_PREF["Preferences<br/>Payment links"]
+            EXT_MP_WEBHOOK["Webhooks<br/>Status updates"]
+            EXT_MP_SUB["Subscriptions<br/>Recurring billing"]
+        end
+        subgraph EXT_WA_GROUP["💬 WhatsApp (Dialog360)"]
+            EXT_WA_SEND["Send API<br/>Text, media, templates"]
+            EXT_WA_WEBHOOK["Webhooks<br/>Incoming messages"]
+            EXT_WA_MEDIA["Media API<br/>Voice download"]
+            EXT_WA_PROVISION["Provisioning<br/>Business setup"]
+        end
+        subgraph EXT_AI_GROUP["🤖 OpenAI"]
+            EXT_WHISPER["Whisper<br/>Voice transcription"]
+            EXT_GPT["GPT-4<br/>Intent extraction<br/>AI Copilot"]
+        end
+        subgraph EXT_OTHER["Other Services"]
+            EXT_GOOGLE["🗺️ Google Maps<br/>Geocoding, Distance<br/>Directions, Places"]
+            EXT_EXPO["📱 Expo Push<br/>Mobile notifications"]
+            EXT_TWILIO["📞 Twilio<br/>SMS OTP fallback"]
+            EXT_SUPABASE["☁️ Supabase<br/>Storage, Realtime"]
+        end
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% DATABASE LAYER - COMPREHENSIVE
     %% ═══════════════════════════════════════════════════════════════════════
     subgraph DATABASE["🗄️ DATA STORES"]
         direction TB
-        DB_PG["🐘 PostgreSQL<br/>Organizations, users, jobs<br/>Invoices, payments, inventory"]
-        DB_REDIS["🔴 Redis<br/>Queues, sessions<br/>Rate limiting, cache"]
-        DB_STORAGE["📁 Supabase Storage<br/>Photos, documents<br/>Voice recordings"]
+        subgraph DB_POSTGRES["🐘 PostgreSQL (167 Models)"]
+            DB_CORE["Core: Organization, User<br/>Customer, Job, JobVisit<br/>JobAssignment, Location"]
+            DB_FINANCE["Finance: Invoice, Payment<br/>Subscription, Chargeback<br/>PurchaseOrder"]
+            DB_INVENTORY_DB["Inventory: Product, Stock<br/>Warehouse, Movement<br/>Reservation, Count"]
+            DB_COMMS["Comms: WaConversation<br/>WaMessage, WaTemplate<br/>Notification"]
+            DB_TRACKING["Tracking: TrackingSession<br/>TechnicianLocation<br/>LocationHistory"]
+            DB_VERIFICATION["Verification: Submission<br/>Requirement, Reminder<br/>ComplianceBlock"]
+        end
+        subgraph DB_REDIS_GROUP["🔴 Redis"]
+            DB_REDIS_QUEUE["Queues<br/>BullMQ jobs"]
+            DB_REDIS_CACHE["Cache<br/>Query results"]
+            DB_REDIS_RATE["Rate Limiting<br/>API throttle"]
+            DB_REDIS_SESSION["Sessions<br/>Auth tokens"]
+        end
+        subgraph DB_STORAGE_GROUP["📁 Supabase Storage"]
+            DB_PHOTOS["Job Photos<br/>Before/after"]
+            DB_DOCS["Documents<br/>Invoices, certs"]
+            DB_VOICE["Voice<br/>Audio recordings"]
+            DB_FLEET_DOCS["Fleet Docs<br/>VTV, insurance"]
+        end
+    end
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% MIDDLEWARE & SERVICES
+    %% ═══════════════════════════════════════════════════════════════════════
+    subgraph MIDDLEWARE["🔒 MIDDLEWARE & SERVICES"]
+        MW_AUTH["🔐 Auth<br/>JWT validation"]
+        MW_TIER["💎 Tier Enforcement<br/>Feature gating"]
+        MW_RBAC["👤 RBAC<br/>Role permissions"]
+        MW_RATE["⏱️ Rate Limiting<br/>API protection"]
+        MW_FIELD["🔍 Field Filter<br/>Data masking"]
     end
 
     %% ═══════════════════════════════════════════════════════════════════════
@@ -550,60 +698,77 @@ flowchart TB
     ACCOUNTANT --> DASH_REPORTS
     TECH --> MOBILE_APP
     CUSTOMER --> CUSTOMER_PORTAL
-    CUSTOMER -.->|"WhatsApp"| EXT_WA
+    CUSTOMER -.->|"WhatsApp Messages"| EXT_WA_GROUP
     CONSUMER --> MARKETPLACE
+    CONSUMER --> CONSUMER_MOBILE
 
     %% ═══════════════════════════════════════════════════════════════════════
     %% FRONTEND -> API CONNECTIONS
     %% ═══════════════════════════════════════════════════════════════════════
-    WEB_DASHBOARD --> API_LAYER
-    MOBILE_APP --> API_LAYER
-    CUSTOMER_PORTAL --> API_PORTAL
-    MARKETPLACE --> API_CONSUMER
+    WEB_DASHBOARD --> MIDDLEWARE
+    MOBILE_APP --> MIDDLEWARE
+    CUSTOMER_PORTAL --> MIDDLEWARE
+    MARKETPLACE --> MIDDLEWARE
+    CONSUMER_MOBILE --> MIDDLEWARE
+    PUBLIC_PAGES --> API_LAYER
+
+    MIDDLEWARE --> API_LAYER
 
     %% ═══════════════════════════════════════════════════════════════════════
     %% API -> REALTIME CONNECTIONS
     %% ═══════════════════════════════════════════════════════════════════════
     API_TRACKING --> WS_LOCATIONS
     API_JOBS --> WS_JOB_STATUS
-    API_DASHBOARD --> WS_NOTIFICATIONS
+    API_ANALYTICS --> WS_NOTIFICATIONS
+    API_WHATSAPP --> WS_WHATSAPP
 
     %% ═══════════════════════════════════════════════════════════════════════
     %% API -> DATABASE CONNECTIONS
     %% ═══════════════════════════════════════════════════════════════════════
-    API_LAYER --> DB_PG
-    API_LAYER --> DB_REDIS
-    API_LAYER --> DB_STORAGE
+    API_LAYER --> DB_POSTGRES
+    API_LAYER --> DB_REDIS_GROUP
+    API_LAYER --> DB_STORAGE_GROUP
 
     %% ═══════════════════════════════════════════════════════════════════════
     %% API -> EXTERNAL CONNECTIONS
     %% ═══════════════════════════════════════════════════════════════════════
-    API_INVOICES --> EXT_AFIP
-    API_PAYMENTS --> EXT_MP
-    API_WHATSAPP --> EXT_WA
+    API_INVOICES --> EXT_AFIP_GROUP
+    API_PAYMENTS --> EXT_MP_GROUP
+    API_WHATSAPP --> EXT_WA_GROUP
     API_TRACKING --> EXT_GOOGLE
-    API_AUTH --> EXT_SUPABASE
+    API_AUTH_GROUP --> EXT_SUPABASE
+    API_COPILOT --> EXT_GPT
 
     %% ═══════════════════════════════════════════════════════════════════════
     %% WORKER CONNECTIONS
     %% ═══════════════════════════════════════════════════════════════════════
-    W_VOICE --> EXT_OPENAI
-    W_VOICE --> EXT_WA
-    W_AFIP --> EXT_AFIP
-    W_WHATSAPP --> EXT_WA
+    W_VOICE --> EXT_WHISPER
+    W_VOICE --> EXT_GPT
+    W_VOICE --> EXT_WA_MEDIA
+    W_AFIP --> EXT_AFIP_GROUP
+    W_WHATSAPP --> EXT_WA_SEND
     W_REMINDER --> EXT_EXPO
-    W_REMINDER --> EXT_WA
-    W_RECONCILIATION --> EXT_MP
+    W_REMINDER --> EXT_WA_SEND
+    W_RECONCILIATION --> EXT_MP_GROUP
+    W_MP_PAYMENT --> EXT_MP_GROUP
+    W_JOB_NOTIFY --> EXT_EXPO
 
-    WORKERS --> DB_PG
-    WORKERS --> DB_REDIS
+    WORKERS --> DB_POSTGRES
+    WORKERS --> DB_REDIS_GROUP
+
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% CRON -> WORKERS
+    %% ═══════════════════════════════════════════════════════════════════════
+    CRON --> WORKERS
+    CRON --> DB_POSTGRES
 
     %% ═══════════════════════════════════════════════════════════════════════
     %% WEBHOOK INBOUND
     %% ═══════════════════════════════════════════════════════════════════════
-    EXT_MP -->|"payment.approved"| API_PAYMENTS
-    EXT_WA -->|"message received"| API_WHATSAPP
-    EXT_WA -->|"voice note"| W_VOICE
+    EXT_MP_WEBHOOK -->|"payment.approved<br/>chargeback.created"| API_WEBHOOKS
+    EXT_WA_WEBHOOK -->|"message.received<br/>status.update"| API_WEBHOOKS
+    API_WEBHOOKS --> W_TIER_RT
+    API_WEBHOOKS --> W_VOICE
 
     %% ═══════════════════════════════════════════════════════════════════════
     %% REALTIME TO FRONTENDS
@@ -611,6 +776,576 @@ flowchart TB
     REALTIME --> WEB_DASHBOARD
     REALTIME --> MOBILE_APP
     REALTIME --> CUSTOMER_PORTAL
+    REALTIME --> CONSUMER_MOBILE
+```
+
+---
+
+#### API Endpoints Complete Reference
+
+The platform exposes **237+ API endpoints** organized into functional domains:
+
+```mermaid
+flowchart LR
+    subgraph AUTH["🔐 Authentication (10)"]
+        direction TB
+        A1["POST /api/auth/login"]
+        A2["POST /api/auth/register"]
+        A3["POST /api/auth/register/verify"]
+        A4["POST /api/auth/otp/request"]
+        A5["POST /api/auth/otp/verify"]
+        A6["POST /api/auth/logout"]
+        A7["POST /api/auth/refresh"]
+        A8["GET /api/auth/session"]
+        A9["GET /api/auth/me"]
+        A10["GET /api/auth/debug"]
+    end
+
+    subgraph JOBS["📝 Jobs (9)"]
+        direction TB
+        J1["GET/POST /api/jobs"]
+        J2["GET/PATCH /api/jobs/[id]"]
+        J3["GET /api/jobs/[id]/status"]
+        J4["POST /api/jobs/[id]/assign"]
+        J5["POST /api/jobs/[id]/unassign"]
+        J6["GET /api/jobs/calendar"]
+        J7["GET /api/jobs/today"]
+        J8["GET /api/jobs/stats"]
+        J9["GET /api/approvals"]
+    end
+
+    subgraph CUSTOMERS["👥 Customers (5)"]
+        direction TB
+        C1["GET/POST /api/customers"]
+        C2["GET/PATCH /api/customers/[id]"]
+        C3["GET /api/customers/search"]
+        C4["GET /api/customers/stats"]
+        C5["GET /api/leads"]
+    end
+
+    subgraph INVENTORY["📦 Inventory (18)"]
+        direction TB
+        I1["GET/POST /api/inventory/products"]
+        I2["GET/POST /api/inventory/categories"]
+        I3["GET/POST /api/inventory/warehouses"]
+        I4["GET/POST /api/inventory/suppliers"]
+        I5["GET/POST /api/inventory/stock"]
+        I6["POST /api/inventory/stock/transfer"]
+        I7["POST /api/inventory/stock/adjust"]
+        I8["POST /api/inventory/stock/count"]
+        I9["GET/POST /api/inventory/purchase-orders"]
+        I10["GET /api/inventory/reports/*"]
+    end
+
+    subgraph INVOICES["🧾 Invoicing (11)"]
+        direction TB
+        IV1["GET/POST /api/invoices"]
+        IV2["GET /api/invoices/[id]"]
+        IV3["GET /api/invoices/queue-status"]
+        IV4["GET/POST /api/payments"]
+        IV5["GET /api/payments/disputes"]
+        IV6["POST /api/subscription/*"]
+        IV7["GET /api/afip/status"]
+        IV8["POST /api/afip/queue"]
+    end
+
+    subgraph WHATSAPP["💬 WhatsApp (21)"]
+        direction TB
+        W1["GET/POST /api/whatsapp/conversations"]
+        W2["GET/POST /api/whatsapp/messages"]
+        W3["POST /api/whatsapp/send"]
+        W4["GET/POST /api/whatsapp/templates"]
+        W5["POST /api/whatsapp/templates/sync"]
+        W6["GET /api/whatsapp/contacts"]
+        W7["POST /api/whatsapp/provision"]
+        W8["GET /api/whatsapp/queue"]
+        W9["GET /api/whatsapp/statistics"]
+        W10["POST /api/webhooks/whatsapp"]
+    end
+
+    subgraph TRACKING["📍 Tracking (8)"]
+        direction TB
+        T1["GET /api/tracking/[token]"]
+        T2["POST /api/tracking/start"]
+        T3["POST /api/tracking/update"]
+        T4["GET /api/tracking/status"]
+        T5["POST /api/tracking/subscribe"]
+        T6["GET /api/tracking/locations"]
+        T7["POST /api/tracking/nearest"]
+        T8["POST /api/map/route"]
+    end
+
+    subgraph ANALYTICS["📈 Analytics (15)"]
+        direction TB
+        AN1["GET /api/analytics/overview"]
+        AN2["GET /api/analytics/kpis"]
+        AN3["GET /api/analytics/revenue"]
+        AN4["GET /api/analytics/operations"]
+        AN5["GET /api/analytics/technicians"]
+        AN6["GET /api/analytics/customers"]
+        AN7["GET /api/analytics/ai"]
+        AN8["GET /api/analytics/predictions"]
+        AN9["GET/POST /api/analytics/reports"]
+    end
+
+    subgraph ADMIN["🔧 Admin (15)"]
+        direction TB
+        AD1["GET /api/admin/dashboard/metrics"]
+        AD2["GET /api/admin/capabilities"]
+        AD3["GET /api/admin/queue-dashboard"]
+        AD4["GET /api/admin/queues"]
+        AD5["GET /api/admin/dlq"]
+        AD6["POST /api/admin/costs"]
+        AD7["GET /api/admin/launch-checklist"]
+        AD8["GET /api/monitoring/health"]
+        AD9["GET /api/monitoring/metrics"]
+    end
+```
+
+---
+
+#### Database Schema Interaction Map
+
+The database consists of **167 models and enums** with complex relationships:
+
+```mermaid
+erDiagram
+    %% Core Business Entities
+    Organization ||--o{ User : "has many"
+    Organization ||--o{ Location : "has many"
+    Organization ||--o{ Customer : "has many"
+    Organization ||--o{ Job : "has many"
+    Organization ||--o{ Invoice : "has many"
+    Organization ||--o{ Product : "has many"
+    Organization ||--o{ Vehicle : "has many"
+    Organization ||--o{ WaConversation : "has many"
+    Organization ||--|| OrganizationSubscription : "has one"
+
+    %% User Relationships
+    User ||--o{ JobAssignment : "assigned to"
+    User ||--o{ TrackingSession : "tracked in"
+    User ||--o{ TechnicianLocation : "location of"
+    User ||--o{ Notification : "receives"
+    User ||--o{ VehicleAssignment : "assigned vehicle"
+
+    %% Job Relationships
+    Job ||--o{ JobAssignment : "has assignments"
+    Job ||--o{ JobVisit : "has visits"
+    Job ||--o{ Invoice : "generates"
+    Job ||--o{ TrackingSession : "tracked by"
+    Job ||--o{ StockReservation : "reserves stock"
+    Job }o--|| Customer : "belongs to"
+    Job }o--|| Location : "at location"
+
+    %% Location Relationships
+    Location ||--o{ User : "team members"
+    Location ||--o{ Warehouse : "has warehouses"
+    Location ||--o{ Job : "jobs at"
+
+    %% Inventory Relationships
+    Product ||--o{ InventoryStock : "stock levels"
+    Product ||--o{ StockMovement : "movements"
+    Product }o--|| ProductCategory : "categorized"
+    Product }o--|| Supplier : "supplied by"
+    Warehouse ||--o{ InventoryStock : "stores"
+    Vehicle ||--o{ VehicleStock : "carries"
+    PurchaseOrder ||--o{ PurchaseOrderItem : "contains"
+
+    %% Finance Relationships
+    Invoice ||--o{ InvoiceLineItem : "has items"
+    Invoice ||--o{ Payment : "paid by"
+    Invoice }o--|| Job : "for job"
+    Payment }o--|| Invoice : "pays"
+    OrganizationSubscription ||--o{ SubscriptionPayment : "payments"
+
+    %% WhatsApp Relationships
+    WaConversation ||--o{ WaMessage : "contains"
+    WaConversation }o--|| Customer : "with customer"
+    WaTemplate }o--|| Organization : "owned by"
+
+    %% Tracking Relationships
+    TrackingSession ||--o{ TrackingLocationHistory : "history"
+    TrackingSession }o--|| Job : "for job"
+    TrackingSession }o--|| User : "technician"
+
+    %% Verification Relationships
+    Organization ||--o{ VerificationSubmission : "submits"
+    User ||--o{ VerificationSubmission : "employee docs"
+    VerificationRequirement ||--o{ VerificationSubmission : "fulfills"
+```
+
+**Key Model Categories:**
+
+| Category | Models | Purpose |
+|----------|--------|---------|
+| **Core Business** | Organization, User, Customer, Job, JobVisit, JobAssignment, Location | Multi-tenant business operations |
+| **Inventory** | Product, ProductCategory, Warehouse, InventoryStock, StockMovement, StockReservation, InventoryCount, PurchaseOrder, Supplier, Vehicle, VehicleStock | Complete inventory management |
+| **Finance** | Invoice, InvoiceLineItem, Payment, Chargeback, OrganizationSubscription, SubscriptionPayment, SubscriptionEvent | Billing and payments |
+| **Communications** | WaConversation, WaMessage, WaTemplate, WaOutboundQueue, WaWebhookLog, Notification, NotificationPreferences | Messaging systems |
+| **Tracking** | TrackingSession, TechnicianLocation, TrackingLocationHistory | Real-time GPS tracking |
+| **Verification** | VerificationSubmission, VerificationRequirement, VerificationReminder, ComplianceAcknowledgment, ComplianceBlock | Compliance management |
+| **Analytics** | Report, ReportHistory, ScheduledReport, DashboardAlert | Reporting and insights |
+| **AI** | AIConfiguration, AIConversationLog | AI assistant state |
+
+---
+
+#### Background Worker Flow Diagram
+
+The system uses **27 background workers** organized into three SLA tiers:
+
+```mermaid
+flowchart TB
+    subgraph TRIGGERS["📥 Trigger Sources"]
+        T_API["API Requests"]
+        T_WEBHOOK["Webhooks<br/>(MP, WhatsApp)"]
+        T_CRON["Cron Jobs<br/>(7 scheduled)"]
+        T_USER["User Actions"]
+    end
+
+    subgraph QUEUE["📋 BullMQ Queue System"]
+        direction TB
+        Q_RT["🔴 Realtime Queue<br/>SLA: <5 seconds<br/>Concurrency: 10"]
+        Q_BG["🟡 Background Queue<br/>SLA: <60 seconds<br/>Concurrency: 5"]
+        Q_BATCH["🟢 Batch Queue<br/>SLA: minutes-hours<br/>Concurrency: 2"]
+    end
+
+    subgraph WORKERS_RT["⚡ Realtime Workers"]
+        WR1["notification-dispatch<br/>Push notifications"]
+        WR2["job-notification<br/>Job status alerts"]
+        WR3["payment-webhook<br/>Payment processing"]
+    end
+
+    subgraph WORKERS_BG["🔄 Background Workers"]
+        WB1["voice-processing<br/>Whisper + GPT"]
+        WB2["afip-invoice<br/>CAE submission"]
+        WB3["whatsapp-outbound<br/>Message delivery"]
+        WB4["mp-payment<br/>Payment creation"]
+        WB5["invoice-pdf<br/>PDF generation"]
+    end
+
+    subgraph WORKERS_BATCH["📦 Batch Workers"]
+        WC1["reminder<br/>Scheduled reminders"]
+        WC2["mp-reconciliation<br/>Payment sync"]
+        WC3["aggregation-processor<br/>Message batching"]
+        WC4["buffer-cleanup<br/>Data cleanup"]
+    end
+
+    subgraph FALLBACK["🔙 Fallback Handlers"]
+        F1["afip-fallback<br/>AFIP unavailable"]
+        F2["voice-fallback<br/>AI errors"]
+        F3["mp-fallback<br/>Payment failures"]
+        F4["retry-strategy<br/>Exponential backoff"]
+    end
+
+    subgraph DLQ["💀 Dead Letter Queue"]
+        DLQ_STORE["Failed Jobs<br/>Manual review"]
+        DLQ_ALERT["Admin Alerts<br/>Dashboard notification"]
+    end
+
+    %% Trigger to Queue
+    T_API --> Q_RT
+    T_API --> Q_BG
+    T_WEBHOOK --> Q_RT
+    T_CRON --> Q_BATCH
+    T_USER --> Q_BG
+
+    %% Queue to Workers
+    Q_RT --> WORKERS_RT
+    Q_BG --> WORKERS_BG
+    Q_BATCH --> WORKERS_BATCH
+
+    %% Worker Failures
+    WORKERS_RT -.->|"failure"| FALLBACK
+    WORKERS_BG -.->|"failure"| FALLBACK
+    WORKERS_BATCH -.->|"failure"| FALLBACK
+
+    %% Fallback to DLQ
+    FALLBACK -.->|"max retries"| DLQ
+    DLQ_STORE --> DLQ_ALERT
+```
+
+**Worker Configuration:**
+
+| Tier | SLA | Concurrency | Workers |
+|------|-----|-------------|---------|
+| **Realtime** | <5 seconds | 10 | notification-dispatch, job-notification, payment-webhook |
+| **Background** | <60 seconds | 5 | voice-processing, afip-invoice, whatsapp-outbound, mp-payment, invoice-pdf |
+| **Batch** | minutes-hours | 2 | reminder, mp-reconciliation, aggregation-processor, buffer-cleanup |
+
+---
+
+#### External Integration Flow Diagram
+
+Detailed integration flows with **8 external systems**:
+
+```mermaid
+flowchart TB
+    subgraph CAMPOTECH["CampoTech Platform"]
+        API["API Layer"]
+        WORKERS["Workers"]
+        DB["Database"]
+    end
+
+    subgraph AFIP_INT["🏛️ AFIP Integration (14 files)"]
+        direction TB
+        AFIP_CERT["Certificate Auth<br/>.p12 + passphrase"]
+        AFIP_WSAA["WSAA Service<br/>Token (12hr TTL)"]
+        AFIP_WSFEV1["WSFEv1 Service<br/>Invoice submission"]
+        AFIP_PADRON["PADRON Service<br/>CUIT validation"]
+        AFIP_QR["QR Generator<br/>Invoice QR codes"]
+
+        AFIP_CERT --> AFIP_WSAA
+        AFIP_WSAA -->|"Token"| AFIP_WSFEV1
+        AFIP_WSAA -->|"Token"| AFIP_PADRON
+        AFIP_WSFEV1 -->|"CAE"| AFIP_QR
+    end
+
+    subgraph MP_INT["💳 MercadoPago Integration (11 files)"]
+        direction TB
+        MP_OAUTH["OAuth 2.0<br/>Account linking"]
+        MP_PREF["Preferences API<br/>Payment links"]
+        MP_WEBHOOK["Webhook Handler<br/>Status callbacks"]
+        MP_SUB["Subscriptions<br/>Recurring billing"]
+        MP_REFUND["Refunds API<br/>Chargeback handling"]
+        MP_RETRY["Retry Strategy<br/>Failure recovery"]
+        MP_PANIC["Panic Controller<br/>Emergency mode"]
+
+        MP_OAUTH --> MP_PREF
+        MP_PREF --> MP_WEBHOOK
+        MP_WEBHOOK --> MP_RETRY
+        MP_RETRY -.->|"max retries"| MP_PANIC
+    end
+
+    subgraph WA_INT["💬 WhatsApp Integration (13 files)"]
+        direction TB
+        WA_BSP["Dialog360 BSP<br/>Business provider"]
+        WA_SEND["Send API<br/>Text, media, templates"]
+        WA_WEBHOOK["Webhook Handler<br/>Incoming messages"]
+        WA_MEDIA["Media Download<br/>Voice notes, images"]
+        WA_PROVISION["Provisioning<br/>Number setup"]
+        WA_TEMPLATE["Template Sync<br/>Approved templates"]
+        WA_STATE["State Machine<br/>Delivery tracking"]
+
+        WA_BSP --> WA_SEND
+        WA_BSP --> WA_WEBHOOK
+        WA_WEBHOOK --> WA_MEDIA
+        WA_SEND --> WA_STATE
+    end
+
+    subgraph AI_INT["🤖 Voice AI Integration (8 files)"]
+        direction TB
+        AI_WHISPER["Whisper API<br/>Transcription"]
+        AI_GPT["GPT-4 API<br/>Intent extraction"]
+        AI_ROUTER["Smart Router<br/>Confidence scoring"]
+        AI_DOWNLOAD["Audio Download<br/>From WhatsApp"]
+        AI_EXTRACT["Data Extractor<br/>Customer, job info"]
+
+        AI_DOWNLOAD --> AI_WHISPER
+        AI_WHISPER --> AI_GPT
+        AI_GPT --> AI_EXTRACT
+        AI_EXTRACT --> AI_ROUTER
+    end
+
+    subgraph OTHER_INT["📍 Other Integrations"]
+        direction TB
+        GOOGLE["Google Maps<br/>Geocoding, Distance<br/>Directions, Places"]
+        EXPO["Expo Push<br/>Mobile notifications"]
+        TWILIO["Twilio SMS<br/>OTP delivery"]
+        SUPABASE["Supabase<br/>Storage, Realtime"]
+    end
+
+    %% API Connections
+    API --> AFIP_WSFEV1
+    API --> MP_PREF
+    API --> WA_SEND
+    API --> GOOGLE
+    API --> AI_GPT
+
+    %% Worker Connections
+    WORKERS --> AFIP_WSFEV1
+    WORKERS --> MP_PREF
+    WORKERS --> WA_SEND
+    WORKERS --> AI_WHISPER
+    WORKERS --> EXPO
+
+    %% Webhook Inbound
+    MP_WEBHOOK -->|"payment events"| API
+    WA_WEBHOOK -->|"messages"| API
+    WA_MEDIA -->|"voice"| WORKERS
+
+    %% Data Storage
+    AFIP_QR --> DB
+    AI_EXTRACT --> DB
+    WA_STATE --> DB
+```
+
+---
+
+#### Cron Jobs & Scheduled Tasks
+
+The platform runs **7 scheduled cron jobs** for maintenance and business operations:
+
+```mermaid
+flowchart LR
+    subgraph SCHEDULE["⏰ Cron Schedule"]
+        DAILY["Daily<br/>00:00 UTC"]
+        HOURLY["Hourly<br/>Every hour"]
+        WEEKLY["Weekly<br/>Sunday 02:00"]
+    end
+
+    subgraph JOBS["📋 Cron Jobs"]
+        direction TB
+        J_ARCHIVE["archive-data<br/>Archive old records<br/>30+ day jobs"]
+        J_BUDGET["check-budgets<br/>Usage monitoring<br/>Alert on overages"]
+        J_TRIAL["trial-expiration<br/>Notify expiring trials<br/>7/3/1 day warnings"]
+        J_SUB["subscription<br/>Renewal processing<br/>Payment collection"]
+        J_VERIFY["verification<br/>Document expiry<br/>Renewal reminders"]
+        J_PARTITION["manage-partitions<br/>DB partitioning<br/>Performance optimization"]
+        J_STORAGE["storage-optimization<br/>Cleanup orphaned files<br/>Compress old media"]
+    end
+
+    subgraph ACTIONS["🎯 Actions"]
+        A_EMAIL["Send emails"]
+        A_NOTIFY["Push notifications"]
+        A_ARCHIVE["Archive to cold storage"]
+        A_CLEANUP["Delete expired data"]
+        A_ALERT["Admin alerts"]
+    end
+
+    DAILY --> J_ARCHIVE
+    DAILY --> J_TRIAL
+    DAILY --> J_VERIFY
+    HOURLY --> J_BUDGET
+    HOURLY --> J_SUB
+    WEEKLY --> J_PARTITION
+    WEEKLY --> J_STORAGE
+
+    J_ARCHIVE --> A_ARCHIVE
+    J_BUDGET --> A_ALERT
+    J_TRIAL --> A_EMAIL
+    J_TRIAL --> A_NOTIFY
+    J_SUB --> A_EMAIL
+    J_VERIFY --> A_EMAIL
+    J_VERIFY --> A_NOTIFY
+    J_PARTITION --> A_CLEANUP
+    J_STORAGE --> A_CLEANUP
+```
+
+---
+
+#### Mobile App Architecture
+
+The platform includes **2 mobile applications** built with React Native/Expo:
+
+```mermaid
+flowchart TB
+    subgraph TECH_APP["📱 Technician Mobile App"]
+        direction TB
+        subgraph TABS["Tab Navigation"]
+            TAB_TODAY["Today<br/>Priority jobs"]
+            TAB_JOBS["Jobs<br/>All assignments"]
+            TAB_INV["Inventory<br/>Vehicle stock"]
+            TAB_INVOICES["Invoices<br/>Job invoices"]
+            TAB_ANALYTICS["Analytics<br/>My performance"]
+            TAB_SETTINGS["Settings<br/>Profile, prefs"]
+        end
+
+        subgraph FEATURES["Core Features"]
+            F_OFFLINE["💾 Offline Mode<br/>WatermelonDB"]
+            F_GPS["📍 GPS Tracking<br/>Background location"]
+            F_PHOTOS["📸 Photo Capture<br/>Before/after"]
+            F_SIGNATURE["✍️ Signature<br/>Job completion"]
+            F_SCAN["📷 Barcode Scan<br/>Inventory lookup"]
+            F_PUSH["🔔 Push Notifications<br/>Expo Push"]
+        end
+
+        subgraph SYNC["Data Sync"]
+            S_PULL["Pull Sync<br/>Server → Device"]
+            S_PUSH["Push Sync<br/>Device → Server"]
+            S_CONFLICT["Conflict Resolution<br/>Last-write-wins"]
+        end
+    end
+
+    subgraph CONSUMER_APP["🛒 Consumer Mobile App"]
+        direction TB
+        subgraph C_FEATURES["Features"]
+            CF_DISCOVER["🔍 Discover<br/>Find services"]
+            CF_BOOK["📅 Book<br/>Schedule service"]
+            CF_TRACK["📍 Track<br/>Live updates"]
+            CF_PAY["💳 Pay<br/>MercadoPago"]
+            CF_RATE["⭐ Rate<br/>Leave review"]
+        end
+    end
+
+    subgraph API_MOBILE["📡 Mobile API Endpoints"]
+        M_JOBS["GET /api/mobile/jobs/today"]
+        M_PUSH["POST /api/mobile/push-token"]
+        M_SYNC_PULL["POST /api/sync/pull"]
+        M_SYNC_PUSH["POST /api/sync/push"]
+        M_TRACKING["POST /api/tracking/update"]
+    end
+
+    TECH_APP --> API_MOBILE
+    CONSUMER_APP --> API_MOBILE
+    F_OFFLINE --> SYNC
+    SYNC --> API_MOBILE
+```
+
+---
+
+#### Complete Data Flow Summary
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           CAMPOTECH PLATFORM                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  USERS (6 types)          FRONTENDS (6 apps)         API (237+ endpoints)  │
+│  ├─ Owner                 ├─ Web Dashboard (80p)     ├─ Authentication      │
+│  ├─ Dispatcher            ├─ Tech Mobile App         ├─ Jobs Management     │
+│  ├─ Technician            ├─ Consumer Mobile         ├─ Customers           │
+│  ├─ Accountant            ├─ Customer Portal         ├─ Inventory (18)      │
+│  ├─ Customer              ├─ Marketplace             ├─ WhatsApp (21)       │
+│  └─ Consumer              └─ Public Pages            ├─ Tracking (8)        │
+│                                                      ├─ Analytics (15)      │
+│                                                      └─ Admin (15)          │
+│                                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  MIDDLEWARE               WORKERS (27)               DATABASE (167 models)  │
+│  ├─ JWT Auth              ├─ Realtime (3)            ├─ PostgreSQL          │
+│  ├─ Tier Enforcement      ├─ Background (5)          │   ├─ Organizations   │
+│  ├─ RBAC                  ├─ Batch (4)               │   ├─ Users           │
+│  ├─ Rate Limiting         ├─ Fallback (4)            │   ├─ Jobs            │
+│  └─ Field Filtering       └─ + Cron (7)              │   ├─ Inventory       │
+│                                                      │   ├─ Invoices        │
+│                                                      │   └─ +162 more       │
+│                                                      ├─ Redis               │
+│                                                      │   ├─ Queues          │
+│                                                      │   ├─ Cache           │
+│                                                      │   └─ Sessions        │
+│                                                      └─ Supabase Storage    │
+│                                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  EXTERNAL INTEGRATIONS (8)                                                   │
+│  ├─ AFIP (14 files) ────────── Argentine tax authority, electronic invoicing│
+│  ├─ MercadoPago (11 files) ─── Payments, subscriptions, chargebacks         │
+│  ├─ WhatsApp/Dialog360 (13) ── Business messaging, templates, voice         │
+│  ├─ OpenAI (8 files) ───────── Voice transcription (Whisper), AI (GPT-4)   │
+│  ├─ Google Maps ────────────── Geocoding, distance, directions, places      │
+│  ├─ Expo Push ──────────────── Mobile push notifications                    │
+│  ├─ Twilio ─────────────────── SMS OTP delivery                             │
+│  └─ Supabase ───────────────── Storage, realtime subscriptions              │
+│                                                                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  REAL-TIME FEATURES                                                          │
+│  ├─ WebSocket Events ───────── location_update, job_status, notifications   │
+│  ├─ Adaptive Client ────────── Bandwidth optimization, compression          │
+│  └─ Fallback Mechanisms ────── SSE fallback when WebSocket fails            │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### User Journey Flow Diagram
