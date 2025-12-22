@@ -44,6 +44,9 @@ interface CustomerStats {
 
 type FilterType = 'all' | 'vip' | 'new' | 'frequent';
 type ViewType = 'cards' | 'table';
+type SortType = 'recent' | 'oldest' | 'jobs' | 'revenue' | 'name';
+
+const ITEMS_PER_PAGE = 20;
 
 // Column filter types
 type TrabajosFilter = 'all' | '0' | '1-5' | '6-10' | '10+';
@@ -64,6 +67,16 @@ export default function CustomersPage() {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
+
+  // Pagination state
+  const [displayedCustomers, setDisplayedCustomers] = useState<Customer[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCustomers, setTotalCustomers] = useState(0);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Sorting state - default based on filter
+  const [sortOrder, setSortOrder] = useState<SortType>('recent');
 
   // Column filter states
   const [trabajosFilter, setTrabajosFilter] = useState<TrabajosFilter>('all');
@@ -90,16 +103,88 @@ export default function CustomersPage() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [menuOpen, openColumnFilter]);
 
-  // Fetch customers with computed fields
+  // Get the API sort parameter based on sortOrder
+  const getApiSort = (sort: SortType): string => {
+    switch (sort) {
+      case 'recent':
+      case 'oldest':
+        return 'recent'; // API handles direction, we'll reverse client-side for 'oldest'
+      case 'jobs':
+        return 'jobs';
+      case 'revenue':
+        return 'revenue';
+      case 'name':
+        return 'name';
+      default:
+        return 'recent';
+    }
+  };
+
+  // Fetch customers with computed fields and pagination
   const { data, isLoading } = useQuery({
-    queryKey: ['customers', { search, filter: activeFilter }],
+    queryKey: ['customers', { search, filter: activeFilter, page: currentPage, sort: sortOrder }],
     queryFn: () => {
-      const params: Record<string, string> = {};
+      const params: Record<string, string> = {
+        limit: String(ITEMS_PER_PAGE),
+        page: String(currentPage),
+        sort: getApiSort(sortOrder),
+      };
       if (search) params.search = search;
       if (activeFilter !== 'all') params.filter = activeFilter;
       return api.customers.list(params);
     },
   });
+
+  // Update displayed customers when data changes
+  useEffect(() => {
+    if (data?.data) {
+      const newCustomers = data.data as Customer[];
+      const pagination = (data as { pagination?: { total?: number; totalPages?: number } }).pagination;
+
+      // For 'oldest' sort, reverse the results client-side
+      const sortedCustomers = sortOrder === 'oldest'
+        ? [...newCustomers].reverse()
+        : newCustomers;
+
+      if (currentPage === 1) {
+        // Replace customers for first page
+        setDisplayedCustomers(sortedCustomers);
+      } else {
+        // Append customers for subsequent pages
+        setDisplayedCustomers(prev => [...prev, ...sortedCustomers]);
+      }
+
+      // Update pagination info
+      if (pagination) {
+        setTotalCustomers(pagination.total || 0);
+        setHasMore(currentPage < (pagination.totalPages || 1));
+      }
+      setIsLoadingMore(false);
+    }
+  }, [data, currentPage, sortOrder]);
+
+  // Reset pagination when filters/search/sort change
+  useEffect(() => {
+    setCurrentPage(1);
+    setDisplayedCustomers([]);
+  }, [search, activeFilter, sortOrder]);
+
+  // Update sort order based on filter
+  useEffect(() => {
+    if (activeFilter === 'new') {
+      setSortOrder('recent');
+    } else if (activeFilter === 'frequent') {
+      setSortOrder('jobs');
+    } else if (activeFilter === 'all') {
+      setSortOrder('recent');
+    }
+  }, [activeFilter]);
+
+  // Load more customers
+  const handleLoadMore = async () => {
+    setIsLoadingMore(true);
+    setCurrentPage(prev => prev + 1);
+  };
 
   // Fetch customer stats
   const { data: statsData, isLoading: statsLoading } = useQuery({
@@ -128,7 +213,8 @@ export default function CustomersPage() {
     },
   });
 
-  const customers = data?.data as Customer[] | undefined;
+  // Use displayedCustomers for rendering, which accumulates paginated results
+  const customers = displayedCustomers;
   const stats: CustomerStats = statsData?.data || {
     totalCount: 0,
     newThisMonth: 0,
@@ -334,6 +420,15 @@ export default function CustomersPage() {
                 onCardClick={() => setSelectedCustomerId(customer.id)}
               />
             ))}
+            {/* Load More Card */}
+            {hasMore && (
+              <LoadMoreCard
+                onClick={handleLoadMore}
+                isLoading={isLoadingMore}
+                currentCount={customers.length}
+                totalCount={totalCustomers}
+              />
+            )}
           </div>
         ) : (
           <CustomerTable
@@ -357,6 +452,10 @@ export default function CustomersPage() {
             setUltimoServicioFilter={setUltimoServicioFilter}
             openColumnFilter={openColumnFilter}
             setOpenColumnFilter={setOpenColumnFilter}
+            hasMore={hasMore}
+            onLoadMore={handleLoadMore}
+            isLoadingMore={isLoadingMore}
+            totalCount={totalCustomers}
           />
         )
       ) : (
@@ -704,6 +803,51 @@ function CustomerCardSkeleton() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// LOAD MORE CARD COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface LoadMoreCardProps {
+  onClick: () => void;
+  isLoading: boolean;
+  currentCount: number;
+  totalCount: number;
+}
+
+function LoadMoreCard({ onClick, isLoading, currentCount, totalCount }: LoadMoreCardProps) {
+  const remaining = totalCount - currentCount;
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={isLoading}
+      className="card p-5 hover:shadow-md transition-all cursor-pointer border-2 border-dashed border-gray-200 hover:border-teal-300 flex flex-col items-center justify-center min-h-[200px] group"
+    >
+      {isLoading ? (
+        <>
+          <div className="h-12 w-12 rounded-full border-4 border-teal-200 border-t-teal-500 animate-spin" />
+          <p className="mt-4 text-sm text-gray-500">Cargando más clientes...</p>
+        </>
+      ) : (
+        <>
+          <div className="h-14 w-14 rounded-full bg-teal-50 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
+            <Plus className="h-7 w-7 text-teal-500" />
+          </div>
+          <p className="mt-4 text-base font-medium text-gray-700 group-hover:text-teal-600 transition-colors">
+            Cargar más clientes
+          </p>
+          <p className="mt-1 text-sm text-gray-400">
+            {remaining} cliente{remaining !== 1 ? 's' : ''} restante{remaining !== 1 ? 's' : ''}
+          </p>
+          <p className="mt-2 text-xs text-gray-300">
+            Mostrando {currentCount} de {totalCount}
+          </p>
+        </>
+      )}
+    </button>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // TABLE SKELETON COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -772,6 +916,11 @@ interface CustomerTableProps {
   setUltimoServicioFilter: (value: UltimoServicioFilter) => void;
   openColumnFilter: string | null;
   setOpenColumnFilter: (value: string | null) => void;
+  // Pagination props
+  hasMore: boolean;
+  onLoadMore: () => void;
+  isLoadingMore: boolean;
+  totalCount: number;
 }
 
 function CustomerTable({
@@ -795,6 +944,10 @@ function CustomerTable({
   setUltimoServicioFilter,
   openColumnFilter,
   setOpenColumnFilter,
+  hasMore,
+  onLoadMore,
+  isLoadingMore,
+  totalCount,
 }: CustomerTableProps) {
   // Filter options
   const trabajosOptions: FilterOption[] = [
@@ -1183,11 +1336,32 @@ function CustomerTable({
         </table>
       </div>
 
-      {/* Table Footer with count */}
-      <div className="px-4 py-3 bg-gray-50 border-t text-sm text-gray-500">
-        Mostrando {filteredCustomers.length} cliente{filteredCustomers.length !== 1 ? 's' : ''}
-        {filteredCustomers.length !== customers.length && (
-          <span className="text-gray-400"> de {customers.length}</span>
+      {/* Table Footer with count and Load More */}
+      <div className="px-4 py-3 bg-gray-50 border-t flex items-center justify-between">
+        <span className="text-sm text-gray-500">
+          Mostrando {filteredCustomers.length} cliente{filteredCustomers.length !== 1 ? 's' : ''}
+          {totalCount > 0 && (
+            <span className="text-gray-400"> de {totalCount}</span>
+          )}
+        </span>
+        {hasMore && (
+          <button
+            onClick={onLoadMore}
+            disabled={isLoadingMore}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-teal-600 bg-teal-50 hover:bg-teal-100 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {isLoadingMore ? (
+              <>
+                <div className="h-4 w-4 border-2 border-teal-300 border-t-teal-600 rounded-full animate-spin" />
+                Cargando...
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4" />
+                Cargar más ({totalCount - customers.length} restantes)
+              </>
+            )}
+          </button>
         )}
       </div>
     </div>
