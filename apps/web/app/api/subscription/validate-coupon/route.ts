@@ -46,7 +46,7 @@ function calculateDiscount(
       break;
 
     case 'FREE_MONTHS':
-      freeMonths = coupon.freeMonths;
+      freeMonths = coupon.freeMonths ?? 0;
       if (billingCycle === 'MONTHLY') {
         discountedPrice = 0; // First payment is free
         discountDescription = `${freeMonths} ${freeMonths === 1 ? 'mes' : 'meses'} gratis`;
