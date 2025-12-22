@@ -26,6 +26,7 @@ import {
   LayoutGrid,
   List,
   Check,
+  ChevronDown,
 } from 'lucide-react';
 import { Customer } from '@/types';
 import CustomerProfileModal from './CustomerProfileModal';
@@ -44,6 +45,12 @@ interface CustomerStats {
 type FilterType = 'all' | 'vip' | 'new' | 'frequent';
 type ViewType = 'cards' | 'table';
 
+// Column filter types
+type TrabajosFilter = 'all' | '0' | '1-5' | '6-10' | '10+';
+type FacturadoFilter = 'all' | '0' | '1-1000' | '1001-5000' | '5000+';
+type RatingFilter = 'all' | 'none' | '1-2' | '3-4' | '5';
+type UltimoServicioFilter = 'all' | 'today' | 'week' | 'month' | 'older';
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -57,6 +64,13 @@ export default function CustomersPage() {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
+
+  // Column filter states
+  const [trabajosFilter, setTrabajosFilter] = useState<TrabajosFilter>('all');
+  const [facturadoFilter, setFacturadoFilter] = useState<FacturadoFilter>('all');
+  const [ratingFilter, setRatingFilter] = useState<RatingFilter>('all');
+  const [ultimoServicioFilter, setUltimoServicioFilter] = useState<UltimoServicioFilter>('all');
+  const [openColumnFilter, setOpenColumnFilter] = useState<string | null>(null);
 
   // Fetch customers with computed fields
   const { data, isLoading } = useQuery({
@@ -315,6 +329,16 @@ export default function CustomersPage() {
             menuOpen={menuOpen}
             onMenuToggle={(id) => setMenuOpen(menuOpen === id ? null : id)}
             isNewCustomer={isNewCustomer}
+            trabajosFilter={trabajosFilter}
+            setTrabajosFilter={setTrabajosFilter}
+            facturadoFilter={facturadoFilter}
+            setFacturadoFilter={setFacturadoFilter}
+            ratingFilter={ratingFilter}
+            setRatingFilter={setRatingFilter}
+            ultimoServicioFilter={ultimoServicioFilter}
+            setUltimoServicioFilter={setUltimoServicioFilter}
+            openColumnFilter={openColumnFilter}
+            setOpenColumnFilter={setOpenColumnFilter}
           />
         )
       ) : (
@@ -369,6 +393,89 @@ function StatCard({ title, value, color = 'default', icon, loading }: StatCardPr
             {value}
           </p>
           {icon}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// COLUMN FILTER DROPDOWN COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface FilterOption {
+  value: string;
+  label: string;
+}
+
+interface ColumnFilterDropdownProps {
+  label: string;
+  options: FilterOption[];
+  value: string;
+  onChange: (value: string) => void;
+  isOpen: boolean;
+  onToggle: () => void;
+  align?: 'left' | 'right' | 'center';
+}
+
+function ColumnFilterDropdown({
+  label,
+  options,
+  value,
+  onChange,
+  isOpen,
+  onToggle,
+  align = 'left',
+}: ColumnFilterDropdownProps) {
+  const selectedOption = options.find((opt) => opt.value === value);
+  const isFiltered = value !== 'all';
+
+  return (
+    <div className="relative inline-block">
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        className={cn(
+          'flex items-center gap-1 text-xs font-semibold uppercase tracking-wider transition-colors',
+          isFiltered ? 'text-teal-600' : 'text-gray-500 hover:text-gray-700'
+        )}
+      >
+        <span>{label}</span>
+        <ChevronDown
+          className={cn(
+            'h-3.5 w-3.5 transition-transform',
+            isOpen && 'rotate-180'
+          )}
+        />
+      </button>
+      {isOpen && (
+        <div
+          className={cn(
+            'absolute top-full mt-1 w-40 bg-white border rounded-lg shadow-lg z-30',
+            align === 'right' && 'right-0',
+            align === 'center' && 'left-1/2 -translate-x-1/2',
+            align === 'left' && 'left-0'
+          )}
+        >
+          {options.map((option) => (
+            <button
+              key={option.value}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange(option.value);
+                onToggle();
+              }}
+              className={cn(
+                'w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between',
+                option.value === value && 'bg-teal-50 text-teal-700'
+              )}
+            >
+              <span>{option.label}</span>
+              {option.value === value && <Check className="h-4 w-4" />}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -636,6 +743,17 @@ interface CustomerTableProps {
   menuOpen: string | null;
   onMenuToggle: (id: string) => void;
   isNewCustomer: (createdAt: string) => boolean;
+  // Column filter props
+  trabajosFilter: TrabajosFilter;
+  setTrabajosFilter: (value: TrabajosFilter) => void;
+  facturadoFilter: FacturadoFilter;
+  setFacturadoFilter: (value: FacturadoFilter) => void;
+  ratingFilter: RatingFilter;
+  setRatingFilter: (value: RatingFilter) => void;
+  ultimoServicioFilter: UltimoServicioFilter;
+  setUltimoServicioFilter: (value: UltimoServicioFilter) => void;
+  openColumnFilter: string | null;
+  setOpenColumnFilter: (value: string | null) => void;
 }
 
 function CustomerTable({
@@ -649,7 +767,49 @@ function CustomerTable({
   menuOpen,
   onMenuToggle,
   isNewCustomer,
+  trabajosFilter,
+  setTrabajosFilter,
+  facturadoFilter,
+  setFacturadoFilter,
+  ratingFilter,
+  setRatingFilter,
+  ultimoServicioFilter,
+  setUltimoServicioFilter,
+  openColumnFilter,
+  setOpenColumnFilter,
 }: CustomerTableProps) {
+  // Filter options
+  const trabajosOptions: FilterOption[] = [
+    { value: 'all', label: 'Todos' },
+    { value: '0', label: 'Sin trabajos' },
+    { value: '1-5', label: '1 - 5 trabajos' },
+    { value: '6-10', label: '6 - 10 trabajos' },
+    { value: '10+', label: 'Más de 10' },
+  ];
+
+  const facturadoOptions: FilterOption[] = [
+    { value: 'all', label: 'Todos' },
+    { value: '0', label: 'Sin facturar' },
+    { value: '1-1000', label: '$1 - $1,000' },
+    { value: '1001-5000', label: '$1,001 - $5,000' },
+    { value: '5000+', label: 'Más de $5,000' },
+  ];
+
+  const ratingOptions: FilterOption[] = [
+    { value: 'all', label: 'Todos' },
+    { value: 'none', label: 'Sin rating' },
+    { value: '1-2', label: '1 - 2 estrellas' },
+    { value: '3-4', label: '3 - 4 estrellas' },
+    { value: '5', label: '5 estrellas' },
+  ];
+
+  const ultimoServicioOptions: FilterOption[] = [
+    { value: 'all', label: 'Todos' },
+    { value: 'today', label: 'Hoy' },
+    { value: 'week', label: 'Esta semana' },
+    { value: 'month', label: 'Este mes' },
+    { value: 'older', label: 'Más antiguo' },
+  ];
   // Helper to extract zone/neighborhood from address
   const getZone = (address: Customer['address']) => {
     if (!address) return '-';
@@ -670,6 +830,95 @@ function CustomerTable({
     if (diffDays < 30) return `Hace ${Math.floor(diffDays / 7)} sem`;
     return d.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
   };
+
+  // Filter customers based on column filters
+  const filteredCustomers = customers.filter((customer) => {
+    // Trabajos filter
+    if (trabajosFilter !== 'all') {
+      const jobCount = customer.jobCount || 0;
+      switch (trabajosFilter) {
+        case '0':
+          if (jobCount !== 0) return false;
+          break;
+        case '1-5':
+          if (jobCount < 1 || jobCount > 5) return false;
+          break;
+        case '6-10':
+          if (jobCount < 6 || jobCount > 10) return false;
+          break;
+        case '10+':
+          if (jobCount <= 10) return false;
+          break;
+      }
+    }
+
+    // Facturado filter
+    if (facturadoFilter !== 'all') {
+      const totalSpent = customer.totalSpent || 0;
+      switch (facturadoFilter) {
+        case '0':
+          if (totalSpent !== 0) return false;
+          break;
+        case '1-1000':
+          if (totalSpent < 1 || totalSpent > 1000) return false;
+          break;
+        case '1001-5000':
+          if (totalSpent < 1001 || totalSpent > 5000) return false;
+          break;
+        case '5000+':
+          if (totalSpent <= 5000) return false;
+          break;
+      }
+    }
+
+    // Rating filter
+    if (ratingFilter !== 'all') {
+      const rating = customer.averageRating;
+      switch (ratingFilter) {
+        case 'none':
+          if (rating != null) return false;
+          break;
+        case '1-2':
+          if (rating == null || rating < 1 || rating > 2) return false;
+          break;
+        case '3-4':
+          if (rating == null || rating < 3 || rating > 4) return false;
+          break;
+        case '5':
+          if (rating == null || rating < 4.5) return false;
+          break;
+      }
+    }
+
+    // Último Servicio filter
+    if (ultimoServicioFilter !== 'all') {
+      const lastDate = customer.lastServiceDate;
+      if (!lastDate) {
+        if (ultimoServicioFilter !== 'older') return false;
+      } else {
+        const d = new Date(lastDate);
+        const now = new Date();
+        const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+
+        switch (ultimoServicioFilter) {
+          case 'today':
+            if (diffDays !== 0) return false;
+            break;
+          case 'week':
+            if (diffDays > 7) return false;
+            break;
+          case 'month':
+            if (diffDays > 30) return false;
+            break;
+          case 'older':
+            if (diffDays <= 30) return false;
+            break;
+        }
+      }
+    }
+
+    return true;
+  });
 
   return (
     <div className="card overflow-hidden">
@@ -716,23 +965,57 @@ function CustomerTable({
               <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                 Contacto
               </th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Trabajos
+              <th className="px-4 py-3 text-center">
+                <ColumnFilterDropdown
+                  label="Trabajos"
+                  options={trabajosOptions}
+                  value={trabajosFilter}
+                  onChange={(v) => setTrabajosFilter(v as TrabajosFilter)}
+                  isOpen={openColumnFilter === 'trabajos'}
+                  onToggle={() => setOpenColumnFilter(openColumnFilter === 'trabajos' ? null : 'trabajos')}
+                  align="center"
+                />
               </th>
-              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Facturado
+              <th className="px-4 py-3 text-right">
+                <div className="flex justify-end">
+                  <ColumnFilterDropdown
+                    label="Facturado"
+                    options={facturadoOptions}
+                    value={facturadoFilter}
+                    onChange={(v) => setFacturadoFilter(v as FacturadoFilter)}
+                    isOpen={openColumnFilter === 'facturado'}
+                    onToggle={() => setOpenColumnFilter(openColumnFilter === 'facturado' ? null : 'facturado')}
+                    align="right"
+                  />
+                </div>
               </th>
-              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Rating
+              <th className="px-4 py-3 text-center">
+                <ColumnFilterDropdown
+                  label="Rating"
+                  options={ratingOptions}
+                  value={ratingFilter}
+                  onChange={(v) => setRatingFilter(v as RatingFilter)}
+                  isOpen={openColumnFilter === 'rating'}
+                  onToggle={() => setOpenColumnFilter(openColumnFilter === 'rating' ? null : 'rating')}
+                  align="center"
+                />
               </th>
-              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                Último Servicio
+              <th className="px-4 py-3 text-left">
+                <ColumnFilterDropdown
+                  label="Último Servicio"
+                  options={ultimoServicioOptions}
+                  value={ultimoServicioFilter}
+                  onChange={(v) => setUltimoServicioFilter(v as UltimoServicioFilter)}
+                  isOpen={openColumnFilter === 'ultimoServicio'}
+                  onToggle={() => setOpenColumnFilter(openColumnFilter === 'ultimoServicio' ? null : 'ultimoServicio')}
+                  align="left"
+                />
               </th>
               <th className="px-4 py-3 w-12" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {customers.map((customer) => {
+            {filteredCustomers.map((customer) => {
               const isSelected = selectedCustomers.has(customer.id);
               const isNew = isNewCustomer(customer.createdAt);
 
@@ -884,7 +1167,10 @@ function CustomerTable({
 
       {/* Table Footer with count */}
       <div className="px-4 py-3 bg-gray-50 border-t text-sm text-gray-500">
-        Mostrando {customers.length} cliente{customers.length !== 1 ? 's' : ''}
+        Mostrando {filteredCustomers.length} cliente{filteredCustomers.length !== 1 ? 's' : ''}
+        {filteredCustomers.length !== customers.length && (
+          <span className="text-gray-400"> de {customers.length}</span>
+        )}
       </div>
     </div>
   );
