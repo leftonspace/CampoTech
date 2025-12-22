@@ -10,6 +10,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from './auth-context';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -136,13 +137,15 @@ async function updateAISettings(settings: Partial<AISettings>): Promise<AISettin
 
 export function AIAssistantProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
 
-  // Fetch AI settings
+  // Fetch AI settings - only when authenticated
   const { data: settings, isLoading, refetch } = useQuery({
     queryKey: ['ai-assistant-settings'],
     queryFn: fetchAISettings,
     staleTime: 30000, // Consider data fresh for 30 seconds
     refetchOnWindowFocus: true,
+    enabled: isAuthenticated && !authLoading, // Only fetch when authenticated
   });
 
   // Update mutation
