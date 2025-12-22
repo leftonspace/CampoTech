@@ -103,6 +103,7 @@ export async function getCachedOrgSettings(
           email: true,
           logo: true,
           settings: true,
+          subscriptionTier: true,
         },
       });
 
@@ -121,7 +122,7 @@ export async function getCachedOrgSettings(
         email: org.email,
         logo: org.logo,
         settings,
-        tier: (settings?.subscriptionTier as SubscriptionTier) || 'FREE',
+        tier: org.subscriptionTier || 'FREE',
       };
     },
     CACHE_TTL.ORGANIZATION_SETTINGS
@@ -592,18 +593,13 @@ export async function getCachedUserSession(
             select: {
               id: true,
               name: true,
-              settings: true,
+              subscriptionTier: true,
             },
           },
         },
       });
 
       if (!user || !user.organization) return null;
-
-      const settings =
-        typeof user.organization.settings === 'string'
-          ? JSON.parse(user.organization.settings)
-          : (user.organization.settings as Record<string, unknown>);
 
       return {
         id: user.id,
@@ -613,7 +609,7 @@ export async function getCachedUserSession(
         role: user.role,
         organizationId: user.organizationId,
         organizationName: user.organization.name,
-        tier: (settings?.subscriptionTier as SubscriptionTier) || 'FREE',
+        tier: user.organization.subscriptionTier || 'FREE',
       };
     },
     CACHE_TTL.USER_SESSION
