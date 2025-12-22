@@ -47,7 +47,7 @@ type ViewType = 'cards' | 'table';
 
 // Column filter types
 type TrabajosFilter = 'all' | '0' | '1-5' | '6-10' | '10+';
-type FacturadoFilter = 'all' | '0' | '1-1000' | '1001-5000' | '5000+';
+type FacturadoFilter = 'all' | '0' | '1-100000' | '100001-500000' | '500000+';
 type RatingFilter = 'all' | 'none' | '1-2' | '3-4' | '5';
 type UltimoServicioFilter = 'all' | 'today' | 'week' | 'month' | 'older';
 
@@ -790,9 +790,9 @@ function CustomerTable({
   const facturadoOptions: FilterOption[] = [
     { value: 'all', label: 'Todos' },
     { value: '0', label: 'Sin facturar' },
-    { value: '1-1000', label: '$1 - $1,000' },
-    { value: '1001-5000', label: '$1,001 - $5,000' },
-    { value: '5000+', label: 'Más de $5,000' },
+    { value: '1-100000', label: '$ 1 - $ 100.000' },
+    { value: '100001-500000', label: '$ 100.001 - $ 500.000' },
+    { value: '500000+', label: 'Más de $ 500.000' },
   ];
 
   const ratingOptions: FilterOption[] = [
@@ -859,14 +859,14 @@ function CustomerTable({
         case '0':
           if (totalSpent !== 0) return false;
           break;
-        case '1-1000':
-          if (totalSpent < 1 || totalSpent > 1000) return false;
+        case '1-100000':
+          if (totalSpent < 1 || totalSpent > 100000) return false;
           break;
-        case '1001-5000':
-          if (totalSpent < 1001 || totalSpent > 5000) return false;
+        case '100001-500000':
+          if (totalSpent < 100001 || totalSpent > 500000) return false;
           break;
-        case '5000+':
-          if (totalSpent <= 5000) return false;
+        case '500000+':
+          if (totalSpent <= 500000) return false;
           break;
       }
     }
