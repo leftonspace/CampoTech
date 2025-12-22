@@ -790,9 +790,9 @@ function CustomerTable({
   const facturadoOptions: FilterOption[] = [
     { value: 'all', label: 'Todos' },
     { value: '0', label: 'Sin facturar' },
-    { value: '1-1000', label: '$1 - $1,000' },
-    { value: '1001-5000', label: '$1,001 - $5,000' },
-    { value: '5000+', label: 'Más de $5,000' },
+    { value: '1-1000', label: '$ 1 - $ 1.000' },
+    { value: '1001-5000', label: '$ 1.001 - $ 5.000' },
+    { value: '5000+', label: 'Más de $ 5.000' },
   ];
 
   const ratingOptions: FilterOption[] = [
