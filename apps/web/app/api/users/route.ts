@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Get user IDs for aggregation query
-    const userIds = users.map((u) => u.id);
+    const userIds = users.map((u: typeof users[number]) => u.id);
 
     // Use database aggregation for review stats (much more efficient than fetching all reviews)
     const reviewStats = await prisma.review.groupBy({
