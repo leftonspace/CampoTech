@@ -1188,6 +1188,24 @@ function CustomerTable({
                 </tr>
               );
             })}
+            {filteredCustomers.length === 0 && (
+              <tr>
+                <td colSpan={9} className="px-4 py-12 text-center">
+                  <p className="text-gray-500">No hay clientes que coincidan con los filtros</p>
+                  <button
+                    onClick={() => {
+                      setTrabajosFilter('all');
+                      setFacturadoFilter('all');
+                      setRatingFilter('all');
+                      setUltimoServicioFilter('all');
+                    }}
+                    className="mt-2 text-sm text-teal-600 hover:text-teal-700 font-medium"
+                  >
+                    Limpiar filtros
+                  </button>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
