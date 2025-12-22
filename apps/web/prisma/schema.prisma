@@ -271,12 +271,16 @@ enum VerificationCategory {
   insurance    // Insurance policies
   background   // Background checks
   financial    // Financial documents
+
+  @@map("verification_category")
 }
 
 enum VerificationAppliesTo {
   organization // Applies to the business
   owner        // Applies to the owner
   employee     // Applies to employees
+
+  @@map("verification_applies_to")
 }
 
 enum VerificationSubmissionStatus {
@@ -285,6 +289,8 @@ enum VerificationSubmissionStatus {
   approved     // Approved
   rejected     // Rejected (needs resubmission)
   expired      // Document expired
+
+  @@map("verification_submission_status")
 }
 
 enum ReminderType {
@@ -292,6 +298,8 @@ enum ReminderType {
   expired         // Document has expired
   action_required // Action required from user
   renewal_due     // Time to renew
+
+  @@map("reminder_type")
 }
 
 enum NotificationChannel {
@@ -299,6 +307,8 @@ enum NotificationChannel {
   in_app
   sms
   whatsapp
+
+  @@map("notification_channel")
 }
 
 enum AcknowledgmentType {
@@ -307,16 +317,22 @@ enum AcknowledgmentType {
   employee_responsibility
   data_accuracy
   update_obligation
+
+  @@map("acknowledgment_type")
 }
 
 enum ComplianceBlockType {
   soft_block   // Limited access
   hard_block   // No access
+
+  @@map("compliance_block_type")
 }
 
 enum VerifiedByType {
   auto         // Automatic verification (AFIP, SMS, etc.)
   admin        // Manual admin verification
+
+  @@map("verified_by_type")
 }
 
 // Valid values for specialty: PLOMERO, ELECTRICISTA, GASISTA, CALEFACCIONISTA, REFRIGERACION, ALBANIL, PINTOR, CARPINTERO, TECHISTA, HERRERO, SOLDADOR, OTRO
