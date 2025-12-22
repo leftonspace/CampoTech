@@ -344,10 +344,9 @@ class StorageOptimizer {
     // Get current tier
     const org = await prisma.organization.findUnique({
       where: { id: orgId },
-      select: { settings: true },
+      select: { subscriptionTier: true },
     });
-    const settings = org?.settings as Record<string, unknown> | null;
-    const tier = (settings?.subscriptionTier as SubscriptionTier) || 'FREE';
+    const tier = org?.subscriptionTier || 'FREE';
     const limits = getTierLimits(tier);
 
     // Calculate storage breakdown
