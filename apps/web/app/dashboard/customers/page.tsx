@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -71,6 +71,24 @@ export default function CustomersPage() {
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>('all');
   const [ultimoServicioFilter, setUltimoServicioFilter] = useState<UltimoServicioFilter>('all');
   const [openColumnFilter, setOpenColumnFilter] = useState<string | null>(null);
+
+  // Close menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Close action menu if clicking outside
+      if (menuOpen && !target.closest('.menu-container')) {
+        setMenuOpen(null);
+      }
+      // Close column filter if clicking outside
+      if (openColumnFilter && !target.closest('.column-filter-container')) {
+        setOpenColumnFilter(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [menuOpen, openColumnFilter]);
 
   // Fetch customers with computed fields
   const { data, isLoading } = useQuery({
@@ -431,7 +449,7 @@ function ColumnFilterDropdown({
   const isFiltered = value !== 'all';
 
   return (
-    <div className="relative inline-block">
+    <div className="relative inline-block column-filter-container">
       <button
         onClick={(e) => {
           e.stopPropagation();
