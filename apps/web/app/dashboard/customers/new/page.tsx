@@ -9,11 +9,34 @@ import AddressAutocomplete, { ParsedAddress } from '@/components/ui/AddressAutoc
 
 // Country codes for phone input with format patterns
 const COUNTRY_CODES = [
+  // South America
   { code: '+54', country: 'Argentina', flag: '🇦🇷', placeholder: '11 1234 5678', format: 'XX XXXX XXXX' },
-  { code: '+1', country: 'USA/Canada', flag: '🇺🇸', placeholder: '(555) 123-4567', format: '(XXX) XXX-XXXX' },
-  { code: '+52', country: 'México', flag: '🇲🇽', placeholder: '55 1234 5678', format: 'XX XXXX XXXX' },
   { code: '+55', country: 'Brasil', flag: '🇧🇷', placeholder: '11 91234 5678', format: 'XX XXXXX XXXX' },
   { code: '+56', country: 'Chile', flag: '🇨🇱', placeholder: '9 1234 5678', format: 'X XXXX XXXX' },
+  { code: '+57', country: 'Colombia', flag: '🇨🇴', placeholder: '310 123 4567', format: 'XXX XXX XXXX' },
+  { code: '+51', country: 'Perú', flag: '🇵🇪', placeholder: '912 345 678', format: 'XXX XXX XXX' },
+  { code: '+58', country: 'Venezuela', flag: '🇻🇪', placeholder: '412 123 4567', format: 'XXX XXX XXXX' },
+  { code: '+593', country: 'Ecuador', flag: '🇪🇨', placeholder: '99 123 4567', format: 'XX XXX XXXX' },
+  { code: '+591', country: 'Bolivia', flag: '🇧🇴', placeholder: '7 123 4567', format: 'X XXX XXXX' },
+  { code: '+595', country: 'Paraguay', flag: '🇵🇾', placeholder: '981 123 456', format: 'XXX XXX XXX' },
+  { code: '+598', country: 'Uruguay', flag: '🇺🇾', placeholder: '94 123 456', format: 'XX XXX XXX' },
+  { code: '+592', country: 'Guyana', flag: '🇬🇾', placeholder: '621 1234', format: 'XXX XXXX' },
+  { code: '+597', country: 'Surinam', flag: '🇸🇷', placeholder: '812 3456', format: 'XXX XXXX' },
+  // Central America & Mexico
+  { code: '+52', country: 'México', flag: '🇲🇽', placeholder: '55 1234 5678', format: 'XX XXXX XXXX' },
+  { code: '+502', country: 'Guatemala', flag: '🇬🇹', placeholder: '5123 4567', format: 'XXXX XXXX' },
+  { code: '+503', country: 'El Salvador', flag: '🇸🇻', placeholder: '7012 3456', format: 'XXXX XXXX' },
+  { code: '+504', country: 'Honduras', flag: '🇭🇳', placeholder: '9123 4567', format: 'XXXX XXXX' },
+  { code: '+505', country: 'Nicaragua', flag: '🇳🇮', placeholder: '8123 4567', format: 'XXXX XXXX' },
+  { code: '+506', country: 'Costa Rica', flag: '🇨🇷', placeholder: '8312 3456', format: 'XXXX XXXX' },
+  { code: '+507', country: 'Panamá', flag: '🇵🇦', placeholder: '6123 4567', format: 'XXXX XXXX' },
+  { code: '+501', country: 'Belice', flag: '🇧🇿', placeholder: '622 1234', format: 'XXX XXXX' },
+  // Caribbean
+  { code: '+53', country: 'Cuba', flag: '🇨🇺', placeholder: '5 123 4567', format: 'X XXX XXXX' },
+  { code: '+1809', country: 'Rep. Dominicana', flag: '🇩🇴', placeholder: '809 123 4567', format: 'XXX XXX XXXX' },
+  { code: '+1787', country: 'Puerto Rico', flag: '🇵🇷', placeholder: '787 123 4567', format: 'XXX XXX XXXX' },
+  // North America
+  { code: '+1', country: 'USA/Canadá', flag: '🇺🇸', placeholder: '(555) 123-4567', format: '(XXX) XXX-XXXX' },
 ];
 
 // Format phone number based on country code
@@ -27,6 +50,8 @@ const formatPhoneNumber = (phone: string, countryCode: string): string => {
       return `${digits.slice(0, 2)} ${digits.slice(2, 6)} ${digits.slice(6, 10)}`;
 
     case '+1': // USA/Canada: (XXX) XXX-XXXX
+    case '+1809': // Dominican Republic
+    case '+1787': // Puerto Rico
       if (digits.length <= 3) return digits.length > 0 ? `(${digits}` : '';
       if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
       return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
@@ -42,9 +67,52 @@ const formatPhoneNumber = (phone: string, countryCode: string): string => {
       return `${digits.slice(0, 2)} ${digits.slice(2, 7)} ${digits.slice(7, 11)}`;
 
     case '+56': // Chile: X XXXX XXXX
+    case '+53': // Cuba: X XXX XXXX
       if (digits.length <= 1) return digits;
       if (digits.length <= 5) return `${digits.slice(0, 1)} ${digits.slice(1)}`;
       return `${digits.slice(0, 1)} ${digits.slice(1, 5)} ${digits.slice(5, 9)}`;
+
+    case '+57': // Colombia: XXX XXX XXXX
+    case '+58': // Venezuela: XXX XXX XXXX
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
+
+    case '+51': // Perú: XXX XXX XXX
+    case '+595': // Paraguay: XXX XXX XXX
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 9)}`;
+
+    case '+593': // Ecuador: XX XXX XXXX
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 5) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+      return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 9)}`;
+
+    case '+591': // Bolivia: X XXX XXXX
+      if (digits.length <= 1) return digits;
+      if (digits.length <= 4) return `${digits.slice(0, 1)} ${digits.slice(1)}`;
+      return `${digits.slice(0, 1)} ${digits.slice(1, 4)} ${digits.slice(4, 8)}`;
+
+    case '+598': // Uruguay: XX XXX XXX
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 5) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+      return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 8)}`;
+
+    case '+592': // Guyana: XXX XXXX
+    case '+597': // Surinam: XXX XXXX
+    case '+501': // Belice: XXX XXXX
+      if (digits.length <= 3) return digits;
+      return `${digits.slice(0, 3)} ${digits.slice(3, 7)}`;
+
+    case '+502': // Guatemala: XXXX XXXX
+    case '+503': // El Salvador: XXXX XXXX
+    case '+504': // Honduras: XXXX XXXX
+    case '+505': // Nicaragua: XXXX XXXX
+    case '+506': // Costa Rica: XXXX XXXX
+    case '+507': // Panamá: XXXX XXXX
+      if (digits.length <= 4) return digits;
+      return `${digits.slice(0, 4)} ${digits.slice(4, 8)}`;
 
     default:
       return digits;
