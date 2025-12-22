@@ -8,6 +8,13 @@
 -- - Tier 4: Optional badges and certifications
 
 -- ═══════════════════════════════════════════════════════════════════════════════
+-- ENABLE REQUIRED EXTENSIONS
+-- ═══════════════════════════════════════════════════════════════════════════════
+
+-- Enable pgcrypto for gen_random_bytes() function
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- ═══════════════════════════════════════════════════════════════════════════════
 -- HELPER FUNCTION FOR CUID GENERATION
 -- ═══════════════════════════════════════════════════════════════════════════════
 
