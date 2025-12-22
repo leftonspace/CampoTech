@@ -6,11 +6,12 @@
  *
  * Displays subscription plans with monthly/yearly toggle.
  * Shows pricing, features, and allows plan selection.
+ * Supports coupon code application.
  */
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Check, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
+import { Check, Sparkles, ArrowRight, Loader2, Tag, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -33,11 +34,23 @@ export interface PlanData {
   };
 }
 
+interface AppliedCoupon {
+  couponId: string;
+  code: string;
+  name: string;
+  description: string | null;
+  discountType: string;
+  originalPrice: number;
+  discountedPrice: number;
+  amountSaved: number;
+  discountDescription: string;
+}
+
 export interface PlanSelectorProps {
   plans: PlanData[];
   currentTier?: string;
   currentCycle?: 'MONTHLY' | 'YEARLY';
-  onSelectPlan?: (tier: string, cycle: 'MONTHLY' | 'YEARLY') => void;
+  onSelectPlan?: (tier: string, cycle: 'MONTHLY' | 'YEARLY', couponCode?: string) => void;
   isLoading?: boolean;
   className?: string;
 }
@@ -58,6 +71,13 @@ export function PlanSelector({
   const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'YEARLY'>(currentCycle);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
+  // Coupon state
+  const [couponCode, setCouponCode] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
+  const [couponForTier, setCouponForTier] = useState<string | null>(null);
+
   // Calculate yearly savings
   const yearlySavings = plans.reduce((max, plan) => {
     const monthlyCost = plan.monthly.price * 12;
@@ -75,6 +95,57 @@ export function PlanSelector({
     }).format(amount);
   };
 
+  const handleApplyCoupon = async (tier: string) => {
+    if (!couponCode.trim()) {
+      setCouponError('Ingresá un código de cupón');
+      return;
+    }
+
+    setCouponLoading(true);
+    setCouponError(null);
+
+    try {
+      const token = localStorage.getItem('accessToken');
+      const response = await fetch('/api/subscription/validate-coupon', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : '',
+        },
+        body: JSON.stringify({
+          code: couponCode,
+          tier,
+          billingCycle,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setAppliedCoupon(data.data);
+        setCouponForTier(tier);
+        setCouponError(null);
+      } else {
+        setCouponError(data.error || 'Código inválido');
+        setAppliedCoupon(null);
+        setCouponForTier(null);
+      }
+    } catch (error) {
+      setCouponError('Error al validar el cupón');
+      setAppliedCoupon(null);
+      setCouponForTier(null);
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponForTier(null);
+    setCouponCode('');
+    setCouponError(null);
+  };
+
   const handleSelectPlan = async (tier: string) => {
     if (tier === currentTier && billingCycle === currentCycle) return;
     if (tier === 'FREE') return;
@@ -82,7 +153,7 @@ export function PlanSelector({
     setSelectedPlan(tier);
 
     if (onSelectPlan) {
-      onSelectPlan(tier, billingCycle);
+      onSelectPlan(tier, billingCycle, appliedCoupon?.code);
     } else {
       // Default: redirect to checkout
       try {
@@ -96,6 +167,7 @@ export function PlanSelector({
           body: JSON.stringify({
             tier,
             billingCycle,
+            couponCode: appliedCoupon?.code || undefined,
           }),
         });
 
@@ -150,6 +222,66 @@ export function PlanSelector({
             <Sparkles className="h-4 w-4" />
             Ahorrás {formatCurrency(yearlySavings)} al año
           </div>
+        )}
+      </div>
+
+      {/* Coupon Code Input */}
+      <div className="flex flex-col items-center gap-3">
+        {appliedCoupon ? (
+          <div className="flex items-center gap-3 px-4 py-2 bg-success-50 border border-success-200 rounded-lg">
+            <Tag className="h-4 w-4 text-success-600" />
+            <div className="flex flex-col">
+              <span className="text-sm font-medium text-success-700">
+                Cupón aplicado: {appliedCoupon.code}
+              </span>
+              <span className="text-xs text-success-600">
+                {appliedCoupon.discountDescription}
+              </span>
+            </div>
+            <button
+              onClick={handleRemoveCoupon}
+              className="p-1 text-success-500 hover:text-success-700 hover:bg-success-100 rounded"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <input
+                type="text"
+                value={couponCode}
+                onChange={(e) => {
+                  setCouponCode(e.target.value.toUpperCase());
+                  setCouponError(null);
+                }}
+                placeholder="Código de cupón"
+                className={cn(
+                  'pl-9 pr-3 py-2 text-sm border rounded-lg w-48 focus:ring-2 focus:ring-primary-500 focus:border-primary-500',
+                  couponError ? 'border-red-300' : 'border-gray-300'
+                )}
+              />
+            </div>
+            <button
+              onClick={() => {
+                // Apply to first non-current paid plan
+                const targetPlan = plans.find(p => p.tier !== 'FREE' && p.tier !== currentTier);
+                if (targetPlan) handleApplyCoupon(targetPlan.tier);
+              }}
+              disabled={couponLoading || !couponCode.trim()}
+              className="px-4 py-2 text-sm font-medium text-primary-600 hover:bg-primary-50 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {couponLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                'Aplicar'
+              )}
+            </button>
+          </div>
+        )}
+        {couponError && (
+          <p className="text-xs text-red-500">{couponError}</p>
         )}
       </div>
 
