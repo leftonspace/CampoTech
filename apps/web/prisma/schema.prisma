@@ -3748,30 +3748,30 @@ model VerificationRequirement {
 
   // Classification
   category         VerificationCategory
-  appliesTo        VerificationAppliesTo
+  appliesTo        VerificationAppliesTo               @map("applies_to")
   tier             Int      @default(2)                // 2=Required, 3=Employee, 4=Optional badges
 
   // Requirement Settings
-  isRequired       Boolean  @default(true)
-  requiresDocument Boolean  @default(false)
-  requiresExpiration Boolean @default(false)
-  autoVerifySource String?                             // 'afip', 'sms', 'email', null for manual
+  isRequired       Boolean  @default(true)             @map("is_required")
+  requiresDocument Boolean  @default(false)            @map("requires_document")
+  requiresExpiration Boolean @default(false)           @map("requires_expiration")
+  autoVerifySource String?                             @map("auto_verify_source") // 'afip', 'sms', 'email', null for manual
 
   // Renewal & Reminders
-  renewalPeriodDays Int?                               // null = no renewal needed
-  reminderDaysBefore Int[]  @default([30, 14, 7, 1])
-  gracePeriodDays  Int      @default(7)
+  renewalPeriodDays Int?                               @map("renewal_period_days") // null = no renewal needed
+  reminderDaysBefore Int[]  @default([30, 14, 7, 1])   @map("reminder_days_before")
+  gracePeriodDays  Int      @default(7)                @map("grace_period_days")
 
   // Badge Display (for Tier 4 optional badges)
-  badgeIcon        String?                             // Icon name
-  badgeLabel       String?                             // Display label
+  badgeIcon        String?                             @map("badge_icon") // Icon name
+  badgeLabel       String?                             @map("badge_label") // Display label
 
   // Status
-  isActive         Boolean  @default(true)
-  displayOrder     Int      @default(0)
+  isActive         Boolean  @default(true)             @map("is_active")
+  displayOrder     Int      @default(0)                @map("display_order")
 
   // Timestamps
-  createdAt        DateTime @default(now())
+  createdAt        DateTime @default(now())            @map("created_at")
 
   // Relations
   submissions      VerificationSubmission[]
@@ -3789,44 +3789,44 @@ model VerificationRequirement {
 
 model VerificationSubmission {
   id               String   @id @default(cuid())
-  organizationId   String
+  organizationId   String   @map("organization_id")
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  userId           String?
+  userId           String?  @map("user_id")
   user             User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  requirementId    String
+  requirementId    String   @map("requirement_id")
   requirement      VerificationRequirement @relation(fields: [requirementId], references: [id])
 
   // Submission Status
   status           VerificationSubmissionStatus @default(pending)
 
   // Submitted Data
-  submittedValue   String?                            // For text values like CUIT
-  documentUrl      String?                            // For uploaded documents
-  documentType     String?                            // MIME type or classification
-  documentFilename String?                            // Original filename
+  submittedValue   String?  @map("submitted_value")   // For text values like CUIT
+  documentUrl      String?  @map("document_url")      // For uploaded documents
+  documentType     String?  @map("document_type")     // MIME type or classification
+  documentFilename String?  @map("document_filename") // Original filename
 
   // Verification
-  verifiedAt       DateTime?
-  verifiedBy       VerifiedByType?
-  verifiedByUserId String?                            // Admin user ID if manual
-  rejectionReason  String?
-  rejectionCode    String?                            // For categorized rejections
+  verifiedAt       DateTime? @map("verified_at")
+  verifiedBy       VerifiedByType? @map("verified_by")
+  verifiedByUserId String?  @map("verified_by_user_id") // Admin user ID if manual
+  rejectionReason  String?  @map("rejection_reason")
+  rejectionCode    String?  @map("rejection_code")    // For categorized rejections
 
   // Expiration
-  expiresAt        DateTime? @db.Date
-  expiryNotifiedAt DateTime?
+  expiresAt        DateTime? @db.Date @map("expires_at")
+  expiryNotifiedAt DateTime? @map("expiry_notified_at")
 
   // Auto-verification
-  autoVerifyResponse  Json?
-  autoVerifyCheckedAt DateTime?
+  autoVerifyResponse  Json? @map("auto_verify_response")
+  autoVerifyCheckedAt DateTime? @map("auto_verify_checked_at")
 
   // Notes
   notes            String?
-  adminNotes       String?                            // Internal notes for admins
+  adminNotes       String?  @map("admin_notes")       // Internal notes for admins
 
   // Timestamps
-  submittedAt      DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  submittedAt      DateTime @default(now()) @map("submitted_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
 
   // Relations
   reminders        VerificationReminder[]
@@ -3847,24 +3847,24 @@ model VerificationSubmission {
 
 model VerificationReminder {
   id               String   @id @default(cuid())
-  submissionId     String
+  submissionId     String   @map("submission_id")
   submission       VerificationSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
-  recipientUserId  String
+  recipientUserId  String   @map("recipient_user_id")
   recipientUser    User     @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
 
   // Reminder Details
-  reminderType     ReminderType
-  daysUntilExpiry  Int?
+  reminderType     ReminderType @map("reminder_type")
+  daysUntilExpiry  Int?     @map("days_until_expiry")
   channel          NotificationChannel
 
   // Status
-  sentAt           DateTime @default(now())
-  readAt           DateTime?
-  clickedAt        DateTime?
+  sentAt           DateTime @default(now()) @map("sent_at")
+  readAt           DateTime? @map("read_at")
+  clickedAt        DateTime? @map("clicked_at")
 
   // Tracking
-  messageId        String?                            // External ID (email/SMS ID)
-  errorMessage     String?                            // If sending failed
+  messageId        String?  @map("message_id")        // External ID (email/SMS ID)
+  errorMessage     String?  @map("error_message")     // If sending failed
 
   @@index([submissionId])
   @@index([recipientUserId])
@@ -3879,22 +3879,22 @@ model VerificationReminder {
 
 model ComplianceAcknowledgment {
   id               String   @id @default(cuid())
-  userId           String
+  userId           String   @map("user_id")
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationId   String
+  organizationId   String   @map("organization_id")
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   // Acknowledgment Details
-  acknowledgmentType AcknowledgmentType
+  acknowledgmentType AcknowledgmentType @map("acknowledgment_type")
   version          String                             // Version of the agreement
 
   // Context
-  ipAddress        String?  @db.VarChar(45)
-  userAgent        String?
-  deviceInfo       Json?                              // Additional device info
+  ipAddress        String?  @db.VarChar(45) @map("ip_address")
+  userAgent        String?  @map("user_agent")
+  deviceInfo       Json?    @map("device_info")       // Additional device info
 
   // Timestamp
-  acknowledgedAt   DateTime @default(now())
+  acknowledgedAt   DateTime @default(now()) @map("acknowledged_at")
 
   @@index([userId])
   @@index([organizationId])
@@ -3909,28 +3909,28 @@ model ComplianceAcknowledgment {
 
 model ComplianceBlock {
   id               String   @id @default(cuid())
-  organizationId   String
+  organizationId   String   @map("organization_id")
   organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  userId           String?
+  userId           String?  @map("user_id")
   user             User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Block Details
-  blockType        ComplianceBlockType
+  blockType        ComplianceBlockType @map("block_type")
   reason           String
-  reasonCode       String?                            // Categorized reason code
+  reasonCode       String?  @map("reason_code")       // Categorized reason code
 
   // Related Submission
-  relatedSubmissionId String?
+  relatedSubmissionId String? @map("related_submission_id")
   relatedSubmission   VerificationSubmission? @relation(fields: [relatedSubmissionId], references: [id], onDelete: SetNull)
 
   // Timestamps
-  blockedAt        DateTime @default(now())
-  unblockedAt      DateTime?
-  unblockedBy      String?                            // User ID of admin who unblocked
-  unblockReason    String?
+  blockedAt        DateTime @default(now()) @map("blocked_at")
+  unblockedAt      DateTime? @map("unblocked_at")
+  unblockedBy      String?  @map("unblocked_by")      // User ID of admin who unblocked
+  unblockReason    String?  @map("unblock_reason")
 
   // Tracking
-  createdBy        String?                            // System or admin user ID
+  createdBy        String?  @map("created_by")        // System or admin user ID
   notes            String?
 
   @@index([organizationId])
