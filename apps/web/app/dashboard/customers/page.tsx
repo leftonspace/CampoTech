@@ -72,20 +72,25 @@ export default function CustomersPage() {
   const [ultimoServicioFilter, setUltimoServicioFilter] = useState<UltimoServicioFilter>('all');
   const [openColumnFilter, setOpenColumnFilter] = useState<string | null>(null);
 
-  // Close column filter dropdowns when clicking outside
+  // Close dropdown menus when clicking outside
   useEffect(() => {
-    if (!openColumnFilter) return;
+    if (!openColumnFilter && !menuOpen) return;
 
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('.column-filter-container')) {
+      // Close column filter if clicking outside
+      if (openColumnFilter && !target.closest('.column-filter-container')) {
         setOpenColumnFilter(null);
+      }
+      // Close action menu if clicking outside
+      if (menuOpen && !target.closest('.menu-container')) {
+        setMenuOpen(null);
       }
     };
 
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
-  }, [openColumnFilter]);
+  }, [openColumnFilter, menuOpen]);
 
   // Fetch customers with computed fields
   const { data, isLoading } = useQuery({
@@ -328,7 +333,14 @@ export default function CustomersPage() {
                 menuOpen={menuOpen === customer.id}
                 onMenuToggle={() => setMenuOpen(menuOpen === customer.id ? null : customer.id)}
                 onMenuAction={(action) => handleMenuAction(action, customer)}
-                onCardClick={() => setSelectedCustomerId(customer.id)}
+                onCardClick={() => {
+                  // If any menu is open, close it instead of opening the card
+                  if (menuOpen) {
+                    setMenuOpen(null);
+                    return;
+                  }
+                  setSelectedCustomerId(customer.id);
+                }}
               />
             ))}
           </div>
@@ -367,14 +379,6 @@ export default function CustomersPage() {
             Crear cliente
           </Link>
         </div>
-      )}
-
-      {/* Invisible overlay to close menus without triggering other actions */}
-      {menuOpen && (
-        <div
-          className="fixed inset-0 z-10"
-          onClick={() => setMenuOpen(null)}
-        />
       )}
 
       {/* Customer Profile Modal */}
