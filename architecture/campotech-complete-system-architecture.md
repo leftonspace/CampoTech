@@ -1,1262 +1,1021 @@
 # CampoTech Complete System Architecture
 
-## Overview
-
-This document provides a comprehensive visual map of the entire CampoTech Field Service Management platform, showing all user types, interfaces, APIs, external systems, and data flows.
+> **Version:** 1.0.0
+> **Date:** 2025-12-21
+> **Status:** Production
 
 ---
 
-## 1. High-Level System Overview
+## 1. Overview
+
+CampoTech is an Argentine field service management (FSM) platform designed for SMBs (1-50 employees) in the trades sector (HVAC, plumbing, electrical, etc.). The platform provides end-to-end workflow management from customer intake via WhatsApp to electronic invoicing with AFIP.
+
+### Technology Stack Summary
+
+| Layer | Technology | Purpose |
+|-------|------------|---------|
+| **Frontend Web** | Next.js 15, React 19, Tailwind CSS | Landing page, Business Dashboard, Admin Portal |
+| **Mobile (Business)** | Expo/React Native, WatermelonDB | Offline-first technician app |
+| **Mobile (Consumer)** | Expo/React Native | Consumer marketplace app |
+| **API** | Next.js API Routes, Express.js | REST APIs, Webhooks |
+| **Database** | PostgreSQL, Prisma ORM | Primary data store |
+| **Cache/Queue** | Upstash Redis, BullMQ | Caching, job queues |
+| **Real-time** | Pusher, SSE, Polling | Live updates, GPS tracking |
+| **Storage** | Supabase Storage | Photos, documents, voice messages |
+| **AI** | OpenAI GPT-4, Whisper | Intent extraction, voice transcription |
+| **Payments** | Mercado Pago | Invoices, subscriptions |
+| **Invoicing** | AFIP WSAA/WSFEV1 | Electronic invoicing (Argentina) |
+| **Messaging** | WhatsApp Cloud API / Dialog360 | Customer communication |
+| **Push Notifications** | Expo Notifications, Firebase | Mobile alerts |
+| **Monitoring** | Sentry | Error tracking |
+
+### Scale Targets
+
+- **100,000** active businesses
+- **500,000** platform users
+- **1,000,000** jobs processed monthly
+- **5,000,000** WhatsApp messages monthly
+
+---
+
+## 2. High-Level System Overview
 
 ```mermaid
 flowchart TB
-    subgraph USERS["👥 USER TYPES"]
-        OWNER["🏢 Business Owner<br/>Full platform access"]
-        ADMIN["👔 Admin/Dispatcher<br/>Operations management"]
-        TECH["🔧 Technician<br/>Mobile field worker"]
-        CONSUMER["🏠 Consumer<br/>Marketplace user"]
-        CUSTOMER["📞 Customer<br/>WhatsApp contact"]
+    subgraph Users ["Users"]
+        O["Owner"]
+        D["Dispatcher"]
+        T["Technician"]
+        C["Consumer"]
+        CU["Customer"]
+        A["CampoTech Admin"]
+        DEV["Developer"]
     end
 
-    subgraph INTERFACES["📱 INTERFACES"]
-        WEB["🌐 Web Dashboard<br/>dashboard.campotech.com"]
-        MOBILE["📱 Mobile App<br/>React Native/Expo"]
-        PORTAL["🚪 Customer Portal<br/>Self-service"]
-        MARKET["🛒 Marketplace<br/>Consumer discovery"]
-        WHATSAPP["💬 WhatsApp<br/>Business API"]
+    subgraph Interfaces ["Interfaces"]
+        WEB["apps/web<br/>Next.js 15<br/>Landing + Dashboard"]
+        MOB["apps/mobile<br/>Expo/React Native<br/>Business App"]
+        CMOB["apps/consumer-mobile<br/>Expo/React Native<br/>Marketplace"]
+        ADMIN["apps/admin<br/>Next.js<br/>Internal Admin"]
+        DEVP["apps/developer-portal<br/>Next.js + MDX<br/>API Docs"]
+        TRACK["/track/token<br/>Customer Tracking"]
+        RATE["/rate/token<br/>Rating Page"]
     end
 
-    subgraph CORE["⚙️ CORE PLATFORM"]
-        API["🔌 API Layer<br/>Next.js API Routes"]
-        WS["📡 WebSocket Server<br/>Real-time updates"]
-        QUEUE["⏳ Queue Workers<br/>BullMQ + Redis"]
-        AI["🤖 AI Engine<br/>GPT + Whisper"]
+    subgraph Core ["Core Platform"]
+        API["API Routes<br/>Next.js + Express"]
+        AUTH["Auth<br/>OTP + JWT"]
+        QUEUE["Queue System<br/>BullMQ + Redis"]
+        WS["Real-time<br/>Pusher + SSE"]
+        AI["AI Engine<br/>GPT-4 + Whisper"]
     end
 
-    subgraph DATA["💾 DATA LAYER"]
-        DB[(PostgreSQL<br/>Supabase)]
-        STORAGE["📁 File Storage<br/>Supabase Storage"]
-        CACHE["⚡ Cache<br/>Redis"]
+    subgraph Data ["Data Layer"]
+        DB[(PostgreSQL<br/>Prisma ORM)]
+        REDIS[(Redis/Upstash<br/>Cache + Queue)]
+        STORAGE[(Supabase<br/>Storage)]
     end
 
-    subgraph EXTERNAL["🌍 EXTERNAL SYSTEMS"]
-        AFIP["🏛️ AFIP<br/>Electronic invoicing"]
-        MP["💳 Mercado Pago<br/>Payments"]
-        GOOGLE["🗺️ Google APIs<br/>Maps/Distance"]
-        META["📲 Meta/WhatsApp<br/>Business API"]
-        OPENAI["🧠 OpenAI<br/>GPT-4 + Whisper"]
-        EXPO["📲 Expo<br/>Push notifications"]
+    subgraph External ["External Systems"]
+        AFIP["AFIP<br/>WSAA + WSFEV1"]
+        MP["Mercado Pago<br/>Payments"]
+        WA["WhatsApp<br/>Meta Cloud API"]
+        GOOGLE["Google Maps<br/>Places + Directions"]
+        OPENAI["OpenAI<br/>GPT-4 + Whisper"]
+        EXPO["Expo<br/>Push Notifications"]
     end
 
-    %% User to Interface connections
-    OWNER --> WEB
-    ADMIN --> WEB
-    TECH --> MOBILE
-    CONSUMER --> MARKET
-    CUSTOMER --> WHATSAPP
+    O & D --> WEB
+    T --> MOB
+    O & D --> MOB
+    C --> CMOB
+    CU --> WA
+    CU --> TRACK
+    CU --> RATE
+    A --> ADMIN
+    DEV --> DEVP
 
-    %% Interface to Core
-    WEB --> API
-    WEB --> WS
-    MOBILE --> API
-    MOBILE --> WS
-    PORTAL --> API
-    MARKET --> API
-    WHATSAPP --> API
-
-    %% Core internal
+    WEB & MOB & CMOB & ADMIN --> API
+    API --> AUTH
     API --> QUEUE
+    API --> WS
     API --> AI
-    WS --> CACHE
 
-    %% Core to Data
     API --> DB
+    QUEUE --> REDIS
     API --> STORAGE
-    QUEUE --> DB
-    AI --> DB
 
-    %% Core to External
-    API --> AFIP
-    API --> MP
+    QUEUE --> AFIP
+    QUEUE --> MP
+    QUEUE --> WA
     API --> GOOGLE
-    API --> META
     AI --> OPENAI
     QUEUE --> EXPO
 ```
 
 ---
 
-## 2. Complete User Journey Map
+## 3. Application Architecture
+
+### 3.1 apps/web (Next.js 15)
+
+The main web application serving landing page and business dashboard.
+
+| Route | Purpose | Access |
+|-------|---------|--------|
+| `/` | Landing page, pricing, features | Public |
+| `/login` | OTP-based authentication | Public |
+| `/register` | Business registration | Public |
+| `/dashboard/*` | Business management interface | Authenticated |
+| `/track/[token]` | Customer job tracking portal | Token-based |
+| `/rate/[token]` | Customer rating submission | Token-based |
+
+**Dashboard Modules:**
+- `/dashboard` - Overview with KPIs
+- `/dashboard/jobs` - Job management (CRUD, assignment)
+- `/dashboard/customers` - Customer database
+- `/dashboard/calendar` - Schedule visualization (INICIAL+)
+- `/dashboard/invoices` - Invoice management
+- `/dashboard/payments` - Payment tracking (INICIAL+)
+- `/dashboard/fleet` - Vehicle management (PROFESIONAL+)
+- `/dashboard/inventory` - Stock control (PROFESIONAL+)
+- `/dashboard/dispatch` - Live map + dispatch (PROFESIONAL+)
+- `/dashboard/locations` - Multi-zone management (EMPRESA)
+- `/dashboard/whatsapp` - Conversation management
+- `/dashboard/analytics` - Reports + KPIs (EMPRESA)
+- `/dashboard/team` - User management (INICIAL+)
+- `/dashboard/settings/*` - Configuration
+
+### 3.2 apps/mobile (Expo/React Native)
+
+Business mobile application for field operations.
+
+**Tab Structure:**
+| Tab | Purpose | Roles |
+|-----|---------|-------|
+| `today` | Today's schedule + pending jobs | All |
+| `jobs` | Job list with filters | All |
+| `customers` | Customer lookup | Owner, Dispatcher |
+| `calendar` | Schedule view | Owner, Dispatcher |
+| `inventory` | Stock management | Owner, Dispatcher |
+| `invoices` | Invoice creation | Owner, Dispatcher |
+| `team` | Team management | Owner |
+| `analytics` | Mobile reports | Owner |
+| `profile` | Settings + logout | All |
+
+**Key Features:**
+- Offline-first with WatermelonDB
+- GPS tracking (expo-location)
+- Voice reports (expo-av + Whisper)
+- Photo capture (expo-camera)
+- Customer signatures (react-native-signature-canvas)
+- Push notifications (expo-notifications)
+
+### 3.3 apps/consumer-mobile (Expo/React Native)
+
+Consumer marketplace application.
+
+**Structure:**
+| Route Group | Purpose |
+|-------------|---------|
+| `(auth)` | Login/Register |
+| `(tabs)` | Main navigation |
+| `(booking)` | Service booking flow |
+| `category/[id]` | Service category browse |
+| `provider/[id]` | Business profile |
+| `rate/[id]` | Post-service rating |
+
+**Features:**
+- Service discovery by category/location
+- Business profiles with reviews
+- Quote requests
+- Job tracking
+- Review submission
+
+### 3.4 apps/admin (Next.js)
+
+Internal CampoTech administration portal.
+
+**Dashboard Sections:**
+| Section | Purpose |
+|---------|---------|
+| `/dashboard` | Platform metrics, alerts |
+| `/dashboard/negocios` | Business management |
+| `/dashboard/subscriptions` | Subscription management |
+| `/dashboard/verificaciones` | Business verification queue |
+| `/dashboard/payments` | Failed payments handling |
+| `/dashboard/ai` | AI usage monitoring |
+| `/dashboard/costs` | Cost analysis |
+| `/dashboard/map` | Platform-wide map view |
+
+### 3.5 apps/developer-portal (Next.js + MDX)
+
+Public API documentation and developer resources.
+
+**Sections:**
+| Route | Purpose |
+|-------|---------|
+| `/` | Portal landing |
+| `/docs/*` | MDX documentation |
+| `/reference` | API reference (Swagger UI) |
+| `/console` | API testing console |
+| `/playground` | Interactive examples |
+
+---
+
+## 4. Complete User Journey Map
 
 ```mermaid
-flowchart LR
-    subgraph ONBOARD["🚀 ONBOARDING"]
-        REG["Register Business<br/>(Phone + OTP)"]
-        SETUP["Setup Profile<br/>(CUIT, Services)"]
-        PLAN["Select Plan<br/>(Free→Enterprise)"]
-        INVITE["Invite Team<br/>(Techs, Admins)"]
+flowchart TB
+    subgraph Onboarding ["Onboarding"]
+        REG["1. Register Business"]
+        VER["2. AFIP Verification"]
+        SETUP["3. Initial Setup"]
+        TRIAL["4. Trial Period"]
     end
 
-    subgraph DAILY["📅 DAILY OPERATIONS"]
-        subgraph INBOUND["📥 Inbound"]
-            WA_IN["WhatsApp<br/>Message"]
-            CALL_IN["Phone Call<br/>(Transcribed)"]
-            MKT_REQ["Marketplace<br/>Request"]
-            PORTAL_REQ["Portal<br/>Request"]
+    subgraph Daily ["Daily Operations"]
+        subgraph Inbound ["Inbound"]
+            WA_IN["WhatsApp Message"]
+            CALL["Phone Call"]
+            WALK["Walk-in"]
+            MKTPL["Marketplace Request"]
         end
 
-        subgraph PROCESS["⚙️ Processing"]
-            AI_PROC["AI Analysis<br/>Intent + Entity"]
-            JOB_CREATE["Job Creation"]
-            DISPATCH["Dispatch/<br/>Assignment"]
+        subgraph Process ["Processing"]
+            AGG["Message Aggregation"]
+            AI_EXT["AI Intent Extraction"]
+            MATCH["Customer Matching"]
+            CREATE["Job Creation"]
         end
 
-        subgraph EXECUTE["🔧 Execution"]
-            TRACK["Live Tracking<br/>(En route)"]
-            WORK["Job Execution<br/>(Photos, Notes)"]
-            MATERIALS["Materials<br/>Used"]
+        subgraph Dispatch ["Dispatch"]
+            ASSIGN["Technician Assignment"]
+            NEAR["Nearest Available"]
+            NOTIFY["Notifications"]
+            TRACK["Customer Tracking Link"]
         end
 
-        subgraph CLOSE["✅ Closing"]
-            COMPLETE["Job Complete"]
-            INVOICE["AFIP Invoice<br/>(CAE)"]
-            PAYMENT["Payment<br/>(MP Link)"]
-            REVIEW["Customer<br/>Review"]
+        subgraph Execute ["Execution"]
+            EN_ROUTE["En Route GPS Tracking"]
+            ARRIVE["Arrival Check-in"]
+            WORK["Work Progress Photos Notes"]
+            COMPLETE["Completion Signature"]
+        end
+
+        subgraph Close ["Closing"]
+            INVOICE["Invoice Generation"]
+            AFIP_CAE["AFIP CAE Request"]
+            PAYMENT["Payment Collection"]
+            RATING["Customer Rating"]
         end
     end
 
-    subgraph MANAGE["📊 MANAGEMENT"]
-        CALENDAR["Calendar<br/>Scheduling"]
-        FLEET["Fleet<br/>Vehicles"]
-        INVENTORY["Inventory<br/>Stock"]
-        ANALYTICS["Analytics<br/>Reports"]
+    subgraph Management ["Management"]
+        REPORTS["Reports Analytics"]
+        FLEET["Fleet Management"]
+        INVENTORY["Inventory Control"]
+        BILLING["Subscription Billing"]
     end
 
-    REG --> SETUP --> PLAN --> INVITE
-    INVITE --> DAILY
+    REG --> VER --> SETUP --> TRIAL
+    TRIAL --> Inbound
 
-    WA_IN --> AI_PROC
-    CALL_IN --> AI_PROC
-    MKT_REQ --> JOB_CREATE
-    PORTAL_REQ --> JOB_CREATE
-    AI_PROC --> JOB_CREATE
-    JOB_CREATE --> DISPATCH
-    DISPATCH --> TRACK
-    TRACK --> WORK
-    WORK --> MATERIALS
-    MATERIALS --> COMPLETE
-    COMPLETE --> INVOICE
-    INVOICE --> PAYMENT
-    PAYMENT --> REVIEW
+    WA_IN --> AGG
+    CALL --> CREATE
+    WALK --> CREATE
+    MKTPL --> CREATE
+    AGG --> AI_EXT --> MATCH --> CREATE
 
-    DISPATCH -.-> CALENDAR
-    MATERIALS -.-> INVENTORY
-    TRACK -.-> FLEET
-    REVIEW -.-> ANALYTICS
+    CREATE --> ASSIGN --> NEAR --> NOTIFY --> TRACK
+
+    TRACK --> EN_ROUTE --> ARRIVE --> WORK --> COMPLETE
+
+    COMPLETE --> INVOICE --> AFIP_CAE --> PAYMENT --> RATING
+
+    RATING --> REPORTS
+    COMPLETE --> FLEET
+    WORK --> INVENTORY
+    TRIAL --> BILLING
 ```
 
 ---
 
-## 3. Data Entity Relationships
+## 5. Data Entity Relationships
 
 ```mermaid
 erDiagram
-    %% Core Business Entities
-    ORGANIZATIONS ||--o{ USERS : "employs"
-    ORGANIZATIONS ||--o{ CUSTOMERS : "serves"
-    ORGANIZATIONS ||--o{ JOBS : "creates"
-    ORGANIZATIONS ||--o{ INVOICES : "issues"
-    ORGANIZATIONS ||--o{ VEHICLES : "owns"
-    ORGANIZATIONS ||--o{ INVENTORY_ITEMS : "stocks"
-    ORGANIZATIONS ||--o{ LOCATIONS : "operates_at"
-    ORGANIZATIONS ||--o{ PRICE_BOOK : "offers"
+    Organization ||--o{ User : employs
+    Organization ||--o{ Customer : serves
+    Organization ||--o{ Job : manages
+    Organization ||--o{ Invoice : issues
+    Organization ||--o{ Location : operates
+    Organization ||--o{ Vehicle : owns
+    Organization ||--o{ InventoryItem : tracks
+    Organization ||--o{ WaConversation : has
+    Organization ||--|| OrganizationSubscription : subscribes
+    Organization ||--o| AIConfiguration : configures
+    Organization ||--o| BusinessPublicProfile : publishes
 
-    %% User Relations
-    USERS ||--o{ JOBS : "assigned_to"
-    USERS ||--o{ TECHNICIAN_LOCATIONS : "tracked_at"
-    USERS ||--o{ VEHICLE_ASSIGNMENTS : "drives"
-    USERS ||--o{ ONBOARDING_PROGRESS : "completes"
-    USERS ||--o{ NOTIFICATION_PREFERENCES : "configures"
-    USERS ||--o{ PUSH_TOKENS : "registers"
+    User ||--o{ Job : assigned_to
+    User ||--o{ JobVisit : performs
+    User ||--o{ TrackingSession : tracked_via
+    User ||--o{ VehicleAssignment : drives
 
-    %% Job Relations
-    JOBS ||--o{ JOB_PHOTOS : "has"
-    JOBS ||--o{ JOB_MATERIALS : "uses"
-    JOBS ||--o{ JOB_STATUS_HISTORY : "tracks"
-    JOBS ||--|| INVOICES : "generates"
-    JOBS ||--o{ TRACKING_SESSIONS : "tracked_via"
-    JOBS ||--o{ INVENTORY_TRANSACTIONS : "consumes"
-    CUSTOMERS ||--o{ JOBS : "requests"
+    Customer ||--o{ Job : requests
+    Customer ||--o{ Invoice : billed
+    Customer ||--o{ WaConversation : contacts_via
+    Customer ||--o| Review : leaves
 
-    %% Financial
-    INVOICES ||--o{ PAYMENTS : "receives"
-    INVOICES }o--|| AFIP_SEQUENCES : "numbered_by"
+    Job ||--o{ JobAssignment : assigned_via
+    Job ||--o{ JobVisit : has_visits
+    Job ||--o{ JobPhoto : documented_by
+    Job ||--o{ StockMovement : uses
+    Job ||--o| Invoice : invoiced_as
+    Job ||--o| Review : rated_via
+    Job ||--o{ TrackingSession : tracked
 
-    %% Fleet Management
-    VEHICLES ||--o{ VEHICLE_DOCUMENTS : "has"
-    VEHICLES ||--o{ VEHICLE_ASSIGNMENTS : "assigned_via"
-    VEHICLES ||--o{ INVENTORY_LOCATIONS : "stores_at"
+    Location ||--o{ Zone : divided_into
+    Location ||--o{ Job : services
+    Location ||--o{ Customer : covers
+    Location ||--o| LocationSettings : configured_by
+    Location ||--o| LocationAfipConfig : invoices_via
 
-    %% Inventory
-    INVENTORY_ITEMS ||--o{ INVENTORY_STOCK : "stored_in"
-    INVENTORY_LOCATIONS ||--o{ INVENTORY_STOCK : "holds"
-    INVENTORY_ITEMS ||--o{ INVENTORY_TRANSACTIONS : "moved_via"
+    Invoice ||--o{ Payment : paid_by
+    Invoice ||--o{ InvoiceItem : contains
+    Invoice ||--o{ Chargeback : disputed_via
 
-    %% Tracking
-    TRACKING_SESSIONS ||--o{ TRACKING_LOCATION_HISTORY : "records"
-    TRACKING_SESSIONS ||--o{ TRACKING_TOKENS : "generates"
+    Vehicle ||--o{ VehicleAssignment : assigned_via
+    Vehicle ||--o{ VehicleMaintenance : serviced_via
+    Vehicle ||--o{ VehicleDocument : documented_by
 
-    %% Communications
-    ORGANIZATIONS ||--o{ WHATSAPP_MESSAGES : "receives"
-    ORGANIZATIONS ||--o{ VOICE_MESSAGES : "transcribes"
-    ORGANIZATIONS ||--o{ CONVERSATION_CONTEXTS : "maintains"
+    WaConversation ||--o{ WaMessage : contains
+    WaConversation ||--o| Customer : identified_as
 
-    %% Marketplace
-    CONSUMER_PROFILES ||--o{ CONSUMER_SERVICE_REQUESTS : "creates"
-    CONSUMER_SERVICE_REQUESTS ||--o{ BUSINESS_QUOTES : "receives"
-    ORGANIZATIONS ||--|| BUSINESS_PUBLIC_PROFILES : "publishes"
-    CONSUMER_PROFILES ||--o{ CONSUMER_REVIEWS : "writes"
+    OrganizationSubscription ||--o{ SubscriptionPayment : paid_via
+    OrganizationSubscription ||--o{ SubscriptionEvent : logged
 
-    %% Notifications
-    ORGANIZATIONS ||--o{ NOTIFICATION_TEMPLATES : "defines"
-    ORGANIZATIONS ||--o{ NOTIFICATION_LOGS : "sends"
-    ORGANIZATIONS ||--o{ SCHEDULED_REMINDERS : "queues"
+    Organization {
+        string id PK
+        string name
+        string phone
+        SubscriptionTier subscriptionTier
+        SubscriptionStatus subscriptionStatus
+        OrgVerificationStatus verificationStatus
+        boolean marketplaceVisible
+    }
 
-    %% Multi-location
-    LOCATIONS ||--o{ USER_LOCATION_ASSIGNMENTS : "staffed_by"
-    LOCATIONS ||--o{ LOCATION_SETTINGS : "configured_with"
+    User {
+        string id PK
+        string phone UK
+        string name
+        UserRole role
+        string specialty
+        string skillLevel
+        boolean isActive
+    }
 
-    %% API Access
-    ORGANIZATIONS ||--o{ API_KEYS : "authenticates_with"
-    ORGANIZATIONS ||--o{ WEBHOOK_CONFIGS : "notifies_via"
+    Customer {
+        string id PK
+        string customerNumber
+        string name
+        string phone
+        json address
+        boolean isVip
+    }
 
-    %% Audit
-    ORGANIZATIONS ||--o{ AUDIT_LOGS : "tracked_in"
+    Job {
+        string id PK
+        string jobNumber UK
+        ServiceType serviceType
+        JobStatus status
+        Urgency urgency
+        datetime scheduledDate
+        JobDurationType durationType
+    }
 
-    %% Customer Portal
-    CUSTOMERS ||--o| CUSTOMER_PORTAL_ACCESS : "logs_in_via"
+    Invoice {
+        string id PK
+        string invoiceNumber UK
+        InvoiceType type
+        InvoiceStatus status
+        decimal total
+        string afipCae
+        datetime afipCaeExpiry
+    }
+
+    Location {
+        string id PK
+        string code
+        string name
+        LocationType type
+        json address
+        json coordinates
+    }
 ```
 
 ---
 
-## 4. API & External Systems Integration Map
+## 6. API Routes Summary
+
+### Authentication (`/api/auth/*`)
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/auth/login` | POST | Login with phone/password |
+| `/auth/register` | POST | Business registration |
+| `/auth/otp/request` | POST | Request OTP code |
+| `/auth/otp/verify` | POST | Verify OTP code |
+| `/auth/refresh` | POST | Refresh JWT token |
+| `/auth/logout` | POST | Logout |
+| `/auth/me` | GET | Get current user |
+
+### Core APIs
+| Group | Routes | Purpose |
+|-------|--------|---------|
+| `/api/jobs/*` | 10+ | Job CRUD, assignment, status |
+| `/api/customers/*` | 5+ | Customer management |
+| `/api/invoices/*` | 8+ | Invoice generation, AFIP |
+| `/api/payments/*` | 4+ | Payment tracking |
+| `/api/users/*` | 6+ | User management |
+| `/api/locations/*` | 8+ | Multi-location |
+| `/api/vehicles/*` | 6+ | Fleet management |
+| `/api/inventory/*` | 10+ | Stock control |
+
+### External Integrations
+| Group | Routes | Purpose |
+|-------|--------|---------|
+| `/api/webhooks/mercadopago` | POST | MP payment webhooks |
+| `/api/webhooks/dialog360` | POST | WhatsApp webhooks |
+| `/api/settings/afip` | GET/POST | AFIP configuration |
+| `/api/settings/mercadopago` | GET/POST | MP configuration |
+| `/api/settings/whatsapp` | GET/POST | WhatsApp configuration |
+
+### Analytics & AI
+| Group | Routes | Purpose |
+|-------|--------|---------|
+| `/api/analytics/*` | 12+ | Reports, KPIs, predictions |
+| `/api/ai/*` | 4+ | AI status, usage, escalations |
+| `/api/copilot/*` | 3+ | Staff AI assistant |
+
+### Cron Jobs
+| Route | Schedule | Purpose |
+|-------|----------|---------|
+| `/api/cron/subscription` | Daily | Process renewals |
+| `/api/cron/trial-expiration` | Daily | Check trials |
+| `/api/cron/archive-data` | Weekly | Archive old data |
+| `/api/cron/check-budgets` | Daily | Budget alerts |
+| `/api/cron/storage-optimization` | Daily | Cleanup files |
+
+---
+
+## 7. External Service Details
+
+| Service | Purpose | Endpoints Used |
+|---------|---------|----------------|
+| **AFIP WSAA** | Authentication | `wsaa.afip.gov.ar/ws/services/LoginCms` |
+| **AFIP WSFEV1** | Electronic invoicing | `wsfe.afip.gov.ar/wsfev1/service.asmx` |
+| **Mercado Pago** | Payment processing | Preferences, Payments, Refunds, Subscriptions |
+| **WhatsApp Cloud API** | Messaging | Messages, Media, Templates |
+| **Dialog360** | WhatsApp BSP | Alternative provider for WhatsApp API |
+| **OpenAI GPT-4** | AI processing | Chat completions for intent extraction |
+| **OpenAI Whisper** | Voice transcription | Audio transcriptions |
+| **Google Maps** | Geocoding, routing | Places, Geocoding, Directions, Distance Matrix |
+| **Supabase** | Storage | File uploads (photos, documents, voice) |
+| **Upstash Redis** | Caching, rate limiting | Key-value store, queues |
+| **Expo** | Push notifications | Expo Push API |
+
+---
+
+## 8. User Roles & Permissions
+
+### Role Definitions
+
+| Role | Spanish | Description |
+|------|---------|-------------|
+| `OWNER` | Dueño | Full platform access including billing |
+| `DISPATCHER` | Despachador | Operations management, no billing |
+| `TECHNICIAN` | Técnico | Mobile field worker, assigned jobs only |
+
+### Permissions Matrix
+
+| Module | Owner | Dispatcher | Technician |
+|--------|:-----:|:----------:|:----------:|
+| Dashboard | Full | Full | - |
+| Jobs (all) | Full | Full | - |
+| Jobs (assigned) | Full | Full | View/Update |
+| Customers | Full | Full | - |
+| Calendar | Full | Full | - |
+| Invoices | Full | Full | - |
+| Payments | Full | - | - |
+| Fleet | Full | - | - |
+| Inventory | Full | Full | View only |
+| Dispatch Map | Full | Full | - |
+| Locations | Full | - | - |
+| WhatsApp | Full | Full | - |
+| Analytics | Full | Limited | - |
+| Team | Full | - | - |
+| Settings | Full | - | - |
+| Billing | Full | - | - |
+
+---
+
+## 9. WhatsApp AI Flow
 
 ```mermaid
 flowchart TB
-    subgraph CAMPOTECH["🏠 CAMPOTECH PLATFORM"]
-        subgraph API_ROUTES["API Routes"]
-            AUTH["/api/auth/*<br/>OTP, Login, Session"]
-            JOBS_API["/api/jobs/*<br/>CRUD, Status, Assignment"]
-            TRACK_API["/api/tracking/*<br/>Location, Nearest, Subscribe"]
-            INV_API["/api/invoices/*<br/>Create, CAE, Send"]
-            PAY_API["/api/payments/*<br/>Create, Webhook, Status"]
-            FLEET_API["/api/vehicles/*<br/>CRUD, Documents, Assign"]
-            STOCK_API["/api/inventory/*<br/>Items, Locations, Transactions"]
-            WA_API["/api/whatsapp/*<br/>Webhook, Send, Voice"]
-            MKT_API["/api/marketplace/*<br/>Requests, Quotes, Reviews"]
-            DASH_API["/api/dashboard/*<br/>Metrics, Alerts, Analytics"]
-        end
-
-        subgraph WORKERS["Queue Workers"]
-            W_INVOICE["invoice:generate-cae"]
-            W_NOTIFY["notification:send"]
-            W_FLEET["fleet:check-expiry"]
-            W_STOCK["inventory:check-stock"]
-            W_WA["whatsapp:process-message"]
-            W_VOICE["voice:transcribe"]
-            W_SYNC["sync:process-offline"]
-        end
+    subgraph Reception ["Message Reception"]
+        WH["Webhook /api/webhooks/dialog360"]
+        VAL["Validate Signature + Rate Limit"]
+        PARSE["Parse Message Text Audio Image"]
     end
 
-    subgraph AFIP_SYS["🏛️ AFIP (Argentina Tax)"]
-        AFIP_AUTH["WSAA<br/>Authentication"]
-        AFIP_FE["WSFEV1<br/>Electronic Invoice"]
-        AFIP_PADRON["Padrón<br/>CUIT Validation"]
+    subgraph Aggregation ["Message Aggregation"]
+        BUFFER["Message Buffer Redis"]
+        TRIGGER{"Trigger Detection"}
+        VOICE["Voice Message"]
+        LONG["Long Message"]
+        QUEST["Question"]
+        URGENT["Urgency"]
+        ADDR["Address"]
+        PRICE["Price Inquiry"]
+        TIMEOUT["Timeout 5s"]
     end
 
-    subgraph MP_SYS["💳 MERCADO PAGO"]
-        MP_PREF["Preferences API<br/>Create Payment"]
-        MP_HOOK["Webhooks<br/>Payment Status"]
-        MP_REFUND["Refunds API"]
+    subgraph AIProcessing ["AI Processing"]
+        CONTEXT["Build Context Customer History"]
+        WHISPER["Whisper Transcription"]
+        GPT["GPT-4 Intent Extraction"]
+        EXTRACT["Extract Intent Service Address Schedule Urgency"]
     end
 
-    subgraph GOOGLE_SYS["🗺️ GOOGLE APIS"]
-        G_MAPS["Maps JavaScript<br/>Display Maps"]
-        G_PLACES["Places API<br/>Address Autocomplete"]
-        G_GEO["Geocoding API<br/>Address ↔ Coords"]
-        G_DIR["Directions API<br/>Routes & Polylines"]
-        G_DIST["Distance Matrix<br/>ETAs & Traffic"]
+    subgraph Actions ["Actions"]
+        CREATE_JOB["Create Job"]
+        UPDATE_JOB["Update Job"]
+        LOOKUP["Customer Lookup"]
+        SCHEDULE["Check Availability"]
+        QUOTE["Generate Quote"]
+        ESCALATE["Escalate to Human"]
     end
 
-    subgraph META_SYS["📱 META / WHATSAPP"]
-        WA_CLOUD["Cloud API<br/>Send/Receive"]
-        WA_WEBHOOK["Webhook<br/>Message Events"]
-        WA_MEDIA["Media API<br/>Voice/Image Download"]
+    subgraph Response ["Response"]
+        GEN["Generate Response GPT-4"]
+        TEMPLATE["Select Template"]
+        QUEUE["Queue Message"]
+        SEND["Send via WhatsApp API"]
     end
 
-    subgraph OPENAI_SYS["🧠 OPENAI"]
-        GPT["GPT-4<br/>Intent & Entity"]
-        WHISPER["Whisper<br/>Voice Transcription"]
-    end
+    WH --> VAL --> PARSE
+    PARSE --> BUFFER
+    BUFFER --> TRIGGER
 
-    subgraph NOTIF_SYS["📬 NOTIFICATIONS"]
-        EXPO_PUSH["Expo Push<br/>Mobile Notifications"]
-        EMAIL["Email Provider<br/>(Resend/SendGrid)"]
-    end
+    TRIGGER -->|Voice| VOICE --> WHISPER --> GPT
+    TRIGGER -->|Long| LONG --> GPT
+    TRIGGER -->|Question| QUEST --> GPT
+    TRIGGER -->|Urgent| URGENT --> GPT
+    TRIGGER -->|Address| ADDR --> GPT
+    TRIGGER -->|Price| PRICE --> GPT
+    TRIGGER -->|Timeout| TIMEOUT --> GPT
 
-    subgraph STORAGE_SYS["📁 STORAGE"]
-        SUPA_STORE["Supabase Storage<br/>Files & Images"]
-        SUPA_DB["Supabase PostgreSQL<br/>Database"]
-    end
+    GPT --> CONTEXT --> EXTRACT
 
-    %% API to External connections
-    INV_API --> AFIP_AUTH
-    INV_API --> AFIP_FE
-    AUTH --> AFIP_PADRON
+    EXTRACT --> CREATE_JOB
+    EXTRACT --> UPDATE_JOB
+    EXTRACT --> LOOKUP
+    EXTRACT --> SCHEDULE
+    EXTRACT --> QUOTE
+    EXTRACT -.->|Low Confidence| ESCALATE
 
-    PAY_API --> MP_PREF
-    MP_HOOK --> PAY_API
-    PAY_API --> MP_REFUND
-
-    TRACK_API --> G_MAPS
-    TRACK_API --> G_DIST
-    JOBS_API --> G_PLACES
-    JOBS_API --> G_GEO
-    TRACK_API --> G_DIR
-
-    WA_API --> WA_CLOUD
-    WA_WEBHOOK --> WA_API
-    WA_API --> WA_MEDIA
-
-    W_WA --> GPT
-    W_VOICE --> WHISPER
-
-    W_NOTIFY --> EXPO_PUSH
-    W_NOTIFY --> EMAIL
-
-    FLEET_API --> SUPA_STORE
-    JOBS_API --> SUPA_STORE
-    
-    %% All APIs to DB
-    AUTH --> SUPA_DB
-    JOBS_API --> SUPA_DB
-    TRACK_API --> SUPA_DB
-    INV_API --> SUPA_DB
-    PAY_API --> SUPA_DB
-    FLEET_API --> SUPA_DB
-    STOCK_API --> SUPA_DB
-    WA_API --> SUPA_DB
-    MKT_API --> SUPA_DB
-    DASH_API --> SUPA_DB
+    Actions --> GEN --> TEMPLATE --> QUEUE --> SEND
 ```
 
 ---
 
-## 5. User Interface Access Matrix
+## 10. Job Lifecycle
 
 ```mermaid
 flowchart TB
-    subgraph ROLES["👤 USER ROLES"]
-        R_OWNER["🏢 OWNER<br/>subscription_tier holder"]
-        R_ADMIN["👔 ADMIN<br/>full ops access"]
-        R_DISPATCH["📋 DISPATCHER<br/>scheduling only"]
-        R_TECH["🔧 TECHNICIAN<br/>mobile field work"]
-        R_CONSUMER["🏠 CONSUMER<br/>marketplace user"]
-        R_CUSTOMER["📞 CUSTOMER<br/>existing client"]
+    subgraph Intake ["Intake"]
+        WA_REQ["WhatsApp Request"]
+        PHONE["Phone Call"]
+        MKTPL["Marketplace Request"]
+        MANUAL["Manual Entry"]
     end
 
-    subgraph MODULES["📦 PLATFORM MODULES"]
-        M_DASH["📊 Dashboard<br/>Overview & Alerts"]
-        M_JOBS["📋 Jobs<br/>Create & Manage"]
-        M_CAL["📅 Calendar<br/>Scheduling"]
-        M_MAP["🗺️ Live Map<br/>Tracking"]
-        M_CUST["👥 Customers<br/>CRM"]
-        M_INV["🧾 Invoices<br/>AFIP Billing"]
-        M_PAY["💳 Payments<br/>MP Integration"]
-        M_FLEET["🚗 Fleet<br/>Vehicles & Docs"]
-        M_STOCK["📦 Inventory<br/>Stock Management"]
-        M_TEAM["👥 Team<br/>User Management"]
-        M_SETTINGS["⚙️ Settings<br/>Configuration"]
-        M_ANALYTICS["📈 Analytics<br/>Reports"]
-        M_MOBILE["📱 Mobile App<br/>Field Operations"]
-        M_PORTAL["🚪 Customer Portal<br/>Self-Service"]
-        M_MARKET["🛒 Marketplace<br/>Discovery"]
+    subgraph Triage ["Triage"]
+        PARSE_REQ["Parse Request"]
+        MATCH_CUST["Match Customer"]
+        DET_TYPE["Determine Service Type"]
+        DET_URG["Determine Urgency"]
+        CREATE["Create Job PENDING"]
     end
 
-    %% Owner access (all)
-    R_OWNER --> M_DASH
-    R_OWNER --> M_JOBS
-    R_OWNER --> M_CAL
-    R_OWNER --> M_MAP
-    R_OWNER --> M_CUST
-    R_OWNER --> M_INV
-    R_OWNER --> M_PAY
-    R_OWNER --> M_FLEET
-    R_OWNER --> M_STOCK
-    R_OWNER --> M_TEAM
-    R_OWNER --> M_SETTINGS
-    R_OWNER --> M_ANALYTICS
+    subgraph Dispatch ["Dispatch"]
+        AVAIL["Check Availability"]
+        GPS["Technician Locations"]
+        SKILLS["Match Skills"]
+        LOAD["Current Workload"]
+        RECOMMEND["AI Recommendation"]
+        ASSIGN["Assign ASSIGNED"]
+        NOTIFY_TECH["Notify Technician"]
+        NOTIFY_CUST["Notify Customer"]
+    end
 
-    %% Admin access (ops, no billing settings)
-    R_ADMIN --> M_DASH
-    R_ADMIN --> M_JOBS
-    R_ADMIN --> M_CAL
-    R_ADMIN --> M_MAP
-    R_ADMIN --> M_CUST
-    R_ADMIN --> M_INV
-    R_ADMIN --> M_PAY
-    R_ADMIN --> M_FLEET
-    R_ADMIN --> M_STOCK
-    R_ADMIN --> M_TEAM
-    R_ADMIN --> M_ANALYTICS
+    subgraph Execute ["Execution"]
+        ACCEPT["Tech Accepts"]
+        EN_ROUTE["En Route EN_ROUTE"]
+        TRACK_GPS["GPS Tracking"]
+        TRACK_LINK["Customer Tracking Link"]
+        ARRIVE["Arrival IN_PROGRESS"]
+        WORK["Work + Photos"]
+        MATERIALS["Use Materials"]
+        VOICE_RPT["Voice Report"]
+        COMPLETE["Complete COMPLETED"]
+        SIGNATURE["Customer Signature"]
+    end
 
-    %% Dispatcher access
-    R_DISPATCH --> M_DASH
-    R_DISPATCH --> M_JOBS
-    R_DISPATCH --> M_CAL
-    R_DISPATCH --> M_MAP
-    R_DISPATCH --> M_CUST
+    subgraph Close ["Closing"]
+        GEN_INV["Generate Invoice"]
+        AFIP_CAE["Request AFIP CAE"]
+        SEND_INV["Send Invoice"]
+        COLLECT["Collect Payment"]
+        RATING_REQ["Request Rating"]
+        ARCHIVE["Archive Job"]
+    end
 
-    %% Technician access (mobile only)
-    R_TECH --> M_MOBILE
+    Intake --> PARSE_REQ --> MATCH_CUST --> DET_TYPE --> DET_URG --> CREATE
 
-    %% Consumer access (marketplace)
-    R_CONSUMER --> M_MARKET
+    CREATE --> AVAIL
+    AVAIL --> GPS & SKILLS & LOAD
+    GPS & SKILLS & LOAD --> RECOMMEND --> ASSIGN
+    ASSIGN --> NOTIFY_TECH & NOTIFY_CUST
 
-    %% Customer access (portal)
-    R_CUSTOMER --> M_PORTAL
+    NOTIFY_TECH --> ACCEPT --> EN_ROUTE
+    EN_ROUTE --> TRACK_GPS --> TRACK_LINK
+    EN_ROUTE --> ARRIVE --> WORK
+    WORK --> MATERIALS & VOICE_RPT
+    WORK --> COMPLETE --> SIGNATURE
+
+    SIGNATURE --> GEN_INV --> AFIP_CAE --> SEND_INV --> COLLECT --> RATING_REQ --> ARCHIVE
+```
+
+### Job Status Flow
+
+```
+PENDING -> ASSIGNED -> EN_ROUTE -> IN_PROGRESS -> COMPLETED
+    |          |          |            |
+    v          v          v            v
+CANCELLED  CANCELLED  CANCELLED  CANCELLED
 ```
 
 ---
 
-## 6. WhatsApp AI Flow (Customer Intake)
+## 11. Invoicing & Payment Flow
 
 ```mermaid
 flowchart TB
-    subgraph CUSTOMER["📞 CUSTOMER"]
-        C_MSG["Sends WhatsApp<br/>Message"]
-        C_VOICE["Sends Voice<br/>Note"]
-        C_MULTI["Sends Multiple<br/>Messages"]
+    subgraph Trigger ["Invoice Trigger"]
+        JOB_DONE["Job Completed"]
+        MANUAL["Manual Creation"]
+        RECURRING["Recurring Service"]
     end
 
-    subgraph WEBHOOK["🔗 WEBHOOK RECEIVER"]
-        WH_RECV["POST /api/whatsapp/webhook<br/>Receive message"]
-        WH_VALID["Validate signature<br/>(Meta verification)"]
-        WH_QUEUE["Queue for processing"]
+    subgraph Prepare ["Invoice Preparation"]
+        CALC["Calculate Totals + Materials"]
+        TYPE["Determine Type A B C"]
+        CUSTOMER["Get Customer CUIT CF"]
+        ITEMS["Build Line Items"]
+        DRAFT["Create Draft"]
     end
 
-    subgraph AGGREGATION["⏳ MESSAGE AGGREGATION"]
-        AGG_WAIT["Wait 8 seconds<br/>(collect multi-messages)"]
-        AGG_CHECK["Check for more<br/>incoming messages"]
-        AGG_COMBINE["Combine into<br/>single context"]
+    subgraph AFIP ["AFIP Processing"]
+        QUEUE_AFIP["Queue Job afip-invoice"]
+        WSAA["WSAA Auth Token"]
+        WSFEV1["WSFEV1 CAE Request"]
+        CAE_OK{"CAE Success"}
+        SAVE_CAE["Save CAE + QR Code"]
+        RETRY["Retry 3 attempts"]
+        FALLBACK["Fallback Manual"]
     end
 
-    subgraph AI_PROCESS["🤖 AI PROCESSING"]
-        subgraph VOICE_PROC["Voice Processing"]
-            VOICE_DL["Download audio<br/>from Meta"]
-            VOICE_TRANS["Whisper<br/>Transcription"]
-        end
-
-        subgraph TEXT_PROC["Text Analysis"]
-            GPT_INTENT["GPT: Extract Intent<br/>(new_job, followup, question)"]
-            GPT_ENTITY["GPT: Extract Entities<br/>(service, address, urgency)"]
-            GPT_SENTIMENT["GPT: Sentiment<br/>(frustrated, neutral, happy)"]
-        end
-
-        AI_DECIDE["Decision:<br/>Auto-respond or<br/>Human needed?"]
+    subgraph Delivery ["Invoice Delivery"]
+        PDF["Generate PDF"]
+        STATUS["Update Status SENT"]
+        WA_SEND["Send via WhatsApp"]
+        EMAIL["Send via Email"]
+        PORTAL["Customer Portal"]
     end
 
-    subgraph ACTIONS["⚡ ACTIONS"]
-        ACT_JOB["Create Job<br/>(if new request)"]
-        ACT_UPDATE["Update Existing<br/>(if followup)"]
-        ACT_RESPOND["Auto-respond<br/>(if simple question)"]
-        ACT_HUMAN["Flag for Human<br/>(if complex/frustrated)"]
-        ACT_QUOTE["Send Quote<br/>(from price book)"]
+    subgraph Payment ["Payment"]
+        CASH["Cash Payment"]
+        TRANSFER["Bank Transfer"]
+        MP_LINK["Mercado Pago Link"]
+        MP_WH["MP Webhook"]
+        UPDATE_PAY["Update Payment Status"]
+        PAID["Mark as PAID"]
     end
 
-    subgraph RESPONSE["💬 RESPONSE"]
-        RESP_TEMPLATE["Load WhatsApp<br/>Template"]
-        RESP_SEND["Send via<br/>Cloud API"]
-        RESP_LOG["Log in<br/>conversation_contexts"]
-    end
+    Trigger --> CALC --> TYPE --> CUSTOMER --> ITEMS --> DRAFT
 
-    subgraph CONTEXT["📝 CONTEXT STORAGE"]
-        CTX_LOAD["Load 24h<br/>conversation history"]
-        CTX_UPDATE["Update with<br/>new messages"]
-        CTX_CUSTOMER["Link to<br/>customer record"]
-    end
+    DRAFT --> QUEUE_AFIP --> WSAA --> WSFEV1 --> CAE_OK
+    CAE_OK -->|Yes| SAVE_CAE --> PDF
+    CAE_OK -->|No| RETRY --> WSFEV1
+    RETRY -->|Max Retries| FALLBACK
 
-    C_MSG --> WH_RECV
-    C_VOICE --> WH_RECV
-    C_MULTI --> WH_RECV
+    PDF --> STATUS --> WA_SEND & EMAIL & PORTAL
 
-    WH_RECV --> WH_VALID --> WH_QUEUE
-
-    WH_QUEUE --> AGG_WAIT
-    AGG_WAIT --> AGG_CHECK
-    AGG_CHECK -->|more coming| AGG_WAIT
-    AGG_CHECK -->|done| AGG_COMBINE
-
-    AGG_COMBINE --> CTX_LOAD
-    CTX_LOAD --> VOICE_DL
-    VOICE_DL --> VOICE_TRANS
-    VOICE_TRANS --> GPT_INTENT
-
-    CTX_LOAD --> GPT_INTENT
-    GPT_INTENT --> GPT_ENTITY
-    GPT_ENTITY --> GPT_SENTIMENT
-    GPT_SENTIMENT --> AI_DECIDE
-
-    AI_DECIDE -->|new service request| ACT_JOB
-    AI_DECIDE -->|existing job update| ACT_UPDATE
-    AI_DECIDE -->|simple FAQ| ACT_RESPOND
-    AI_DECIDE -->|needs human| ACT_HUMAN
-    AI_DECIDE -->|price inquiry| ACT_QUOTE
-
-    ACT_JOB --> RESP_TEMPLATE
-    ACT_UPDATE --> RESP_TEMPLATE
-    ACT_RESPOND --> RESP_TEMPLATE
-    ACT_HUMAN --> RESP_TEMPLATE
-    ACT_QUOTE --> RESP_TEMPLATE
-
-    RESP_TEMPLATE --> RESP_SEND
-    RESP_SEND --> RESP_LOG
-    RESP_LOG --> CTX_UPDATE
-    CTX_UPDATE --> CTX_CUSTOMER
+    STATUS --> CASH & TRANSFER & MP_LINK
+    CASH & TRANSFER --> UPDATE_PAY --> PAID
+    MP_LINK --> MP_WH --> UPDATE_PAY
 ```
+
+### Invoice Types (AFIP)
+
+| Type | Customer Type | IVA Treatment |
+|------|---------------|---------------|
+| **Factura A** | Responsable Inscripto | IVA discriminado |
+| **Factura B** | Consumidor Final | IVA incluido |
+| **Factura C** | Monotributista | Sin IVA |
 
 ---
 
-## 7. Job Lifecycle & Dispatch Flow
-
-```mermaid
-flowchart TB
-    subgraph INTAKE["📥 JOB INTAKE"]
-        IN_WA["WhatsApp<br/>AI Created"]
-        IN_PHONE["Phone Call<br/>Transcribed"]
-        IN_MKT["Marketplace<br/>Consumer Request"]
-        IN_PORTAL["Customer Portal<br/>Logged Request"]
-        IN_MANUAL["Manual Entry<br/>Dashboard"]
-    end
-
-    subgraph TRIAGE["🔍 TRIAGE"]
-        TRI_CLASSIFY["Classify<br/>Service Type"]
-        TRI_PRIORITY["Set Priority<br/>(Emergency/Normal)"]
-        TRI_ZONE["Identify<br/>Service Zone"]
-    end
-
-    subgraph DISPATCH["📋 DISPATCH"]
-        DISP_FIND["Find Nearest<br/>Available Tech"]
-        DISP_MATRIX["Google Distance<br/>Matrix API"]
-        DISP_RANK["Rank by:<br/>ETA + Skills + Load"]
-        DISP_ASSIGN["Assign to<br/>Technician"]
-        DISP_CAL["Update<br/>Calendar"]
-    end
-
-    subgraph NOTIFY_ASSIGN["📬 NOTIFICATIONS"]
-        NOT_TECH["Push to Tech<br/>New Job Assigned"]
-        NOT_CUST["WhatsApp to Customer<br/>Tech Assigned + ETA"]
-    end
-
-    subgraph EXECUTION["🔧 EXECUTION"]
-        EX_ACCEPT["Tech Accepts<br/>(or Rejects)"]
-        EX_ENROUTE["Status: EN_ROUTE<br/>Tracking Starts"]
-        EX_ARRIVE["Status: ARRIVED<br/>Customer Notified"]
-        EX_PROGRESS["Status: IN_PROGRESS<br/>Work Begins"]
-        EX_PHOTOS["Upload Photos<br/>Before/During/After"]
-        EX_MATERIALS["Log Materials<br/>Used"]
-        EX_COMPLETE["Status: COMPLETED<br/>Work Done"]
-    end
-
-    subgraph TRACKING["📍 LIVE TRACKING"]
-        TRACK_START["Start Tracking<br/>Session"]
-        TRACK_UPDATE["Location Updates<br/>Every 15s"]
-        TRACK_WS["WebSocket<br/>to Dashboard"]
-        TRACK_LINK["Customer<br/>Tracking Link"]
-        TRACK_ETA["Real-time<br/>ETA Updates"]
-    end
-
-    subgraph CLOSE["✅ CLOSING"]
-        CLOSE_SIG["Customer<br/>Signature"]
-        CLOSE_INV["Generate<br/>AFIP Invoice"]
-        CLOSE_PAY["Send MP<br/>Payment Link"]
-        CLOSE_REVIEW["Request<br/>Review"]
-    end
-
-    %% Intake to Triage
-    IN_WA --> TRI_CLASSIFY
-    IN_PHONE --> TRI_CLASSIFY
-    IN_MKT --> TRI_CLASSIFY
-    IN_PORTAL --> TRI_CLASSIFY
-    IN_MANUAL --> TRI_CLASSIFY
-
-    TRI_CLASSIFY --> TRI_PRIORITY --> TRI_ZONE
-
-    %% Triage to Dispatch
-    TRI_ZONE --> DISP_FIND
-    DISP_FIND --> DISP_MATRIX
-    DISP_MATRIX --> DISP_RANK
-    DISP_RANK --> DISP_ASSIGN
-    DISP_ASSIGN --> DISP_CAL
-
-    %% Dispatch to Notifications
-    DISP_ASSIGN --> NOT_TECH
-    DISP_ASSIGN --> NOT_CUST
-
-    %% Execution flow
-    NOT_TECH --> EX_ACCEPT
-    EX_ACCEPT --> EX_ENROUTE
-    EX_ENROUTE --> EX_ARRIVE
-    EX_ARRIVE --> EX_PROGRESS
-    EX_PROGRESS --> EX_PHOTOS
-    EX_PHOTOS --> EX_MATERIALS
-    EX_MATERIALS --> EX_COMPLETE
-
-    %% Tracking parallel
-    EX_ENROUTE --> TRACK_START
-    TRACK_START --> TRACK_UPDATE
-    TRACK_UPDATE --> TRACK_WS
-    TRACK_UPDATE --> TRACK_LINK
-    TRACK_UPDATE --> TRACK_ETA
-    EX_ARRIVE --> TRACK_START
-
-    %% Closing
-    EX_COMPLETE --> CLOSE_SIG
-    CLOSE_SIG --> CLOSE_INV
-    CLOSE_INV --> CLOSE_PAY
-    CLOSE_PAY --> CLOSE_REVIEW
-```
-
----
-
-## 8. Invoicing & Payment Flow
-
-```mermaid
-flowchart TB
-    subgraph TRIGGER["⚡ INVOICE TRIGGERS"]
-        TRIG_COMPLETE["Job Completed"]
-        TRIG_MANUAL["Manual Creation"]
-        TRIG_QUOTE["Quote Accepted"]
-    end
-
-    subgraph PREPARE["📝 PREPARATION"]
-        PREP_DATA["Gather Data:<br/>Customer, Items, Materials"]
-        PREP_TYPE["Determine Invoice Type:<br/>A, B, C (based on customer)"]
-        PREP_SEQ["Get Next Number<br/>from afip_sequences"]
-        PREP_CALC["Calculate:<br/>Subtotal, IVA, Total"]
-    end
-
-    subgraph AFIP_FLOW["🏛️ AFIP AUTHORIZATION"]
-        AFIP_TOKEN["Get WSAA Token<br/>(24h validity)"]
-        AFIP_REQ["Send to WSFEV1<br/>FECAESolicitar"]
-        AFIP_WAIT["Wait for Response"]
-        AFIP_CAE["Receive CAE<br/>(Authorization Code)"]
-        AFIP_STORE["Store CAE +<br/>Expiry Date"]
-    end
-
-    subgraph ERRORS["❌ ERROR HANDLING"]
-        ERR_RETRY["Retry Logic<br/>(3 attempts)"]
-        ERR_QUEUE["Queue for<br/>Manual Review"]
-        ERR_NOTIFY["Notify Owner<br/>AFIP Error"]
-    end
-
-    subgraph DELIVERY["📤 DELIVERY"]
-        DEL_PDF["Generate PDF<br/>with QR Code"]
-        DEL_STORE["Store in<br/>Supabase Storage"]
-        DEL_WA["Send via<br/>WhatsApp"]
-        DEL_EMAIL["Send via<br/>Email (optional)"]
-        DEL_PORTAL["Available in<br/>Customer Portal"]
-    end
-
-    subgraph PAYMENT["💳 PAYMENT"]
-        PAY_LINK["Generate MP<br/>Payment Link"]
-        PAY_INSTALL["Offer Installments<br/>(3, 6, 12 cuotas)"]
-        PAY_SEND["Send Link<br/>with Invoice"]
-        PAY_WAIT["Wait for<br/>Payment"]
-    end
-
-    subgraph MP_WEBHOOK["🔔 MP WEBHOOK"]
-        MP_RECV["Receive Webhook<br/>payment.updated"]
-        MP_VERIFY["Verify with<br/>MP API"]
-        MP_UPDATE["Update Invoice<br/>Status: PAID"]
-        MP_NOTIFY["Notify Owner<br/>Payment Received"]
-    end
-
-    %% Triggers
-    TRIG_COMPLETE --> PREP_DATA
-    TRIG_MANUAL --> PREP_DATA
-    TRIG_QUOTE --> PREP_DATA
-
-    %% Preparation
-    PREP_DATA --> PREP_TYPE
-    PREP_TYPE --> PREP_SEQ
-    PREP_SEQ --> PREP_CALC
-
-    %% AFIP
-    PREP_CALC --> AFIP_TOKEN
-    AFIP_TOKEN --> AFIP_REQ
-    AFIP_REQ --> AFIP_WAIT
-    AFIP_WAIT -->|success| AFIP_CAE
-    AFIP_WAIT -->|error| ERR_RETRY
-    ERR_RETRY -->|retry| AFIP_REQ
-    ERR_RETRY -->|max attempts| ERR_QUEUE
-    ERR_QUEUE --> ERR_NOTIFY
-    AFIP_CAE --> AFIP_STORE
-
-    %% Delivery
-    AFIP_STORE --> DEL_PDF
-    DEL_PDF --> DEL_STORE
-    DEL_STORE --> DEL_WA
-    DEL_STORE --> DEL_EMAIL
-    DEL_STORE --> DEL_PORTAL
-
-    %% Payment
-    DEL_WA --> PAY_LINK
-    PAY_LINK --> PAY_INSTALL
-    PAY_INSTALL --> PAY_SEND
-    PAY_SEND --> PAY_WAIT
-
-    %% MP Webhook
-    PAY_WAIT --> MP_RECV
-    MP_RECV --> MP_VERIFY
-    MP_VERIFY --> MP_UPDATE
-    MP_UPDATE --> MP_NOTIFY
-```
-
----
-
-## 9. Fleet & Inventory Management
-
-```mermaid
-flowchart TB
-    subgraph FLEET["🚗 FLEET MANAGEMENT"]
-        subgraph VEHICLES["Vehicle Registry"]
-            VEH_ADD["Add Vehicle<br/>(Plate, Make, Model)"]
-            VEH_DOCS["Upload Documents<br/>(Insurance, VTV, Title)"]
-            VEH_ASSIGN["Assign Workers<br/>(Primary + Secondary)"]
-        end
-
-        subgraph COMPLIANCE["Buenos Aires Compliance"]
-            COMP_VTV["VTV Tracking<br/>(Verificación Técnica)"]
-            COMP_INS["Insurance Expiry<br/>Tracking"]
-            COMP_REG["Registration<br/>Tracking"]
-        end
-
-        subgraph ALERTS_FLEET["Fleet Alerts"]
-            ALT_30["⚠️ 30 days<br/>before expiry"]
-            ALT_15["⚠️ 15 days<br/>before expiry"]
-            ALT_7["🔴 7 days<br/>before expiry"]
-            ALT_EXP["🚨 EXPIRED<br/>Critical alert"]
-        end
-    end
-
-    subgraph INVENTORY["📦 INVENTORY MANAGEMENT"]
-        subgraph LOCATIONS["Storage Locations"]
-            LOC_HUB["🏢 Hub/Warehouse<br/>Central Storage"]
-            LOC_VEH["🚐 Vehicle Inventory<br/>Per Technician"]
-        end
-
-        subgraph OPERATIONS["Stock Operations"]
-            OP_PURCHASE["Purchase<br/>New Stock"]
-            OP_TRANSFER["Transfer<br/>Hub ↔ Vehicle"]
-            OP_USE["Usage<br/>Job Materials"]
-            OP_ADJUST["Adjustment<br/>Count Correction"]
-            OP_RETURN["Return<br/>Unused Items"]
-        end
-
-        subgraph ALERTS_INV["Inventory Alerts"]
-            ALT_LOW["⚠️ Low Stock<br/>Below minimum"]
-            ALT_OUT["🔴 Out of Stock<br/>Zero quantity"]
-            ALT_REORDER["📋 Reorder<br/>Suggestion"]
-        end
-    end
-
-    subgraph JOB_MATERIALS["🔧 JOB INTEGRATION"]
-        JOB_START["Job Starts"]
-        JOB_USE["Tech Records<br/>Materials Used"]
-        JOB_DEDUCT["Auto-Deduct<br/>from Vehicle Stock"]
-        JOB_COST["Calculate<br/>Material Cost"]
-        JOB_INVOICE["Add to<br/>Invoice"]
-    end
-
-    subgraph DASHBOARD["📊 DASHBOARD WIDGETS"]
-        DASH_FLEET["Fleet Status<br/>Compliance Overview"]
-        DASH_STOCK["Stock Alerts<br/>Critical Items"]
-        DASH_UNIFIED["Unified Alerts<br/>All Systems"]
-    end
-
-    %% Fleet flow
-    VEH_ADD --> VEH_DOCS
-    VEH_DOCS --> VEH_ASSIGN
-    VEH_DOCS --> COMP_VTV
-    VEH_DOCS --> COMP_INS
-    VEH_DOCS --> COMP_REG
-
-    COMP_VTV --> ALT_30
-    COMP_INS --> ALT_30
-    COMP_REG --> ALT_30
-    ALT_30 --> ALT_15 --> ALT_7 --> ALT_EXP
-
-    %% Inventory flow
-    OP_PURCHASE --> LOC_HUB
-    LOC_HUB --> OP_TRANSFER
-    OP_TRANSFER --> LOC_VEH
-    LOC_VEH --> OP_USE
-    OP_USE --> OP_ADJUST
-    OP_ADJUST --> OP_RETURN
-
-    LOC_HUB --> ALT_LOW
-    LOC_VEH --> ALT_LOW
-    ALT_LOW --> ALT_OUT
-    ALT_OUT --> ALT_REORDER
-
-    %% Job integration
-    JOB_START --> JOB_USE
-    JOB_USE --> JOB_DEDUCT
-    JOB_DEDUCT --> LOC_VEH
-    JOB_DEDUCT --> JOB_COST
-    JOB_COST --> JOB_INVOICE
-
-    %% Dashboard
-    ALT_EXP --> DASH_FLEET
-    ALT_OUT --> DASH_STOCK
-    DASH_FLEET --> DASH_UNIFIED
-    DASH_STOCK --> DASH_UNIFIED
-```
-
----
-
-## 10. Consumer Marketplace Flow
-
-```mermaid
-flowchart TB
-    subgraph CONSUMER["🏠 CONSUMER JOURNEY"]
-        CON_LAND["Land on Marketplace<br/>(SEO/Ads)"]
-        CON_AUTH["Phone Auth<br/>(OTP only)"]
-        CON_PROFILE["Create Profile<br/>(Name, Address)"]
-    end
-
-    subgraph REQUEST["📝 SERVICE REQUEST"]
-        REQ_CAT["Select Category<br/>(Plomería, Gas, etc.)"]
-        REQ_DESC["Describe Problem<br/>(Text + Photos)"]
-        REQ_VOICE["Optional: Voice Note<br/>(Transcribed)"]
-        REQ_URGENCY["Set Urgency<br/>(Emergency → Flexible)"]
-        REQ_BUDGET["Budget Range<br/>(Optional)"]
-        REQ_SUBMIT["Submit Request"]
-    end
-
-    subgraph MATCHING["🎯 MATCHING ENGINE"]
-        MATCH_ZONE["Filter by<br/>Service Zone"]
-        MATCH_CAT["Filter by<br/>Service Category"]
-        MATCH_AVAIL["Filter by<br/>Availability"]
-        MATCH_SCORE["Rank by<br/>Profile Score"]
-        MATCH_SEND["Send to<br/>Top 5 Businesses"]
-    end
-
-    subgraph BUSINESS["🏢 BUSINESS RESPONSE"]
-        BIZ_NOTIF["Receive<br/>Notification"]
-        BIZ_VIEW["View Request<br/>Details"]
-        BIZ_QUOTE["Submit Quote<br/>(Price + Availability)"]
-        BIZ_MSG["Add Message<br/>(Optional)"]
-    end
-
-    subgraph SELECTION["✅ CONSUMER SELECTION"]
-        SEL_VIEW["View Quotes<br/>+ Business Profiles"]
-        SEL_COMPARE["Compare:<br/>Price, Rating, Response Time"]
-        SEL_ACCEPT["Accept Quote"]
-        SEL_JOB["Job Created<br/>in Business System"]
-    end
-
-    subgraph COMPLETION["⭐ COMPLETION"]
-        COMP_DONE["Job Completed"]
-        COMP_PAY["Payment Made"]
-        COMP_REVIEW["Leave Review<br/>(1-5 Stars + Text)"]
-        COMP_UPDATE["Update Business<br/>Public Profile"]
-    end
-
-    subgraph BIZ_PROFILE["📊 BUSINESS PROFILE"]
-        PROF_BASIC["Basic Info<br/>(Name, Logo, Services)"]
-        PROF_VERIFY["Verification Badges<br/>(CUIT, License, Insurance)"]
-        PROF_RATING["Aggregated Rating<br/>(Avg + Count)"]
-        PROF_RESPONSE["Response Metrics<br/>(Time, Rate)"]
-        PROF_SCORE["Profile Score<br/>(0-100)"]
-    end
-
-    %% Consumer journey
-    CON_LAND --> CON_AUTH
-    CON_AUTH --> CON_PROFILE
-    CON_PROFILE --> REQ_CAT
-
-    %% Request flow
-    REQ_CAT --> REQ_DESC
-    REQ_DESC --> REQ_VOICE
-    REQ_VOICE --> REQ_URGENCY
-    REQ_URGENCY --> REQ_BUDGET
-    REQ_BUDGET --> REQ_SUBMIT
-
-    %% Matching
-    REQ_SUBMIT --> MATCH_ZONE
-    MATCH_ZONE --> MATCH_CAT
-    MATCH_CAT --> MATCH_AVAIL
-    MATCH_AVAIL --> MATCH_SCORE
-    MATCH_SCORE --> MATCH_SEND
-
-    %% Business response
-    MATCH_SEND --> BIZ_NOTIF
-    BIZ_NOTIF --> BIZ_VIEW
-    BIZ_VIEW --> BIZ_QUOTE
-    BIZ_QUOTE --> BIZ_MSG
-
-    %% Selection
-    BIZ_MSG --> SEL_VIEW
-    SEL_VIEW --> SEL_COMPARE
-    SEL_COMPARE --> SEL_ACCEPT
-    SEL_ACCEPT --> SEL_JOB
-
-    %% Completion
-    SEL_JOB --> COMP_DONE
-    COMP_DONE --> COMP_PAY
-    COMP_PAY --> COMP_REVIEW
-    COMP_REVIEW --> COMP_UPDATE
-
-    %% Profile
-    COMP_UPDATE --> PROF_RATING
-    PROF_BASIC --> PROF_VERIFY
-    PROF_VERIFY --> PROF_RATING
-    PROF_RATING --> PROF_RESPONSE
-    PROF_RESPONSE --> PROF_SCORE
-    PROF_SCORE --> MATCH_SCORE
-```
-
----
-
-## 11. Real-Time Systems (WebSocket)
+## 12. Real-Time Systems
 
 ```mermaid
 flowchart LR
-    subgraph SOURCES["📡 EVENT SOURCES"]
-        SRC_MOBILE["Mobile App<br/>Location Updates"]
-        SRC_JOB["Job Status<br/>Changes"]
-        SRC_PAY["Payment<br/>Webhooks"]
-        SRC_WA["WhatsApp<br/>Messages"]
-        SRC_ALERT["System<br/>Alerts"]
+    subgraph Sources ["Event Sources"]
+        GPS["GPS Updates Mobile App"]
+        JOB_CHG["Job Status Changes"]
+        MSG_NEW["New Messages WhatsApp"]
+        NOTIF["Notifications"]
+        INV["Invoice Events"]
     end
 
-    subgraph WS_SERVER["🔌 WEBSOCKET SERVER"]
-        WS_AUTH["Authenticate<br/>Connection"]
-        WS_ROOMS["Room Management<br/>(per organization)"]
-        WS_BROADCAST["Broadcast<br/>to Subscribers"]
+    subgraph Server ["Real-time Server"]
+        PUSHER["Pusher Primary"]
+        SSE["SSE Fallback"]
+        POLL["Polling Fallback"]
     end
 
-    subgraph EVENTS["📨 EVENT TYPES"]
-        EV_LOC["technician_location_update<br/>{userId, lat, lng, speed}"]
-        EV_JOB["job_status_changed<br/>{jobId, status, techId}"]
-        EV_PAY["payment_received<br/>{invoiceId, amount}"]
-        EV_MSG["new_whatsapp_message<br/>{from, content}"]
-        EV_ALERT["system_alert<br/>{type, severity, message}"]
+    subgraph Events ["Event Types"]
+        E_LOC["technician_location"]
+        E_STATUS["technician_status"]
+        E_JOB["job_status"]
+        E_ASSIGN["job_assigned"]
+        E_COMPLETE["job_completed"]
+        E_ETA["eta_updated"]
+        E_MSG["message_received"]
     end
 
-    subgraph SUBSCRIBERS["👥 SUBSCRIBERS"]
-        SUB_MAP["Live Map<br/>Dashboard"]
-        SUB_JOBS["Jobs List<br/>Page"]
-        SUB_DASH["Main<br/>Dashboard"]
-        SUB_NOTIF["Notification<br/>Center"]
+    subgraph Channels ["Channels"]
+        CH_ORG["private-org-orgId"]
+        CH_TECH["private-tech-userId"]
+        CH_JOB["private-job-jobId"]
+        CH_TRACK["private-track-token"]
+        CH_USER["private-user-userId"]
     end
 
-    %% Sources to WS
-    SRC_MOBILE --> WS_AUTH
-    SRC_JOB --> WS_AUTH
-    SRC_PAY --> WS_AUTH
-    SRC_WA --> WS_AUTH
-    SRC_ALERT --> WS_AUTH
+    subgraph Subscribers ["Subscribers"]
+        DASH["Dashboard Web"]
+        MAP["Dispatch Map Web"]
+        MOBILE["Mobile App"]
+        TRACK_PAGE["Tracking Page Customer"]
+    end
 
-    %% WS Internal
-    WS_AUTH --> WS_ROOMS
-    WS_ROOMS --> WS_BROADCAST
+    Sources --> PUSHER
+    PUSHER --> Events
+    PUSHER -.->|Fallback| SSE -.->|Fallback| POLL
 
-    %% Events
-    WS_BROADCAST --> EV_LOC
-    WS_BROADCAST --> EV_JOB
-    WS_BROADCAST --> EV_PAY
-    WS_BROADCAST --> EV_MSG
-    WS_BROADCAST --> EV_ALERT
+    Events --> Channels
 
-    %% To subscribers
-    EV_LOC --> SUB_MAP
-    EV_JOB --> SUB_JOBS
-    EV_JOB --> SUB_MAP
-    EV_PAY --> SUB_DASH
-    EV_MSG --> SUB_NOTIF
-    EV_ALERT --> SUB_DASH
-    EV_ALERT --> SUB_NOTIF
+    CH_ORG --> DASH & MAP
+    CH_TECH --> MOBILE
+    CH_JOB --> DASH & TRACK_PAGE
+    CH_TRACK --> TRACK_PAGE
+    CH_USER --> MOBILE & DASH
 ```
+
+### Connection Modes
+
+| Mode | Latency | Use Case |
+|------|---------|----------|
+| **WebSocket (Pusher)** | < 100ms | Primary, real-time updates |
+| **SSE** | < 500ms | Fallback for restricted networks |
+| **Polling** | 5-15s | Last resort, poor connectivity |
 
 ---
 
-## 12. Queue & Background Jobs
+## 13. Queue & Background Jobs
 
 ```mermaid
 flowchart TB
-    subgraph QUEUES["⏳ JOB QUEUES (BullMQ)"]
-        Q_INVOICE["invoice:*<br/>AFIP processing"]
-        Q_NOTIFY["notification:*<br/>Push/Email/SMS"]
-        Q_WA["whatsapp:*<br/>Message processing"]
-        Q_VOICE["voice:*<br/>Transcription"]
-        Q_FLEET["fleet:*<br/>Document checks"]
-        Q_INV["inventory:*<br/>Stock alerts"]
-        Q_SYNC["sync:*<br/>Offline sync"]
-        Q_ANALYTICS["analytics:*<br/>Aggregation"]
+    subgraph Triggers ["Triggers"]
+        API_REQ["API Request"]
+        WH_EVT["Webhook Event"]
+        CRON["Cron Schedule"]
+        USER["User Action"]
     end
 
-    subgraph TRIGGERS["⚡ TRIGGERS"]
-        TRIG_API["API Request"]
-        TRIG_WEBHOOK["External Webhook"]
-        TRIG_CRON["Scheduled Cron"]
-        TRIG_EVENT["Database Event"]
+    subgraph Queues ["Queue Tiers"]
+        subgraph RT ["Realtime 5s SLA"]
+            RT_PUSH["notification.push"]
+            RT_INAPP["notification.inApp"]
+            RT_WH["webhook.send"]
+            RT_SYNC["sync.realtime"]
+            RT_JOB["job.statusNotify"]
+        end
+
+        subgraph BG ["Background 60s SLA"]
+            BG_EMAIL["email.send"]
+            BG_SMS["sms.send"]
+            BG_WA["whatsapp.send"]
+            BG_WA_AI["whatsapp.aiProcess"]
+            BG_VOICE["voice.transcribe"]
+            BG_PDF["pdf.generate"]
+            BG_INV["invoice.generate"]
+            BG_AFIP["invoice.afip"]
+        end
+
+        subgraph BATCH ["Batch hours SLA"]
+            BA_REPORT["report.generate"]
+            BA_ANAL["analytics.aggregate"]
+            BA_EXPORT["data.export"]
+            BA_ARCHIVE["data.archive"]
+            BA_CLEANUP["cleanup.expired"]
+            BA_BILLING["billing.process"]
+        end
     end
 
-    subgraph WORKERS["👷 WORKERS"]
-        W_INV["Invoice Worker<br/>AFIP CAE generation"]
-        W_NOT["Notification Worker<br/>Multi-channel send"]
-        W_WA["WhatsApp Worker<br/>AI + Send"]
-        W_VOI["Voice Worker<br/>Whisper transcription"]
-        W_FLE["Fleet Worker<br/>Expiry checks"]
-        W_STO["Inventory Worker<br/>Low stock alerts"]
-        W_SYN["Sync Worker<br/>Conflict resolution"]
-        W_ANA["Analytics Worker<br/>Daily aggregation"]
+    subgraph Workers ["Workers"]
+        W_NOTIF["notification-dispatch.worker"]
+        W_WA["whatsapp-outbound.worker"]
+        W_AGG["aggregation-processor.worker"]
+        W_VOICE["voice-processing.worker"]
+        W_INV["invoice-pdf.worker"]
+        W_AFIP["afip-invoice.worker"]
+        W_PAY["mp-payment.worker"]
+        W_REMIND["reminder.worker"]
     end
 
-    subgraph SCHEDULES["🕐 CRON SCHEDULES"]
-        CRON_FLEET["fleet:check-expiry<br/>Daily 6:00 AM"]
-        CRON_STOCK["inventory:check-stock<br/>Every 4 hours"]
-        CRON_REMIND["notification:send-reminders<br/>Every 15 min"]
-        CRON_ANALYTICS["analytics:aggregate-daily<br/>Daily 1:00 AM"]
-        CRON_CLEANUP["system:cleanup-expired<br/>Daily 3:00 AM"]
+    subgraph DLQ ["Dead Letter Queue"]
+        DLQ_RT["dlq:realtime"]
+        DLQ_BG["dlq:background"]
+        DLQ_BATCH["dlq:batch"]
+        ALERT["Alert Admin"]
+        RETRY_MAN["Manual Retry"]
     end
 
-    %% Triggers to Queues
-    TRIG_API --> Q_INVOICE
-    TRIG_API --> Q_NOTIFY
-    TRIG_WEBHOOK --> Q_WA
-    TRIG_WEBHOOK --> Q_VOICE
-    TRIG_CRON --> Q_FLEET
-    TRIG_CRON --> Q_INV
-    TRIG_CRON --> Q_ANALYTICS
-    TRIG_EVENT --> Q_SYNC
+    Triggers --> Queues
+    RT --> W_NOTIF
+    BG --> W_WA & W_AGG & W_VOICE & W_INV & W_AFIP & W_PAY
+    BATCH --> Workers
 
-    %% Queues to Workers
-    Q_INVOICE --> W_INV
-    Q_NOTIFY --> W_NOT
-    Q_WA --> W_WA
-    Q_VOICE --> W_VOI
-    Q_FLEET --> W_FLE
-    Q_INV --> W_STO
-    Q_SYNC --> W_SYN
-    Q_ANALYTICS --> W_ANA
-
-    %% Cron scheduling
-    CRON_FLEET --> Q_FLEET
-    CRON_STOCK --> Q_INV
-    CRON_REMIND --> Q_NOTIFY
-    CRON_ANALYTICS --> Q_ANALYTICS
+    Workers -->|Failed 3x| DLQ --> ALERT --> RETRY_MAN
 ```
+
+### Queue Configuration
+
+| Tier | SLA | Concurrency | Max Retries | Retry Delay |
+|------|-----|-------------|-------------|-------------|
+| **Realtime** | < 5s | 10 | 2 | 1s |
+| **Background** | < 60s | 5 | 3 | 5s |
+| **Batch** | < 1hr | 2 | 5 | 30s |
 
 ---
 
-## 13. Capability & Tier Matrix
+## 14. Subscription Tiers
 
 ```mermaid
 flowchart TB
-    subgraph TIERS["💎 SUBSCRIPTION TIERS"]
-        T_FREE["FREE<br/>$0/mo"]
-        T_BASICO["BASICO<br/>~$12/mo"]
-        T_PROF["PROFESIONAL<br/>~$18/mo"]
-        T_EMP["EMPRESARIAL<br/>~$25/mo"]
-        T_ENT["ENTERPRISE<br/>Custom"]
+    subgraph Tiers ["Subscription Tiers"]
+        FREE["FREE $0/mo"]
+        INIC["INICIAL $25/mo"]
+        PROF["PROFESIONAL $55/mo"]
+        EMP["EMPRESA $120/mo"]
     end
 
-    subgraph CAPABILITIES["🔓 CAPABILITIES"]
-        subgraph CORE["Core (All Tiers)"]
-            C_JOBS["Jobs & Customers"]
-            C_BASIC_INV["Basic Invoicing"]
-            C_WA_BASIC["WhatsApp (receive)"]
-        end
-
-        subgraph BASICO_UP["BASICO+"]
-            C_CAL["Calendar View"]
-            C_AFIP["AFIP Integration"]
-            C_MP["Mercado Pago"]
-            C_WA_FULL["WhatsApp (AI)"]
-        end
-
-        subgraph PROF_UP["PROFESIONAL+"]
-            C_MAP["Live Tracking Map"]
-            C_NEAREST["Nearest Technician"]
-            C_FLEET["Fleet Management"]
-            C_STOCK["Inventory Management"]
-            C_VOICE["Voice Transcription"]
-            C_MULTI_USER["Multi-User (5)"]
-        end
-
-        subgraph EMP_UP["EMPRESARIAL+"]
-            C_MULTI_LOC["Multi-Location"]
-            C_ADV_ANALYTICS["Advanced Analytics"]
-            C_API["Public API Access"]
-            C_WEBHOOKS["Webhooks"]
-            C_MULTI_USER_20["Multi-User (20)"]
-        end
-
-        subgraph ENT_UP["ENTERPRISE"]
-            C_WHITE["White Label"]
-            C_SLA["SLA Guarantee"]
-            C_DEDICATED["Dedicated Support"]
-            C_CUSTOM["Custom Integrations"]
-            C_UNLIMITED["Unlimited Users"]
-        end
+    subgraph Core ["Core Features"]
+        F_JOBS["Jobs"]
+        F_CUST["Customers"]
+        F_INV["Invoices"]
+        F_WA_RCV["WA Receive"]
     end
 
-    %% Tier access
-    T_FREE --> C_JOBS
-    T_FREE --> C_BASIC_INV
-    T_FREE --> C_WA_BASIC
+    subgraph Inicial ["INICIAL+"]
+        F_AFIP["AFIP Integration"]
+        F_MP["Mercado Pago"]
+        F_CAL["Calendar"]
+        F_WA_SEND["WA Send"]
+        F_MULTI["Multi-user"]
+    end
 
-    T_BASICO --> CORE
-    T_BASICO --> C_CAL
-    T_BASICO --> C_AFIP
-    T_BASICO --> C_MP
-    T_BASICO --> C_WA_FULL
+    subgraph Prof ["PROFESIONAL+"]
+        F_WA_AI["WhatsApp AI"]
+        F_VOICE["Voice Transcription"]
+        F_TRACK["Live Tracking"]
+        F_NEAR["Nearest Tech"]
+        F_FLEET["Fleet"]
+        F_STOCK["Inventory"]
+    end
 
-    T_PROF --> CORE
-    T_PROF --> BASICO_UP
-    T_PROF --> C_MAP
-    T_PROF --> C_NEAREST
-    T_PROF --> C_FLEET
-    T_PROF --> C_STOCK
-    T_PROF --> C_VOICE
-    T_PROF --> C_MULTI_USER
+    subgraph Emp ["EMPRESA"]
+        F_MULTI_LOC["Multi-location"]
+        F_ANALYTICS["Advanced Analytics"]
+        F_PORTAL["Customer Portal"]
+        F_API["Public API"]
+        F_WEBHOOKS["Webhooks"]
+    end
 
-    T_EMP --> CORE
-    T_EMP --> BASICO_UP
-    T_EMP --> PROF_UP
-    T_EMP --> C_MULTI_LOC
-    T_EMP --> C_ADV_ANALYTICS
-    T_EMP --> C_API
-    T_EMP --> C_WEBHOOKS
-    T_EMP --> C_MULTI_USER_20
-
-    T_ENT --> CORE
-    T_ENT --> BASICO_UP
-    T_ENT --> PROF_UP
-    T_ENT --> EMP_UP
-    T_ENT --> C_WHITE
-    T_ENT --> C_SLA
-    T_ENT --> C_DEDICATED
-    T_ENT --> C_CUSTOM
-    T_ENT --> C_UNLIMITED
+    FREE --> Core
+    INIC --> Core & Inicial
+    PROF --> Core & Inicial & Prof
+    EMP --> Core & Inicial & Prof & Emp
 ```
 
----
+### Resource Limits by Tier
 
-## 14. Security & Authentication Flow
-
-```mermaid
-flowchart TB
-    subgraph AUTH_METHODS["🔐 AUTHENTICATION METHODS"]
-        AUTH_OTP["Phone + OTP<br/>(Primary)"]
-        AUTH_SESSION["JWT Session<br/>(Web/Mobile)"]
-        AUTH_API["API Key<br/>(External)"]
-        AUTH_WH["Webhook Signature<br/>(Meta, MP)"]
-    end
-
-    subgraph FLOWS["🔄 AUTH FLOWS"]
-        subgraph OWNER_AUTH["Business Owner"]
-            O1["Enter Phone"]
-            O2["Receive OTP<br/>(WhatsApp/SMS)"]
-            O3["Verify OTP"]
-            O4["Create/Load Org"]
-            O5["Issue JWT"]
-        end
-
-        subgraph TECH_AUTH["Technician"]
-            T1["Receive Invite<br/>(Link + Token)"]
-            T2["Verify Phone"]
-            T3["Complete Onboarding"]
-            T4["Issue JWT"]
-        end
-
-        subgraph CONSUMER_AUTH["Consumer"]
-            C1["Enter Phone"]
-            C2["Receive OTP"]
-            C3["Create Profile"]
-            C4["Issue JWT"]
-        end
-
-        subgraph API_AUTH["API Client"]
-            A1["Send API Key<br/>(Header)"]
-            A2["Hash & Lookup"]
-            A3["Check Permissions"]
-            A4["Rate Limit"]
-        end
-    end
-
-    subgraph MIDDLEWARE["🛡️ MIDDLEWARE"]
-        MW_VERIFY["Verify JWT"]
-        MW_ORG["Load Organization"]
-        MW_ROLE["Check Role"]
-        MW_CAP["Check Capability"]
-        MW_RATE["Rate Limit"]
-    end
-
-    subgraph RLS["🔒 ROW LEVEL SECURITY"]
-        RLS_ORG["Filter by<br/>organization_id"]
-        RLS_USER["Filter by<br/>user_id"]
-        RLS_ROLE["Filter by<br/>user role"]
-    end
-
-    %% Owner flow
-    O1 --> O2 --> O3 --> O4 --> O5
-
-    %% Tech flow
-    T1 --> T2 --> T3 --> T4
-
-    %% Consumer flow
-    C1 --> C2 --> C3 --> C4
-
-    %% API flow
-    A1 --> A2 --> A3 --> A4
-
-    %% Middleware chain
-    O5 --> MW_VERIFY
-    T4 --> MW_VERIFY
-    C4 --> MW_VERIFY
-    A4 --> MW_ORG
-
-    MW_VERIFY --> MW_ORG
-    MW_ORG --> MW_ROLE
-    MW_ROLE --> MW_CAP
-    MW_CAP --> MW_RATE
-
-    %% RLS
-    MW_RATE --> RLS_ORG
-    RLS_ORG --> RLS_USER
-    RLS_USER --> RLS_ROLE
-```
+| Resource | FREE | INICIAL | PROFESIONAL | EMPRESA |
+|----------|------|---------|-------------|---------|
+| Users | 1 | 1 | 5 | Unlimited |
+| Jobs/month | 30 | 50 | 200 | Unlimited |
+| Customers | 50 | 100 | 500 | Unlimited |
+| Invoices/month | 15 | 50 | 200 | Unlimited |
+| Vehicles | 0 | 1 | 5 | Unlimited |
+| Products | 0 | 50 | 200 | Unlimited |
+| Storage | 50MB | 100MB | 500MB | 5GB |
+| Photos/job | 3 | 5 | 10 | 50 |
+| WA AI/month | 0 | 0 | 100 | Unlimited |
+| API calls/day | 0 | 0 | 0 | 10,000 |
 
 ---
 
-## Summary: Complete System Web
+## 15. Security & Authentication
 
-| Layer | Components | Count |
-|-------|------------|-------|
-| **User Types** | Owner, Admin, Dispatcher, Technician, Consumer, Customer | 6 |
-| **Interfaces** | Web Dashboard, Mobile App, Customer Portal, Marketplace, WhatsApp | 5 |
-| **API Routes** | Auth, Jobs, Tracking, Invoices, Payments, Fleet, Inventory, WhatsApp, Marketplace, Dashboard | 10+ groups |
-| **Database Tables** | Core + Fleet + Inventory + Marketplace + Notifications | 55+ |
-| **External APIs** | AFIP (3), Mercado Pago (3), Google (5), Meta (3), OpenAI (2), Expo (1) | 17 |
-| **Queue Workers** | Invoice, Notification, WhatsApp, Voice, Fleet, Inventory, Sync, Analytics | 8 |
-| **WebSocket Events** | Location, Job Status, Payment, Message, Alert | 5 |
-| **Subscription Tiers** | Free, Basico, Profesional, Empresarial, Enterprise | 5 |
+### Token Specifications
+
+| Token Type | Lifetime | Storage | Purpose |
+|------------|----------|---------|---------|
+| **Access Token** | 15 minutes | Memory | API authentication |
+| **Refresh Token** | 7 days | Secure storage | Token renewal |
+| **OTP Code** | 5 minutes | Database (hashed) | Phone verification |
+| **API Key** | No expiry | Database | Public API access |
+| **Tracking Token** | 48 hours | URL parameter | Customer tracking |
+| **Rating Token** | 7 days | URL parameter | Customer rating |
+
+### Security Measures
+
+- OTP rate limiting (5 attempts/hour)
+- JWT RS256 signing
+- Webhook signature validation
+- CORS configuration
+- Helmet security headers
+- API rate limiting (Upstash)
+- Row-level security (Prisma)
+- Input validation (Zod)
+- SQL injection prevention (Prisma)
+- XSS prevention (React)
 
 ---
 
-*This document provides the complete architectural map of CampoTech. Each diagram can be rendered using any Mermaid-compatible viewer.*
+## 16. Summary Table
+
+| Layer | Component | Count |
+|-------|-----------|-------|
+| **Applications** | Next.js Web Apps | 3 |
+| | React Native Mobile Apps | 2 |
+| | Total Apps | 5 |
+| **API Routes** | Web API Routes | 150+ |
+| | Admin API Routes | 16 |
+| | Webhook Endpoints | 3 |
+| | Cron Endpoints | 7 |
+| **Database** | Prisma Models | 60+ |
+| | Enums | 30+ |
+| **External Integrations** | Payment (Mercado Pago) | 1 |
+| | Tax (AFIP) | 1 |
+| | Messaging (WhatsApp) | 2 providers |
+| | AI (OpenAI) | 2 models |
+| | Maps (Google) | 4 APIs |
+| | Push (Expo) | 1 |
+| **User Types** | Business Roles | 3 |
+| | Consumer | 1 |
+| | Customer | 1 |
+| | Admin | 1 |
+| **Subscription Tiers** | Plans | 4 |
+| | Features | 20+ |
+| **Queue Workers** | Worker Types | 8 |
+| | Job Types | 30+ |
+| **Real-time** | Event Types | 7 |
+| | Channel Types | 5 |
+
+---
+
+## Document Metadata
+
+| Attribute | Value |
+|-----------|-------|
+| **Version** | 1.0.0 |
+| **Generated** | 2025-12-21 |
+| **Author** | Claude (Architecture Analysis) |
+| **Total Models** | 60+ |
+| **Total API Routes** | 175+ |
+| **External Integrations** | 10 |
+| **Diagram Count** | 12 |

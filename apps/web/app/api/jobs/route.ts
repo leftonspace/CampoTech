@@ -117,20 +117,40 @@ export async function GET(request: NextRequest) {
         prisma.job.findMany({
           where,
           include: {
-            customer: true,
+            // Optimized: select only needed customer fields instead of entire record
+            customer: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+                email: true,
+                address: true,
+              },
+            },
             technician: {
               select: { id: true, name: true },
             },
+            // Optimized: limit assignments to reasonable count + only needed fields
             assignments: {
-              include: {
+              take: 10, // Limit to prevent unbounded fetches
+              select: {
+                id: true,
+                role: true,
+                status: true,
                 technician: {
                   select: { id: true, name: true },
                 },
               },
             },
+            // Optimized: limit visits + only needed fields
             visits: {
+              take: 20, // Limit to prevent unbounded fetches
               orderBy: { visitNumber: 'asc' },
-              include: {
+              select: {
+                id: true,
+                visitNumber: true,
+                status: true,
+                scheduledDate: true,
                 technician: {
                   select: { id: true, name: true },
                 },
