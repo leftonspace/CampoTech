@@ -1,27 +1,55 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ChevronDown, Check } from 'lucide-react';
 import AddressAutocomplete, { ParsedAddress } from '@/components/ui/AddressAutocomplete';
 
 // Country codes for phone input - Top 10 most relevant + Other
+// Using ISO country codes for flag images from flagcdn.com
 const COUNTRY_CODES = [
-  { code: '+54', country: 'Argentina', flag: '🇦🇷', placeholder: '11 1234 5678', format: 'XX XXXX XXXX' },
-  { code: '+56', country: 'Chile', flag: '🇨🇱', placeholder: '9 1234 5678', format: 'X XXXX XXXX' },
-  { code: '+598', country: 'Uruguay', flag: '🇺🇾', placeholder: '94 123 456', format: 'XX XXX XXX' },
-  { code: '+595', country: 'Paraguay', flag: '🇵🇾', placeholder: '981 123 456', format: 'XXX XXX XXX' },
-  { code: '+55', country: 'Brasil', flag: '🇧🇷', placeholder: '11 91234 5678', format: 'XX XXXXX XXXX' },
-  { code: '+591', country: 'Bolivia', flag: '🇧🇴', placeholder: '7 123 4567', format: 'X XXX XXXX' },
-  { code: '+51', country: 'Perú', flag: '🇵🇪', placeholder: '912 345 678', format: 'XXX XXX XXX' },
-  { code: '+57', country: 'Colombia', flag: '🇨🇴', placeholder: '310 123 4567', format: 'XXX XXX XXXX' },
-  { code: '+52', country: 'México', flag: '🇲🇽', placeholder: '55 1234 5678', format: 'XX XXXX XXXX' },
-  { code: '+1', country: 'USA/Canadá', flag: '🇺🇸', placeholder: '(555) 123-4567', format: '(XXX) XXX-XXXX' },
+  { code: '+54', country: 'Argentina', iso: 'ar', placeholder: '11 1234 5678' },
+  { code: '+56', country: 'Chile', iso: 'cl', placeholder: '9 1234 5678' },
+  { code: '+598', country: 'Uruguay', iso: 'uy', placeholder: '94 123 456' },
+  { code: '+595', country: 'Paraguay', iso: 'py', placeholder: '981 123 456' },
+  { code: '+55', country: 'Brasil', iso: 'br', placeholder: '11 91234 5678' },
+  { code: '+591', country: 'Bolivia', iso: 'bo', placeholder: '7 123 4567' },
+  { code: '+51', country: 'Perú', iso: 'pe', placeholder: '912 345 678' },
+  { code: '+57', country: 'Colombia', iso: 'co', placeholder: '310 123 4567' },
+  { code: '+52', country: 'México', iso: 'mx', placeholder: '55 1234 5678' },
+  { code: '+1', country: 'USA/Canadá', iso: 'us', placeholder: '(555) 123-4567' },
   // Other option - allows any custom country code
-  { code: 'OTHER', country: 'Otro', flag: '🌍', placeholder: '123 456 7890', format: '' },
+  { code: 'OTHER', country: 'Otro', iso: 'un', placeholder: '123 456 7890' },
 ];
+
+// Flag image component using flagcdn.com
+function FlagImage({ iso, size = 20 }: { iso: string; size?: number }) {
+  // For "Otro" option, show globe emoji
+  if (iso === 'un') {
+    return (
+      <span
+        className="flex items-center justify-center rounded-sm"
+        style={{ width: size, height: Math.round(size * 0.75), fontSize: size * 0.8 }}
+      >
+        🌍
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={`https://flagcdn.com/w${size * 2}/${iso}.png`}
+      srcSet={`https://flagcdn.com/w${size * 3}/${iso}.png 2x`}
+      width={size}
+      height={Math.round(size * 0.75)}
+      alt={iso.toUpperCase()}
+      className="rounded-sm object-cover"
+      style={{ minWidth: size }}
+    />
+  );
+}
 
 // Format phone number based on country code
 const formatPhoneNumber = (phone: string, countryCode: string): string => {
@@ -84,6 +112,23 @@ export default function NewCustomerPage() {
   const [error, setError] = useState('');
   const [countryCode, setCountryCode] = useState('+54');
   const [customCountryCode, setCustomCountryCode] = useState('');
+  const [showCountryPicker, setShowCountryPicker] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Get selected country data
+  const selectedCountry = COUNTRY_CODES.find(c => c.code === countryCode) || COUNTRY_CODES[0];
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowCountryPicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -190,25 +235,53 @@ export default function NewCustomerPage() {
           <label htmlFor="phone" className="label mb-1 block">
             Teléfono *
           </label>
-          <div className="flex gap-2">
-            <select
-              value={countryCode}
-              onChange={(e) => {
-                setCountryCode(e.target.value);
-                // Re-format phone when country changes
-                if (formData.phone && e.target.value !== 'OTHER') {
-                  const digits = formData.phone.replace(/\D/g, '');
-                  setFormData({ ...formData, phone: formatPhoneNumber(digits, e.target.value) });
-                }
-              }}
-              className="input w-auto min-w-[120px] px-2"
-            >
-              {COUNTRY_CODES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.flag} {c.code === 'OTHER' ? 'Otro' : c.code}
-                </option>
-              ))}
-            </select>
+          <div className="flex rounded-md border border-gray-300 focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2">
+            {/* Country Selector with Flag */}
+            <div className="relative" ref={dropdownRef}>
+              <button
+                type="button"
+                onClick={() => setShowCountryPicker(!showCountryPicker)}
+                className="flex items-center gap-1.5 h-10 px-3 border-r border-gray-300 bg-gray-50 rounded-l-md hover:bg-gray-100 transition-colors focus:outline-none"
+              >
+                <FlagImage iso={selectedCountry.iso} size={20} />
+                <span className="text-sm text-gray-700 font-medium">
+                  {countryCode === 'OTHER' ? 'Otro' : countryCode}
+                </span>
+                <ChevronDown className="h-4 w-4 text-gray-500" />
+              </button>
+
+              {/* Country Dropdown */}
+              {showCountryPicker && (
+                <div className="absolute top-full left-0 mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-72 overflow-y-auto">
+                  <div className="p-2 border-b border-gray-100">
+                    <span className="text-xs font-medium text-gray-500 uppercase">Seleccionar país</span>
+                  </div>
+                  {COUNTRY_CODES.map((country) => (
+                    <button
+                      key={country.code}
+                      type="button"
+                      onClick={() => {
+                        setCountryCode(country.code);
+                        setFormData({ ...formData, phone: '' });
+                        setShowCountryPicker(false);
+                      }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors"
+                    >
+                      <FlagImage iso={country.iso} size={20} />
+                      <span className="flex-1 text-left text-sm text-gray-700">{country.country}</span>
+                      <span className="text-sm text-gray-500">
+                        {country.code === 'OTHER' ? 'Otro' : country.code}
+                      </span>
+                      {country.code === countryCode && (
+                        <Check className="h-4 w-4 text-green-600" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Custom Country Code Input (shown when "Otro" is selected) */}
             {countryCode === 'OTHER' && (
               <input
                 type="text"
@@ -223,10 +296,12 @@ export default function NewCustomerPage() {
                   setCustomCountryCode(cleaned);
                 }}
                 placeholder="+XX"
-                className="input w-20 px-2 text-center"
+                className="w-16 h-10 px-2 text-sm text-center border-r border-gray-300 bg-transparent placeholder:text-gray-400 focus:outline-none"
                 maxLength={5}
               />
             )}
+
+            {/* Phone Input */}
             <input
               id="phone"
               type="tel"
@@ -236,12 +311,8 @@ export default function NewCustomerPage() {
                 const formatted = formatPhoneNumber(e.target.value, actualCode);
                 setFormData({ ...formData, phone: formatted });
               }}
-              placeholder={
-                countryCode === 'OTHER'
-                  ? '123 456 7890'
-                  : (COUNTRY_CODES.find(c => c.code === countryCode)?.placeholder || '11 1234 5678')
-              }
-              className="input flex-1"
+              placeholder={selectedCountry.placeholder}
+              className="flex-1 h-10 px-3 py-2 text-sm bg-transparent placeholder:text-gray-400 focus:outline-none"
               required
               onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá un número de teléfono')}
               onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}

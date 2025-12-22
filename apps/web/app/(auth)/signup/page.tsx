@@ -15,20 +15,48 @@ interface FormError {
 }
 
 // Country codes for phone input - Top 10 most relevant + Other
+// Using ISO country codes for flag images from flagcdn.com
 const COUNTRY_CODES = [
-  { code: '+54', country: 'Argentina', flag: '🇦🇷', maxDigits: 10, placeholder: '11 1234 5678' },
-  { code: '+56', country: 'Chile', flag: '🇨🇱', maxDigits: 9, placeholder: '9 1234 5678' },
-  { code: '+598', country: 'Uruguay', flag: '🇺🇾', maxDigits: 8, placeholder: '94 123 456' },
-  { code: '+595', country: 'Paraguay', flag: '🇵🇾', maxDigits: 9, placeholder: '981 123 456' },
-  { code: '+55', country: 'Brasil', flag: '🇧🇷', maxDigits: 11, placeholder: '11 91234 5678' },
-  { code: '+591', country: 'Bolivia', flag: '🇧🇴', maxDigits: 8, placeholder: '7 123 4567' },
-  { code: '+51', country: 'Perú', flag: '🇵🇪', maxDigits: 9, placeholder: '912 345 678' },
-  { code: '+57', country: 'Colombia', flag: '🇨🇴', maxDigits: 10, placeholder: '310 123 4567' },
-  { code: '+52', country: 'México', flag: '🇲🇽', maxDigits: 10, placeholder: '55 1234 5678' },
-  { code: '+1', country: 'USA/Canadá', flag: '🇺🇸', maxDigits: 10, placeholder: '(555) 123-4567' },
+  { code: '+54', country: 'Argentina', iso: 'ar', maxDigits: 10, placeholder: '11 1234 5678' },
+  { code: '+56', country: 'Chile', iso: 'cl', maxDigits: 9, placeholder: '9 1234 5678' },
+  { code: '+598', country: 'Uruguay', iso: 'uy', maxDigits: 8, placeholder: '94 123 456' },
+  { code: '+595', country: 'Paraguay', iso: 'py', maxDigits: 9, placeholder: '981 123 456' },
+  { code: '+55', country: 'Brasil', iso: 'br', maxDigits: 11, placeholder: '11 91234 5678' },
+  { code: '+591', country: 'Bolivia', iso: 'bo', maxDigits: 8, placeholder: '7 123 4567' },
+  { code: '+51', country: 'Perú', iso: 'pe', maxDigits: 9, placeholder: '912 345 678' },
+  { code: '+57', country: 'Colombia', iso: 'co', maxDigits: 10, placeholder: '310 123 4567' },
+  { code: '+52', country: 'México', iso: 'mx', maxDigits: 10, placeholder: '55 1234 5678' },
+  { code: '+1', country: 'USA/Canadá', iso: 'us', maxDigits: 10, placeholder: '(555) 123-4567' },
   // Other option - allows any custom country code
-  { code: 'OTHER', country: 'Otro', flag: '🌍', maxDigits: 15, placeholder: '123 456 7890' },
+  { code: 'OTHER', country: 'Otro', iso: 'un', maxDigits: 15, placeholder: '123 456 7890' },
 ];
+
+// Flag image component using flagcdn.com
+function FlagImage({ iso, size = 20 }: { iso: string; size?: number }) {
+  // For "Otro" option, show globe emoji
+  if (iso === 'un') {
+    return (
+      <span
+        className="flex items-center justify-center rounded-sm"
+        style={{ width: size, height: Math.round(size * 0.75), fontSize: size * 0.8 }}
+      >
+        🌍
+      </span>
+    );
+  }
+
+  return (
+    <img
+      src={`https://flagcdn.com/w${size * 2}/${iso}.png`}
+      srcSet={`https://flagcdn.com/w${size * 3}/${iso}.png 2x`}
+      width={size}
+      height={Math.round(size * 0.75)}
+      alt={iso.toUpperCase()}
+      className="rounded-sm object-cover"
+      style={{ minWidth: size }}
+    />
+  );
+}
 
 // Format phone number based on country
 const formatPhoneByCountry = (value: string, countryCode: string): string => {
@@ -380,15 +408,15 @@ export default function SignupPage() {
                 <label htmlFor="phone" className="label mb-1 block">
                   Tu teléfono celular
                 </label>
-                <div className="flex">
+                <div className="flex rounded-md border border-gray-300 focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2">
                   {/* Country Selector with Flag */}
                   <div className="relative" ref={dropdownRef}>
                     <button
                       type="button"
                       onClick={() => setShowCountryPicker(!showCountryPicker)}
-                      className="flex items-center gap-1 h-full px-3 border border-r-0 border-gray-300 rounded-l-lg bg-gray-50 hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      className="flex items-center gap-1.5 h-10 px-3 border-r border-gray-300 bg-gray-50 rounded-l-md hover:bg-gray-100 transition-colors focus:outline-none"
                     >
-                      <span className="text-xl">{selectedCountry.flag}</span>
+                      <FlagImage iso={selectedCountry.iso} size={20} />
                       <span className="text-sm text-gray-700 font-medium">
                         {countryCode === 'OTHER' ? 'Otro' : countryCode}
                       </span>
@@ -408,7 +436,7 @@ export default function SignupPage() {
                             onClick={() => handleCountryChange(country.code)}
                             className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 transition-colors"
                           >
-                            <span className="text-xl">{country.flag}</span>
+                            <FlagImage iso={country.iso} size={20} />
                             <span className="flex-1 text-left text-sm text-gray-700">{country.country}</span>
                             <span className="text-sm text-gray-500">
                               {country.code === 'OTHER' ? 'Otro' : country.code}
@@ -437,7 +465,7 @@ export default function SignupPage() {
                         setCustomCountryCode(cleaned);
                       }}
                       placeholder="+XX"
-                      className="w-16 px-2 text-sm text-center border border-r-0 border-gray-300 bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      className="w-16 h-10 px-2 text-sm text-center border-r border-gray-300 bg-transparent placeholder:text-gray-400 focus:outline-none"
                       maxLength={5}
                     />
                   )}
@@ -449,7 +477,7 @@ export default function SignupPage() {
                     value={formData.phone}
                     onChange={(e) => handlePhoneChange(e.target.value)}
                     placeholder={selectedCountry.placeholder}
-                    className={`input flex-1 rounded-l-none ${getFieldError('phone') ? 'border-danger-500' : ''}`}
+                    className="flex-1 h-10 px-3 py-2 text-sm bg-transparent placeholder:text-gray-400 focus:outline-none"
                     required
                     autoFocus
                   />
