@@ -7,20 +7,83 @@ import { api } from '@/lib/api-client';
 import { ArrowLeft } from 'lucide-react';
 import AddressAutocomplete, { ParsedAddress } from '@/components/ui/AddressAutocomplete';
 
-// Country codes for phone input
+// Country codes for phone input - Top 10 most relevant + Other
 const COUNTRY_CODES = [
-  { code: '+54', country: 'Argentina', flag: '🇦🇷' },
-  { code: '+1', country: 'USA/Canada', flag: '🇺🇸' },
-  { code: '+52', country: 'México', flag: '🇲🇽' },
-  { code: '+55', country: 'Brasil', flag: '🇧🇷' },
-  { code: '+56', country: 'Chile', flag: '🇨🇱' },
+  { code: '+54', country: 'Argentina', flag: '🇦🇷', placeholder: '11 1234 5678', format: 'XX XXXX XXXX' },
+  { code: '+56', country: 'Chile', flag: '🇨🇱', placeholder: '9 1234 5678', format: 'X XXXX XXXX' },
+  { code: '+598', country: 'Uruguay', flag: '🇺🇾', placeholder: '94 123 456', format: 'XX XXX XXX' },
+  { code: '+595', country: 'Paraguay', flag: '🇵🇾', placeholder: '981 123 456', format: 'XXX XXX XXX' },
+  { code: '+55', country: 'Brasil', flag: '🇧🇷', placeholder: '11 91234 5678', format: 'XX XXXXX XXXX' },
+  { code: '+591', country: 'Bolivia', flag: '🇧🇴', placeholder: '7 123 4567', format: 'X XXX XXXX' },
+  { code: '+51', country: 'Perú', flag: '🇵🇪', placeholder: '912 345 678', format: 'XXX XXX XXX' },
+  { code: '+57', country: 'Colombia', flag: '🇨🇴', placeholder: '310 123 4567', format: 'XXX XXX XXXX' },
+  { code: '+52', country: 'México', flag: '🇲🇽', placeholder: '55 1234 5678', format: 'XX XXXX XXXX' },
+  { code: '+1', country: 'USA/Canadá', flag: '🇺🇸', placeholder: '(555) 123-4567', format: '(XXX) XXX-XXXX' },
+  // Other option - allows any custom country code
+  { code: 'OTHER', country: 'Otro', flag: '🌍', placeholder: '123 456 7890', format: '' },
 ];
+
+// Format phone number based on country code
+const formatPhoneNumber = (phone: string, countryCode: string): string => {
+  const digits = phone.replace(/\D/g, '');
+
+  switch (countryCode) {
+    case '+54': // Argentina: XX XXXX XXXX
+    case '+52': // México: XX XXXX XXXX
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+      return `${digits.slice(0, 2)} ${digits.slice(2, 6)} ${digits.slice(6, 10)}`;
+
+    case '+56': // Chile: X XXXX XXXX
+      if (digits.length <= 1) return digits;
+      if (digits.length <= 5) return `${digits.slice(0, 1)} ${digits.slice(1)}`;
+      return `${digits.slice(0, 1)} ${digits.slice(1, 5)} ${digits.slice(5, 9)}`;
+
+    case '+598': // Uruguay: XX XXX XXX
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 5) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+      return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 8)}`;
+
+    case '+595': // Paraguay: XXX XXX XXX
+    case '+51': // Perú: XXX XXX XXX
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 9)}`;
+
+    case '+55': // Brasil: XX XXXXX XXXX
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 7) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+      return `${digits.slice(0, 2)} ${digits.slice(2, 7)} ${digits.slice(7, 11)}`;
+
+    case '+591': // Bolivia: X XXX XXXX
+      if (digits.length <= 1) return digits;
+      if (digits.length <= 4) return `${digits.slice(0, 1)} ${digits.slice(1)}`;
+      return `${digits.slice(0, 1)} ${digits.slice(1, 4)} ${digits.slice(4, 8)}`;
+
+    case '+57': // Colombia: XXX XXX XXXX
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
+
+    case '+1': // USA/Canada: (XXX) XXX-XXXX
+      if (digits.length <= 3) return digits.length > 0 ? `(${digits}` : '';
+      if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+
+    default:
+      // Generic formatting for "Otro" or unknown codes: XXX XXX XXXX
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
+  }
+};
 
 export default function NewCustomerPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [countryCode, setCountryCode] = useState('+54');
+  const [customCountryCode, setCustomCountryCode] = useState('');
 
   const [formData, setFormData] = useState({
     name: '',
@@ -37,6 +100,14 @@ export default function NewCustomerPage() {
     },
     notes: '',
   });
+
+  // Get the actual country code to use (either from list or custom)
+  const getActualCountryCode = () => {
+    if (countryCode === 'OTHER') {
+      return customCountryCode.startsWith('+') ? customCountryCode : `+${customCountryCode}`;
+    }
+    return countryCode;
+  };
 
   // Handle address selection from autocomplete
   const handleAddressSelect = (parsed: ParsedAddress) => {
@@ -59,7 +130,8 @@ export default function NewCustomerPage() {
     setIsSubmitting(true);
     setError('');
 
-    const fullPhone = `${countryCode}${formData.phone.replace(/\D/g, '')}`;
+    const actualCode = getActualCountryCode();
+    const fullPhone = `${actualCode}${formData.phone.replace(/\D/g, '')}`;
 
     const response = await api.customers.create({
       name: formData.name,
@@ -121,29 +193,65 @@ export default function NewCustomerPage() {
           <div className="flex gap-2">
             <select
               value={countryCode}
-              onChange={(e) => setCountryCode(e.target.value)}
-              className="input w-32 px-2"
+              onChange={(e) => {
+                setCountryCode(e.target.value);
+                // Re-format phone when country changes
+                if (formData.phone && e.target.value !== 'OTHER') {
+                  const digits = formData.phone.replace(/\D/g, '');
+                  setFormData({ ...formData, phone: formatPhoneNumber(digits, e.target.value) });
+                }
+              }}
+              className="input w-auto min-w-[120px] px-2"
             >
               {COUNTRY_CODES.map((c) => (
                 <option key={c.code} value={c.code}>
-                  {c.flag} {c.code}
+                  {c.flag} {c.code === 'OTHER' ? 'Otro' : c.code}
                 </option>
               ))}
             </select>
+            {countryCode === 'OTHER' && (
+              <input
+                type="text"
+                value={customCountryCode}
+                onChange={(e) => {
+                  // Only allow + and numbers
+                  const value = e.target.value.replace(/[^+\d]/g, '');
+                  // Ensure + is only at the start
+                  const cleaned = value.startsWith('+')
+                    ? '+' + value.slice(1).replace(/\+/g, '')
+                    : value.replace(/\+/g, '');
+                  setCustomCountryCode(cleaned);
+                }}
+                placeholder="+XX"
+                className="input w-20 px-2 text-center"
+                maxLength={5}
+              />
+            )}
             <input
               id="phone"
               type="tel"
               value={formData.phone}
-              onChange={(e) =>
-                setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') })
+              onChange={(e) => {
+                const actualCode = getActualCountryCode();
+                const formatted = formatPhoneNumber(e.target.value, actualCode);
+                setFormData({ ...formData, phone: formatted });
+              }}
+              placeholder={
+                countryCode === 'OTHER'
+                  ? '123 456 7890'
+                  : (COUNTRY_CODES.find(c => c.code === countryCode)?.placeholder || '11 1234 5678')
               }
-              placeholder="11 1234 5678"
               className="input flex-1"
               required
               onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá un número de teléfono')}
               onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
             />
           </div>
+          {countryCode === 'OTHER' && (
+            <p className="mt-1 text-xs text-gray-500">
+              Ingresá el código de país (ej: +34 para España, +49 para Alemania)
+            </p>
+          )}
         </div>
 
         {/* Email */}

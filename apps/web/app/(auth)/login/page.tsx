@@ -9,21 +9,37 @@ import { ChevronDown, Check } from 'lucide-react';
 
 type Step = 'phone' | 'otp';
 
-// Country codes for phone input with formatting
+// Country codes for phone input - Top 10 most relevant + Other
 // Using ISO country codes for flag images from flagcdn.com
 const COUNTRY_CODES = [
-  { code: '+54', country: 'Argentina', iso: 'ar', format: '9 11 1234-5678', maxDigits: 12, placeholder: '9 11 1234-5678' },
-  { code: '+1', country: 'USA/Canada', iso: 'us', format: '(xxx) xxx-xxxx', maxDigits: 10, placeholder: '(555) 123-4567' },
-  { code: '+52', country: 'México', iso: 'mx', format: 'xx xxxx xxxx', maxDigits: 10, placeholder: '55 1234 5678' },
-  { code: '+55', country: 'Brasil', iso: 'br', format: 'xx xxxxx-xxxx', maxDigits: 11, placeholder: '11 91234-5678' },
-  { code: '+56', country: 'Chile', iso: 'cl', format: 'x xxxx xxxx', maxDigits: 9, placeholder: '9 1234 5678' },
-  { code: '+57', country: 'Colombia', iso: 'co', format: 'xxx xxx xxxx', maxDigits: 10, placeholder: '310 123 4567' },
-  { code: '+58', country: 'Venezuela', iso: 've', format: 'xxx xxx xxxx', maxDigits: 10, placeholder: '412 123 4567' },
-  { code: '+34', country: 'España', iso: 'es', format: 'xxx xx xx xx', maxDigits: 9, placeholder: '612 34 56 78' },
+  { code: '+54', country: 'Argentina', iso: 'ar', maxDigits: 10, placeholder: '11 1234 5678' },
+  { code: '+56', country: 'Chile', iso: 'cl', maxDigits: 9, placeholder: '9 1234 5678' },
+  { code: '+598', country: 'Uruguay', iso: 'uy', maxDigits: 8, placeholder: '94 123 456' },
+  { code: '+595', country: 'Paraguay', iso: 'py', maxDigits: 9, placeholder: '981 123 456' },
+  { code: '+55', country: 'Brasil', iso: 'br', maxDigits: 11, placeholder: '11 91234 5678' },
+  { code: '+591', country: 'Bolivia', iso: 'bo', maxDigits: 8, placeholder: '7 123 4567' },
+  { code: '+51', country: 'Perú', iso: 'pe', maxDigits: 9, placeholder: '912 345 678' },
+  { code: '+57', country: 'Colombia', iso: 'co', maxDigits: 10, placeholder: '310 123 4567' },
+  { code: '+52', country: 'México', iso: 'mx', maxDigits: 10, placeholder: '55 1234 5678' },
+  { code: '+1', country: 'USA/Canadá', iso: 'us', maxDigits: 10, placeholder: '(555) 123-4567' },
+  // Other option - allows any custom country code
+  { code: 'OTHER', country: 'Otro', iso: 'un', maxDigits: 15, placeholder: '123 456 7890' },
 ];
 
 // Flag image component using flagcdn.com
 function FlagImage({ iso, size = 20 }: { iso: string; size?: number }) {
+  // For "Otro" option, show globe emoji
+  if (iso === 'un') {
+    return (
+      <span
+        className="flex items-center justify-center rounded-sm"
+        style={{ width: size, height: Math.round(size * 0.75), fontSize: size * 0.8 }}
+      >
+        🌍
+      </span>
+    );
+  }
+
   return (
     <img
       src={`https://flagcdn.com/w${size * 2}/${iso}.png`}
@@ -42,52 +58,60 @@ const formatPhoneByCountry = (value: string, countryCode: string): string => {
   const digits = value.replace(/\D/g, '');
 
   switch (countryCode) {
-    case '+54': // Argentina: 9 11 1234-5678
-      if (digits.length <= 1) return digits;
-      if (digits.length <= 3) return `${digits.slice(0, 1)} ${digits.slice(1)}`;
-      if (digits.length <= 7) return `${digits.slice(0, 1)} ${digits.slice(1, 3)} ${digits.slice(3)}`;
-      return `${digits.slice(0, 1)} ${digits.slice(1, 3)} ${digits.slice(3, 7)}-${digits.slice(7, 11)}`;
-
-    case '+1': // USA/Canada: (555) 123-4567
-      if (digits.length <= 3) return digits.length > 0 ? `(${digits}` : '';
-      if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
-
-    case '+52': // México: 55 1234 5678
+    case '+54': // Argentina: XX XXXX XXXX
+    case '+52': // México: XX XXXX XXXX
       if (digits.length <= 2) return digits;
       if (digits.length <= 6) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
       return `${digits.slice(0, 2)} ${digits.slice(2, 6)} ${digits.slice(6, 10)}`;
 
-    case '+55': // Brasil: 11 91234-5678
-      if (digits.length <= 2) return digits;
-      if (digits.length <= 7) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
-      return `${digits.slice(0, 2)} ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
-
-    case '+56': // Chile: 9 1234 5678
+    case '+56': // Chile: X XXXX XXXX
       if (digits.length <= 1) return digits;
       if (digits.length <= 5) return `${digits.slice(0, 1)} ${digits.slice(1)}`;
       return `${digits.slice(0, 1)} ${digits.slice(1, 5)} ${digits.slice(5, 9)}`;
 
-    case '+57': // Colombia: 310 123 4567
-    case '+58': // Venezuela: 412 123 4567
+    case '+598': // Uruguay: XX XXX XXX
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 5) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+      return `${digits.slice(0, 2)} ${digits.slice(2, 5)} ${digits.slice(5, 8)}`;
+
+    case '+595': // Paraguay: XXX XXX XXX
+    case '+51': // Perú: XXX XXX XXX
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 9)}`;
+
+    case '+55': // Brasil: XX XXXXX XXXX
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 7) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+      return `${digits.slice(0, 2)} ${digits.slice(2, 7)} ${digits.slice(7, 11)}`;
+
+    case '+591': // Bolivia: X XXX XXXX
+      if (digits.length <= 1) return digits;
+      if (digits.length <= 4) return `${digits.slice(0, 1)} ${digits.slice(1)}`;
+      return `${digits.slice(0, 1)} ${digits.slice(1, 4)} ${digits.slice(4, 8)}`;
+
+    case '+57': // Colombia: XXX XXX XXXX
       if (digits.length <= 3) return digits;
       if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
       return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
 
-    case '+34': // España: 612 34 56 78
-      if (digits.length <= 3) return digits;
-      if (digits.length <= 5) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
-      if (digits.length <= 7) return `${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5)}`;
-      return `${digits.slice(0, 3)} ${digits.slice(3, 5)} ${digits.slice(5, 7)} ${digits.slice(7, 9)}`;
+    case '+1': // USA/Canada: (XXX) XXX-XXXX
+      if (digits.length <= 3) return digits.length > 0 ? `(${digits}` : '';
+      if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
 
     default:
-      return digits;
+      // Generic formatting for "Otro" or unknown codes: XXX XXX XXXX
+      if (digits.length <= 3) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 3)} ${digits.slice(3)}`;
+      return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 10)}`;
   }
 };
 
 export default function LoginPage() {
   const [step, setStep] = useState<Step>('phone');
   const [countryCode, setCountryCode] = useState('+54'); // Default to Argentina
+  const [customCountryCode, setCustomCountryCode] = useState(''); // For "Otro" option
   const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
@@ -114,10 +138,19 @@ export default function LoginPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Get the actual country code (from list or custom)
+  const getActualCountryCode = () => {
+    if (countryCode === 'OTHER') {
+      return customCountryCode.startsWith('+') ? customCountryCode : `+${customCountryCode}`;
+    }
+    return countryCode;
+  };
+
   // Handle phone input change with formatting
   const handlePhoneChange = (value: string) => {
     const digits = value.replace(/\D/g, '').slice(0, selectedCountry.maxDigits);
-    const formatted = formatPhoneByCountry(digits, countryCode);
+    const actualCode = getActualCountryCode();
+    const formatted = formatPhoneByCountry(digits, actualCode);
     setPhone(formatted);
     setError('');
   };
@@ -132,7 +165,7 @@ export default function LoginPage() {
   // Get full phone number with country code
   const getFullPhone = () => {
     const phoneDigits = phone.replace(/\D/g, '');
-    return `${countryCode}${phoneDigits}`;
+    return `${getActualCountryCode()}${phoneDigits}`;
   };
 
   const handlePhoneSubmit = async (e: React.FormEvent) => {
@@ -195,7 +228,9 @@ export default function LoginPage() {
                       className="flex items-center gap-1.5 h-10 px-3 border-r border-input bg-muted/50 rounded-l-md hover:bg-muted transition-colors focus:outline-none"
                     >
                       <FlagImage iso={selectedCountry.iso} size={20} />
-                      <span className="text-sm text-foreground font-medium">{countryCode}</span>
+                      <span className="text-sm text-foreground font-medium">
+                        {countryCode === 'OTHER' ? 'Otro' : countryCode}
+                      </span>
                       <ChevronDown className="h-4 w-4 text-muted-foreground" />
                     </button>
 
@@ -214,7 +249,9 @@ export default function LoginPage() {
                           >
                             <FlagImage iso={country.iso} size={20} />
                             <span className="flex-1 text-left text-sm text-foreground">{country.country}</span>
-                            <span className="text-sm text-muted-foreground">{country.code}</span>
+                            <span className="text-sm text-muted-foreground">
+                              {country.code === 'OTHER' ? 'Otro' : country.code}
+                            </span>
                             {country.code === countryCode && (
                               <Check className="h-4 w-4 text-success" />
                             )}
@@ -223,6 +260,26 @@ export default function LoginPage() {
                       </div>
                     )}
                   </div>
+
+                  {/* Custom Country Code Input (shown when "Otro" is selected) */}
+                  {countryCode === 'OTHER' && (
+                    <input
+                      type="text"
+                      value={customCountryCode}
+                      onChange={(e) => {
+                        // Only allow + and numbers
+                        const value = e.target.value.replace(/[^+\d]/g, '');
+                        // Ensure + is only at the start
+                        const cleaned = value.startsWith('+')
+                          ? '+' + value.slice(1).replace(/\+/g, '')
+                          : value.replace(/\+/g, '');
+                        setCustomCountryCode(cleaned);
+                      }}
+                      placeholder="+XX"
+                      className="w-16 h-10 px-2 text-sm text-center border-r border-input bg-transparent placeholder:text-muted-foreground focus:outline-none"
+                      maxLength={5}
+                    />
+                  )}
 
                   {/* Phone Input */}
                   <input
@@ -236,6 +293,11 @@ export default function LoginPage() {
                     autoFocus
                   />
                 </div>
+                {countryCode === 'OTHER' && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Ingresá el código de país (ej: +34 para España, +49 para Alemania)
+                  </p>
+                )}
               </div>
 
               {error && (
@@ -244,7 +306,7 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={isLoading || !phone}
+                disabled={isLoading || !phone || (countryCode === 'OTHER' && !customCountryCode)}
                 className="btn-primary w-full"
               >
                 {isLoading ? 'Enviando...' : 'Continuar'}
