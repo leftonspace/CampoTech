@@ -124,26 +124,24 @@ class SubscriptionManager {
     try {
       const org = await prisma.organization.findUnique({
         where: { id: orgId },
-        select: { settings: true },
+        select: { subscriptionTier: true },
       });
 
-      const settings = org?.settings as Record<string, unknown> | null;
-      return (settings?.subscriptionTier as SubscriptionTier) || 'FREE';
+      return org?.subscriptionTier || 'FREE';
     } catch {
       return 'FREE';
     }
   }
 
   /**
-   * Update organization's tier in settings
+   * Update organization's subscription tier
    */
   async updateOrganizationTier(orgId: string, tier: SubscriptionTier): Promise<void> {
     try {
-      await prisma.$executeRaw`
-        UPDATE organizations
-        SET settings = settings || jsonb_build_object('subscriptionTier', ${tier})
-        WHERE id = ${orgId}::uuid
-      `;
+      await prisma.organization.update({
+        where: { id: orgId },
+        data: { subscriptionTier: tier },
+      });
     } catch (error) {
       console.error('Error updating organization tier:', error);
       throw error;
