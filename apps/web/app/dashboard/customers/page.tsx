@@ -23,6 +23,9 @@ import {
   Users,
   TrendingUp,
   Crown,
+  LayoutGrid,
+  List,
+  Check,
 } from 'lucide-react';
 import { Customer } from '@/types';
 import CustomerProfileModal from './CustomerProfileModal';
@@ -39,6 +42,7 @@ interface CustomerStats {
 }
 
 type FilterType = 'all' | 'vip' | 'new' | 'frequent';
+type ViewType = 'cards' | 'table';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
@@ -49,8 +53,10 @@ export default function CustomersPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [viewType, setViewType] = useState<ViewType>('cards');
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
 
   // Fetch customers with computed fields
   const { data, isLoading } = useQuery({
@@ -142,6 +148,30 @@ export default function CustomersPage() {
     { id: 'frequent' as FilterType, label: 'Frecuentes' },
   ];
 
+  // Selection handlers for table view
+  const toggleCustomerSelection = (customerId: string) => {
+    setSelectedCustomers(prev => {
+      const next = new Set(prev);
+      if (next.has(customerId)) {
+        next.delete(customerId);
+      } else {
+        next.add(customerId);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (!customers) return;
+    if (selectedCustomers.size === customers.length) {
+      setSelectedCustomers(new Set());
+    } else {
+      setSelectedCustomers(new Set(customers.map(c => c.id)));
+    }
+  };
+
+  const isAllSelected = customers && customers.length > 0 && selectedCustomers.size === customers.length;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -197,47 +227,96 @@ export default function CustomersPage() {
             />
           </div>
 
-          {/* Filter Tabs */}
-          <div className="flex gap-1 overflow-x-auto">
-            {filterTabs.map((tab) => (
+          <div className="flex items-center gap-4">
+            {/* Filter Tabs */}
+            <div className="flex gap-1 overflow-x-auto">
+              {filterTabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveFilter(tab.id)}
+                  className={cn(
+                    'px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors',
+                    activeFilter === tab.id
+                      ? 'bg-primary-100 text-primary-700'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  )}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* View Toggle */}
+            <div className="flex items-center gap-1 border-l pl-4">
               <button
-                key={tab.id}
-                onClick={() => setActiveFilter(tab.id)}
+                onClick={() => setViewType('cards')}
                 className={cn(
-                  'px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition-colors',
-                  activeFilter === tab.id
-                    ? 'bg-primary-100 text-primary-700'
-                    : 'text-gray-600 hover:bg-gray-100'
+                  'p-2 rounded-lg transition-all',
+                  viewType === 'cards'
+                    ? 'bg-white shadow-sm border border-teal-200 text-teal-600'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                 )}
+                title="Vista de tarjetas"
               >
-                {tab.label}
+                <LayoutGrid className="h-5 w-5" />
               </button>
-            ))}
+              <button
+                onClick={() => setViewType('table')}
+                className={cn(
+                  'p-2 rounded-lg transition-all',
+                  viewType === 'table'
+                    ? 'bg-white shadow-sm border border-teal-200 text-teal-600'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                )}
+                title="Vista de tabla"
+              >
+                <List className="h-5 w-5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Customer Cards Grid */}
+      {/* Customer Display */}
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <CustomerCardSkeleton key={i} />
-          ))}
-        </div>
+        viewType === 'cards' ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <CustomerCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : (
+          <CustomerTableSkeleton />
+        )
       ) : customers?.length ? (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {customers.map((customer) => (
-            <CustomerCard
-              key={customer.id}
-              customer={customer}
-              isNew={isNewCustomer(customer.createdAt)}
-              menuOpen={menuOpen === customer.id}
-              onMenuToggle={() => setMenuOpen(menuOpen === customer.id ? null : customer.id)}
-              onMenuAction={(action) => handleMenuAction(action, customer)}
-              onCardClick={() => setSelectedCustomerId(customer.id)}
-            />
-          ))}
-        </div>
+        viewType === 'cards' ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {customers.map((customer) => (
+              <CustomerCard
+                key={customer.id}
+                customer={customer}
+                isNew={isNewCustomer(customer.createdAt)}
+                menuOpen={menuOpen === customer.id}
+                onMenuToggle={() => setMenuOpen(menuOpen === customer.id ? null : customer.id)}
+                onMenuAction={(action) => handleMenuAction(action, customer)}
+                onCardClick={() => setSelectedCustomerId(customer.id)}
+              />
+            ))}
+          </div>
+        ) : (
+          <CustomerTable
+            customers={customers}
+            selectedCustomers={selectedCustomers}
+            isAllSelected={!!isAllSelected}
+            onToggleSelection={toggleCustomerSelection}
+            onToggleSelectAll={toggleSelectAll}
+            onRowClick={(customer) => setSelectedCustomerId(customer.id)}
+            onMenuAction={handleMenuAction}
+            menuOpen={menuOpen}
+            onMenuToggle={(id) => setMenuOpen(menuOpen === id ? null : id)}
+            isNewCustomer={isNewCustomer}
+          />
+        )
       ) : (
         <div className="card p-12 text-center">
           <Users className="mx-auto h-12 w-12 text-gray-300" />
@@ -494,6 +573,318 @@ function CustomerCardSkeleton() {
         <div className="h-4 w-20 bg-gray-200 rounded" />
         <div className="h-4 w-16 bg-gray-200 rounded" />
         <div className="h-4 w-24 bg-gray-200 rounded" />
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TABLE SKELETON COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function CustomerTableSkeleton() {
+  return (
+    <div className="card overflow-hidden animate-pulse">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="px-4 py-3 w-12"><div className="h-4 w-4 bg-gray-200 rounded" /></th>
+              <th className="px-4 py-3 text-left"><div className="h-4 w-20 bg-gray-200 rounded" /></th>
+              <th className="px-4 py-3 text-left"><div className="h-4 w-16 bg-gray-200 rounded" /></th>
+              <th className="px-4 py-3 text-left"><div className="h-4 w-24 bg-gray-200 rounded" /></th>
+              <th className="px-4 py-3 text-center"><div className="h-4 w-16 bg-gray-200 rounded mx-auto" /></th>
+              <th className="px-4 py-3 text-right"><div className="h-4 w-20 bg-gray-200 rounded ml-auto" /></th>
+              <th className="px-4 py-3 text-center"><div className="h-4 w-12 bg-gray-200 rounded mx-auto" /></th>
+              <th className="px-4 py-3 text-left"><div className="h-4 w-24 bg-gray-200 rounded" /></th>
+              <th className="px-4 py-3 w-12" />
+            </tr>
+          </thead>
+          <tbody>
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+              <tr key={i} className="border-b">
+                <td className="px-4 py-3"><div className="h-4 w-4 bg-gray-200 rounded" /></td>
+                <td className="px-4 py-3"><div className="h-8 w-32 bg-gray-200 rounded" /></td>
+                <td className="px-4 py-3"><div className="h-4 w-24 bg-gray-200 rounded" /></td>
+                <td className="px-4 py-3"><div className="h-4 w-28 bg-gray-200 rounded" /></td>
+                <td className="px-4 py-3"><div className="h-4 w-12 bg-gray-200 rounded mx-auto" /></td>
+                <td className="px-4 py-3"><div className="h-4 w-20 bg-gray-200 rounded ml-auto" /></td>
+                <td className="px-4 py-3"><div className="h-4 w-10 bg-gray-200 rounded mx-auto" /></td>
+                <td className="px-4 py-3"><div className="h-4 w-20 bg-gray-200 rounded" /></td>
+                <td className="px-4 py-3"><div className="h-6 w-6 bg-gray-200 rounded" /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// TABLE VIEW COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface CustomerTableProps {
+  customers: Customer[];
+  selectedCustomers: Set<string>;
+  isAllSelected: boolean;
+  onToggleSelection: (customerId: string) => void;
+  onToggleSelectAll: () => void;
+  onRowClick: (customer: Customer) => void;
+  onMenuAction: (action: string, customer: Customer) => void;
+  menuOpen: string | null;
+  onMenuToggle: (id: string) => void;
+  isNewCustomer: (createdAt: string) => boolean;
+}
+
+function CustomerTable({
+  customers,
+  selectedCustomers,
+  isAllSelected,
+  onToggleSelection,
+  onToggleSelectAll,
+  onRowClick,
+  onMenuAction,
+  menuOpen,
+  onMenuToggle,
+  isNewCustomer,
+}: CustomerTableProps) {
+  // Helper to extract zone/neighborhood from address
+  const getZone = (address: Customer['address']) => {
+    if (!address) return '-';
+    if (typeof address === 'string') return address;
+    return address.city || address.neighborhood || '-';
+  };
+
+  // Format last service date
+  const formatLastService = (date: string | null | undefined) => {
+    if (!date) return '-';
+    const d = new Date(date);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Hoy';
+    if (diffDays === 1) return 'Ayer';
+    if (diffDays < 7) return `Hace ${diffDays} días`;
+    if (diffDays < 30) return `Hace ${Math.floor(diffDays / 7)} sem`;
+    return d.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+  };
+
+  return (
+    <div className="card overflow-hidden">
+      {/* Bulk Actions Bar */}
+      {selectedCustomers.size > 0 && (
+        <div className="bg-teal-50 border-b border-teal-100 px-4 py-2 flex items-center justify-between">
+          <span className="text-sm text-teal-700 font-medium">
+            {selectedCustomers.size} cliente{selectedCustomers.size > 1 ? 's' : ''} seleccionado{selectedCustomers.size > 1 ? 's' : ''}
+          </span>
+          <div className="flex items-center gap-2">
+            <button className="text-sm text-teal-600 hover:text-teal-800 font-medium">
+              Exportar
+            </button>
+            <button className="text-sm text-teal-600 hover:text-teal-800 font-medium">
+              Enviar mensaje
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="px-4 py-3 w-12">
+                <button
+                  onClick={onToggleSelectAll}
+                  className={cn(
+                    'w-5 h-5 rounded border-2 flex items-center justify-center transition-colors',
+                    isAllSelected
+                      ? 'bg-teal-500 border-teal-500'
+                      : 'border-gray-300 hover:border-gray-400'
+                  )}
+                >
+                  {isAllSelected && <Check className="h-3 w-3 text-white" />}
+                </button>
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Cliente
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Zona
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Contacto
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Trabajos
+              </th>
+              <th className="px-4 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Facturado
+              </th>
+              <th className="px-4 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Rating
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Último Servicio
+              </th>
+              <th className="px-4 py-3 w-12" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {customers.map((customer) => {
+              const isSelected = selectedCustomers.has(customer.id);
+              const isNew = isNewCustomer(customer.createdAt);
+
+              return (
+                <tr
+                  key={customer.id}
+                  className={cn(
+                    'hover:bg-gray-50 cursor-pointer transition-colors',
+                    isSelected && 'bg-teal-50/50'
+                  )}
+                  onClick={() => onRowClick(customer)}
+                >
+                  {/* Checkbox */}
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => onToggleSelection(customer.id)}
+                      className={cn(
+                        'w-5 h-5 rounded border-2 flex items-center justify-center transition-colors',
+                        isSelected
+                          ? 'bg-teal-500 border-teal-500'
+                          : 'border-gray-300 hover:border-gray-400'
+                      )}
+                    >
+                      {isSelected && <Check className="h-3 w-3 text-white" />}
+                    </button>
+                  </td>
+
+                  {/* Cliente */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="h-9 w-9 rounded-full bg-teal-500 flex items-center justify-center text-white font-medium text-sm flex-shrink-0">
+                        {getInitials(customer.name)}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900 truncate">{customer.name}</span>
+                          {isNew && (
+                            <span className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-gray-100 text-gray-600">
+                              Nuevo
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-400">
+                          {customer.customerNumber || `CL-${customer.id.slice(-4).toUpperCase()}`}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+
+                  {/* Zona */}
+                  <td className="px-4 py-3">
+                    <span className="text-sm text-gray-600">{getZone(customer.address)}</span>
+                  </td>
+
+                  {/* Contacto */}
+                  <td className="px-4 py-3">
+                    <div className="text-sm">
+                      <div className="text-gray-900">{formatPhone(customer.phone)}</div>
+                      {customer.email && (
+                        <div className="text-gray-400 text-xs truncate max-w-[180px]">{customer.email}</div>
+                      )}
+                    </div>
+                  </td>
+
+                  {/* Trabajos */}
+                  <td className="px-4 py-3 text-center">
+                    <span className="text-sm font-medium text-gray-900">{customer.jobCount || 0}</span>
+                  </td>
+
+                  {/* Facturado */}
+                  <td className="px-4 py-3 text-right">
+                    <span className="text-sm font-semibold text-gray-900">
+                      {formatCurrency(customer.totalSpent || 0)}
+                    </span>
+                  </td>
+
+                  {/* Rating */}
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-center gap-1">
+                      <Star className={cn(
+                        'h-4 w-4',
+                        customer.averageRating ? 'text-amber-400 fill-amber-400' : 'text-gray-300'
+                      )} />
+                      <span className={cn(
+                        'text-sm',
+                        customer.averageRating ? 'font-medium text-gray-900' : 'text-gray-400'
+                      )}>
+                        {customer.averageRating ? customer.averageRating.toFixed(1) : '-'}
+                      </span>
+                    </div>
+                  </td>
+
+                  {/* Último Servicio */}
+                  <td className="px-4 py-3">
+                    <span className="text-sm text-gray-600">
+                      {formatLastService(customer.lastServiceDate)}
+                    </span>
+                  </td>
+
+                  {/* Actions Menu */}
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <div className="relative">
+                      <button
+                        onClick={() => onMenuToggle(customer.id)}
+                        className="p-1.5 rounded hover:bg-gray-100 transition-colors"
+                      >
+                        <MoreHorizontal className="h-4 w-4 text-gray-400" />
+                      </button>
+                      {menuOpen === customer.id && (
+                        <div className="absolute right-0 mt-1 w-44 bg-white border rounded-lg shadow-lg z-20">
+                          <button
+                            onClick={() => onMenuAction('view', customer)}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                          >
+                            <Eye className="h-4 w-4 text-gray-400" />
+                            Ver Perfil
+                          </button>
+                          <button
+                            onClick={() => onMenuAction('edit', customer)}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                          >
+                            <Edit2 className="h-4 w-4 text-gray-400" />
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => onMenuAction('new-job', customer)}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                          >
+                            <Briefcase className="h-4 w-4 text-gray-400" />
+                            Nuevo Trabajo
+                          </button>
+                          <button
+                            onClick={() => onMenuAction('history', customer)}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
+                          >
+                            <History className="h-4 w-4 text-gray-400" />
+                            Historial
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Table Footer with count */}
+      <div className="px-4 py-3 bg-gray-50 border-t text-sm text-gray-500">
+        Mostrando {customers.length} cliente{customers.length !== 1 ? 's' : ''}
       </div>
     </div>
   );

@@ -75,6 +75,16 @@ export type IVACondition =
   | 'consumidor_final'
   | 'exento';
 
+export interface CustomerAddress {
+  street?: string;
+  city?: string;
+  neighborhood?: string;
+  province?: string;
+  postalCode?: string;
+  lat?: number;
+  lng?: number;
+}
+
 export interface Customer {
   id: string;
   orgId: string;
@@ -84,7 +94,7 @@ export interface Customer {
   email?: string;
   cuit?: string;
   ivaCondition: IVACondition;
-  address?: string;
+  address?: string | CustomerAddress;
   city?: string;
   province?: string;
   postalCode?: string;
@@ -97,6 +107,7 @@ export interface Customer {
   jobCount?: number;
   totalSpent?: number;
   averageRating?: number | null;
+  lastServiceDate?: string | null;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
