@@ -142,6 +142,29 @@ async function fetchUsage(): Promise<UsageResponse> {
   return res.json();
 }
 
+interface PlansResponse {
+  success: boolean;
+  data?: {
+    plans: Array<{
+      tier: string;
+      name: string;
+      description: string;
+      features: string[];
+      monthly: { price: number; priceFormatted: string };
+      yearly: { price: number; priceFormatted: string; savings: number };
+    }>;
+    configured: boolean;
+  };
+}
+
+async function fetchPlans(): Promise<PlansResponse> {
+  const token = localStorage.getItem('accessToken');
+  const res = await fetch('/api/subscription/checkout', {
+    headers: { Authorization: token ? `Bearer ${token}` : '' },
+  });
+  return res.json();
+}
+
 async function fetchTrialStatus(): Promise<TrialStatusResponse> {
   const token = localStorage.getItem('accessToken');
   const res = await fetch('/api/subscription/trial-status', {
@@ -716,6 +739,11 @@ export default function BillingPage() {
     queryFn: fetchTrialStatus,
   });
 
+  const { data: plansData, isLoading: plansLoading } = useQuery({
+    queryKey: ['plans'],
+    queryFn: fetchPlans,
+  });
+
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -840,7 +868,8 @@ export default function BillingPage() {
         <PlanSelector
           currentTier={data.tier.id}
           currentCycle="MONTHLY"
-          plans={[]}
+          plans={plansData?.data?.plans || []}
+          isLoading={plansLoading}
         />
       </div>
 

@@ -377,13 +377,10 @@ export class UsageTracker {
     try {
       const org = await prisma.organization.findUnique({
         where: { id: orgId },
-        select: { settings: true },
+        select: { subscriptionTier: true },
       });
 
-      const settings = org?.settings as Record<string, unknown> | null;
-      const tier = settings?.subscriptionTier as SubscriptionTier | undefined;
-
-      return tier || 'FREE';
+      return org?.subscriptionTier || 'FREE';
     } catch (error) {
       console.error('Error getting organization tier:', error);
       return 'FREE';
