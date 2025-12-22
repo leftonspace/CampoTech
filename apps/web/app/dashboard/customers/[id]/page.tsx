@@ -231,7 +231,6 @@ export default function CustomerDetailPage() {
                 <PhoneInput
                   value={editData.phone || ''}
                   onChange={(phone) => setEditData({ ...editData, phone })}
-                  variant="simple"
                 />
                 <div>
                   <label className="label mb-1 block">Email</label>

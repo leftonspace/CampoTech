@@ -122,7 +122,7 @@ export const getFullPhoneNumber = (
 };
 
 // Flag image component using flagcdn.com
-function FlagImage({ iso, size = 20 }: { iso: string; size?: number }) {
+export function FlagImage({ iso, size = 20 }: { iso: string; size?: number }) {
   // For "Otro" option, show globe emoji
   if (iso === 'un') {
     return (
@@ -235,7 +235,7 @@ export default function PhoneInput({
     setShowCountryPicker(false);
   };
 
-  // Simple variant with emoji flags and select dropdown
+  // Simple variant - now uses same flag images as default, just more compact
   if (variant === 'simple') {
     return (
       <div className={className}>
@@ -244,26 +244,53 @@ export default function PhoneInput({
             {label} {required && '*'}
           </label>
         )}
-        <div className="flex gap-2">
-          <select
-            value={countryCode}
-            onChange={(e) => {
-              setCountryCode(e.target.value);
-              // Re-format phone when country changes
-              if (phone && e.target.value !== 'OTHER') {
-                const digits = phone.replace(/\D/g, '');
-                setPhone(formatPhoneNumber(digits, e.target.value));
-              }
-            }}
-            className="input w-auto min-w-[120px] px-2"
-            disabled={disabled}
-          >
-            {COUNTRY_CODES.map((c) => (
-              <option key={c.code} value={c.code}>
-                {c.flag} {c.code === 'OTHER' ? 'Otro' : c.code}
-              </option>
-            ))}
-          </select>
+        <div className={cn(
+          "flex rounded-md border border-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ring-offset-background",
+          disabled && "opacity-50 cursor-not-allowed"
+        )}>
+          {/* Country Selector with Flag */}
+          <div className="relative" ref={dropdownRef}>
+            <button
+              type="button"
+              onClick={() => !disabled && setShowCountryPicker(!showCountryPicker)}
+              className="flex items-center gap-1.5 h-10 px-3 border-r border-input bg-muted/50 rounded-l-md hover:bg-muted transition-colors focus:outline-none"
+              disabled={disabled}
+            >
+              <FlagImage iso={selectedCountry.iso} size={20} />
+              <span className="text-sm text-foreground font-medium">
+                {countryCode === 'OTHER' ? 'Otro' : countryCode}
+              </span>
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            </button>
+
+            {/* Country Dropdown */}
+            {showCountryPicker && (
+              <div className="absolute top-full left-0 mt-1 w-64 bg-card border border-border rounded-lg shadow-lg z-50 max-h-72 overflow-y-auto">
+                <div className="p-2 border-b border-border">
+                  <span className="text-xs font-medium text-muted-foreground uppercase">Seleccionar país</span>
+                </div>
+                {COUNTRY_CODES.map((country) => (
+                  <button
+                    key={country.code}
+                    type="button"
+                    onClick={() => handleCountryChange(country.code)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-muted transition-colors"
+                  >
+                    <FlagImage iso={country.iso} size={20} />
+                    <span className="flex-1 text-left text-sm text-foreground">{country.country}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {country.code === 'OTHER' ? 'Otro' : country.code}
+                    </span>
+                    {country.code === countryCode && (
+                      <Check className="h-4 w-4 text-success" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Custom Country Code Input (shown when "Otro" is selected) */}
           {countryCode === 'OTHER' && (
             <input
               type="text"
@@ -278,24 +305,26 @@ export default function PhoneInput({
                 setCustomCountryCode(cleaned);
               }}
               placeholder="+XX"
-              className="input w-20 px-2 text-center"
+              className="w-16 h-10 px-2 text-sm text-center border-r border-input bg-transparent placeholder:text-muted-foreground focus:outline-none"
               maxLength={5}
               disabled={disabled}
             />
           )}
+
+          {/* Phone Input */}
           <input
             id={id}
             type="tel"
             value={phone}
             onChange={(e) => handlePhoneChange(e.target.value)}
             placeholder={selectedCountry.placeholder}
-            className="input flex-1"
+            className="flex-1 h-10 px-3 py-2 text-sm bg-transparent placeholder:text-muted-foreground focus:outline-none"
             required={required}
             disabled={disabled}
           />
         </div>
         {countryCode === 'OTHER' && (
-          <p className="mt-1 text-xs text-gray-500">
+          <p className="mt-1 text-xs text-muted-foreground">
             Ingresá el código de país (ej: +34 para España, +49 para Alemania)
           </p>
         )}
