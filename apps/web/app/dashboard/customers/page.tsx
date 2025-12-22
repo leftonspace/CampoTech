@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -88,12 +88,28 @@ export default function CustomersPage() {
   const [ultimoServicioFilter, setUltimoServicioFilter] = useState<UltimoServicioFilter>('all');
   const [openColumnFilter, setOpenColumnFilter] = useState<string | null>(null);
 
-  // Close dropdown menus when clicking outside
+  // Track if menu was just closed to prevent row click on same click
+  const menuJustClosedRef = useRef(false);
+
+  // Close menus when clicking outside
   useEffect(() => {
     if (!openColumnFilter && !menuOpen) return;
 
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
+      // Close action menu if clicking outside
+      if (menuOpen && !target.closest('.menu-container')) {
+        setMenuOpen(null);
+        // If click was inside the table (but not on the menu), mark that menu was just closed
+        // This prevents the row click from triggering on the same click
+        if (target.closest('table') || target.closest('.card')) {
+          menuJustClosedRef.current = true;
+          // Reset after a short delay to allow normal clicks
+          setTimeout(() => {
+            menuJustClosedRef.current = false;
+          }, 100);
+        }
+      }
       // Close column filter if clicking outside
       if (openColumnFilter && !target.closest('.column-filter-container')) {
         setOpenColumnFilter(null);
@@ -435,11 +451,8 @@ export default function CustomersPage() {
                 onMenuToggle={() => setMenuOpen(menuOpen === customer.id ? null : customer.id)}
                 onMenuAction={(action) => handleMenuAction(action, customer)}
                 onCardClick={() => {
-                  // If any menu is open, close it instead of opening the card
-                  if (menuOpen) {
-                    setMenuOpen(null);
-                    return;
-                  }
+                  // Prevent card click if menu was just closed by this same click
+                  if (menuJustClosedRef.current) return;
                   setSelectedCustomerId(customer.id);
                 }}
               />
@@ -461,7 +474,11 @@ export default function CustomersPage() {
             isAllSelected={!!isAllSelected}
             onToggleSelection={toggleCustomerSelection}
             onToggleSelectAll={toggleSelectAll}
-            onRowClick={(customer) => setSelectedCustomerId(customer.id)}
+            onRowClick={(customer) => {
+              // Prevent row click if menu was just closed by this same click
+              if (menuJustClosedRef.current) return;
+              setSelectedCustomerId(customer.id);
+            }}
             onMenuAction={handleMenuAction}
             menuOpen={menuOpen}
             onMenuToggle={(id) => setMenuOpen(menuOpen === id ? null : id)}
