@@ -45,19 +45,21 @@ function calculateDiscount(
       discountDescription = `${discountPercentage}% de descuento`;
       break;
 
-    case 'FREE_MONTHS':
-      freeMonths = coupon.freeMonths ?? 0;
+    case 'FREE_MONTHS': {
+      const months = coupon.freeMonths ?? 0;
+      freeMonths = months;
       if (billingCycle === 'MONTHLY') {
         discountedPrice = 0; // First payment is free
-        discountDescription = `${freeMonths} ${freeMonths === 1 ? 'mes' : 'meses'} gratis`;
+        discountDescription = `${months} ${months === 1 ? 'mes' : 'meses'} gratis`;
       } else {
         // For yearly, calculate proportional discount
         const monthlyRate = plan.monthly.priceARS;
-        const savedAmount = monthlyRate * freeMonths;
+        const savedAmount = monthlyRate * months;
         discountedPrice = Math.max(0, basePrice - savedAmount);
-        discountDescription = `${freeMonths} meses gratis incluidos`;
+        discountDescription = `${months} meses gratis incluidos`;
       }
       break;
+    }
 
     case 'FIXED_AMOUNT':
       const fixedAmount = Number(coupon.fixedAmountOff);
