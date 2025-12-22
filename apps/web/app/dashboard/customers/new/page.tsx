@@ -7,14 +7,49 @@ import { api } from '@/lib/api-client';
 import { ArrowLeft } from 'lucide-react';
 import AddressAutocomplete, { ParsedAddress } from '@/components/ui/AddressAutocomplete';
 
-// Country codes for phone input
+// Country codes for phone input with format patterns
 const COUNTRY_CODES = [
-  { code: '+54', country: 'Argentina', flag: '🇦🇷' },
-  { code: '+1', country: 'USA/Canada', flag: '🇺🇸' },
-  { code: '+52', country: 'México', flag: '🇲🇽' },
-  { code: '+55', country: 'Brasil', flag: '🇧🇷' },
-  { code: '+56', country: 'Chile', flag: '🇨🇱' },
+  { code: '+54', country: 'Argentina', flag: '🇦🇷', placeholder: '11 1234 5678', format: 'XX XXXX XXXX' },
+  { code: '+1', country: 'USA/Canada', flag: '🇺🇸', placeholder: '(555) 123-4567', format: '(XXX) XXX-XXXX' },
+  { code: '+52', country: 'México', flag: '🇲🇽', placeholder: '55 1234 5678', format: 'XX XXXX XXXX' },
+  { code: '+55', country: 'Brasil', flag: '🇧🇷', placeholder: '11 91234 5678', format: 'XX XXXXX XXXX' },
+  { code: '+56', country: 'Chile', flag: '🇨🇱', placeholder: '9 1234 5678', format: 'X XXXX XXXX' },
 ];
+
+// Format phone number based on country code
+const formatPhoneNumber = (phone: string, countryCode: string): string => {
+  const digits = phone.replace(/\D/g, '');
+
+  switch (countryCode) {
+    case '+54': // Argentina: XX XXXX XXXX
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+      return `${digits.slice(0, 2)} ${digits.slice(2, 6)} ${digits.slice(6, 10)}`;
+
+    case '+1': // USA/Canada: (XXX) XXX-XXXX
+      if (digits.length <= 3) return digits.length > 0 ? `(${digits}` : '';
+      if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
+
+    case '+52': // México: XX XXXX XXXX
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 6) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+      return `${digits.slice(0, 2)} ${digits.slice(2, 6)} ${digits.slice(6, 10)}`;
+
+    case '+55': // Brasil: XX XXXXX XXXX
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 7) return `${digits.slice(0, 2)} ${digits.slice(2)}`;
+      return `${digits.slice(0, 2)} ${digits.slice(2, 7)} ${digits.slice(7, 11)}`;
+
+    case '+56': // Chile: X XXXX XXXX
+      if (digits.length <= 1) return digits;
+      if (digits.length <= 5) return `${digits.slice(0, 1)} ${digits.slice(1)}`;
+      return `${digits.slice(0, 1)} ${digits.slice(1, 5)} ${digits.slice(5, 9)}`;
+
+    default:
+      return digits;
+  }
+};
 
 export default function NewCustomerPage() {
   const router = useRouter();
@@ -121,7 +156,14 @@ export default function NewCustomerPage() {
           <div className="flex gap-2">
             <select
               value={countryCode}
-              onChange={(e) => setCountryCode(e.target.value)}
+              onChange={(e) => {
+                setCountryCode(e.target.value);
+                // Re-format phone when country changes
+                if (formData.phone) {
+                  const digits = formData.phone.replace(/\D/g, '');
+                  setFormData({ ...formData, phone: formatPhoneNumber(digits, e.target.value) });
+                }
+              }}
               className="input w-32 px-2"
             >
               {COUNTRY_CODES.map((c) => (
@@ -134,10 +176,11 @@ export default function NewCustomerPage() {
               id="phone"
               type="tel"
               value={formData.phone}
-              onChange={(e) =>
-                setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') })
-              }
-              placeholder="11 1234 5678"
+              onChange={(e) => {
+                const formatted = formatPhoneNumber(e.target.value, countryCode);
+                setFormData({ ...formData, phone: formatted });
+              }}
+              placeholder={COUNTRY_CODES.find(c => c.code === countryCode)?.placeholder || '11 1234 5678'}
               className="input flex-1"
               required
               onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá un número de teléfono')}
