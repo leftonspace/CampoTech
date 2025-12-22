@@ -69,11 +69,14 @@ export default function CustomersPage() {
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
 
   // Pagination state
-  const [displayedCustomers, setDisplayedCustomers] = useState<Customer[]>([]);
+  const [allLoadedCustomers, setAllLoadedCustomers] = useState<Customer[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [totalCustomers, setTotalCustomers] = useState(0);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Track the current filter context to detect changes
+  const [lastFilterContext, setLastFilterContext] = useState<string>('');
 
   // Sorting state - default based on filter
   const [sortOrder, setSortOrder] = useState<SortType>('recent');
@@ -135,6 +138,9 @@ export default function CustomersPage() {
     },
   });
 
+  // Create a unique context key for the current filter state
+  const currentFilterContext = `${search}-${activeFilter}-${sortOrder}`;
+
   // Update displayed customers when data changes
   useEffect(() => {
     if (data?.data) {
@@ -146,12 +152,16 @@ export default function CustomersPage() {
         ? [...newCustomers].reverse()
         : newCustomers;
 
-      if (currentPage === 1) {
-        // Replace customers for first page
-        setDisplayedCustomers(sortedCustomers);
+      // Check if filter context changed - if so, replace all customers
+      const contextChanged = currentFilterContext !== lastFilterContext;
+
+      if (currentPage === 1 || contextChanged) {
+        // Replace customers for first page or when filter context changes
+        setAllLoadedCustomers(sortedCustomers);
+        setLastFilterContext(currentFilterContext);
       } else {
-        // Append customers for subsequent pages
-        setDisplayedCustomers(prev => [...prev, ...sortedCustomers]);
+        // Append customers for subsequent pages (same filter context)
+        setAllLoadedCustomers(prev => [...prev, ...sortedCustomers]);
       }
 
       // Update pagination info
@@ -161,23 +171,28 @@ export default function CustomersPage() {
       }
       setIsLoadingMore(false);
     }
-  }, [data, currentPage, sortOrder]);
+  }, [data, currentPage, sortOrder, currentFilterContext, lastFilterContext]);
 
-  // Reset pagination when filters/search/sort change
+  // Reset pagination when filters/search change
   useEffect(() => {
     setCurrentPage(1);
-    setDisplayedCustomers([]);
-  }, [search, activeFilter, sortOrder]);
+  }, [search, activeFilter]);
+
+  // Determine sort order based on filter
+  const getDefaultSortForFilter = (filter: FilterType): SortType => {
+    switch (filter) {
+      case 'new':
+        return 'recent';
+      case 'frequent':
+        return 'jobs';
+      default:
+        return 'recent';
+    }
+  };
 
   // Update sort order based on filter
   useEffect(() => {
-    if (activeFilter === 'new') {
-      setSortOrder('recent');
-    } else if (activeFilter === 'frequent') {
-      setSortOrder('jobs');
-    } else if (activeFilter === 'all') {
-      setSortOrder('recent');
-    }
+    setSortOrder(getDefaultSortForFilter(activeFilter));
   }, [activeFilter]);
 
   // Load more customers
@@ -213,8 +228,8 @@ export default function CustomersPage() {
     },
   });
 
-  // Use displayedCustomers for rendering, which accumulates paginated results
-  const customers = displayedCustomers;
+  // Use allLoadedCustomers for rendering, which accumulates paginated results
+  const customers = allLoadedCustomers;
   const stats: CustomerStats = statsData?.data || {
     totalCount: 0,
     newThisMonth: 0,
