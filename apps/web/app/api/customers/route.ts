@@ -173,7 +173,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Enrich customers with computed fields
-      enrichedCustomers = allCustomers.map((customer) => ({
+      enrichedCustomers = allCustomers.map((customer: typeof allCustomers[number]) => ({
         ...customer,
         jobCount: jobCountMap.get(customer.id) || 0,
         totalSpent: totalSpentMap.get(customer.id) || 0,
