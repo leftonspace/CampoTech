@@ -188,6 +188,8 @@ model User {
   @@index([verificationStatus])
   @@index([canBeAssignedJobs])
   @@index([identityVerified])
+  // Performance optimization: index for role-based filtering (e.g., ?role=TECHNICIAN)
+  @@index([organizationId, role])
   @@map("users")
 }
 
@@ -433,6 +435,8 @@ model Job {
   @@index([organizationId, status])        // Filter jobs by org and status
   @@index([organizationId, scheduledDate]) // Filter jobs by org and date
   @@index([technicianId, status])          // Filter technician's jobs by status
+  // Performance optimization: index for completed jobs stats query
+  @@index([status, completedAt])
   @@map("jobs")
 }
 
@@ -594,6 +598,9 @@ model Invoice {
   @@index([status])
   @@index([organizationId])
   @@index([locationId])
+  // Performance optimization: indexes for customer queries (groupBy, filtering)
+  @@index([customerId])
+  @@index([customerId, status])
   @@map("invoices")
 }
 
@@ -1010,6 +1017,8 @@ model Review {
   @@index([token])
   // Composite indexes for marketplace queries (Phase 5.1.1)
   @@index([organizationId, rating]) // Aggregate ratings by org for marketplace
+  // Performance optimization: index for customer review aggregation
+  @@index([customerId])
   @@map("reviews")
 }
 
