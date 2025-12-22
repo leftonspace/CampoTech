@@ -80,6 +80,8 @@ model Organization {
   chargebacks                 Chargeback[]
   supportTickets              SupportTicket[]
   smsOutboundQueue            SmsOutboundQueue[]
+  // Discounts & Coupons
+  couponUsages                CouponUsage[]
   // Employee Scheduling
   employeeSchedules           EmployeeSchedule[]
   scheduleExceptions          ScheduleException[]
@@ -3663,6 +3665,7 @@ model OrganizationSubscription {
   // Relations
   payments           SubscriptionPayment[]
   events             SubscriptionEvent[]
+  couponUsages       CouponUsage[]
 
   @@index([mpSubscriptionId])
   @@index([status])
@@ -3760,6 +3763,156 @@ model SubscriptionEvent {
   @@index([createdAt])
   @@index([organizationId, createdAt(sort: Desc)])
   @@map("subscription_events")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DISCOUNTS & COUPONS SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum DiscountType {
+  PERCENTAGE        // Percentage off (e.g., 10% off)
+  FREE_MONTHS       // Free months (e.g., 3 months free)
+  FIXED_AMOUNT      // Fixed amount off (e.g., $10,000 off)
+  COMBINED          // Combination of free months + percentage off after
+
+  @@map("discount_type")
+}
+
+// Website-wide discount settings (singleton-like, one active at a time)
+model GlobalDiscount {
+  id                String   @id @default(cuid())
+  name              String   // Internal name for admins
+  description       String?  // Public description shown to customers
+
+  // Discount Configuration
+  discountType      DiscountType    @map("discount_type")
+  percentageOff     Decimal?        @db.Decimal(5, 2) @map("percentage_off") // For PERCENTAGE type
+  freeMonths        Int?            @map("free_months") // For FREE_MONTHS type
+  fixedAmountOff    Decimal?        @db.Decimal(10, 2) @map("fixed_amount_off") // For FIXED_AMOUNT type
+
+  // Combined discount (FREE_MONTHS + PERCENTAGE after)
+  combinedFreeMonths       Int?     @map("combined_free_months")
+  combinedPercentageOff    Decimal? @db.Decimal(5, 2) @map("combined_percentage_off")
+  combinedPercentageMonths Int?     @map("combined_percentage_months") // How many months the % applies after free months
+
+  // Applicability
+  applicableTiers   SubscriptionTier[] @map("applicable_tiers") // Empty = all tiers
+  applicableCycles  BillingCycle[]     @map("applicable_cycles") // Empty = all cycles
+
+  // Activation
+  isActive          Boolean  @default(false) @map("is_active")
+  validFrom         DateTime @map("valid_from")
+  validUntil        DateTime @map("valid_until")
+
+  // Display
+  bannerText        String?  @map("banner_text") // Text shown on pricing page when active
+  badgeText         String?  @map("badge_text")  // Badge text (e.g., "🔥 Promo!")
+
+  // Admin tracking
+  createdBy         String?  @map("created_by") // Admin ID
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  @@index([isActive])
+  @@index([validFrom, validUntil])
+  @@map("global_discounts")
+}
+
+// Coupon codes for specific discounts
+model CouponCode {
+  id                String   @id @default(cuid())
+  code              String   @unique @db.VarChar(50) // e.g., "SUMMER2025", "WELCOME50"
+  name              String   // Internal name for admins
+  description       String?  // Description for customers
+
+  // Discount Configuration
+  discountType      DiscountType @map("discount_type")
+  percentageOff     Decimal?     @db.Decimal(5, 2) @map("percentage_off")
+  freeMonths        Int?         @map("free_months")
+  fixedAmountOff    Decimal?     @db.Decimal(10, 2) @map("fixed_amount_off")
+
+  // Combined discount settings
+  combinedFreeMonths       Int?     @map("combined_free_months")
+  combinedPercentageOff    Decimal? @db.Decimal(5, 2) @map("combined_percentage_off")
+  combinedPercentageMonths Int?     @map("combined_percentage_months")
+
+  // Applicability
+  applicableTiers   SubscriptionTier[] @map("applicable_tiers") // Empty = all tiers
+  applicableCycles  BillingCycle[]     @map("applicable_cycles") // Empty = all cycles
+
+  // Usage Limits
+  maxTotalUses      Int?     @map("max_total_uses") // null = unlimited
+  maxUsesPerOrg     Int      @default(1) @map("max_uses_per_org") // Usually 1
+  currentUses       Int      @default(0) @map("current_uses")
+
+  // Validity Period
+  validFrom         DateTime @map("valid_from")
+  validUntil        DateTime @map("valid_until")
+
+  // Status
+  isActive          Boolean  @default(true) @map("is_active")
+
+  // Admin tracking
+  createdBy         String?  @map("created_by")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  usages            CouponUsage[]
+
+  @@index([code])
+  @@index([isActive])
+  @@index([validFrom, validUntil])
+  @@map("coupon_codes")
+}
+
+// Track coupon usage
+model CouponUsage {
+  id                String   @id @default(cuid())
+  couponId          String   @map("coupon_id")
+  coupon            CouponCode @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  organizationId    String   @map("organization_id")
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  subscriptionId    String?  @map("subscription_id")
+  subscription      OrganizationSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  // What was applied
+  discountApplied   Json     @map("discount_applied") // Stores the discount details at time of use
+  originalPrice     Decimal  @db.Decimal(10, 2) @map("original_price")
+  discountedPrice   Decimal  @db.Decimal(10, 2) @map("discounted_price")
+  amountSaved       Decimal  @db.Decimal(10, 2) @map("amount_saved")
+
+  // For combined/free months tracking
+  freeMonthsApplied    Int?  @map("free_months_applied")
+  freeMonthsRemaining  Int?  @map("free_months_remaining")
+  discountMonthsApplied   Int? @map("discount_months_applied")
+  discountMonthsRemaining Int? @map("discount_months_remaining")
+
+  appliedAt         DateTime @default(now()) @map("applied_at")
+
+  @@index([couponId])
+  @@index([organizationId])
+  @@index([subscriptionId])
+  @@map("coupon_usages")
+}
+
+// Pricing settings (admin-configurable)
+model PricingSettings {
+  id                   String   @id @default(cuid())
+
+  // Default annual discount percentage (e.g., 17%)
+  defaultAnnualDiscount Decimal @db.Decimal(5, 2) @default(17) @map("default_annual_discount")
+
+  // Show discounts on public pages
+  showDiscountsPublicly Boolean @default(true) @map("show_discounts_publicly")
+
+  // Last updated
+  updatedBy            String?  @map("updated_by")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  @@map("pricing_settings")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

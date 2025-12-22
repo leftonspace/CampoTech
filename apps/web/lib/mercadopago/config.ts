@@ -43,7 +43,7 @@ export interface SubscriptionPlan {
 
 /**
  * Subscription plans with pricing in ARS
- * Yearly plans include ~17% discount (2 months free)
+ * Yearly plans include 17% discount
  */
 export const SUBSCRIPTION_PLANS: Record<Exclude<SubscriptionTier, 'FREE'>, SubscriptionPlan> = {
   INICIAL: {
@@ -56,8 +56,8 @@ export const SUBSCRIPTION_PLANS: Record<Exclude<SubscriptionTier, 'FREE'>, Subsc
       mpPlanId: process.env.MP_PLAN_INICIAL_MONTHLY || null,
     },
     yearly: {
-      priceARS: 250000,
-      priceUSD: 250,
+      priceARS: 249000, // 25000 * 12 * 0.83 = 249,000
+      priceUSD: 249,
       mpPlanId: process.env.MP_PLAN_INICIAL_YEARLY || null,
       savingsPercent: 17,
     },
@@ -78,8 +78,8 @@ export const SUBSCRIPTION_PLANS: Record<Exclude<SubscriptionTier, 'FREE'>, Subsc
       mpPlanId: process.env.MP_PLAN_PROFESIONAL_MONTHLY || null,
     },
     yearly: {
-      priceARS: 550000,
-      priceUSD: 550,
+      priceARS: 547800, // 55000 * 12 * 0.83 = 547,800
+      priceUSD: 548,
       mpPlanId: process.env.MP_PLAN_PROFESIONAL_YEARLY || null,
       savingsPercent: 17,
     },
@@ -101,8 +101,8 @@ export const SUBSCRIPTION_PLANS: Record<Exclude<SubscriptionTier, 'FREE'>, Subsc
       mpPlanId: process.env.MP_PLAN_EMPRESA_MONTHLY || null,
     },
     yearly: {
-      priceARS: 1200000,
-      priceUSD: 1200,
+      priceARS: 1195200, // 120000 * 12 * 0.83 = 1,195,200
+      priceUSD: 1195,
       mpPlanId: process.env.MP_PLAN_EMPRESA_YEARLY || null,
       savingsPercent: 17,
     },
