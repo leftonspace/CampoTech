@@ -422,10 +422,8 @@ flowchart TB
     subgraph USERS["👥 USER ACTORS"]
         direction TB
         OWNER["🏢 OWNER<br/>Business owner<br/>Full platform access<br/>Billing & settings"]
-        DISPATCHER["📋 DISPATCHER<br/>Office staff<br/>Job scheduling<br/>Customer management"]
+        ADMIN["📋 ADMIN<br/>Management staff<br/>Job scheduling<br/>Customer management<br/>(No billing)"]
         TECH["🔧 TECHNICIAN<br/>Field worker<br/>Mobile app focused<br/>Job completion"]
-        ACCOUNTANT["💼 ACCOUNTANT<br/>Finance only<br/>Invoices & payments<br/>Reports access"]
-        CUSTOMER["👤 B2B CUSTOMER<br/>Business client<br/>Portal & WhatsApp<br/>Service tracking"]
         CONSUMER["🛒 CONSUMER<br/>Marketplace user<br/>Service discovery<br/>Reviews & booking"]
     end
 
@@ -474,13 +472,7 @@ flowchart TB
             MOB_ANALYTICS["📊 My Stats<br/>Performance metrics"]
         end
 
-        subgraph CUSTOMER_PORTAL["Customer Portal (White-label)"]
-            CP_TRACK["📍 Track Technician<br/>Live ETA map"]
-            CP_HISTORY["📋 Job History<br/>Past services"]
-            CP_INVOICES["🧾 My Invoices<br/>Download, pay online"]
-            CP_BOOK["📅 Book Service<br/>Schedule request"]
-            CP_RATE["⭐ Rate Service<br/>Reviews & feedback"]
-        end
+
 
         subgraph MARKETPLACE["Consumer Marketplace"]
             MKT_SEARCH["🔍 Search<br/>Category, location"]
@@ -693,12 +685,8 @@ flowchart TB
     %% ═══════════════════════════════════════════════════════════════════════
     OWNER --> WEB_DASHBOARD
     OWNER --> MOBILE_APP
-    DISPATCHER --> WEB_DASHBOARD
-    ACCOUNTANT --> DASH_INVOICES
-    ACCOUNTANT --> DASH_REPORTS
+    ADMIN --> WEB_DASHBOARD
     TECH --> MOBILE_APP
-    CUSTOMER --> CUSTOMER_PORTAL
-    CUSTOMER -.->|"WhatsApp Messages"| EXT_WA_GROUP
     CONSUMER --> MARKETPLACE
     CONSUMER --> CONSUMER_MOBILE
 
@@ -707,7 +695,7 @@ flowchart TB
     %% ═══════════════════════════════════════════════════════════════════════
     WEB_DASHBOARD --> MIDDLEWARE
     MOBILE_APP --> MIDDLEWARE
-    CUSTOMER_PORTAL --> MIDDLEWARE
+
     MARKETPLACE --> MIDDLEWARE
     CONSUMER_MOBILE --> MIDDLEWARE
     PUBLIC_PAGES --> API_LAYER
@@ -775,7 +763,7 @@ flowchart TB
     %% ═══════════════════════════════════════════════════════════════════════
     REALTIME --> WEB_DASHBOARD
     REALTIME --> MOBILE_APP
-    REALTIME --> CUSTOMER_PORTAL
+
     REALTIME --> CONSUMER_MOBILE
 ```
 

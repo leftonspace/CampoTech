@@ -6,7 +6,7 @@
  */
 
 // User roles
-export type UserRole = 'owner' | 'admin' | 'dispatcher' | 'technician' | 'accountant';
+export type UserRole = 'owner' | 'admin' | 'technician';
 
 // JWT payload
 export interface JWTPayload {
@@ -131,21 +131,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'team:read',
     'reports:*',
     'settings:read',
-  ],
-  dispatcher: [
-    'jobs:*',
-    'customers:*',
     'whatsapp:*',
-    'invoices:read',
   ],
   technician: [
     'jobs:read:assigned',
     'jobs:update:assigned',
     'customers:read',
-  ],
-  accountant: [
-    'invoices:*',
-    'payments:read',
-    'reports:read',
   ],
 };

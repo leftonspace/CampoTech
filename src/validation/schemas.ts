@@ -121,11 +121,11 @@ export const updateUserSchema = z.object({
   avatar: z.string().url().optional(),
 });
 
-export const userRoleSchema = z.enum(['ADMIN', 'DISPATCHER', 'TECHNICIAN']);
+export const userRoleSchema = z.enum(['admin', 'technician']);
 
 export const inviteUserSchema = z.object({
   email: emailSchema,
-  role: userRoleSchema,
+  role: z.enum(['admin', 'technician']),
   name: safeStringSchema.min(2).max(100).optional(),
 });
 

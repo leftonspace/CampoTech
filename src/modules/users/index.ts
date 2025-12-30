@@ -17,10 +17,8 @@ import { normalizePhone, validatePhone, validateEmail } from '../../shared/utils
 
 export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
   owner: ['*'],
-  admin: ['jobs:*', 'customers:*', 'invoices:*', 'payments:*', 'team:read', 'reports:*', 'settings:read'],
-  dispatcher: ['jobs:*', 'customers:*', 'whatsapp:*', 'invoices:read'],
+  admin: ['jobs:*', 'customers:*', 'invoices:*', 'payments:*', 'team:read', 'reports:*', 'settings:read', 'whatsapp:*'],
   technician: ['jobs:read:assigned', 'jobs:update:assigned', 'customers:read'],
-  accountant: ['invoices:*', 'payments:read', 'reports:read'],
 };
 
 export function hasPermission(role: UserRole, permission: string): boolean {

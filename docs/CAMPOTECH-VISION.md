@@ -51,7 +51,7 @@ CampoTech is a field service management platform targeting service businesses in
 |-----------|-------------|---------|
 | **CampoTech (You)** | Platform owner, manages everything | Receives subscription revenue |
 | **Business Owners** | Plumbing companies, electrical companies, etc. | Monthly subscription ($25-$120) |
-| **Despachadores** | Office staff who schedule and dispatch jobs | Included in business subscription |
+
 | **Technicians** | Workers who perform services in the field | Included in business subscription |
 | **Consumers** | Regular people searching for services | **FREE** |
 
@@ -80,12 +80,15 @@ CampoTech is a field service management platform targeting service businesses in
 - WhatsApp integration with AI
 - Analytics and reports
 - Settings (organization, billing, notifications)
+- **Compliance & Verification**: Business vetting status and compliance scoring
+- **Emergency Controls**: "Panic Mode" system overrides
+- **Onboarding Progress**: Structured setup flow for new organizations
 
 **Role System:**
 | Role | Spanish | Access Level |
 |------|---------|--------------|
 | Owner | Dueño | Full access: billing, team, settings, all features |
-| Dispatcher | Despachador | Jobs, scheduling, customers, WhatsApp, inventory, reports (NO billing) |
+| Admin | Admin | Management of jobs, customers, and team (NO billing/subscription access) |
 | Technician | Técnico | Their assigned jobs only, inventory usage, voice reports |
 
 **Job Tracking Page (`/track/[token]`):**
@@ -564,7 +567,7 @@ AI processes text, responds appropriately
 
 | Item | Description | Estimate (USD) |
 |------|-------------|----------------|
-| Database | Supabase/PlanetScale | $25-100 |
+| Database | Supabase (PostgreSQL) | $25-100 |
 | Hosting | Vercel Pro | $20 |
 | WhatsApp Business API | Per conversation | Variable |
 | OpenAI API | GPT-4 for AI | Variable |
@@ -583,8 +586,37 @@ AI processes text, responds appropriately
 
 ## Document Version
 
-- **Version**: 1.0
-- **Last Updated**: December 2024
+- **Version**: 1.1
+- **Last Updated**: December 2025
 - **Author**: CampoTech Team
+
+---
+
+## Recent Core Implementations
+
+Since the initial vision, several key components have been implemented to strengthen the ecosystem:
+
+### 1. Price Book Module
+**Purpose**: Centralized service and pricing management.
+- Hierarchical category organization for services.
+- Detailed price book items with standard rates and descriptions.
+- Dynamic filtering and search for quick job quoting.
+
+### 2. System-Wide Audit & Integrity
+**Purpose**: High-trust logging for sensitive operations.
+- Cryptographic hashing of audit logs to prevent tampering.
+- Complete history of changes to organizations, users, and financial records.
+- Verification tools to ensure data consistency.
+
+### 3. Argentine Localization Shell
+**Purpose**: Deep integration with local standards.
+- `es-AR` localization layer for all internal and external communications.
+- Argentine-specific phone validation and business hour logic.
+- Automated auto-responders tailored for the local market tone.
+
+### 4. Developer SDKs (`packages/sdk`)
+**Purpose**: Enabling programmatic access to the CampoTech ecosystem.
+- **TypeScript SDK**: Full-featured client for web and Node.js environments.
+- **Python SDK**: Targeting automation and data science workflows.
 
 *Powered by CampoTech*

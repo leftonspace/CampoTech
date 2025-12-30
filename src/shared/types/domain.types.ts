@@ -53,9 +53,7 @@ export type IVACondition =
 export type UserRole =
   | 'owner'
   | 'admin'
-  | 'dispatcher'
-  | 'technician'
-  | 'accountant';
+  | 'technician';
 
 export type WhatsAppMessageStatus =
   | 'pending'

@@ -175,13 +175,13 @@ export const CreateUserSchema: Schema = {
   phone: { type: 'string', required: true, minLength: 8, maxLength: 20 },
   fullName: { type: 'string', required: true, minLength: 1, maxLength: 200 },
   email: { type: 'string', maxLength: 254, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
-  role: { type: 'enum', required: true, enum: ['admin', 'dispatcher', 'technician', 'accountant'] as const },
+  role: { type: 'enum', required: true, enum: ['admin', 'technician'] as const },
 };
 
 export const UpdateUserSchema: Schema = {
   fullName: { type: 'string', minLength: 1, maxLength: 200 },
   email: { type: 'string', maxLength: 254, pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ },
-  role: { type: 'enum', enum: ['admin', 'dispatcher', 'technician', 'accountant'] as const },
+  role: { type: 'enum', enum: ['admin', 'technician'] as const },
 };
 
 // Customer schemas
@@ -224,16 +224,18 @@ export const CreateJobSchema: Schema = {
   latitude: { type: 'number', min: -90, max: 90 },
   longitude: { type: 'number', min: -180, max: 180 },
   estimatedDuration: { type: 'number', min: 0, max: 1440 },
-  lineItems: { type: 'array', items: {
-    type: 'object',
-    properties: {
-      priceBookItemId: { type: 'string', maxLength: 36 },
-      description: { type: 'string', required: true, maxLength: 500 },
-      quantity: { type: 'number', required: true, min: 0.01, max: 999999 },
-      unitPrice: { type: 'number', required: true, min: 0, max: 999999999 },
-      taxRate: { type: 'number', required: true, min: 0, max: 1 },
-    },
-  }},
+  lineItems: {
+    type: 'array', items: {
+      type: 'object',
+      properties: {
+        priceBookItemId: { type: 'string', maxLength: 36 },
+        description: { type: 'string', required: true, maxLength: 500 },
+        quantity: { type: 'number', required: true, min: 0.01, max: 999999 },
+        unitPrice: { type: 'number', required: true, min: 0, max: 999999999 },
+        taxRate: { type: 'number', required: true, min: 0, max: 1 },
+      },
+    }
+  },
 };
 
 export const TransitionJobSchema: Schema = {
@@ -249,16 +251,18 @@ export const CreateInvoiceSchema: Schema = {
   jobId: { type: 'string', minLength: 36, maxLength: 36 },
   customerId: { type: 'string', required: true, minLength: 36, maxLength: 36 },
   dueDate: { type: 'date' },
-  lineItems: { type: 'array', required: true, items: {
-    type: 'object',
-    properties: {
-      productCode: { type: 'string', required: true, maxLength: 50 },
-      description: { type: 'string', required: true, maxLength: 500 },
-      quantity: { type: 'number', required: true, min: 0.01, max: 999999 },
-      unitPrice: { type: 'number', required: true, min: 0, max: 999999999 },
-      taxRate: { type: 'number', required: true, min: 0, max: 1 },
-    },
-  }},
+  lineItems: {
+    type: 'array', required: true, items: {
+      type: 'object',
+      properties: {
+        productCode: { type: 'string', required: true, maxLength: 50 },
+        description: { type: 'string', required: true, maxLength: 500 },
+        quantity: { type: 'number', required: true, min: 0.01, max: 999999 },
+        unitPrice: { type: 'number', required: true, min: 0, max: 999999999 },
+        taxRate: { type: 'number', required: true, min: 0, max: 1 },
+      },
+    }
+  },
 };
 
 // Payment schemas

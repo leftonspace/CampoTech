@@ -175,9 +175,7 @@ function getRoleDisplayName(role: string): string {
   const roleNames: Record<string, string> = {
     OWNER: 'Propietario',
     ADMIN: 'Administrador',
-    DISPATCHER: 'Despachador',
     TECHNICIAN: 'Técnico',
-    VIEWER: 'Visualizador',
   };
   return roleNames[role] || role;
 }

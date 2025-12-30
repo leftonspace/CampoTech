@@ -534,9 +534,7 @@ CREATE TYPE iva_condition_enum AS ENUM (
 CREATE TYPE user_role_enum AS ENUM (
     'owner',        -- Full access, billing, danger zone
     'admin',        -- Operational access, no billing
-    'dispatcher',   -- Jobs & customers, no finances
-    'technician',   -- Own jobs only, mobile-focused
-    'accountant'    -- Invoices & payments only
+    'technician'    -- Own jobs only, mobile-focused
 );
 
 -- Document Type (Argentina)

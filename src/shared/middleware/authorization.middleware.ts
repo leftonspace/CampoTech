@@ -41,19 +41,13 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'jobs:*',
     'customers:*',
     'invoices:*',
-    'payments:read', 'payments:create',
+    'payments:*',
     'pricebook:*',
     'users:read', 'users:create', 'users:update',
     'reports:*',
     'settings:read', 'settings:update',
     'audit:read',
-  ],
-  dispatcher: [
-    'jobs:*',
-    'customers:read', 'customers:create', 'customers:update',
-    'invoices:read',
-    'pricebook:read',
-    'users:read',
+    'whatsapp:*',
   ],
   technician: [
     'jobs:read:assigned',
@@ -61,14 +55,6 @@ export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
     'jobs:transition:assigned',
     'customers:read',
     'pricebook:read',
-  ],
-  accountant: [
-    'invoices:*',
-    'payments:*',
-    'customers:read',
-    'jobs:read',
-    'reports:read',
-    'audit:read',
   ],
 };
 

@@ -165,9 +165,7 @@ DOMAIN CAPABILITIES
 ├── consumer_marketplace ─────┬─► review_fraud_detection (services)
 │                             ├─► notification_queue (services)
 │                             └─► marketplace_dashboard (ui)
-├── customer_portal ──────────┬─► technician_gps (domain)
-│                             ├─► whitelabel_portal (ui)
-│                             └─► notification_queue (services)
+
 ├── inventory_management ─────┬─► inventory_stock_alerts (services)
 │                             └─► inventory_dashboard (ui)
 ├── fleet_management ─────────┬─► vehicle_documents (domain)
@@ -201,7 +199,7 @@ UI CAPABILITIES
 ├── pricebook ────────────────┴─► invoicing (domain)
 ├── reporting_dashboard ──────┴─► (standalone)
 ├── marketplace_dashboard ────┴─► consumer_marketplace (domain)
-├── whitelabel_portal ────────┴─► customer_portal (domain)
+
 ├── calendar_dashboard ───────┴─► calendar_view (domain)
 ├── fleet_dashboard ──────────┴─► fleet_management (domain)
 ├── inventory_dashboard ──────┴─► inventory_management (domain)
@@ -240,7 +238,6 @@ export const Capabilities = {
     offline_sync: true,           // Mobile offline synchronization
     technician_gps: true,         // Real-time GPS tracking
     consumer_marketplace: true,   // Two-sided marketplace for consumers
-    customer_portal: true,        // White-label customer tracking portal
     inventory_management: true,   // Parts/materials inventory tracking
     audit_logging: true,          // Comprehensive audit trail logging
     // Phase 7-10: New Capabilities
@@ -280,7 +277,7 @@ export const Capabilities = {
     pricebook: true,             // Price book management
     reporting_dashboard: true,   // Analytics dashboard
     marketplace_dashboard: true, // Consumer marketplace admin UI
-    whitelabel_portal: true,     // Customer portal white-label config
+
     // Phase 7-10: New UI Capabilities
     calendar_dashboard: true,    // Interactive calendar view page
     fleet_dashboard: true,       // Fleet management dashboard
@@ -306,7 +303,7 @@ export const Capabilities = {
 | `offline_sync` | domain | `true` | - | Online-only mode |
 | `technician_gps` | domain | `true` | - | No location tracking |
 | `consumer_marketplace` | domain | `true` | whatsapp, push_notifications | Consumer search/booking disabled |
-| `customer_portal` | domain | `true` | technician_gps | Customer tracking disabled |
+
 | `inventory_management` | domain | `true` | inventory_stock_alerts | Manual inventory only |
 | `audit_logging` | domain | `true` | - | No audit trail |
 | `calendar_view` | domain | `true` | scheduling | Basic job list only |
@@ -330,7 +327,7 @@ export const Capabilities = {
 | `pricebook` | ui | `true` | invoicing | Manual pricing only |
 | `reporting_dashboard` | ui | `true` | - | No analytics view |
 | `marketplace_dashboard` | ui | `true` | consumer_marketplace | No marketplace admin UI |
-| `whitelabel_portal` | ui | `true` | customer_portal | No portal customization |
+
 | `calendar_dashboard` | ui | `true` | calendar_view | No calendar UI |
 | `fleet_dashboard` | ui | `true` | fleet_management | No fleet UI |
 | `inventory_dashboard` | ui | `true` | inventory_management | No inventory UI |
@@ -503,23 +500,7 @@ USER EXPERIENCE:
 - Existing B2B functionality unaffected
 ```
 
-### Customer Portal (`domain.customer_portal = false`)
 
-```
-FALLBACK BEHAVIOR:
-├── Portal URLs → Show "temporarily unavailable"
-├── Job tracking → Not accessible to customers
-├── ETA sharing → Disabled
-├── Invoice access → Via direct links only
-├── Notifications → SMS/WhatsApp only (no portal links)
-└── Recovery → Immediate when re-enabled
-
-USER EXPERIENCE:
-- Customers cannot track technician location
-- No self-service job status checking
-- Businesses must communicate via phone/messaging
-- Core job execution unaffected
-```
 
 ### Inventory Management (`domain.inventory_management = false`)
 
@@ -662,22 +643,7 @@ USER EXPERIENCE:
 - Marketplace still functions for end users
 ```
 
-### Whitelabel Portal (`ui.whitelabel_portal = false`)
 
-```
-FALLBACK BEHAVIOR:
-├── Portal customization → Disabled
-├── Branding options → Default only
-├── Custom domains → Not configurable
-├── Theme settings → Locked
-└── Recovery → Immediate when re-enabled
-
-USER EXPERIENCE:
-- Customer portal uses default CampoTech branding
-- No custom logos or colors
-- Cannot configure custom domains
-- Portal functionality still works
-```
 
 ---
 

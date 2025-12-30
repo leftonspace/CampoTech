@@ -2,7 +2,6 @@
   "locale": "es-AR",
   "language": "Español (Argentina)",
   "direction": "ltr",
-
   "common": {
     "yes": "Sí",
     "no": "No",
@@ -34,7 +33,6 @@
     "profile": "Perfil",
     "home": "Inicio"
   },
-
   "auth": {
     "login": "Iniciar sesión",
     "logout": "Cerrar sesión",
@@ -53,7 +51,6 @@
     "welcomeBack": "¡Bienvenido de nuevo!",
     "phoneFormat": "Ej: 11 1234-5678"
   },
-
   "navigation": {
     "dashboard": "Panel",
     "jobs": "Trabajos",
@@ -65,7 +62,6 @@
     "reports": "Reportes",
     "tracking": "Rastreo"
   },
-
   "jobs": {
     "title": "Trabajos",
     "newJob": "Nuevo trabajo",
@@ -117,7 +113,6 @@
       "cancelled": "Trabajo cancelado"
     }
   },
-
   "customers": {
     "title": "Clientes",
     "newCustomer": "Nuevo cliente",
@@ -144,7 +139,6 @@
       "deleted": "Cliente eliminado"
     }
   },
-
   "invoices": {
     "title": "Facturas",
     "newInvoice": "Nueva factura",
@@ -188,7 +182,6 @@
       "paid": "Pago registrado"
     }
   },
-
   "team": {
     "title": "Equipo",
     "newMember": "Nuevo miembro",
@@ -196,9 +189,7 @@
     "roles": {
       "owner": "Propietario",
       "admin": "Administrador",
-      "dispatcher": "Despachador",
-      "technician": "Técnico",
-      "viewer": "Visualizador"
+      "technician": "Técnico"
     },
     "specialties": {
       "plomero": "Plomero",
@@ -233,7 +224,6 @@
       "verified": "Miembro verificado"
     }
   },
-
   "tracking": {
     "title": "Rastreo en vivo",
     "technicianEnRoute": "Técnico en camino",
@@ -253,7 +243,6 @@
       "trackingStarted": "Rastreo iniciado"
     }
   },
-
   "notifications": {
     "title": "Notificaciones",
     "markAllRead": "Marcar todas leídas",
@@ -271,7 +260,6 @@
       "quietHoursEnd": "Hasta"
     }
   },
-
   "settings": {
     "title": "Configuración",
     "sections": {
@@ -283,7 +271,6 @@
       "notifications": "Notificaciones"
     }
   },
-
   "time": {
     "today": "Hoy",
     "tomorrow": "Mañana",
@@ -295,7 +282,6 @@
     "minutes": "minutos",
     "seconds": "segundos"
   },
-
   "validation": {
     "required": "Este campo es obligatorio",
     "invalidEmail": "Email inválido",
@@ -305,7 +291,6 @@
     "maxLength": "Máximo {{max}} caracteres",
     "passwordMismatch": "Las contraseñas no coinciden"
   },
-
   "errors": {
     "generic": "Ocurrió un error. Por favor, intentá de nuevo.",
     "network": "Error de conexión. Verificá tu internet.",
@@ -314,14 +299,12 @@
     "notFound": "No encontrado",
     "serverError": "Error del servidor"
   },
-
   "currency": {
     "symbol": "$",
     "code": "ARS",
     "name": "Peso Argentino",
     "format": "$ {{amount}}"
   },
-
   "date": {
     "format": {
       "short": "dd/MM/yyyy",

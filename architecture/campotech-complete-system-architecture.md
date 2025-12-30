@@ -44,7 +44,7 @@ CampoTech is an Argentine field service management (FSM) platform designed for S
 flowchart TB
     subgraph Users ["Users"]
         O["Owner"]
-        D["Dispatcher"]
+        A["Admin"]
         T["Technician"]
         C["Consumer"]
         CU["Customer"]
@@ -85,9 +85,9 @@ flowchart TB
         EXPO["Expo<br/>Push Notifications"]
     end
 
-    O & D --> WEB
+    O & A --> WEB
     T --> MOB
-    O & D --> MOB
+    O & A --> MOB
     C --> CMOB
     CU --> WA
     CU --> TRACK
@@ -151,14 +151,14 @@ The main web application serving landing page and business dashboard.
 Business mobile application for field operations.
 
 **Tab Structure:**
-| Tab | Purpose | Roles |
+| `Tab` | `Purpose` | `Roles` |
 |-----|---------|-------|
 | `today` | Today's schedule + pending jobs | All |
 | `jobs` | Job list with filters | All |
-| `customers` | Customer lookup | Owner, Dispatcher |
-| `calendar` | Schedule view | Owner, Dispatcher |
-| `inventory` | Stock management | Owner, Dispatcher |
-| `invoices` | Invoice creation | Owner, Dispatcher |
+| `customers` | Customer lookup | Owner, Admin |
+| `calendar` | Schedule view | Owner, Admin |
+| `inventory` | Stock management | Owner, Admin |
+| `invoices` | Invoice creation | Owner, Admin |
 | `team` | Team management | Owner |
 | `analytics` | Mobile reports | Owner |
 | `profile` | Settings + logout | All |
@@ -227,76 +227,85 @@ Public API documentation and developer resources.
 
 ```mermaid
 flowchart TB
-    subgraph Onboarding ["Onboarding"]
-        REG["1. Register Business"]
-        VER["2. AFIP Verification"]
-        SETUP["3. Initial Setup"]
-        TRIAL["4. Trial Period"]
+    subgraph USERS["👥 USER ACTORS"]
+        direction TB
+        OWNER["🏢 OWNER<br/>Business owner<br/>Full platform access<br/>Billing & settings"]
+        ADMIN["📋 ADMIN<br/>Management staff<br/>Job scheduling<br/>Customer management<br/>(No billing)"]
+        TECH["🔧 TECHNICIAN<br/>Field worker<br/>Mobile app focused<br/>Job completion"]
+        CONSUMER["🛒 CONSUMER<br/>Marketplace user<br/>Service discovery<br/>Reviews & booking"]
     end
 
-    subgraph Daily ["Daily Operations"]
-        subgraph Inbound ["Inbound"]
-            WA_IN["WhatsApp Message"]
-            CALL["Phone Call"]
-            WALK["Walk-in"]
-            MKTPL["Marketplace Request"]
+    %% ═══════════════════════════════════════════════════════════════════════
+    %% FRONTEND INTERFACES - WEB DASHBOARD
+    %% ═══════════════════════════════════════════════════════════════════════
+    subgraph FRONTENDS["🖥️ FRONTEND INTERFACES"]
+        direction TB
+        subgraph WEB_DASHBOARD["Web Dashboard (Next.js) - 80+ Pages"]
+            direction LR
+            subgraph DASH_CORE["Core Modules"]
+                DASH_HOME["📊 Dashboard<br/>KPIs, alerts, activity"]
+                DASH_JOBS["📝 Jobs (9 views)<br/>List, detail, calendar"]
+                DASH_CUSTOMERS["👥 Customers<br/>CRM, leads, history"]
+                DASH_DISPATCH["🚀 Dispatch<br/>AI recommendations"]
+            end
+            subgraph DASH_OPS["Operations"]
+                DASH_INVOICES["🧾 Invoicing<br/>Create, queue, AFIP"]
+                DASH_PAYMENTS["💳 Payments<br/>History, disputes"]
+                DASH_FLEET["🚗 Fleet (4 views)<br/>Vehicles, docs, VTV"]
+                DASH_INVENTORY["📦 Inventory (11)<br/>Products, stock, PO"]
+            end
+            subgraph DASH_ANALYTICS["Analytics & Admin"]
+                DASH_REPORTS["📈 Analytics (8)<br/>Revenue, ops, AI"]
+                DASH_TEAM["👔 Team<br/>Users, locations"]
+                DASH_SETTINGS["⚙️ Settings (12)<br/>Integrations config"]
+                DASH_ADMIN["🔧 Admin (10)<br/>Queues, Health, Sync<br/>Panic Mode"]
+            end
+            subgraph DASH_COMMS["Communications"]
+                DASH_WHATSAPP["💬 WhatsApp (4)<br/>Conversations, templates"]
+                DASH_MAP["🗺️ Live Map<br/>Real-time tracking"]
+                DASH_CALENDAR["📅 Calendar<br/>Drag-drop scheduling"]
+                DASH_COPILOT["🤖 AI Copilot<br/>Chat, actions"]
+            end
         end
 
-        subgraph Process ["Processing"]
-            AGG["Message Aggregation"]
-            AI_EXT["AI Intent Extraction"]
-            MATCH["Customer Matching"]
-            CREATE["Job Creation"]
+        subgraph MOBILE_APP["Mobile App (React Native/Expo) - Technician"]
+            direction LR
+            MOB_TODAY["📱 Today's Jobs<br/>Priority schedule"]
+            MOB_JOBS["📋 All Jobs<br/>List & map view"]
+            MOB_DETAIL["🔍 Job Detail<br/>Photos, notes, status"]
+            MOB_COMPLETE["✅ Completion<br/>Signature, materials"]
+            MOB_INVENTORY["📦 Inventory<br/>Vehicle stock, scan"]
+            MOB_GPS["📍 GPS Tracking<br/>Background location"]
+            MOB_OFFLINE["💾 Offline Mode<br/>WatermelonDB sync"]
+            MOB_ANALYTICS["📊 My Stats<br/>Performance metrics"]
+            MOB_VOICE["🎤 Voice Notes<br/>Record & Upload"]
         end
 
-        subgraph Dispatch ["Dispatch"]
-            ASSIGN["Technician Assignment"]
-            NEAR["Nearest Available"]
-            NOTIFY["Notifications"]
-            TRACK["Customer Tracking Link"]
+        subgraph MARKETPLACE["Consumer Marketplace"]
+            MKT_SEARCH["🔍 Search<br/>Category, location"]
+            MKT_PROFILES["⭐ Profiles<br/>Reviews, portfolio"]
+            MKT_QUOTES["💬 Request Quotes<br/>Compare providers"]
+            MKT_BOOK["📅 Book & Pay<br/>Instant scheduling"]
+            MKT_TRACK["📍 Track<br/>Real-time updates"]
+            MKT_LOGIN["🔐 Consumer Login<br/>Portal Access"]
         end
 
-        subgraph Execute ["Execution"]
-            EN_ROUTE["En Route GPS Tracking"]
-            ARRIVE["Arrival Check-in"]
-            WORK["Work Progress Photos Notes"]
-            COMPLETE["Completion Signature"]
+        subgraph CONSUMER_MOBILE["Consumer Mobile App"]
+            CMOB_DISCOVER["🔍 Discover<br/>Services nearby"]
+            CMOB_BOOK["📅 Book<br/>Schedule service"]
+            CMOB_TRACK["📍 Track<br/>Live updates"]
+            CMOB_RATE["⭐ Rate<br/>Leave reviews"]
         end
 
-        subgraph Close ["Closing"]
-            INVOICE["Invoice Generation"]
-            AFIP_CAE["AFIP CAE Request"]
-            PAYMENT["Payment Collection"]
-            RATING["Customer Rating"]
+        subgraph PUBLIC_PAGES["Public Pages"]
+            PUB_LANDING["🏠 Landing<br/>Marketing site"]
+            PUB_PROFILE["👤 Business Profile<br/>/p/[slug]"]
+            PUB_TRACK["📍 Track Job<br/>/track/[token]"]
+            PUB_RATE["⭐ Rate Job<br/>/rate/[token]"]
+            PUB_LEGAL["📜 Legal<br/>Terms, privacy"]
+            PUB_SEARCH["🔍 Public Directory<br/>/search"]
         end
     end
-
-    subgraph Management ["Management"]
-        REPORTS["Reports Analytics"]
-        FLEET["Fleet Management"]
-        INVENTORY["Inventory Control"]
-        BILLING["Subscription Billing"]
-    end
-
-    REG --> VER --> SETUP --> TRIAL
-    TRIAL --> Inbound
-
-    WA_IN --> AGG
-    CALL --> CREATE
-    WALK --> CREATE
-    MKTPL --> CREATE
-    AGG --> AI_EXT --> MATCH --> CREATE
-
-    CREATE --> ASSIGN --> NEAR --> NOTIFY --> TRACK
-
-    TRACK --> EN_ROUTE --> ARRIVE --> WORK --> COMPLETE
-
-    COMPLETE --> INVOICE --> AFIP_CAE --> PAYMENT --> RATING
-
-    RATING --> REPORTS
-    COMPLETE --> FLEET
-    WORK --> INVENTORY
-    TRIAL --> BILLING
 ```
 
 ---
@@ -438,8 +447,10 @@ erDiagram
 | `/api/payments/*` | 4+ | Payment tracking |
 | `/api/users/*` | 6+ | User management |
 | `/api/locations/*` | 8+ | Multi-location |
-| `/api/vehicles/*` | 6+ | Fleet management |
-| `/api/inventory/*` | 10+ | Stock control |
+| `/api/vehicles/*` | 6+ | Fleet, VTV, Insurance |
+| `/api/inventory/*` | 18+ | Stock, Products, Suppliers |
+| `/api/voice/*` | 2+ | Audio upload, status |
+| `/api/admin/*` | 10+ | DLQ, Panic Mode, Health |
 
 ### External Integrations
 | Group | Routes | Purpose |
@@ -449,11 +460,12 @@ erDiagram
 | `/api/settings/afip` | GET/POST | AFIP configuration |
 | `/api/settings/mercadopago` | GET/POST | MP configuration |
 | `/api/settings/whatsapp` | GET/POST | WhatsApp configuration |
+| `/api/sync/*` | 2 | Offline pull/push |
 
 ### Analytics & AI
 | Group | Routes | Purpose |
 |-------|--------|---------|
-| `/api/analytics/*` | 12+ | Reports, KPIs, predictions |
+| `/api/analytics/*` | 15+ | Reports, KPIs, predictions |
 | `/api/ai/*` | 4+ | AI status, usage, escalations |
 | `/api/copilot/*` | 3+ | Staff AI assistant |
 
@@ -465,6 +477,7 @@ erDiagram
 | `/api/cron/archive-data` | Weekly | Archive old data |
 | `/api/cron/check-budgets` | Daily | Budget alerts |
 | `/api/cron/storage-optimization` | Daily | Cleanup files |
+| `/api/cron/partitions` | Monthly | Database partitioning |
 
 ---
 
@@ -480,7 +493,8 @@ erDiagram
 | **OpenAI GPT-4** | AI processing | Chat completions for intent extraction |
 | **OpenAI Whisper** | Voice transcription | Audio transcriptions |
 | **Google Maps** | Geocoding, routing | Places, Geocoding, Directions, Distance Matrix |
-| **Supabase** | Storage | File uploads (photos, documents, voice) |
+| **Supabase** | Storage, Realtime | File uploads (photos, docs, voice) |
+| **Twilio** | SMS Fallback | OTP delivery only |
 | **Upstash Redis** | Caching, rate limiting | Key-value store, queues |
 | **Expo** | Push notifications | Expo Push API |
 
@@ -493,12 +507,12 @@ erDiagram
 | Role | Spanish | Description |
 |------|---------|-------------|
 | `OWNER` | Dueño | Full platform access including billing |
-| `DISPATCHER` | Despachador | Operations management, no billing |
+| `ADMIN` | Administrador | Operations management, limited billing |
 | `TECHNICIAN` | Técnico | Mobile field worker, assigned jobs only |
 
 ### Permissions Matrix
 
-| Module | Owner | Dispatcher | Technician |
+| Module | Owner | Admin | Technician |
 |--------|:-----:|:----------:|:----------:|
 | Dashboard | Full | Full | - |
 | Jobs (all) | Full | Full | - |
@@ -506,14 +520,14 @@ erDiagram
 | Customers | Full | Full | - |
 | Calendar | Full | Full | - |
 | Invoices | Full | Full | - |
-| Payments | Full | - | - |
-| Fleet | Full | - | - |
+| Payments | Full | View | - |
+| Fleet | Full | View | - |
 | Inventory | Full | Full | View only |
 | Dispatch Map | Full | Full | - |
-| Locations | Full | - | - |
+| Locations | Full | View | - |
 | WhatsApp | Full | Full | - |
 | Analytics | Full | Limited | - |
-| Team | Full | - | - |
+| Team | Full | View | - |
 | Settings | Full | - | - |
 | Billing | Full | - | - |
 
@@ -980,31 +994,33 @@ flowchart TB
 
 | Layer | Component | Count |
 |-------|-----------|-------|
-| **Applications** | Next.js Web Apps | 3 |
-| | React Native Mobile Apps | 2 |
-| | Total Apps | 5 |
-| **API Routes** | Web API Routes | 150+ |
-| | Admin API Routes | 16 |
-| | Webhook Endpoints | 3 |
-| | Cron Endpoints | 7 |
-| **Database** | Prisma Models | 60+ |
-| | Enums | 30+ |
-| **External Integrations** | Payment (Mercado Pago) | 1 |
-| | Tax (AFIP) | 1 |
-| | Messaging (WhatsApp) | 2 providers |
-| | AI (OpenAI) | 2 models |
-| | Maps (Google) | 4 APIs |
-| | Push (Expo) | 1 |
-| **User Types** | Business Roles | 3 |
+| **Applications** | Next.js Web Apps | 1 (Dashboard/Marketing/Admin) |
+| | React Native Mobile Apps | 2 (Technician, Consumer) |
+| | Total Interfaces | 5 (Dash, Mobile Facades) |
+| **API Routes** | **Total API Endpoints** | **242** (Physical Files) |
+| | Core Business APIs | 80+ |
+| | Admin/Ops APIs | 45+ |
+| | Webhook Endpoints | 5 |
+| | Cron/Scheduled Tasks | 7 |
+| **Database** | Prisma Models | 167 |
+| | Enums | 45+ |
+| **External Integrations** | **Total Integrations** | **8** |
+| | Payment | Mercado Pago |
+| | Tax | AFIP (WSAA/WSFE) |
+| | Messaging | WhatsApp (Dialog360) |
+| | AI | OpenAI (GPT-4, Whisper) |
+| | Maps | Google Maps |
+| | Push | Expo |
+| | Storage | Supabase |
+| | SMS | Twilio (Fallback) |
+| **User Types** | Business Roles | 3 (Owner, Admin, Tech) |
 | | Consumer | 1 |
 | | Customer | 1 |
-| | Admin | 1 |
 | **Subscription Tiers** | Plans | 4 |
-| | Features | 20+ |
-| **Queue Workers** | Worker Types | 8 |
-| | Job Types | 30+ |
-| **Real-time** | Event Types | 7 |
-| | Channel Types | 5 |
+| | Features | 25+ |
+| **Background Processing** | **Worker Types** | **28** |
+| | Queue Tiers | 3 (RT, BG, Batch) |
+| | Event Types | 12+ |
 
 ---
 
@@ -1012,10 +1028,10 @@ flowchart TB
 
 | Attribute | Value |
 |-----------|-------|
-| **Version** | 1.0.0 |
-| **Generated** | 2025-12-21 |
-| **Author** | Claude (Architecture Analysis) |
-| **Total Models** | 60+ |
-| **Total API Routes** | 175+ |
-| **External Integrations** | 10 |
-| **Diagram Count** | 12 |
+| **Version** | 1.1.0 |
+| **Last Updated** | 2025-12-30 |
+| **Status** | Implementation Verified |
+| **Total Models** | 167 |
+| **Total API Routes** | 242 |
+| **External Integrations** | 8 |
+| **Diagram Count** | 13 |

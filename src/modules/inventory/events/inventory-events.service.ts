@@ -177,8 +177,8 @@ export async function publishStockAlert(
     payload.alertType === 'OUT_OF_STOCK'
       ? InventoryEventTypes.STOCK_OUT
       : payload.alertType === 'REORDER_POINT'
-      ? InventoryEventTypes.REORDER_POINT_REACHED
-      : InventoryEventTypes.STOCK_LOW;
+        ? InventoryEventTypes.REORDER_POINT_REACHED
+        : InventoryEventTypes.STOCK_LOW;
 
   await publishEvent(eventType, payload, { orgId: organizationId, source: 'inventory' });
 }
@@ -403,9 +403,8 @@ async function sendLowStockNotification(
       userId: user.id,
       organizationId,
       title: 'Stock bajo',
-      body: `${payload.productName} (${payload.productSku}) tiene stock bajo: ${payload.currentQuantity} unidades${
-        payload.warehouseName ? ` en ${payload.warehouseName}` : ''
-      }`,
+      body: `${payload.productName} (${payload.productSku}) tiene stock bajo: ${payload.currentQuantity} unidades${payload.warehouseName ? ` en ${payload.warehouseName}` : ''
+        }`,
       data: {
         type: 'low_stock',
         productId: payload.productId,
@@ -434,9 +433,8 @@ async function sendOutOfStockNotification(
       userId: user.id,
       organizationId,
       title: 'Sin stock',
-      body: `${payload.productName} (${payload.productSku}) se ha agotado${
-        payload.warehouseName ? ` en ${payload.warehouseName}` : ''
-      }`,
+      body: `${payload.productName} (${payload.productSku}) se ha agotado${payload.warehouseName ? ` en ${payload.warehouseName}` : ''
+        }`,
       data: {
         type: 'out_of_stock',
         productId: payload.productId,
@@ -541,7 +539,7 @@ async function getInventoryManagers(organizationId: string): Promise<Array<{ id:
     where: {
       organizationId,
       isActive: true,
-      role: { in: ['OWNER', 'ADMIN', 'DISPATCHER'] },
+      role: { in: ['OWNER', 'ADMIN'] },
     },
     select: { id: true },
   });
