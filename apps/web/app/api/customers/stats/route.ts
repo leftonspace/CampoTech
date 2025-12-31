@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { CustomerService } from '@/src/services/customer.service';
 
 export async function GET() {
   try {
@@ -13,52 +13,11 @@ export async function GET() {
       );
     }
 
-    const organizationId = session.organizationId;
-
-    // Get the start of current month
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    // Run all queries in parallel
-    const [
-      totalCount,
-      newThisMonth,
-      averageRatingResult,
-    ] = await Promise.all([
-      // Total customers
-      prisma.customer.count({
-        where: { organizationId },
-      }),
-
-      // New customers this month
-      prisma.customer.count({
-        where: {
-          organizationId,
-          createdAt: { gte: startOfMonth },
-        },
-      }),
-
-      // Average rating from reviews
-      prisma.review.aggregate({
-        where: {
-          customer: { organizationId },
-          rating: { not: null },
-        },
-        _avg: { rating: true },
-      }),
-    ]);
-
-    // VIP count - feature not yet enabled (migration pending)
-    const vipCount = 0;
+    const stats = await CustomerService.getCustomerStats(session.organizationId);
 
     return NextResponse.json({
       success: true,
-      data: {
-        totalCount,
-        newThisMonth,
-        vipCount: 0, // VIP feature not yet enabled in database
-        averageRating: averageRatingResult._avg.rating || 0,
-      },
+      data: stats,
     });
   } catch (error) {
     console.error('Customer stats error:', error);

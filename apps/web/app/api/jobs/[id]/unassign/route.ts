@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { JobService } from '@/src/services/job.service';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -18,8 +18,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const body = await request.json();
-    const { userId } = body;
+    const { userId } = await request.json();
 
     if (!userId) {
       return NextResponse.json(
@@ -29,12 +28,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Verify the job belongs to the organization
-    const existing = await prisma.job.findFirst({
-      where: {
-        id,
-        organizationId: session.organizationId,
-      },
-    });
+    const existing = await JobService.getJobById(session.organizationId, id);
 
     if (!existing) {
       return NextResponse.json(
@@ -43,42 +37,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Remove from job assignments
-    await prisma.jobAssignment.delete({
-      where: {
-        jobId_technicianId: {
-          jobId: id,
-          technicianId: userId,
-        },
-      },
-    }).catch(() => {
-      // Ignore if assignment doesn't exist
-    });
-
-    // If the legacy technicianId matches, clear it
-    const updateData: Record<string, unknown> = {};
-    if (existing.technicianId === userId) {
-      updateData.technicianId = null;
-    }
-
-    // Get updated job
-    const job = await prisma.job.update({
-      where: { id },
-      data: updateData,
-      include: {
-        customer: true,
-        technician: {
-          select: { id: true, name: true, role: true },
-        },
-        assignments: {
-          include: {
-            technician: {
-              select: { id: true, name: true },
-            },
-          },
-        },
-      },
-    });
+    // Use JobService to unassign the technician
+    const job = await JobService.unassignJob(session.organizationId, id, userId);
 
     return NextResponse.json({
       success: true,

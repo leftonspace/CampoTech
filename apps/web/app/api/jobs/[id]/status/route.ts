@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { onJobStatusChange } from '@/src/modules/whatsapp/notification-triggers.service';
 import { randomUUID } from 'crypto';
+import { JobService } from '@/src/services/job.service';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -30,16 +31,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const body = await request.json();
-    const { status } = body;
+    const { status } = await request.json();
 
     // Verify the job belongs to the organization
-    const existing = await prisma.job.findFirst({
-      where: {
-        id,
-        organizationId: session.organizationId,
-      },
-    });
+    const existing = await JobService.getJobById(session.organizationId, id);
 
     if (!existing) {
       return NextResponse.json(
@@ -50,37 +45,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const dbStatus = STATUS_MAP[status] || status.toUpperCase();
 
-    const updateData: Record<string, unknown> = {
-      status: dbStatus,
-    };
-
-    // Set completion timestamp if completed
-    if (dbStatus === 'COMPLETED') {
-      updateData.completedAt = new Date();
-    }
-
-    // Set start timestamp if in progress
-    if (dbStatus === 'IN_PROGRESS' && !existing.startedAt) {
-      updateData.startedAt = new Date();
-    }
-
-    const job = await prisma.job.update({
-      where: { id },
-      data: updateData,
-      include: {
-        customer: true,
-        technician: {
-          select: { id: true, name: true, role: true },
-        },
-        assignments: {
-          include: {
-            technician: {
-              select: { id: true, name: true },
-            },
-          },
-        },
-      },
-    });
+    // Use JobService to update status with automatic timestamp handling
+    const job = await JobService.updateJobStatus(session.organizationId, id, dbStatus);
 
     // Generate rating token when job is completed
     let ratingToken: string | null = null;
@@ -100,7 +66,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             data: {
               jobId: id,
               organizationId: session.organizationId,
-              customerId: job.customer?.id || null,
+              customerId: job.customerId || null,
               technicianId: job.technicianId || null,
               token: ratingToken,
               // Token expires in 30 days
@@ -119,8 +85,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Trigger WhatsApp notification for status change (non-blocking)
-    const oldStatus = existing.status as 'PENDING' | 'SCHEDULED' | 'ASSIGNED' | 'EN_ROUTE' | 'ARRIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-    const newStatus = dbStatus as 'PENDING' | 'SCHEDULED' | 'ASSIGNED' | 'EN_ROUTE' | 'ARRIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+    const oldStatus = existing.status as any;
+    const newStatus = dbStatus as any;
     if (oldStatus !== newStatus) {
       onJobStatusChange(id, oldStatus, newStatus, {
         technicianId: job.technicianId || undefined,

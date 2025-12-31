@@ -8,16 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
-
-// Check if error is related to missing table
-function isTableNotFoundError(error: unknown): boolean {
-  return (
-    error instanceof PrismaClientKnownRequestError &&
-    error.code === 'P2021'
-  );
-}
+import { JobService } from '@/src/services/job.service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -63,8 +54,8 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
-    // Get jobs - try with assignments and visits, fall back without if tables don't exist
-    let jobs: any[];
+    // Get jobs
+    let jobs: any[] = [];
     let jobVisits: any[] = [];
 
     // Track customers who have completed jobs (for "first visit" indicator)
@@ -83,115 +74,27 @@ export async function GET(request: NextRequest) {
       // If query fails, continue without first visit info
     }
 
-    try {
-      jobs = await prisma.job.findMany({
-        where,
-        include: {
-          customer: {
-            select: {
-              id: true,
-              name: true,
-              phone: true,
-              address: true,
-            },
-          },
-          technician: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-              specialty: true,
-            },
-          },
-          assignments: {
-            include: {
-              technician: {
-                select: {
-                  id: true,
-                  name: true,
-                  avatar: true,
-                  specialty: true,
-                },
-              },
-            },
-          },
-          visits: {
-            orderBy: { visitNumber: 'asc' },
-            include: {
-              technician: {
-                select: {
-                  id: true,
-                  name: true,
-                  avatar: true,
-                  specialty: true,
-                },
-              },
-            },
+    jobs = await prisma.job.findMany({
+      where,
+      include: {
+        customer: {
+          select: {
+            id: true,
+            name: true,
+            phone: true,
+            address: true,
           },
         },
-        orderBy: { scheduledDate: 'asc' },
-      });
-
-      // Also get visits from multi-visit jobs that fall within the date range
-      // but whose parent job's scheduledDate might be outside the range
-      const visitsWhere: any = {
-        job: {
-          organizationId: session.organizationId,
-        },
-        scheduledDate: {
-          gte: start,
-          lte: end,
-        },
-      };
-
-      if (technicianId) {
-        visitsWhere.technicianId = technicianId;
-      }
-
-      if (status) {
-        visitsWhere.status = status;
-      }
-
-      jobVisits = await prisma.jobVisit.findMany({
-        where: visitsWhere,
-        include: {
-          job: {
-            include: {
-              customer: {
-                select: {
-                  id: true,
-                  name: true,
-                  phone: true,
-                  address: true,
-                },
-              },
-            },
-          },
-          technician: {
-            select: {
-              id: true,
-              name: true,
-              avatar: true,
-              specialty: true,
-            },
+        technician: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            specialty: true,
           },
         },
-        orderBy: { scheduledDate: 'asc' },
-      });
-    } catch (includeError) {
-      // If assignments/visits tables don't exist, query without them
-      if (isTableNotFoundError(includeError)) {
-        jobs = await prisma.job.findMany({
-          where,
+        assignments: {
           include: {
-            customer: {
-              select: {
-                id: true,
-                name: true,
-                phone: true,
-                address: true,
-              },
-            },
             technician: {
               select: {
                 id: true,
@@ -201,14 +104,70 @@ export async function GET(request: NextRequest) {
               },
             },
           },
-          orderBy: { scheduledDate: 'asc' },
-        });
-        // Add empty arrays for consistency
-        jobs = jobs.map((job: any) => ({ ...job, assignments: [], visits: [] }));
-      } else {
-        throw includeError;
-      }
+        },
+        visits: {
+          orderBy: { visitNumber: 'asc' },
+          include: {
+            technician: {
+              select: {
+                id: true,
+                name: true,
+                avatar: true,
+                specialty: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { scheduledDate: 'asc' },
+    });
+
+    // Also get visits from multi-visit jobs that fall within the date range
+    // but whose parent job's scheduledDate might be outside the range
+    const visitsWhere: any = {
+      job: {
+        organizationId: session.organizationId,
+      },
+      scheduledDate: {
+        gte: start,
+        lte: end,
+      },
+    };
+
+    if (technicianId) {
+      visitsWhere.technicianId = technicianId;
     }
+
+    if (status) {
+      visitsWhere.status = status;
+    }
+
+    jobVisits = await prisma.jobVisit.findMany({
+      where: visitsWhere,
+      include: {
+        job: {
+          include: {
+            customer: {
+              select: {
+                id: true,
+                name: true,
+                phone: true,
+                address: true,
+              },
+            },
+          },
+        },
+        technician: {
+          select: {
+            id: true,
+            name: true,
+            avatar: true,
+            specialty: true,
+          },
+        },
+      },
+      orderBy: { scheduledDate: 'asc' },
+    });
 
     // Get technicians for filter
     const technicians = await prisma.user.findMany({
@@ -392,11 +351,11 @@ export async function GET(request: NextRequest) {
           },
           technician: visit.technician
             ? {
-                id: visit.technician.id,
-                name: visit.technician.name,
-                avatar: visit.technician.avatar,
-                specialty: visit.technician.specialty,
-              }
+              id: visit.technician.id,
+              name: visit.technician.name,
+              avatar: visit.technician.avatar,
+              specialty: visit.technician.specialty,
+            }
             : null,
           isVisit: true,
           scheduledTimeSlot: timeSlot,
@@ -437,21 +396,21 @@ export async function GET(request: NextRequest) {
             },
             technician: job.technician
               ? {
-                  id: job.technician.id,
-                  name: job.technician.name,
-                  avatar: job.technician.avatar,
-                  specialty: job.technician.specialty,
-                }
+                id: job.technician.id,
+                name: job.technician.name,
+                avatar: job.technician.avatar,
+                specialty: job.technician.specialty,
+              }
               : null,
             assignments: job.assignments.map((a: any) => ({
               id: a.id,
               technician: a.technician
                 ? {
-                    id: a.technician.id,
-                    name: a.technician.name,
-                    avatar: a.technician.avatar,
-                    specialty: a.technician.specialty,
-                  }
+                  id: a.technician.id,
+                  name: a.technician.name,
+                  avatar: a.technician.avatar,
+                  specialty: a.technician.specialty,
+                }
                 : null,
             })),
             estimatedDuration: job.estimatedDuration,

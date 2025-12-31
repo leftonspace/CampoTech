@@ -427,57 +427,91 @@ erDiagram
 
 ## 6. API Routes Summary
 
-### Authentication (`/api/auth/*`)
-| Route | Method | Purpose |
-|-------|--------|---------|
-| `/auth/login` | POST | Login with phone/password |
-| `/auth/register` | POST | Business registration |
-| `/auth/otp/request` | POST | Request OTP code |
-| `/auth/otp/verify` | POST | Verify OTP code |
-| `/auth/refresh` | POST | Refresh JWT token |
-| `/auth/logout` | POST | Logout |
-| `/auth/me` | GET | Get current user |
+### Core Business
+| Group | Purpose |
+|-------|---------|
+| `/api/customers/*` | Customer management, profiles, history |
+| `/api/jobs/*` | Job CRUD, status, workflow execution |
+| `/api/invoices/*` | Invoicing, AFIP generation, statuses |
+| `/api/payments/*` | Payment collection, tracking, methods |
+| `/api/inventory/*` | Product catalog, stock, warehouses, suppliers |
+| `/api/locations/*` | Multi-location/branch management |
+| `/api/vehicles/*` | Fleet management, maintenance, documents |
+| `/api/users/*` | User/Staff management and profiles |
+| `/api/employees/*` | Employee-specific records, schedules |
+| `/api/team/*` | Team organization and hierarchy |
+| `/api/service-types/*` | Configuration of service offerings |
+| `/api/zones/*` | Service zone definitions and assignments |
+| `/api/organization/*` | Core organization settings and metadata |
 
-### Core APIs
-| Group | Routes | Purpose |
-|-------|--------|---------|
-| `/api/jobs/*` | 10+ | Job CRUD, assignment, status |
-| `/api/customers/*` | 5+ | Customer management |
-| `/api/invoices/*` | 8+ | Invoice generation, AFIP |
-| `/api/payments/*` | 4+ | Payment tracking |
-| `/api/users/*` | 6+ | User management |
-| `/api/locations/*` | 8+ | Multi-location |
-| `/api/vehicles/*` | 6+ | Fleet, VTV, Insurance |
-| `/api/inventory/*` | 18+ | Stock, Products, Suppliers |
-| `/api/voice/*` | 2+ | Audio upload, status |
-| `/api/admin/*` | 10+ | DLQ, Panic Mode, Health |
+### Operations & Access
+| Group | Purpose |
+|-------|---------|
+| `/api/auth/*` | Login, Register, Refresh, Logout, Me |
+| `/api/access/*` | Role-based access control (RBAC), Permissions |
+| `/api/approvals/*` | Approval workflows (e.g., job completion) |
+| `/api/change-requests/*` | Regulated data modification requests |
+| `/api/docs/*` | Internal or technical documentation endpoints |
+| `/api/documents/*` | General document management/storage |
+| `/api/verification/*` | Identity and business verification (KYC/KYB) |
 
-### External Integrations
-| Group | Routes | Purpose |
-|-------|--------|---------|
-| `/api/webhooks/mercadopago` | POST | MP payment webhooks |
-| `/api/webhooks/dialog360` | POST | WhatsApp webhooks |
-| `/api/settings/afip` | GET/POST | AFIP configuration |
-| `/api/settings/mercadopago` | GET/POST | MP configuration |
-| `/api/settings/whatsapp` | GET/POST | WhatsApp configuration |
-| `/api/sync/*` | 2 | Offline pull/push |
+### Finance & Subscriptions
+| Group | Purpose |
+|-------|---------|
+| `/api/billing/*` | Platform billing history, invoices |
+| `/api/subscription/*` | Subscription tiers, plan management |
+| `/api/usage/*` | Quota tracking (e.g., WhatsApp messages) |
 
-### Analytics & AI
-| Group | Routes | Purpose |
-|-------|--------|---------|
-| `/api/analytics/*` | 15+ | Reports, KPIs, predictions |
-| `/api/ai/*` | 4+ | AI status, usage, escalations |
-| `/api/copilot/*` | 3+ | Staff AI assistant |
+### Communication & Engagement
+| Group | Purpose |
+|-------|---------|
+| `/api/whatsapp/*` | Messaging, templates, conversations |
+| `/api/voice/*` | Audio processing (Upload, Transcribe) |
+| `/api/notifications/*` | Notification center, preferences |
+| `/api/ratings/*` | Customer feedback and reviews |
+| `/api/public-profile/*` | Public-facing SEO profiles for marketplace |
 
-### Cron Jobs
-| Route | Schedule | Purpose |
-|-------|----------|---------|
-| `/api/cron/subscription` | Daily | Process renewals |
-| `/api/cron/trial-expiration` | Daily | Check trials |
-| `/api/cron/archive-data` | Weekly | Archive old data |
-| `/api/cron/check-budgets` | Daily | Budget alerts |
-| `/api/cron/storage-optimization` | Daily | Cleanup files |
-| `/api/cron/partitions` | Monthly | Database partitioning |
+### Geospatial & Tracking
+| Group | Purpose |
+|-------|---------|
+| `/api/tracking/*` | Live technician tracking, sessions |
+| `/api/dispatch/*` | Active job dispatching logic |
+| `/api/map/*` | Map tiling and visualization data |
+| `/api/places/*` | Address search and autocomplete |
+| `/api/geocoding/*` | Address-to-coordinate conversion |
+
+### System & Admin
+| Group | Purpose |
+|-------|---------|
+| `/api/admin/*` | Super-admin tools (DLQ, Panic, Health) |
+| `/api/audit-logs/*` | Activity trails for compliance |
+| `/api/cron/*` | Scheduled background tasks |
+| `/api/dashboard/*` | Aggregated metrics for dashboard views |
+| `/api/health/*` | System uptime and capability checks |
+| `/api/monitoring/*` | Performance and error monitoring |
+| `/api/settings/*` | Global system configuration |
+| `/api/sync/*` | Offline-first synchronization (WatermelonDB) |
+| `/api/version/*` | API versioning info |
+
+### Integrations
+| Group | Purpose |
+|-------|---------|
+| `/api/afip/*` | Argentina tax authority integration |
+| `/api/mercadopago/*` | Payment gateway integration |
+| `/api/webhooks/*` | Incoming events (MP, Dialog360, etc.) |
+
+### Analytics & Intelligence
+| Group | Purpose |
+|-------|---------|
+| `/api/analytics/*` | Reporting, KPIs, predictive models |
+| `/api/ai/*` | General AI services (Escalation, analysis) |
+| `/api/copilot/*` | Staff AI assistant endpoints |
+
+### Mobile & Legacy
+| Group | Purpose |
+|-------|---------|
+| `/api/mobile/*` | Mobile-app specific optimizations |
+| `/api/v1/*` | Legacy or versioned public endpoints |
 
 ---
 

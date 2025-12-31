@@ -1,21 +1,6 @@
-/**
- * Inventory Alerts API Route
- * GET /api/inventory/alerts - Get stock alerts (low stock, reorder needed)
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
-
-// Helper to check if error is "table doesn't exist"
-function isTableNotFoundError(error: unknown): boolean {
-  return (
-    error instanceof PrismaClientKnownRequestError &&
-    error.code === 'P2021'
-  );
-}
+import { InventoryService } from '@/src/services/inventory.service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,134 +13,57 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get all items with stock information
-    let items: any[] = [];
-    try {
-      items = await prisma.inventoryItem.findMany({
-        where: {
-          organizationId: session.organizationId,
-          isActive: true,
+    // Get products with stock alerts from InventoryService
+    const result = await InventoryService.listProducts(
+      session.organizationId,
+      { lowStock: true },
+      { limit: 200 } // Reasonable limit for alerts
+    );
+    const products = result.items;
+
+    const alerts = products.map((product: any) => {
+      const totalStock = product.stock.onHand;
+      const isOutOfStock = totalStock === 0;
+
+      const severity = isOutOfStock
+        ? 'critical'
+        : (product.minStockLevel && totalStock <= product.minStockLevel / 2 ? 'critical' : 'warning');
+
+      return {
+        type: isOutOfStock ? 'OUT_OF_STOCK' : 'LOW_STOCK',
+        severity,
+        item: {
+          id: product.id,
+          name: product.name,
+          sku: product.sku,
         },
-        include: {
-          stocks: {
-            include: {
-              location: {
-                select: {
-                  id: true,
-                  name: true,
-                  locationType: true,
-                },
-              },
-            },
-          },
+        message: isOutOfStock
+          ? `${product.name} está agotado`
+          : `${product.name} tiene stock bajo (${totalStock} ${product.unitOfMeasure || 'unidades'})`,
+        details: {
+          currentStock: totalStock,
+          minStockLevel: product.minStockLevel,
+          locationBreakdown: product.inventoryLevels.map((lvl: any) => ({
+            locationId: lvl.warehouseId,
+            locationName: lvl.warehouse.name,
+            quantity: lvl.quantityOnHand,
+          })),
         },
-      });
-    } catch (queryError) {
-      // Handle missing table gracefully - return empty data
-      if (isTableNotFoundError(queryError)) {
-        console.warn('Inventory tables not found - returning empty data. Run database migrations to create tables.');
-        return NextResponse.json({
-          success: true,
-          data: {
-            alerts: [],
-            summary: {
-              total: 0,
-              critical: 0,
-              warning: 0,
-              info: 0,
-              outOfStock: 0,
-              lowStock: 0,
-            },
-          },
-          _notice: 'Inventory management tables not yet created. Run database migrations.',
-        });
-      }
-      throw queryError;
-    }
-
-    const alerts: Array<{
-      type: 'LOW_STOCK' | 'OUT_OF_STOCK';
-      severity: 'critical' | 'warning' | 'info';
-      item: {
-        id: string;
-        name: string;
-        sku: string | null;
       };
-      message: string;
-      details: {
-        currentStock: number;
-        minStockLevel: number | null;
-        locationBreakdown?: Array<{
-          locationId: string;
-          locationName: string;
-          quantity: number;
-        }>;
-      };
-    }> = [];
+    });
 
-    for (const item of items) {
-      const totalStock = item.stocks.reduce((sum: number, s: { quantity: number }) => sum + s.quantity, 0);
-
-      // Out of stock alert
-      if (totalStock === 0) {
-        alerts.push({
-          type: 'OUT_OF_STOCK',
-          severity: 'critical',
-          item: {
-            id: item.id,
-            name: item.name,
-            sku: item.sku,
-          },
-          message: `${item.name} está agotado`,
-          details: {
-            currentStock: 0,
-            minStockLevel: item.minStockLevel,
-            locationBreakdown: item.stocks.map((s: { locationId: string; location?: { name: string }; quantity: number }) => ({
-              locationId: s.locationId,
-              locationName: s.location?.name ?? 'Ubicación desconocida',
-              quantity: s.quantity,
-            })),
-          },
-        });
-        continue;
-      }
-
-      // Low stock alert (below minimum level)
-      if (item.minStockLevel && totalStock <= item.minStockLevel) {
-        alerts.push({
-          type: 'LOW_STOCK',
-          severity: totalStock <= item.minStockLevel / 2 ? 'critical' : 'warning',
-          item: {
-            id: item.id,
-            name: item.name,
-            sku: item.sku,
-          },
-          message: `${item.name} tiene stock bajo (${totalStock} ${item.unit || 'unidades'})`,
-          details: {
-            currentStock: totalStock,
-            minStockLevel: item.minStockLevel,
-            locationBreakdown: item.stocks.map((s: { locationId: string; location?: { name: string }; quantity: number }) => ({
-              locationId: s.locationId,
-              locationName: s.location?.name ?? 'Ubicación desconocida',
-              quantity: s.quantity,
-            })),
-          },
-        });
-      }
-    }
-
-    // Sort by severity
-    const severityOrder = { critical: 0, warning: 1, info: 2 };
-    alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+    // Sort by severity (critical first)
+    const severityOrder: Record<string, number> = { critical: 0, warning: 1, info: 2 };
+    alerts.sort((a: any, b: any) => severityOrder[a.severity] - severityOrder[b.severity]);
 
     // Calculate summary
     const summary = {
       total: alerts.length,
-      critical: alerts.filter((a) => a.severity === 'critical').length,
-      warning: alerts.filter((a) => a.severity === 'warning').length,
-      info: alerts.filter((a) => a.severity === 'info').length,
-      outOfStock: alerts.filter((a) => a.type === 'OUT_OF_STOCK').length,
-      lowStock: alerts.filter((a) => a.type === 'LOW_STOCK').length,
+      critical: alerts.filter((a: any) => a.severity === 'critical').length,
+      warning: alerts.filter((a: any) => a.severity === 'warning').length,
+      info: alerts.filter((a: any) => a.severity === 'info').length,
+      outOfStock: alerts.filter((a: any) => a.type === 'OUT_OF_STOCK').length,
+      lowStock: alerts.filter((a: any) => a.type === 'LOW_STOCK').length,
     };
 
     return NextResponse.json({

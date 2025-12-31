@@ -246,7 +246,7 @@ SELECT current_setting('app.current_org_id', true);
     └──────────────────┘         └──────────────────┘
 
     ┌──────────────────┐         ┌──────────────────┐
-    │  failed_jobs ⏳   │         │idempotency_keys⏳│
+    │    failed_jobs   │  ✅      │ idempotency_keys │  ✅
     ├──────────────────┤         ├──────────────────┤
     │ PK id            │         │ PK id            │
     │    queue_name    │         │    key (UNIQUE)  │
@@ -4276,10 +4276,10 @@ Procedure:
 # DOCUMENT METADATA
 
 ```
-Version: 2.1
+Version: 2.2
 Created: December 2025
-Last Updated: 2025-12-12
-Tables: 72+ (including Phase 8, 9, 9.5-9.9, 13, and 15)
+Last Updated: 2025-12-30
+Tables: 75+ (including recently implemented system tables)
 Enums: 31+
 Indexes: 140+
 RLS Policies: 50+
@@ -4298,6 +4298,12 @@ Compliant With:
 ```
 
 ## Changelog
+
+### v2.2 (2025-12-30)
+- **AUDIT:** Verified implementation of `failed_jobs`, `idempotency_keys` tables.
+- **UPDATED:** Master Architecture Diagram to include all 51+ API groups.
+- **CLARIFIED:** Voice/Audio message model definitions.
+- **SYNC:** Synchronized architecture documentation with verified 242+ endpoint codebase state.
 
 ### v2.1 (2025-12-12)
 - **ADDED:** Fleet Management tables (vehicles, vehicle_documents, vehicle_assignments)

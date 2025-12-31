@@ -133,6 +133,14 @@ sequenceDiagram
                 Q->>DB: Queue for human review
                 API->>Tech: Push notification: review needed
             end
+        else Consumer Booking
+            C->>App: Book Service via Marketplace
+            App->>API: POST /api/v1/booking
+            API->>DB: Create job (status: pending_approval)
+            API->>Q: Queue: job:pending_approval
+            Q->>Tech: Push notification: New Booking Request
+            Tech->>API: Approve Booking
+            API->>DB: Update status: pending
         else Manual Entry
             Tech->>API: POST /jobs
             API->>DB: Create job
@@ -590,6 +598,69 @@ sequenceDiagram
     participant Alert as Alert System
     
     Note over C,Alert: SCENARIO: MP Webhook Delayed/Lost
+
+    %% ... (Existing content remains)
+
+### B.4 Offline Data Conflict Resolution
+
+```mermaid
+sequenceDiagram
+    autonumber
+    
+    participant App as Mobile App
+    participant Sync as Sync Engine (WatermelonDB)
+    participant API as CampoTech API
+    participant DB as Server DB
+    participant User as Technician
+    
+    Note over App,DB: SCENARIO: Offline Data Conflict
+    
+    %% Initial state
+    App->>App: User edits Job #123 (offline)
+    Note right of App: Local Version: 5, Changes: {status: 'completed'}
+    
+    %% Parallel server update
+    Note right of DB: Admin updates Job #123
+    Note right of DB: Server Version: 6, Changes: {notes: 'Updated description'}
+    
+    %% Sync attempt
+    App->>Sync: Trigger Sync (Push)
+    Sync->>API: POST /api/sync/push
+    Note right of Sync: Payload: {changes: [Job #123], lastPulledAt: T-1h}
+    
+    API->>DB: Check version conflict
+    DB-->>API: Version Mismatch (Client: 5, Server: 6)
+    
+    API-->>Sync: 409 Conflict
+    Note right of Sync: Response: {conflicts: [{id: 123, serverState: {...}}]}
+    
+    %% Resolution Strategy
+    alt Automatic Resolution (Last Write Wins)
+        Sync->>Sync: Compare timestamps
+        Sync->>Sync: Client edit is newer
+        Sync->>API: POST /api/sync/push?force=true
+        API->>DB: Apply changes (overwrite)
+        API-->>Sync: 200 OK
+    else Manual Resolution Required
+        Sync->>App: Flag Sync Conflict
+        App->>User: Show Conflict UI
+        User->>App: Select "Keep My Changes"
+        App->>Sync: Resolve Conflict
+        Sync->>API: POST /api/sync/push?force=true
+        API->>DB: Apply changes
+        API-->>Sync: 200 OK
+    end
+    
+    %% Final Pull
+    Sync->>API: GET /api/sync/pull
+    API->>DB: Fetch latest state
+    DB-->>API: Latest Data
+    API-->>Sync: New Changes
+    Sync->>App: Update Local DB
+```
+
+### B.5 Panic Mode Activation
+(Refer to *Service Capability Fallbacks* in `capabilities.md` for full panic mode logic)
     
     %% Payment made but webhook delayed
     rect rgb(255, 255, 200)
@@ -1673,7 +1744,39 @@ sequenceDiagram
 │  Implementation: /src/shared/utils/state-machine.ts:258-291                 │
 │  Domain Types: /src/shared/types/domain.types.ts:31-38                      │
 └─────────────────────────────────────────────────────────────────────────────┘
+
+### F.3 Subscription Billing Cycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Trial: Signup
+    
+    Trial --> Active: Payment Method Added
+    Trial --> Cancelled: Trial Expired
+    
+    state Active {
+        [*] --> Current
+        Current --> RenewalDue: End of Period (Month/Year)
+        RenewalDue --> Current: Payment Success
+        RenewalDue --> PastDue: Payment Failed
+    }
+    
+    PastDue --> Active: Payment Retry Success
+    PastDue --> Suspended: Grace Period Exceeded (7 days)
+    
+    Suspended --> Active: Manual Payment
+    Suspended --> Cancelled: No Payment (30 days)
+    
+    Active --> Cancelled: User Cancels
+    Cancelled --> Active: Reactivation
 ```
+
+**Billing Cycles (`BillingCycle` enum):**
+- `monthly`: Charged every month
+- `quarterly`: Charged every 3 months
+- `yearly`: Charged every 12 months (discounted)
+
+The `cron/subscription` job triggers the `RenewalDue` transition daily.
 
 ### F.5 Chargeback State Machine (✅ IMPLEMENTED)
 
@@ -2214,7 +2317,7 @@ sequenceDiagram
                 Note right of API: job: {channel, user_id, template, data}
             end
         else Quiet hours active
-            API->>Queue: Schedule for quiet hours end
+            API->>Queue: Add to queue with delay (next_window_start)
         else Event disabled
             Note over API: Skip notification
         end
@@ -2899,15 +3002,23 @@ This document now covers **17 major flows** across all phases:
 
 **Document Metadata**
 ```
-Version: 2.3
-Last Updated: 2025-12-12
-Flows Documented: 17 + B.5 (Panic Mode) + F.5 (Chargeback)
+Version: 2.4
+Last Updated: 2025-12-30
+Flows Documented: 19 + B.5 (Panic Mode) + F.5 (Chargeback)
 Phases Covered: Core, 1-6, 7, 8, 9, 9.3, 9.4, 9.6, 9.9, 13, 15
 Format: Mermaid sequence diagrams, ASCII flow charts
 State Machines Fixed: Payment (aligned with domain types)
 ```
 
 ## Changelog
+
+### v2.4 (2025-12-30)
+- **ADDED:** Flow K - Mobile-Specific Architecture (Jobs, Push, Sync)
+- **ADDED:** Flow A - Consumer Booking Entry Point (restored & updated)
+- **ADDED:** Flow B.4 - Offline Data Conflict Resolution (WatermelonDB)
+- **ADDED:** Flow F.3 - Subscription Billing Cycle (Monthly/Yearly/Trial)
+- **UPDATED:** Flow J - Corrected Notification Quiet Hours Logic
+- **AUDIT:** Verified alignment of all flows with v1.1.0 codebase
 
 ### v2.3 (2025-12-12)
 - **ADDED:** Flow L - Technician Location Update (real-time WebSocket broadcast)
@@ -2928,6 +3039,7 @@ State Machines Fixed: Payment (aligned with domain types)
 - **UPDATED:** Implementation status section to reflect actual codebase state
 - **UPDATED:** All state machine status tables with accurate implementation markers
 
+
 ### v2.1 (2025-12-10)
 - Added implementation status warning section at document start
 - Added state machine implementation status table
@@ -2939,3 +3051,43 @@ State Machines Fixed: Payment (aligned with domain types)
 - Added ❌ CRITICAL TYPE MISMATCH warning to Payment state machine section
 
 Addresses audit findings from ARCHITECTURE-AUDIT-REPORT.md section 5
+
+---
+
+## Flow K: Mobile-Specific Architecture
+
+### K.1 Mobile API Optimization
+
+Direct endpoints for mobile app performance (separate from standard REST API).
+
+```mermaid
+sequenceDiagram
+    participant Mobile as Mobile App
+    participant API as Mobile API
+    participant DB as Database
+
+    Note over Mobile,DB: 1. Optimized Job Fetch
+    Mobile->>API: GET /api/mobile/jobs
+    API->>DB: Fetch jobs + customer + location
+    Note right of DB: Single query with JSON aggregation
+    DB-->>API: Compact JSON
+    API-->>Mobile: Lightweight Payload (No unnecessary fields)
+
+    Note over Mobile,DB: 2. Push Registration
+    Mobile->>API: POST /api/mobile/push-token
+    Note right of Mobile: { token: "Ex...", platform: "ios" }
+    API->>DB: Upsert device_token
+    API-->>Mobile: OK
+
+    Note over Mobile,DB: 3. Sync Alias
+    Mobile->>API: POST /api/mobile/sync
+    Note right of API: Proxies to /api/sync with mobile headers
+    API->>DB: WatermelonDB Sync
+    DB-->>API: Changeset
+    API-->>Mobile: Sync Data
+```
+
+**Verified Endpoints:**
+- `/api/mobile/jobs`: Returns only active jobs with pre-computed fields for list view.
+- `/api/mobile/push-token`: Handles Expo push token registration/rotation.
+- `/api/mobile/sync`: Mobile-specific wrapper around the core sync engine.

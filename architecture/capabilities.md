@@ -265,6 +265,11 @@ export const Capabilities = {
     // Phase 8-9: Fleet & Inventory Services
     fleet_expiry_alerts: true,    // Vehicle document expiry checking & alerts
     inventory_stock_alerts: true, // Low stock checking & alerts
+    
+    // Phase 10: AI & Intelligence
+    ai_escalation: true,          // Automatic escalation to human agents
+    ai_intent_extraction: true,   // Intent analysis from messages
+    ai_copilot: true,             // Staff AI assistant capabilities
   },
 
   // ═══════════════════════════════════════════════════════════════

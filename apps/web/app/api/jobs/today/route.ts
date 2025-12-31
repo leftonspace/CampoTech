@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { JobService } from '@/src/services/job.service';
 
 /**
  * Jobs Today API
@@ -24,46 +24,26 @@ export async function GET(request: NextRequest) {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    // Fetch jobs for today
-    const jobs = await prisma.job.findMany({
-      where: {
-        organizationId: session.organizationId,
-        scheduledDate: {
-          gte: today,
-          lt: tomorrow,
-        },
-        status: { not: 'CANCELLED' },
-      },
-      include: {
-        customer: {
-          select: {
-            id: true,
-            name: true,
-            phone: true,
-            address: true,
-          },
-        },
-        technician: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-      },
-      orderBy: [
-        { scheduledDate: 'asc' },
-        { urgency: 'desc' },
-      ],
+    // Fetch jobs for today using JobService
+    const result = await JobService.listJobs(session.organizationId, {
+      startDate: today,
+      endDate: tomorrow,
+    }, {
+      limit: 100, // Reasonable limit for "today"
+      sort: 'scheduledDate',
+      order: 'asc',
     });
+
+    const jobs = result.items;
 
     // Get summary stats
     const summary = {
       total: jobs.length,
-      pending: jobs.filter((j: typeof jobs[number]) => j.status === 'PENDING').length,
-      assigned: jobs.filter((j: typeof jobs[number]) => j.status === 'ASSIGNED').length,
-      enRoute: jobs.filter((j: typeof jobs[number]) => j.status === 'EN_ROUTE').length,
-      inProgress: jobs.filter((j: typeof jobs[number]) => j.status === 'IN_PROGRESS').length,
-      completed: jobs.filter((j: typeof jobs[number]) => j.status === 'COMPLETED').length,
+      pending: jobs.filter((j: any) => j.status === 'PENDING').length,
+      assigned: jobs.filter((j: any) => j.status === 'ASSIGNED').length,
+      enRoute: jobs.filter((j: any) => j.status === 'EN_ROUTE').length,
+      inProgress: jobs.filter((j: any) => j.status === 'IN_PROGRESS').length,
+      completed: jobs.filter((j: any) => j.status === 'COMPLETED').length,
     };
 
     return NextResponse.json({

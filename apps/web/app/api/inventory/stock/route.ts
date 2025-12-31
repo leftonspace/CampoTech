@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma, TransactionClient } from '@/lib/prisma';
+import { InventoryService } from '@/src/services/inventory.service';
 
 /**
  * GET /api/inventory/stock
@@ -348,105 +349,17 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Get product and current inventory level
-      const product = await prisma.product.findFirst({
-        where: {
-          id: productId,
-          organizationId: session.organizationId,
-        },
-      });
-
-      if (!product) {
-        return NextResponse.json(
-          { success: false, error: 'Producto no encontrado' },
-          { status: 404 }
-        );
-      }
-
-      // Find or create inventory level
-      let inventoryLevel = await prisma.inventoryLevel.findFirst({
-        where: {
-          productId,
-          warehouseId,
-          storageLocationId: null,
-          lotNumber: null,
-        },
-      });
-
-      const adjustmentQty = parseInt(quantity, 10);
-      const isIncrease = adjustmentQty > 0;
-      const absQty = Math.abs(adjustmentQty);
-
-      if (!inventoryLevel) {
-        // Create new inventory level
-        if (adjustmentQty < 0) {
-          return NextResponse.json(
-            { success: false, error: 'No hay stock para ajustar' },
-            { status: 400 }
-          );
-        }
-
-        inventoryLevel = await prisma.inventoryLevel.create({
-          data: {
-            organizationId: session.organizationId,
-            productId,
-            warehouseId,
-            quantityOnHand: adjustmentQty,
-            quantityAvailable: adjustmentQty,
-            unitCost: Number(product.costPrice),
-            totalCost: Number(product.costPrice) * adjustmentQty,
-          },
-        });
-      } else {
-        // Update existing inventory level
-        const newQty = inventoryLevel.quantityOnHand + adjustmentQty;
-
-        if (newQty < 0) {
-          return NextResponse.json(
-            {
-              success: false,
-              error: `Stock insuficiente. Disponible: ${inventoryLevel.quantityOnHand}`,
-            },
-            { status: 400 }
-          );
-        }
-
-        inventoryLevel = await prisma.inventoryLevel.update({
-          where: { id: inventoryLevel.id },
-          data: {
-            quantityOnHand: newQty,
-            quantityAvailable: newQty - inventoryLevel.quantityReserved,
-            totalCost: Number(inventoryLevel.unitCost) * newQty,
-            lastMovementAt: new Date(),
-          },
-        });
-      }
-
-      // Create stock movement record
-      const movementNumber = `ADJ-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
-      const movementType = isIncrease ? 'ADJUSTMENT_IN' : 'ADJUSTMENT_OUT';
-
-      await prisma.stockMovement.create({
-        data: {
-          organizationId: session.organizationId,
-          productId,
-          movementNumber,
-          movementType,
-          quantity: absQty,
-          direction: isIncrease ? 'IN' : 'OUT',
-          toWarehouseId: isIncrease ? warehouseId : undefined,
-          fromWarehouseId: !isIncrease ? warehouseId : undefined,
-          unitCost: Number(product.costPrice),
-          totalCost: Number(product.costPrice) * absQty,
-          reference: reason || 'Ajuste manual',
-          notes,
-          performedById: session.userId,
-        },
+      await InventoryService.adjustStock(session.organizationId, {
+        productId,
+        warehouseId,
+        quantity,
+        reason,
+        notes,
+        performedById: session.userId,
       });
 
       return NextResponse.json({
         success: true,
-        data: inventoryLevel,
         message: 'Stock ajustado exitosamente',
       });
     }
@@ -462,120 +375,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (fromWarehouseId === toWarehouseId) {
-        return NextResponse.json(
-          { success: false, error: 'El origen y destino no pueden ser iguales' },
-          { status: 400 }
-        );
-      }
-
-      const transferQty = parseInt(quantity, 10);
-      if (transferQty <= 0) {
-        return NextResponse.json(
-          { success: false, error: 'La cantidad debe ser positiva' },
-          { status: 400 }
-        );
-      }
-
-      // Get product
-      const product = await prisma.product.findFirst({
-        where: {
-          id: productId,
-          organizationId: session.organizationId,
-        },
-      });
-
-      if (!product) {
-        return NextResponse.json(
-          { success: false, error: 'Producto no encontrado' },
-          { status: 404 }
-        );
-      }
-
-      // Check source has enough stock
-      const sourceLevel = await prisma.inventoryLevel.findFirst({
-        where: {
-          productId,
-          warehouseId: fromWarehouseId,
-        },
-      });
-
-      if (!sourceLevel || sourceLevel.quantityAvailable < transferQty) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: `Stock insuficiente. Disponible: ${sourceLevel?.quantityAvailable || 0}`,
-          },
-          { status: 400 }
-        );
-      }
-
-      // Execute transfer in a transaction
-      await prisma.$transaction(async (tx: TransactionClient) => {
-        // Reduce source
-        await tx.inventoryLevel.update({
-          where: { id: sourceLevel.id },
-          data: {
-            quantityOnHand: { decrement: transferQty },
-            quantityAvailable: { decrement: transferQty },
-            totalCost: { decrement: Number(sourceLevel.unitCost) * transferQty },
-            lastMovementAt: new Date(),
-          },
-        });
-
-        // Find or create destination level
-        let destLevel = await tx.inventoryLevel.findFirst({
-          where: {
-            productId,
-            warehouseId: toWarehouseId,
-            storageLocationId: null,
-            lotNumber: null,
-          },
-        });
-
-        if (destLevel) {
-          await tx.inventoryLevel.update({
-            where: { id: destLevel.id },
-            data: {
-              quantityOnHand: { increment: transferQty },
-              quantityAvailable: { increment: transferQty },
-              totalCost: { increment: Number(sourceLevel.unitCost) * transferQty },
-              lastMovementAt: new Date(),
-            },
-          });
-        } else {
-          await tx.inventoryLevel.create({
-            data: {
-              organizationId: session.organizationId,
-              productId,
-              warehouseId: toWarehouseId,
-              quantityOnHand: transferQty,
-              quantityAvailable: transferQty,
-              unitCost: sourceLevel.unitCost,
-              totalCost: Number(sourceLevel.unitCost) * transferQty,
-            },
-          });
-        }
-
-        // Create movement record
-        const movementNumber = `TRF-${Date.now()}-${Math.random().toString(36).substr(2, 5).toUpperCase()}`;
-
-        await tx.stockMovement.create({
-          data: {
-            organizationId: session.organizationId,
-            productId,
-            movementNumber,
-            movementType: 'TRANSFER',
-            quantity: transferQty,
-            direction: 'OUT',
-            fromWarehouseId,
-            toWarehouseId,
-            unitCost: sourceLevel.unitCost,
-            totalCost: Number(sourceLevel.unitCost) * transferQty,
-            notes,
-            performedById: session.userId,
-          },
-        });
+      await InventoryService.transferStock(session.organizationId, {
+        productId,
+        fromWarehouseId,
+        toWarehouseId,
+        quantity,
+        notes,
+        performedById: session.userId,
       });
 
       return NextResponse.json({

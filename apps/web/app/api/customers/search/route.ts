@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { CustomerService } from '@/src/services/customer.service';
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,25 +23,11 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    const customers = await prisma.customer.findMany({
-      where: {
-        organizationId: session.organizationId,
-        OR: [
-          { name: { contains: query, mode: 'insensitive' } },
-          { phone: { contains: query } },
-          { email: { contains: query, mode: 'insensitive' } },
-        ],
-      },
-      select: {
-        id: true,
-        name: true,
-        phone: true,
-        email: true,
-        address: true,
-      },
-      orderBy: { name: 'asc' },
-      take: 10,
-    });
+    const customers = await CustomerService.searchCustomers(
+      session.organizationId,
+      query,
+      10
+    );
 
     return NextResponse.json({
       success: true,

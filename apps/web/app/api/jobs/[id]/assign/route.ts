@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { onTechnicianAssigned } from '@/src/modules/whatsapp/notification-triggers.service';
 import { canEmployeeBeAssignedJobs } from '@/lib/services/employee-verification-notifications';
+import { JobService } from '@/src/services/job.service';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -20,16 +21,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const body = await request.json();
-    const { userId } = body;
+    const { userId } = await request.json();
+
+    if (!userId) {
+      return NextResponse.json(
+        { success: false, error: 'userId is required' },
+        { status: 400 }
+      );
+    }
 
     // Verify the job belongs to the organization
-    const existing = await prisma.job.findFirst({
-      where: {
-        id,
-        organizationId: session.organizationId,
-      },
-    });
+    const existing = await JobService.getJobById(session.organizationId, id);
 
     if (!existing) {
       return NextResponse.json(
@@ -39,80 +41,40 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Verify the user belongs to the organization
-    if (userId) {
-      const user = await prisma.user.findFirst({
-        where: {
-          id: userId,
-          organizationId: session.organizationId,
-        },
-      });
-
-      if (!user) {
-        return NextResponse.json(
-          { success: false, error: 'User not found' },
-          { status: 404 }
-        );
-      }
-
-      // Check if employee can be assigned jobs (verification status)
-      const verificationCheck = await canEmployeeBeAssignedJobs(userId, session.organizationId);
-      if (!verificationCheck.canAssign) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: verificationCheck.reason || 'Este empleado no puede recibir trabajos. Verificación pendiente.',
-            verificationLink: `/dashboard/settings/team?employee=${userId}&tab=verification`,
-          },
-          { status: 403 }
-        );
-      }
-    }
-
-    // Add to job assignments (if not already assigned)
-    if (userId) {
-      await prisma.jobAssignment.upsert({
-        where: {
-          jobId_technicianId: {
-            jobId: id,
-            technicianId: userId,
-          },
-        },
-        create: {
-          jobId: id,
-          technicianId: userId,
-        },
-        update: {}, // No update needed if already exists
-      });
-    }
-
-    // Also update the legacy technicianId field (for backwards compatibility)
-    const job = await prisma.job.update({
-      where: { id },
-      data: {
-        technicianId: userId || null,
-        status: userId && existing.status === 'PENDING' ? 'ASSIGNED' : undefined,
-      },
-      include: {
-        customer: true,
-        technician: {
-          select: { id: true, name: true, role: true },
-        },
-        assignments: {
-          include: {
-            technician: {
-              select: { id: true, name: true },
-            },
-          },
-        },
+    const user = await prisma.user.findFirst({
+      where: {
+        id: userId,
+        organizationId: session.organizationId,
       },
     });
 
-    // Trigger WhatsApp notification for technician assignment (non-blocking)
-    if (userId) {
-      onTechnicianAssigned(id, userId).catch((err) => {
-        console.error('WhatsApp notification error:', err);
-      });
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'User not found' },
+        { status: 404 }
+      );
     }
+
+    // Check if employee can be assigned jobs (verification status)
+    const verificationCheck = await canEmployeeBeAssignedJobs(userId, session.organizationId);
+    if (!verificationCheck.canAssign) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: verificationCheck.reason || 'Este empleado no puede recibir trabajos. Verificación pendiente.',
+          verificationLink: `/dashboard/settings/team?employee=${userId}&tab=verification`,
+        },
+        { status: 403 }
+      );
+    }
+
+    // Use JobService to assign the job
+    const job = await JobService.assignJob(session.organizationId, id, userId);
+
+    // Trigger WhatsApp notification for technician assignment (non-blocking)
+    onTechnicianAssigned(id, userId).catch((err) => {
+      console.error('WhatsApp notification error:', err);
+    });
 
     return NextResponse.json({
       success: true,

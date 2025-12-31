@@ -62,104 +62,40 @@
 | Duplicate invoices | 0 | 0 |
 | Monthly churn | - | < 10% |
 
-## Module Classification & Launch Requirements
+## Module Classification & Core Feature Set
 
-### Launch Tiers
+### Core Modules (Production Ready)
 
-| Module | Tier | Launch Status | Notes |
-|--------|------|---------------|-------|
-| **Auth & Onboarding** | CORE | Required | Cannot launch without user accounts |
-| **CRM (Customers)** | CORE | Required | Fundamental to all workflows |
-| **Jobs & Scheduling** | CORE | Required | Primary value proposition |
-| **AFIP Invoicing** | CORE | Required | Legal requirement for Argentine businesses |
-| **Mercado Pago Payments** | CORE | Required | Primary monetization path |
-| **WhatsApp Comms** | OPTIONAL | Feature-flagged | Can launch with manual notifications; enable when WA Business approved |
-| **Voice AI Processing** | OPTIONAL | Feature-flagged | Can launch without; enable after accuracy validation |
-| **Offline Mobile Sync** | OPTIONAL | Feature-flagged | Can launch online-only; enable after sync tested |
-| **Consumer Marketplace** | OPTIONAL | Feature-flagged | Two-sided marketplace; enable after business onboarding |
-| **Customer Portal** | OPTIONAL | Feature-flagged | White-label customer tracking; enable per-org |
-| **Inventory Management** | OPTIONAL | Feature-flagged | Parts tracking; enable for businesses with stock |
-| **Audit Logging** | OPTIONAL | Feature-flagged | Compliance trail; enable for enterprise tier |
+| Module | Status | Criticality | Notes |
+|--------|--------|-------------|-------|
+| **Auth & Onboarding** | ✅ Live | **Critical** | OTP-based entry, role assignment (Owner/Dispatch/Tech). |
+| **CRM (Customers)** | ✅ Live | **Critical** | Customer database, search, and history. |
+| **Jobs & Scheduling** | ✅ Live | **Critical** | Create, assign, track, and complete jobs. Includes new **Employee Scheduling**. |
+| **AFIP Invoicing** | ✅ Live | **Critical** | Electronic billing integration (WSFEV1). |
+| **Mercado Pago** | ✅ Live | **Critical** | Payment processing (Links, QR, Subscriptions). |
+| **Mobile App** | ✅ Live | **Critical** | Role-based app (Expo) with Offline Sync (WatermelonDB). |
+| **Consumer Marketplace** | 🚀 Live | **Mandatory** | All businesses enabled. Mobile-only consumer experience. |
 
-### Launch Requirements (Minimum Viable)
+### Advanced Capabilities (Tier-Gated)
 
-```
-MUST HAVE for Launch:
-├── Auth: Phone OTP login, session management
-├── Onboarding: CUIT + Company Name (2 fields only)
-├── Customers: Create, list, edit, search
-├── Jobs: Create, assign, status transitions, complete
-├── Invoices: Draft, CAE request, PDF generation
-├── Payments: MP preference creation, webhook handling
-└── Admin: Basic dashboard, job list, invoice list
+| Module | Status | Tiers | Notes |
+|--------|--------|-------|-------|
+| **WhatsApp AI** | ✅ Beta | Pro / Enterprise | Automated intent extraction and replies. |
+| **Voice Reports** | ✅ Live | Pro / Enterprise | Whisper-powered voice notes for technicians. |
+| **Inventory** | ✅ Live | Pro / Enterprise | Stock tracking, warehouses, and material usage. |
+| **Analytics** | ✅ Live | Pro / Enterprise | Business intelligence dashboard. |
 
-NICE TO HAVE (Feature-Flagged):
-├── WhatsApp: Template messages, inbound handling
-├── Voice AI: Transcription, extraction, auto-job-creation
-├── Offline: WatermelonDB sync, conflict resolution
-├── Advanced Reports: Revenue analytics, technician metrics
-├── Automation: Auto-invoice on complete, reminder scheduling
-├── Consumer Marketplace: Business directory, service requests, reviews
-├── Customer Portal: Job tracking, ETA sharing, white-label branding
-├── Inventory: Parts tracking, low stock alerts, purchase orders
-└── Audit Trail: Change tracking, compliance reports, activity logs
-```
+### Feature Flags
 
-### Degraded But Usable Product
-
-The system MUST remain functional when optional modules are disabled:
-
-| Disabled Module | Degraded Behavior | User Impact |
-|-----------------|-------------------|-------------|
-| **WhatsApp** | Manual phone calls for notifications; email fallback for invoices | Higher manual effort; still fully functional |
-| **Voice AI** | Jobs created manually only; voice messages logged but not processed | No auto-job-creation; core workflows unaffected |
-| **Offline Mode** | Mobile app requires connectivity; shows "No connection" when offline | Technicians need signal; can still use web portal |
-| **MP Payments** | Cash/transfer only; manual payment recording | No card payments; invoicing still works |
-| **AFIP** (emergency) | Invoices saved as drafts; queued for CAE when service recovers | Delayed fiscal compliance; jobs/payments unaffected |
-| **Consumer Marketplace** | Consumer app shows maintenance message; B2B unaffected | No consumer leads; existing business workflows intact |
-| **Customer Portal** | Portal URLs unavailable; SMS/WhatsApp notifications only | Customers call for updates; technician app unaffected |
-| **Inventory** | Manual parts tracking; materials entered on invoices | No stock alerts; pricebook still available |
-| **Audit Logging** | Basic app logs only; no change tracking | Compliance audits not supported; core features work |
-
-### Feature Flag Configuration
-
-> **IMPORTANT:** CampoTech uses a comprehensive **Capability Map** architecture for all feature toggles and kill switches. See **[capabilities.md](./capabilities.md)** for the complete documentation and **`/core/config/capabilities.ts`** for the runtime implementation.
-
-The Capability Map provides:
-- **Centralized Control:** One file controls all inter-module toggles
-- **Runtime Flexibility:** Turn off any subsystem instantly without code changes
-- **Graceful Degradation:** Prevent code from calling broken dependencies
-- **Observable State:** All capability checks are logged
+> **Note:** We use a centralized `CapabilityService` for runtime feature toggling. See `capabilities.md` for details.
 
 ```typescript
-// Import the capability system
-import { Capabilities, ensureCapability } from '@/core/config/capabilities';
-
-// Example: Guard AFIP calls with fallback
-if (!ensureCapability("external.afip", Capabilities.external.afip)) {
-  return createDraftInvoice(data); // fallback when AFIP disabled
+// Runtime check example
+if (await CapabilityService.isEnabled("ai_copilot", orgId)) {
+  // Use AI features
 }
-return AfipService.requestCAE(data); // normal flow
-
-// Capability categories:
-// - external: afip, mercadopago, whatsapp, whatsapp_voice_ai, push_notifications
-// - domain: invoicing, payments, scheduling, job_assignment, offline_sync, technician_gps,
-//           consumer_marketplace, customer_portal, inventory_management, audit_logging
-// - services: cae_queue, whatsapp_queue, whatsapp_aggregation, payment_reconciliation,
-//             abuse_detection, rate_limiting, analytics_pipeline, review_fraud_detection,
-//             notification_queue
-// - ui: simple_mode, advanced_mode, pricebook, reporting_dashboard, marketplace_dashboard,
-//       whitelabel_portal
 ```
 
-**Environment Variable Overrides:**
-```bash
-# Disable AFIP at runtime
-CAPABILITY_EXTERNAL_AFIP=false
-
-# Disable WhatsApp at runtime
-CAPABILITY_EXTERNAL_WHATSAPP=false
-```
 
 ---
 
@@ -421,11 +357,12 @@ flowchart TB
     %% ═══════════════════════════════════════════════════════════════════════
     subgraph USERS["👥 USER ACTORS"]
         direction TB
-        OWNER["🏢 OWNER<br/>Business owner<br/>Full platform access<br/>Billing & settings"]
-        ADMIN["📋 ADMIN<br/>Management staff<br/>Job scheduling<br/>Customer management<br/>(No billing)"]
-        TECH["🔧 TECHNICIAN<br/>Field worker<br/>Mobile app focused<br/>Job completion"]
-        CONSUMER["🛒 CONSUMER<br/>Marketplace user<br/>Service discovery<br/>Reviews & booking"]
+        OWNER["🏢 OWNER<br/>(Dueño)<br/>Full Access"]
+        DISPATCH["📋 DISPATCHER<br/>(Despachador)<br/>Ops Management"]
+        TECH["🔧 TECHNICIAN<br/>(Técnico)<br/>Field Work"]
+        CONSUMER["🛒 CONSUMER<br/>(Marketplace)<br/>Booking & Reviews"]
     end
+
 
     %% ═══════════════════════════════════════════════════════════════════════
     %% FRONTEND INTERFACES - WEB DASHBOARD
@@ -460,34 +397,27 @@ flowchart TB
             end
         end
 
-        subgraph MOBILE_APP["Mobile App (React Native/Expo) - Technician"]
+        subgraph MOBILE_APP["Mobile App (React Native/Expo) - Role-Based"]
             direction LR
-            MOB_TODAY["📱 Today's Jobs<br/>Priority schedule"]
-            MOB_JOBS["📋 All Jobs<br/>List & map view"]
-            MOB_DETAIL["🔍 Job Detail<br/>Photos, notes, status"]
-            MOB_COMPLETE["✅ Completion<br/>Signature, materials"]
-            MOB_INVENTORY["📦 Inventory<br/>Vehicle stock, scan"]
-            MOB_GPS["📍 GPS Tracking<br/>Background location"]
-            MOB_OFFLINE["💾 Offline Mode<br/>WatermelonDB sync"]
-            MOB_ANALYTICS["📊 My Stats<br/>Performance metrics"]
+            MOB_TODAY["📱 Today's Jobs<br/>(All Roles)"]
+            MOB_JOBS["📋 Jobs List<br/>(Owner/Dispatch)"]
+            MOB_CALENDAR["📅 Calendar<br/>(Owner/Dispatch)"]
+            MOB_INVENTORY["📦 Inventory<br/>(All - View Only for Tech)"]
+            MOB_INVOICES["🧾 Invoicing<br/>(Owner/Dispatch)"]
+            MOB_TEAM["👔 Team<br/>(Owner Only)"]
+            MOB_ANALYTICS["📊 Reports<br/>(Owner Only)"]
+            MOB_PROFILE["👤 Profile<br/>(All Roles)"]
         end
 
-
-
-        subgraph MARKETPLACE["Consumer Marketplace"]
-            MKT_SEARCH["🔍 Search<br/>Category, location"]
-            MKT_PROFILES["⭐ Profiles<br/>Reviews, portfolio"]
-            MKT_QUOTES["💬 Request Quotes<br/>Compare providers"]
-            MKT_BOOK["📅 Book & Pay<br/>Instant scheduling"]
-            MKT_TRACK["📍 Track<br/>Real-time updates"]
+        subgraph CONSUMER_MOBILE["Consumer Mobile App (Marketplace)"]
+            direction LR
+            CMOB_HOME["🏠 Home/Discovery<br/>((tabs)/index)"]
+            CMOB_SEARCH["🔍 Search<br/>((tabs)/search)"]
+            CMOB_BOOKING["📅 Booking Flow<br/>((booking)/*)"]
+            CMOB_PROVIDER["👤 Provider Profile<br/>(provider/[id])"]
+            CMOB_CATEGORY["📂 Category List<br/>(category/[id])"]
         end
 
-        subgraph CONSUMER_MOBILE["Consumer Mobile App"]
-            CMOB_DISCOVER["🔍 Discover<br/>Services nearby"]
-            CMOB_BOOK["📅 Book<br/>Schedule service"]
-            CMOB_TRACK["📍 Track<br/>Live updates"]
-            CMOB_RATE["⭐ Rate<br/>Leave reviews"]
-        end
 
         subgraph PUBLIC_PAGES["Public Pages"]
             PUB_LANDING["🏠 Landing<br/>Marketing site"]
@@ -4089,24 +4019,55 @@ Deep linking:
 
 # 13. ADMIN/OWNER PORTAL ARCHITECTURE
 
-## Role-Based Access
+### User Roles & Permissions
 
-| Feature | Owner | Admin | Dispatcher | Technician | Accountant |
-|---------|-------|-------|------------|------------|------------|
-| Dashboard | ✅ | ✅ | ✅ | ❌ | ❌ |
-| All jobs | ✅ | ✅ | ✅ | Own only | ❌ |
-| Create jobs | ✅ | ✅ | ✅ | ❌ | ❌ |
-| Invoices | ✅ | ✅ | ❌ | ❌ | ✅ |
-| Payments | ✅ | ✅ | ❌ | ❌ | View |
-| Reports | ✅ | ✅ | ❌ | ❌ | ✅ |
-| Team management | ✅ | ❌ | ❌ | ❌ | ❌ |
-| AFIP config | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Billing | ✅ | ❌ | ❌ | ❌ | ❌ |
-| Danger zone | ✅ | ❌ | ❌ | ❌ | ❌ |
-| **Live Map** | ✅ | ✅ | ✅ | ❌ | ❌ |
-| **Calendar** | ✅ | ✅ | ✅ | Own only | ❌ |
-| **Fleet Management** | ✅ | ✅ | ❌ | ❌ | ❌ |
-| **Inventory** | ✅ | ✅ | View | View | ❌ |
+> **Updated:** The system enforces a strict 3-role model (`OWNER`, `DISPATCHER`, `TECHNICIAN`) to separate billing/admin concerns from operational dispatch duties.
+
+### Subscription Tiers (Corrected Pricing)
+> **Note:** Marketplace visibility is MANDATORY for all tiers. All businesses are automatically listed in the consumer app.
+
+| Feature | INICIAL ($25/mes) | PROFESIONAL ($55/mes) | EMPRESA ($120/mes) |
+|---------|--------------------|-----------------------|--------------------|
+| **Users** | 1 | 5 | Unlimited |
+| **Jobs/Month** | 50 | 200 | Unlimited |
+| **App Access** | Technician App | Technician App | Technician App |
+| **Invoicing** | AFIP-Compliant | AFIP-Compliant | AFIP-Compliant |
+| **Inventory** | Basic | Complete | Complete |
+| **WhatsApp** | Manual | Integrated + AI (100/mo) | Integrated + AI (Unlimited) |
+| **Voice Reports** | ❌ | ✅ | ✅ |
+| **Analytics** | ❌ | Basic | Advanced |
+| **Marketplace** | **MANDATORY** | **MANDATORY** | **MANDATORY** |
+
+#### Role Definitions
+
+| Role | Spanish | Description |
+|------|---------|-------------|
+| `OWNER` | Dueño | **Full platform access** including billing, subscription management, and team invites. |
+| `DISPATCHER` | Despachador | **Operations management** (jobs, customers, team schedules) but **NO access** to billing or subscription settings. |
+| `TECHNICIAN` | Técnico | **Field worker** with mobile-first access. Restricted to assigned jobs and inventory usage. |
+
+#### Permissions Matrix
+
+| Feature | Owner | Despachador | Técnico |
+|---------|:-----:|:-----------:|:-------:|
+| View all jobs | ✅ | ✅ | ❌ |
+| View assigned jobs | ✅ | ✅ | ✅ |
+| Create jobs | ✅ | ✅ | ❌ |
+| Assign jobs | ✅ | ✅ | ❌ |
+| Update job status | ✅ | ✅ | ✅ (own) |
+| View customers | ✅ | ✅ | ❌ |
+| Create customers | ✅ | ✅ | ❌ |
+| View team | ✅ | ✅ | ❌ |
+| Invite team | ✅ | ❌ | ❌ |
+| **View Billing** | ✅ | ❌ | ❌ |
+| **Change Subscription** | ✅ | ❌ | ❌ |
+| View analytics | ✅ | ✅ | ❌ |
+| WhatsApp inbox | ✅ | ✅ | ❌ |
+| Inventory (view) | ✅ | ✅ | ✅ |
+| Inventory (adjust) | ✅ | ✅ | ❌ |
+| Log material usage | ✅ | ✅ | ✅ |
+| Set own schedule | ✅ | ✅ | ✅ |
+| View team schedules | ✅ | ✅ | ❌ |
 
 ## Dashboard Components
 

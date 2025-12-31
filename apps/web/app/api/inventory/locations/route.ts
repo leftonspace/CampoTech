@@ -1,9 +1,3 @@
-/**
- * Inventory Locations API Route
- * GET /api/inventory/locations - List locations (warehouses, vehicles)
- * POST /api/inventory/locations - Create new location
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
@@ -20,58 +14,60 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const locationType = searchParams.get('type');
+    const type = searchParams.get('type');
     const includeVehicles = searchParams.get('includeVehicles') !== 'false';
-    const includeStock = searchParams.get('includeStock') === 'true';
 
-    // Get inventory locations
-    const locations = await prisma.inventoryLocation.findMany({
-      where: {
-        organizationId: session.organizationId,
-        ...(locationType ? { locationType } : {}),
-      },
+    // Map InventoryLocation.locationType to WarehouseType where possible
+    const where: any = {
+      organizationId: session.organizationId,
+      isActive: true,
+    };
+
+    if (type) {
+      where.type = type === 'HUB' ? 'SECONDARY' : type;
+    }
+
+    const warehouses = await prisma.warehouse.findMany({
+      where,
       include: {
         vehicle: includeVehicles
           ? {
-              select: {
-                id: true,
-                plateNumber: true,
-                make: true,
-                model: true,
-              },
-            }
+            select: {
+              id: true,
+              plateNumber: true,
+              make: true,
+              model: true,
+            },
+          }
           : false,
-        ...(includeStock
-          ? {
-              stocks: {
-                include: {
-                  item: {
-                    select: {
-                      id: true,
-                      name: true,
-                      sku: true,
-                      unit: true,
-                    },
-                  },
-                },
-              },
-            }
-          : {}),
         _count: {
           select: {
-            stocks: true,
+            inventoryLevels: true,
           },
         },
       },
-      orderBy: [{ locationType: 'asc' }, { name: 'asc' }],
+      orderBy: [{ type: 'asc' }, { name: 'asc' }],
     });
 
-    // Calculate stats
+    // Map Warehouse model to the format expected by the frontend (InventoryLocation mockup)
+    const locations = warehouses.map((w: any) => ({
+      id: w.id,
+      name: w.name,
+      locationType: w.type === 'SECONDARY' ? 'HUB' : w.type,
+      address: w.address,
+      isActive: w.isActive,
+      vehicle: w.vehicle,
+      stocks: [], // Simplified for now as full stock list is heavy
+      _count: {
+        stocks: w._count.inventoryLevels,
+      }
+    }));
+
     const stats = {
       total: locations.length,
-      warehouses: locations.filter((l: typeof locations[number]) => l.locationType === 'WAREHOUSE').length,
-      vehicles: locations.filter((l: typeof locations[number]) => l.locationType === 'VEHICLE').length,
-      hubs: locations.filter((l: typeof locations[number]) => l.locationType === 'HUB').length,
+      warehouses: locations.filter((l: any) => l.locationType === 'MAIN' || l.locationType === 'WAREHOUSE').length,
+      vehicles: locations.filter((l: any) => l.locationType === 'VEHICLE').length,
+      hubs: locations.filter((l: any) => l.locationType === 'HUB' || l.locationType === 'SECONDARY').length,
     };
 
     return NextResponse.json({
@@ -101,7 +97,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only admins and owners can create locations
     if (!['OWNER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para esta operación' },
@@ -110,9 +105,8 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, locationType, address, vehicleId, isActive = true } = body;
+    const { name, locationType, address, vehicleId, isActive = true, code } = body;
 
-    // Validate required fields
     if (!name || !locationType) {
       return NextResponse.json(
         { success: false, error: 'Nombre y tipo son requeridos' },
@@ -120,52 +114,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate type
-    const validTypes = ['HUB', 'VEHICLE', 'WAREHOUSE'];
-    if (!validTypes.includes(locationType)) {
-      return NextResponse.json(
-        { success: false, error: 'Tipo de ubicación inválido' },
-        { status: 400 }
-      );
-    }
+    // Map locationType to WarehouseType
+    const mappedType = locationType === 'HUB' ? 'SECONDARY' : (locationType as any);
 
-    // If vehicle type, verify vehicle exists and belongs to org
-    if (locationType === 'VEHICLE' && vehicleId) {
-      const vehicle = await prisma.vehicle.findFirst({
-        where: {
-          id: vehicleId,
-          organizationId: session.organizationId,
-        },
-      });
-
-      if (!vehicle) {
-        return NextResponse.json(
-          { success: false, error: 'Vehículo no encontrado' },
-          { status: 404 }
-        );
-      }
-
-      // Check if vehicle already has a location
-      const existingLocation = await prisma.inventoryLocation.findFirst({
-        where: { vehicleId },
-      });
-
-      if (existingLocation) {
-        return NextResponse.json(
-          { success: false, error: 'Este vehículo ya tiene una ubicación de inventario asignada' },
-          { status: 400 }
-        );
-      }
-    }
-
-    const location = await prisma.inventoryLocation.create({
+    const warehouse = await prisma.warehouse.create({
       data: {
         organizationId: session.organizationId,
         name,
-        locationType,
+        type: mappedType,
         address: address || null,
-        vehicleId: locationType === 'VEHICLE' ? vehicleId : null,
+        vehicleId: mappedType === 'VEHICLE' ? vehicleId : null,
         isActive,
+        code: code || `W-${Date.now()}`,
       },
       include: {
         vehicle: {
@@ -181,10 +141,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: location,
+      data: {
+        ...warehouse,
+        locationType: warehouse.type === 'SECONDARY' ? 'HUB' : warehouse.type,
+      },
     });
   } catch (error) {
-    console.error('Create inventory location error:', error);
+    console.error('Create warehouse error:', error);
     return NextResponse.json(
       { success: false, error: 'Error creando ubicación' },
       { status: 500 }

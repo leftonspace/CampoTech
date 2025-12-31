@@ -1,13 +1,6 @@
-/**
- * Single Inventory Item API Route
- * GET /api/inventory/items/[id] - Get item details
- * PUT /api/inventory/items/[id] - Update item
- * DELETE /api/inventory/items/[id] - Delete item
- */
-
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { InventoryService } from '@/src/services/inventory.service';
 import {
   filterEntityByRole,
   getEntityFieldMetadata,
@@ -31,74 +24,49 @@ export async function GET(
 
     const { id } = await params;
 
-    const item = await prisma.inventoryItem.findFirst({
-      where: {
-        id,
-        organizationId: session.organizationId,
-      },
-      include: {
-        stocks: {
-          include: {
-            location: {
-              select: {
-                id: true,
-                name: true,
-                locationType: true,
-              },
-            },
-          },
-        },
-        transactions: {
-          take: 20,
-          orderBy: { createdAt: 'desc' },
-          include: {
-            fromLocation: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            toLocation: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-            performedBy: {
-              select: {
-                id: true,
-                name: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const product = await InventoryService.getProductById(session.organizationId, id);
 
-    if (!item) {
+    if (!product) {
       return NextResponse.json(
         { success: false, error: 'Artículo no encontrado' },
         { status: 404 }
       );
     }
 
-    // Calculate totals
-    const totalStock = item.stocks.reduce((sum: number, s: { quantity: number }) => sum + s.quantity, 0);
-    const isLowStock = totalStock <= (item.minStockLevel || 0);
+    // Map Product to the response format expected by the frontend
+    const totalStock = (product as any).inventoryLevels.reduce((sum: number, lvl: any) => sum + lvl.quantityOnHand, 0);
 
-    // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
-
-    // Build item data
-    const itemData = {
-      ...item,
+    const mappedProduct = {
+      ...product,
+      category: product.category?.name || 'PARTS',
+      unit: product.unitOfMeasure,
       totalStock,
-      availableStock: totalStock,
-      isLowStock,
+      availableStock: (product as any).inventoryLevels.reduce((sum: number, lvl: any) => sum + lvl.quantityAvailable, 0),
+      isLowStock: product.trackInventory && totalStock <= product.minStockLevel,
+      stocks: (product as any).inventoryLevels.map((lvl: any) => ({
+        id: lvl.id,
+        locationId: lvl.warehouseId,
+        location: {
+          id: lvl.warehouseId,
+          name: lvl.warehouse?.name || 'Depósito',
+          locationType: 'WAREHOUSE',
+        },
+        quantity: lvl.quantityOnHand,
+      })),
+      transactions: (product as any).stockMovements.map((mov: any) => ({
+        id: mov.id,
+        createdAt: mov.performedAt,
+        transactionType: mov.movementType,
+        quantity: mov.quantity,
+        fromLocation: mov.fromWarehouse ? { id: mov.fromWarehouseId, name: mov.fromWarehouse.name } : null,
+        toLocation: mov.toWarehouse ? { id: mov.toWarehouseId, name: mov.toWarehouse.name } : null,
+        performedBy: mov.performedBy,
+        notes: mov.notes,
+      })),
     };
 
-    // Filter data based on user role (costPrice is restricted)
-    const filteredData = filterEntityByRole(itemData, 'product', userRole);
+    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const filteredData = filterEntityByRole(mappedProduct, 'product', userRole);
     const fieldMeta = getEntityFieldMetadata('product', userRole);
 
     return NextResponse.json({
@@ -129,36 +97,17 @@ export async function PUT(
       );
     }
 
-    // Normalize user role
     const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
-
     if (!['OWNER', 'DISPATCHER'].includes(userRole)) {
       return NextResponse.json(
-        { success: false, error: 'No tienes permiso para esta operacion' },
+        { success: false, error: 'No tienes permiso para esta operación' },
         { status: 403 }
       );
     }
 
     const { id } = await params;
-
-    // Verify item belongs to organization
-    const existing = await prisma.inventoryItem.findFirst({
-      where: {
-        id,
-        organizationId: session.organizationId,
-      },
-    });
-
-    if (!existing) {
-      return NextResponse.json(
-        { success: false, error: 'Artículo no encontrado' },
-        { status: 404 }
-      );
-    }
-
     const body = await request.json();
 
-    // Validate that user can edit the fields they're trying to update
     const validation = validateEntityUpdate(body, 'product', userRole);
     if (!validation.valid) {
       return NextResponse.json(
@@ -167,61 +116,20 @@ export async function PUT(
       );
     }
 
-    const {
-      name,
-      sku,
-      description,
-      category,
-      unit,
-      costPrice,
-      salePrice,
-      minStockLevel,
-      imageUrl,
-      isActive,
-    } = body;
-
-    // Check for duplicate SKU (if changing)
-    if (sku && sku !== existing.sku) {
-      const existingSku = await prisma.inventoryItem.findFirst({
-        where: {
-          organizationId: session.organizationId,
-          sku,
-          id: { not: id },
-        },
-      });
-
-      if (existingSku) {
-        return NextResponse.json(
-          { success: false, error: 'Ya existe un artículo con ese SKU' },
-          { status: 400 }
-        );
-      }
-    }
-
-    const item = await prisma.inventoryItem.update({
-      where: { id },
-      data: {
-        ...(name && { name }),
-        ...(sku !== undefined && { sku }),
-        ...(description !== undefined && { description }),
-        ...(category !== undefined && { category }),
-        ...(unit !== undefined && { unit }),
-        ...(costPrice !== undefined && { costPrice: parseFloat(costPrice) }),
-        ...(salePrice !== undefined && { salePrice: parseFloat(salePrice) }),
-        ...(minStockLevel !== undefined && { minStockLevel: parseInt(minStockLevel) }),
-        ...(imageUrl !== undefined && { imageUrl }),
-        ...(isActive !== undefined && { isActive }),
-      },
+    const updatedProduct = await InventoryService.updateProduct(session.organizationId, id, {
+      ...body,
+      categoryId: body.categoryId || body.category,
+      unitOfMeasure: body.unit || body.unitOfMeasure,
     });
 
     return NextResponse.json({
       success: true,
-      data: item,
+      data: updatedProduct,
     });
   } catch (error) {
     console.error('Update inventory item error:', error);
     return NextResponse.json(
-      { success: false, error: 'Error actualizando artículo' },
+      { success: false, error: error instanceof Error ? error.message : 'Error actualizando artículo' },
       { status: 500 }
     );
   }
@@ -249,37 +157,7 @@ export async function DELETE(
     }
 
     const { id } = await params;
-
-    // Verify item belongs to organization
-    const existing = await prisma.inventoryItem.findFirst({
-      where: {
-        id,
-        organizationId: session.organizationId,
-      },
-      include: {
-        stocks: true,
-      },
-    });
-
-    if (!existing) {
-      return NextResponse.json(
-        { success: false, error: 'Artículo no encontrado' },
-        { status: 404 }
-      );
-    }
-
-    // Check if item has stock
-    const hasStock = existing.stocks.some((s: { quantity: number }) => s.quantity > 0);
-    if (hasStock) {
-      return NextResponse.json(
-        { success: false, error: 'No se puede eliminar un artículo con stock. Primero ajuste el inventario a cero.' },
-        { status: 400 }
-      );
-    }
-
-    await prisma.inventoryItem.delete({
-      where: { id },
-    });
+    await InventoryService.deleteProduct(session.organizationId, id);
 
     return NextResponse.json({
       success: true,
@@ -288,7 +166,7 @@ export async function DELETE(
   } catch (error) {
     console.error('Delete inventory item error:', error);
     return NextResponse.json(
-      { success: false, error: 'Error eliminando artículo' },
+      { success: false, error: error instanceof Error ? error.message : 'Error eliminando artículo' },
       { status: 500 }
     );
   }

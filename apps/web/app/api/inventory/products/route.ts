@@ -8,6 +8,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { InventoryService } from '@/src/services/inventory.service';
 
 /**
  * GET /api/inventory/products
@@ -125,10 +126,10 @@ export async function GET(request: NextRequest) {
           isActive: true,
           OR: search
             ? [
-                { name: { contains: search, mode: 'insensitive' } },
-                { sku: { contains: search, mode: 'insensitive' } },
-                { barcode: { contains: search, mode: 'insensitive' } },
-              ]
+              { name: { contains: search, mode: 'insensitive' } },
+              { sku: { contains: search, mode: 'insensitive' } },
+              { barcode: { contains: search, mode: 'insensitive' } },
+            ]
             : undefined,
         },
         take: 10,
@@ -146,120 +147,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: true, data: { products } });
     }
 
-    // Build where clause for main list
-    const where: Record<string, unknown> = {
-      organizationId: session.organizationId,
-    };
-
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { sku: { contains: search, mode: 'insensitive' } },
-        { barcode: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-      ];
-    }
-
-    if (categoryId) {
-      where.categoryId = categoryId;
-    }
-
-    if (isActive !== null && isActive !== undefined) {
-      where.isActive = isActive === 'true';
-    }
-
-    if (productType) {
-      where.productType = productType as any;
-    }
-
-    // Get total count
-    const total = await prisma.product.count({ where });
-
-    // Build orderBy
-    const orderBy: Record<string, unknown> = {};
-    if (sortBy === 'name') {
-      orderBy.name = sortOrder as 'asc' | 'desc';
-    } else if (sortBy === 'sku') {
-      orderBy.sku = sortOrder as 'asc' | 'desc';
-    } else if (sortBy === 'salePrice') {
-      orderBy.salePrice = sortOrder as 'asc' | 'desc';
-    } else if (sortBy === 'costPrice') {
-      orderBy.costPrice = sortOrder as 'asc' | 'desc';
-    } else {
-      orderBy.createdAt = sortOrder as 'asc' | 'desc';
-    }
-
-    // Fetch products
-    const products = await prisma.product.findMany({
-      where,
-      include: {
-        category: {
-          select: { id: true, code: true, name: true },
-        },
-        inventoryLevels: {
-          select: {
-            quantityOnHand: true,
-            quantityReserved: true,
-            quantityAvailable: true,
-            warehouse: {
-              select: { id: true, code: true, name: true },
-            },
-          },
-        },
-      },
-      orderBy,
-      skip: (page - 1) * pageSize,
-      take: pageSize,
+    // Build pagination
+    const result = await InventoryService.listProducts(session.organizationId, {
+      search,
+      categoryId,
+      isActive: isActive === 'true' ? true : isActive === 'false' ? false : undefined,
+      productType,
+      lowStock: lowStock === 'true',
+    }, {
+      page,
+      limit: pageSize,
+      sortBy,
+      sortOrder,
     });
-
-    // Transform products with stock info
-    const productsWithStock = products.map((product: typeof products[number]) => {
-      const totalOnHand = product.inventoryLevels.reduce(
-        (sum: number, level: typeof product.inventoryLevels[number]) => sum + level.quantityOnHand,
-        0
-      );
-      const totalReserved = product.inventoryLevels.reduce(
-        (sum: number, level: typeof product.inventoryLevels[number]) => sum + level.quantityReserved,
-        0
-      );
-      const totalAvailable = product.inventoryLevels.reduce(
-        (sum: number, level: typeof product.inventoryLevels[number]) => sum + level.quantityAvailable,
-        0
-      );
-
-      const isLowStock = product.trackInventory && totalOnHand <= product.minStockLevel && totalOnHand > 0;
-      const isOutOfStock = product.trackInventory && totalOnHand === 0;
-
-      return {
-        ...product,
-        stock: {
-          onHand: totalOnHand,
-          reserved: totalReserved,
-          available: totalAvailable,
-          isLowStock,
-          isOutOfStock,
-        },
-      };
-    });
-
-    // Filter by low stock if requested
-    let filteredProducts = productsWithStock;
-    if (lowStock === 'true') {
-      filteredProducts = productsWithStock.filter(
-        (p: typeof productsWithStock[number]) => p.stock.isLowStock || p.stock.isOutOfStock
-      );
-    }
 
     return NextResponse.json({
       success: true,
       data: {
-        products: filteredProducts,
-        pagination: {
-          page,
-          pageSize,
-          total,
-          totalPages: Math.ceil(total / pageSize),
-        },
+        products: result.items,
+        pagination: result.pagination,
       },
     });
   } catch (error) {
