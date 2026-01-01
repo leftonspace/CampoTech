@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod'; // Assuming zod is used for validation
 import { prisma } from '@/lib/prisma'; // Assuming prisma client location
-import { queue } from '@/lib/queue'; // Assuming queue location
+import { dispatch } from '@/lib/queue'; // Use the new dispatcher
 
 // Schema for Voice Upload
 const voiceUploadSchema = z.object({
@@ -47,18 +47,13 @@ export async function POST(req: NextRequest) {
         });
 
         // 3. Enqueue for Processing (Voice AI Worker)
-        await queue.add('voice-processing', {
-            voiceMessageId: voiceRecord.id,
-            audioUrl: storageUrl, // In real app, might need a signed URL
-            technicianId,
-            context,
+        await dispatch('voice.transcribe', {
+            audioUrl: storageUrl,
+            organizationId: voiceRecord.organizationId,
+            messageId: voiceRecord.id, // Fixed mapping
         }, {
             priority: 1, // High priority for user interaction
-            attempts: 3,
-            backoff: {
-                type: 'exponential',
-                delay: 1000,
-            }
+            maxRetries: 3,
         });
 
         return NextResponse.json({

@@ -16,7 +16,7 @@ export class PaymentService {
         const { status, invoiceId, customerId, jobId, paymentMethod, paymentType, search, createdAfter, createdBefore, minAmount, maxAmount } = filters;
         const { page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'desc' } = pagination;
 
-        const where: Prisma.PaymentWhereInput = {
+        const where: any = {
             organizationId: orgId,
         };
 
@@ -55,8 +55,8 @@ export class PaymentService {
 
         if (minAmount !== undefined || maxAmount !== undefined) {
             where.amount = {};
-            if (minAmount !== undefined) where.amount.gte = new Prisma.Decimal(minAmount);
-            if (maxAmount !== undefined) where.amount.lte = new Prisma.Decimal(maxAmount);
+            if (minAmount !== undefined) where.amount.gte = minAmount;
+            if (maxAmount !== undefined) where.amount.lte = maxAmount;
         }
 
         if (search) {
@@ -132,7 +132,7 @@ export class PaymentService {
                 data: {
                     organizationId: orgId,
                     invoiceId,
-                    amount: new Prisma.Decimal(amount),
+                    amount: amount,
                     method: (method?.toUpperCase() || 'CASH') as any,
                     status: status.toUpperCase() as any,
                     reference,

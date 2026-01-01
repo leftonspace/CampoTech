@@ -45,10 +45,10 @@ export class InventoryService {
         ]);
 
         // Add stock summaries
-        const enrichedItems = items.map(product => {
-            const totalOnHand = product.inventoryLevels.reduce((sum, level) => sum + level.quantityOnHand, 0);
-            const totalReserved = product.inventoryLevels.reduce((sum, level) => sum + level.quantityReserved, 0);
-            const totalAvailable = product.inventoryLevels.reduce((sum, level) => sum + level.quantityAvailable, 0);
+        const enrichedItems = items.map((product: any) => {
+            const totalOnHand = product.inventoryLevels.reduce((sum: number, level: any) => sum + level.quantityOnHand, 0);
+            const totalReserved = product.inventoryLevels.reduce((sum: number, level: any) => sum + level.quantityReserved, 0);
+            const totalAvailable = product.inventoryLevels.reduce((sum: number, level: any) => sum + level.quantityAvailable, 0);
 
             return {
                 ...product,
@@ -64,7 +64,7 @@ export class InventoryService {
 
         let finalItems = enrichedItems;
         if (lowStock) {
-            finalItems = enrichedItems.filter(p => p.stock.isLowStock || p.stock.isOutOfStock);
+            finalItems = enrichedItems.filter((p: any) => p.stock.isLowStock || p.stock.isOutOfStock);
         }
 
         return {
@@ -436,7 +436,7 @@ export class InventoryService {
         });
 
         if (lowStock) {
-            return levels.filter(l => l.product.trackInventory && l.quantityOnHand <= l.product.minStockLevel);
+            return levels.filter((l: any) => l.product.trackInventory && l.quantityOnHand <= l.product.minStockLevel);
         }
 
         return levels;

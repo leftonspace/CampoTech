@@ -72,12 +72,16 @@ CampoTech is a field service management platform targeting service businesses in
 
 **Business Dashboard (`/dashboard`):**
 - Jobs management (create, assign, track, complete)
-- Customer database
+- Customer database with personalized service history
 - Team management (3 roles: Owner, Despachador, Técnico)
-- Invoices with AFIP integration
-- Inventory management
-- Fleet/Vehicles
-- WhatsApp integration with AI
+- Invoices with AFIP integration and job-level financing toggles
+- **Tactical Map (Live Path)**:
+    - Real-time technician tracking with 60s updates (transit) or 200m displacement triggers (at job).
+    - **Visual Itinerary**: Polyline rendering (Grey for past, Solid for current, Violet for future).
+    - High-visibility markers (Large, lettered 44px hitboxes) for easy navigation.
+- Inventory management (Multi-source: Warehouse + Technician Vehicles)
+- Fleet/Vehicles with stock tracking per truck
+- WhatsApp integration with AI Scheduling Intelligence
 - Analytics and reports
 - Settings (organization, billing, notifications)
 - **Compliance & Verification**: Business vetting status and compliance scoring
@@ -111,14 +115,17 @@ CampoTech is a field service management platform targeting service businesses in
 **Purpose**: Field workers manage their day
 
 **Features:**
-- Today's jobs with customer info and navigation
+- Today's jobs with customer info and **Multi-Stop Navigation** (Single Google Maps URL for the whole day).
 - Job status updates (pending → en route → arrived → working → complete)
-- Voice AI reports (dictate → auto-fills form with customer data, materials used, charges)
-- Inventory: View vehicle stock, log usage, request replenishment
-- Camera for photos
+- **Voice AI Reports**: Dictate to auto-fill forms; AI extracts materials used.
+- **Cascade Inventory**: 
+    - Deduct from vehicle assigned to job first (Truck-level accuracy).
+    - Fallback to Warehouse if stock is missing from vehicle.
+    - Manual override option for the technician before submission.
+- Camera for photos (Before/After)
 - Customer signature capture
 - Access business WhatsApp (role-restricted)
-- Offline support for areas with poor connectivity
+- Offline support via WatermelonDB with background synchronization.
 
 **Critical Requirement**: Must work on OLD phones (Android 6+, iPhone 6+)
 
@@ -138,7 +145,9 @@ CampoTech is a field service management platform targeting service businesses in
    - Services offered
    - Response time
 4. Consumer taps business → Views profile, ratings, photos
-5. Consumer taps "Contact" → Opens WhatsApp with business number
+5. Consumer taps "Contact" → Opens WhatsApp with business number.
+   - **Stealth Tracking**: No pre-filled or clinical messages (e.g., "Vi tu perfil...").
+   - **Analytics**: Uses URL referral tracking and button-level logging to measure performance.
 
 **Consumer Does NOT:**
 - Pay for the app
@@ -271,13 +280,14 @@ on WhatsApp    ─────────► AI has access to:  ─────
 ```
 Technician sees    Navigation to    Updates status     Voice Report:
 job in app     ───► job location ───► throughout  ────► "Used 2 PVC pipes,
-      │                                    │            fixed leak in 45min"
+      │              (Multi-stop Nav)     │            fixed leak in 45min"
       │                                    │                   │
-      │           Inventory updated ◄──────┘                   │
-      │                                                        ▼
+      │           Cascade Inventory ◄──────┘                   │
+      │           (Vehicle -> Warehouse)                       ▼
       │                                              Invoice auto-generated
-      ▼
-Job marked complete ──► Payment collected
+      ▼                                              (Watermarked until paid)
+Job marked complete ──► Payment collected ──────────► Official AFIP Invoice
+                        (Cuotas sin interés?)
 ```
 
 ### Flow 4: Customer Receives Documents + Rates
@@ -431,22 +441,22 @@ Technician completes work
 Technician enters: materials used, time, notes (voice report)
          │
          ▼
-System calculates total
+System calculates total & generates **Watermarked PDF Report** ("Pago Pendiente")
          │
          ▼
 Payment collected:
 ├── Cash: Technician marks "Paid - Cash" (logged with GPS + timestamp)
-├── MercadoPago: Customer pays via link, system confirms
+├── MercadoPago: Customer pays via link (Job-specific "Cuotas" logic applies)
 └── Card (business terminal): Technician marks "Paid - Card"
          │
          ▼
-Payment confirmed → Documents auto-generated & sent via WhatsApp:
-├── Factura (Invoice PDF)
-├── Service Report (PDF)
+Payment confirmed → **Watermark removed** → Documents auto-generated:
+├── Factura (Official AFIP Invoice PDF)
+├── Service Report (Clean PDF)
 └── Payment receipt
          │
          ▼
-Rating link sent (separate or same message)
+Rating link sent via WhatsApp (Safe greeting logic: focus on help, not past success)
 ```
 
 ---
@@ -485,20 +495,58 @@ Status Phases:
 
 ---
 
-## WhatsApp AI System
+## Workflow Orchestration (Pure LangGraph)
+
+CampoTech is transitioning from stateless workers to a **Pure LangGraph** architecture implemented as a dedicated **Python/FastAPI AI Service**. This moves the system from "managing code" to "managing stateful workflows," enabling long-running operations and high-trust automation.
+
+### Core Principles
+- **Durable Execution**: Workflows can "sleep" for days (waiting for user input) and resume with full context.
+- **Human-in-the-Loop**: Active monitoring by owners through the Copilot Side Panel. Breaking points for automated "Trigger Words."
+- **Observable Brain**: Every decision, intent extraction, and failure is traceable via LangSmith and evaluation frameworks.
+
+### 1. The Autonomous Receptionist (Graph)
+Replaces standard auto-responders with a stateful agent:
+- **Safety & Trigger Words**: Detects specific triggers (e.g., "lawsuit", "complaint", "human") and enters a dormant mode, escalating immediately to the owner via dashboard alerts and push notifications.
+- **Strategic Delay**: Waits 3 minutes before responding to allow for natural human interaction.
+- **Retrieval Augmented Generation (RAG)**: Consults business-specific manuals (PDFs) and price estimates before answering.
+- **Autonomous Follow-up**: Proactively asks "Are you still interested?" after 24 hours of silence using an Argentine-tailored tone (customizable by the owner).
+
+### 2. The AI Copilot (Side Panel)
+Supports human dispatchers in real-time within the Dashboard:
+- **Intelligent Suggestion**: Proposes replies based on the conversation context.
+- **Automated Data Entry**: Detects addresses or names and offers one-click CRM updates via a Side Panel interface.
+- **Skill-Based Scheduling**: Automatically checks specific technician calendars based on the service requested (e.g., Gasista vs. Electricista).
+
+### 3. Technician Voice Reporting (Option A)
+Advanced flow for field workers:
+- **Action Confirmation**: When a technician dictates a report, the AI extracts the data and **replies via WhatsApp to confirm** (e.g., "Got it, I recorded 2 pipes and 1 hour of labor. Correct?").
+- **Stateful Completion**: If fields are missing (e.g., odometer), the Graph loops back to ask for the specific missing data rather than rejecting the report.
+
+---
+
+## Technical Stack Shift
+To support production-grade Agentic workflows, the AI logic is hosted as a dedicated **FastAPI service** using the LangGraph production-ready template. We prioritize **Code Integrity** and **Prompt Reliability** through a modern Python stack:
+- **Pydantic**: Guarantees strict data validation for every AI output.
+- **DSPy**: Replaces fragile manual prompts with programmatic, optimizable signatures.
+- **Arize Phoenix**: Provides full observability with local tracing for high-speed debugging.
+- **Ruff & MyPy**: Ensure enterprise-grade code hygiene and type-safety.
+
+---
+
+## WhatsApp AI System (Powered by LangGraph)
 
 **Consumer → Business Flow:**
 1. Consumer finds business in marketplace
-2. Consumer taps "WhatsApp" button
+2. Consumer taps "WhatsApp" button (Tracked via referral SKU/URL)
 3. Opens WhatsApp with business number
-4. AI reads incoming message
-5. AI has access to:
-   - Schedule availability
-   - Services offered
-   - Pricing
-   - Worker locations
+4. AI reads incoming message with **Safe Greeting Logic**: 
+   - *"Hola [Nombre], gracias por contactarte con [Empresa] nuevamente. ¿En qué podemos ayudarte hoy?"* (Avoids assuming previous job success).
+5. AI has access to **Scheduling Intelligence**:
+   - Availability based on real-time fleet locations
+   - Services offered & Pricing
+   - Distance-optimized slot proposals
 6. Based on confidence level:
-   - HIGH confidence → Auto-book job
+   - HIGH confidence → Proposal of valid slots → Creation of job assignment
    - LOW confidence → Transfer to owner/dispatcher
 
 **Voice Memo Handling:**

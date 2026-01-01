@@ -27,7 +27,7 @@ export class CustomerService {
         const { search, email, phone, tag, filter, createdAfter, createdBefore } = filters;
         const { page = 1, limit = 20, sort = 'createdAt', order = 'desc' } = pagination;
 
-        const where: Prisma.CustomerWhereInput = {
+        const where: any = {
             organizationId: orgId,
         };
 
@@ -70,7 +70,7 @@ export class CustomerService {
                 },
             });
 
-            const customerIds = allCustomers.map(c => c.id);
+            const customerIds = allCustomers.map((c: any) => c.id);
 
             const [jobCounts, invoiceTotals, ratings] = await Promise.all([
                 prisma.job.groupBy({
@@ -96,11 +96,11 @@ export class CustomerService {
                 }),
             ]);
 
-            const jobCountMap = new Map(jobCounts.map(j => [j.customerId, j._count.id]));
-            const revenueMap = new Map(invoiceTotals.map(i => [i.customerId, Number(i._sum.total) || 0]));
-            const ratingMap = new Map(ratings.map(r => [r.customerId, r._avg.rating]));
+            const jobCountMap = new Map(jobCounts.map((j: any) => [j.customerId, j._count.id]));
+            const revenueMap = new Map(invoiceTotals.map((i: any) => [i.customerId, Number(i._sum.total) || 0]));
+            const ratingMap = new Map(ratings.map((r: any) => [r.customerId, r._avg.rating]));
 
-            items = allCustomers.map(c => ({
+            items = allCustomers.map((c: any) => ({
                 ...c,
                 jobCount: jobCountMap.get(c.id) || 0,
                 totalSpent: revenueMap.get(c.id) || 0,
@@ -130,7 +130,7 @@ export class CustomerService {
             items = items.slice((page - 1) * limit, page * limit);
         } else {
             // Standard paginated query
-            const orderBy: Prisma.CustomerOrderByWithRelationInput = {
+            const orderBy: any = {
                 [sort]: order,
             };
 
@@ -174,9 +174,9 @@ export class CustomerService {
                 }),
             ]);
 
-            const jobCountMap = new Map(jobCounts.map(j => [j.customerId, j._count.id]));
-            const revenueMap = new Map(invoiceTotals.map(i => [i.customerId, Number(i._sum.total) || 0]));
-            const ratingMap = new Map(ratings.map(r => [r.customerId, r._avg.rating]));
+            const jobCountMap = new Map(jobCounts.map((j: any) => [j.customerId, j._count.id]));
+            const revenueMap = new Map(invoiceTotals.map((i: any) => [i.customerId, Number(i._sum.total) || 0]));
+            const ratingMap = new Map(ratings.map((r: any) => [r.customerId, r._avg.rating]));
 
             items = items.map(c => ({
                 ...c,
@@ -201,7 +201,7 @@ export class CustomerService {
      * Get a single customer by ID with detailed history and stats
      */
     static async getCustomerById(orgId: string, id: string, options: { includeRecent?: boolean } = {}) {
-        const include: Prisma.CustomerInclude = {
+        const include: any = {
             _count: {
                 select: { jobs: true, invoices: true },
             },

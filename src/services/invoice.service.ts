@@ -14,7 +14,7 @@ export class InvoiceService {
         const { status, customerId } = filters;
         const { page = 1, limit = 20 } = pagination;
 
-        const where: Prisma.InvoiceWhereInput = {
+        const where: any = {
             organizationId: orgId,
         };
 
@@ -190,9 +190,9 @@ export class InvoiceService {
 
             if (!invoice) throw new Error('Invoice not found');
 
-            const totalPaid = invoice.payments
-                .filter(p => p.status === 'COMPLETED')
-                .reduce((sum, p) => sum + Number(p.amount), 0) + amount;
+            const totalPaid = (invoice.payments as any[])
+                .filter((p: any) => p.status === 'COMPLETED')
+                .reduce((sum: number, p: any) => sum + Number(p.amount), 0) + amount;
 
             const newStatus = totalPaid >= Number(invoice.total) ? 'PAID' : 'SENT'; // Assuming SENT if not fully paid
 
