@@ -2,6 +2,23 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+interface WarehouseWithRelations {
+  id: string;
+  name: string;
+  type: string;
+  address: string | null;
+  isActive: boolean;
+  vehicle?: {
+    id: string;
+    plateNumber: string;
+    make: string;
+    model: string;
+  } | null;
+  _count: {
+    inventoryLevels: number;
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
@@ -18,7 +35,7 @@ export async function GET(request: NextRequest) {
     const includeVehicles = searchParams.get('includeVehicles') !== 'false';
 
     // Map InventoryLocation.locationType to WarehouseType where possible
-    const where: any = {
+    const where: Record<string, unknown> = {
       organizationId: session.organizationId,
       isActive: true,
     };
@@ -50,7 +67,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Map Warehouse model to the format expected by the frontend (InventoryLocation mockup)
-    const locations = warehouses.map((w: any) => ({
+    const locations = warehouses.map((w: WarehouseWithRelations) => ({
       id: w.id,
       name: w.name,
       locationType: w.type === 'SECONDARY' ? 'HUB' : w.type,
@@ -63,11 +80,12 @@ export async function GET(request: NextRequest) {
       }
     }));
 
+    type LocationEntry = (typeof locations)[number];
     const stats = {
       total: locations.length,
-      warehouses: locations.filter((l: any) => l.locationType === 'MAIN' || l.locationType === 'WAREHOUSE').length,
-      vehicles: locations.filter((l: any) => l.locationType === 'VEHICLE').length,
-      hubs: locations.filter((l: any) => l.locationType === 'HUB' || l.locationType === 'SECONDARY').length,
+      warehouses: locations.filter((l: LocationEntry) => l.locationType === 'MAIN' || l.locationType === 'WAREHOUSE').length,
+      vehicles: locations.filter((l: LocationEntry) => l.locationType === 'VEHICLE').length,
+      hubs: locations.filter((l: LocationEntry) => l.locationType === 'HUB' || l.locationType === 'SECONDARY').length,
     };
 
     return NextResponse.json({
@@ -115,7 +133,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Map locationType to WarehouseType
-    const mappedType = locationType === 'HUB' ? 'SECONDARY' : (locationType as any);
+    const mappedType = locationType === 'HUB' ? 'SECONDARY' : locationType as string;
 
     const warehouse = await prisma.warehouse.create({
       data: {

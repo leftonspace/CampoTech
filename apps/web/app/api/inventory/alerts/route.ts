@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     );
     const products = result.items;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const alerts = products.map((product: any) => {
       const totalStock = product.stock.onHand;
       const isOutOfStock = totalStock === 0;
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest) {
         details: {
           currentStock: totalStock,
           minStockLevel: product.minStockLevel,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           locationBreakdown: product.inventoryLevels.map((lvl: any) => ({
             locationId: lvl.warehouseId,
             locationName: lvl.warehouse.name,
@@ -54,15 +56,21 @@ export async function GET(request: NextRequest) {
 
     // Sort by severity (critical first)
     const severityOrder: Record<string, number> = { critical: 0, warning: 1, info: 2 };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     alerts.sort((a: any, b: any) => severityOrder[a.severity] - severityOrder[b.severity]);
 
     // Calculate summary
     const summary = {
       total: alerts.length,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       critical: alerts.filter((a: any) => a.severity === 'critical').length,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       warning: alerts.filter((a: any) => a.severity === 'warning').length,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       info: alerts.filter((a: any) => a.severity === 'info').length,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       outOfStock: alerts.filter((a: any) => a.type === 'OUT_OF_STOCK').length,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       lowStock: alerts.filter((a: any) => a.type === 'LOW_STOCK').length,
     };
 

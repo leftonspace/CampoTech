@@ -166,7 +166,7 @@ export async function PUT(
     }
 
     // Build update data - only include fields that were sent
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     if (body.name !== undefined) updateData.name = body.name;
     if (body.email !== undefined) updateData.email = body.email || null;
     if (body.role !== undefined) updateData.role = body.role;

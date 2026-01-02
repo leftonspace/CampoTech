@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
             lng: data.location?.longitude || 0,
           },
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         address_components: (data.addressComponents || []).map((component: any) => ({
           long_name: component.longText || '',
           short_name: component.shortText || '',

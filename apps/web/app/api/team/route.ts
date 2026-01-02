@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const role = searchParams.get('role');
     const isActive = searchParams.get('isActive');
 
-    const where: any = {
+    const where: Record<string, unknown> = {
       organizationId: session.organizationId,
     };
 

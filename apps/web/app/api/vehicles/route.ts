@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const search = searchParams.get('search');
 
-    const where: any = {
+    const where: Record<string, unknown> = {
       organizationId: session.organizationId,
     };
 
@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let vehicles: any[] = [];
     try {
       vehicles = await prisma.vehicle.findMany({
@@ -132,7 +133,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Sanitize user data in assignments
-      const sanitizedAssignments = vehicle.assignments.map((assignment: { user?: { id: string; name: string; avatar?: string; phone: string } | null; [key: string]: unknown }) => ({
+      const sanitizedAssignments = vehicle.assignments.map((assignment: { user?: { id: string; name: string; avatar?: string; phone: string } | null;[key: string]: unknown }) => ({
         ...assignment,
         user: assignment.user ? {
           id: assignment.user.id,

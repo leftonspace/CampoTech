@@ -73,6 +73,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         organizationId,
         conversationId,
         bodyText,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         buttons.map((btn: any) => ({
           id: btn.id,
           title: btn.title.substring(0, 20), // Max 20 chars
@@ -89,10 +90,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
 
       // Validate total rows
-      const totalRows = sections.reduce(
-        (sum: number, s: any) => sum + (s.rows?.length || 0),
-        0
-      );
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const totalRows = sections.reduce((sum: number, s: any) => sum + (s.rows?.length || 0), 0);
       if (totalRows > 10) {
         return NextResponse.json(
           { success: false, error: 'Maximum 10 total rows allowed' },
@@ -106,8 +105,10 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         conversationId,
         bodyText,
         buttonText,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         sections.map((section: any) => ({
           title: section.title,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           rows: section.rows.map((row: any) => ({
             id: row.id,
             title: row.title.substring(0, 24), // Max 24 chars

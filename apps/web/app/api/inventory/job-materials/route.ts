@@ -7,6 +7,25 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+interface JobWithRelations {
+  id: string;
+  jobNumber: string;
+  serviceType: string;
+  completedAt: Date | null;
+  technicianId: string | null;
+  customer?: { name: string } | null;
+  technician?: { name: string } | null;
+  materials: Array<{
+    id: string;
+    productId: string;
+    usedQty: number;
+    unitCost: number | string;
+    unitPrice: number | string;
+    lineTotal: number | string;
+    product?: { name: string; sku: string } | null;
+  }>;
+}
+
 /**
  * GET /api/inventory/job-materials
  * Get job materials, estimates, or reports
@@ -200,8 +219,8 @@ export async function GET(request: NextRequest) {
           jobId: job.id,
           jobNumber: job.jobNumber,
           serviceType: job.serviceType,
-          customerName: (job.customer as any)?.name || 'Unknown',
-          technicianName: (job.technician as any)?.name || 'Sin asignar',
+          customerName: job.customer?.name || 'Unknown',
+          technicianName: job.technician?.name || 'Sin asignar',
           completedAt: job.completedAt || new Date(),
           laborRevenue,
           materialRevenue,
@@ -243,7 +262,7 @@ export async function GET(request: NextRequest) {
 
       for (const job of jobs) {
         const techId = job.technicianId;
-        const techName = (job.technician as any)?.name || 'Sin asignar';
+        const techName = job.technician?.name || 'Sin asignar';
 
         for (const mat of job.materials) {
           const cost = mat.usedQty * Number(mat.unitCost);
@@ -255,7 +274,7 @@ export async function GET(request: NextRequest) {
           // By product
           if (!byProduct[mat.productId]) {
             byProduct[mat.productId] = {
-              name: (mat.product as any)?.name || 'Unknown',
+              name: mat.product?.name || 'Unknown',
               qty: 0,
               cost: 0,
               revenue: 0,
@@ -338,7 +357,7 @@ export async function GET(request: NextRequest) {
         data: {
           items: materials.map((m: typeof materials[number]) => ({
             id: m.id,
-            description: `${(m.product as any)?.name || 'Material'} (${(m.product as any)?.sku})`,
+            description: `${m.product?.name || 'Material'} (${m.product?.sku})`,
             quantity: m.usedQty,
             unitPrice: Number(m.unitPrice),
             total: Number(m.lineTotal),

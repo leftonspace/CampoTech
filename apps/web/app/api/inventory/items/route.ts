@@ -2,6 +2,30 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { InventoryService } from '@/src/services/inventory.service';
 
+interface ProductWithStock {
+  id: string;
+  sku: string;
+  name: string;
+  description: string | null;
+  category?: { name: string } | null;
+  unitOfMeasure: string;
+  minStockLevel: number;
+  costPrice: number | string;
+  salePrice: number | string;
+  imageUrl?: string | null;
+  isActive: boolean;
+  stock: {
+    onHand: number;
+    isLowStock: boolean;
+  };
+  inventoryLevels: Array<{
+    warehouseId: string;
+    warehouse?: { name: string } | null;
+    quantityOnHand: number;
+    quantityAvailable: number;
+  }>;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
@@ -29,7 +53,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Map Product model to the format expected by the frontend
-    const mappedItems = result.items.map((product: any) => ({
+    const mappedItems = result.items.map((product: ProductWithStock) => ({
       id: product.id,
       sku: product.sku,
       name: product.name,
@@ -43,20 +67,21 @@ export async function GET(request: NextRequest) {
       isActive: product.isActive,
       totalStock: product.stock.onHand,
       isLowStock: product.stock.isLowStock,
-      stocksByLocation: product.inventoryLevels.map((lvl: any) => ({
+      stocksByLocation: product.inventoryLevels.map((lvl) => ({
         locationId: lvl.warehouseId,
         locationName: lvl.warehouse?.name || 'Depósito',
-        locationType: 'WAREHOUSE',
+        locationType: 'WAREHOUSE' as const,
         quantity: lvl.quantityOnHand,
         availableQuantity: lvl.quantityAvailable,
       })),
     }));
 
     // Calculate stats for the response
+    type MappedItem = (typeof mappedItems)[number];
     const stats = {
       totalItems: result.pagination.total,
-      lowStockItems: mappedItems.filter((item: any) => item.isLowStock).length,
-      categories: Array.from(new Set(mappedItems.map((item: any) => item.category))),
+      lowStockItems: mappedItems.filter((item: MappedItem) => item.isLowStock).length,
+      categories: Array.from(new Set(mappedItems.map((item: MappedItem) => item.category))),
     };
 
     return NextResponse.json({

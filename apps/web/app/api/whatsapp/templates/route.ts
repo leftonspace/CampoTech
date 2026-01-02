@@ -93,6 +93,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Build components array for Meta API
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const components: any[] = [];
 
     // Header component

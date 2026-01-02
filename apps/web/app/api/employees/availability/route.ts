@@ -171,7 +171,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get current locations if requested
-    let locations: Map<string, { lat: number; lng: number; updatedAt: Date }> = new Map();
+    const locations: Map<string, { lat: number; lng: number; updatedAt: Date }> = new Map();
     if (includeLocation) {
       const techLocations = await prisma.technicianLocation.findMany({
         where: {
@@ -184,6 +184,7 @@ export async function GET(request: NextRequest) {
           updatedAt: true,
         },
       });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       techLocations.forEach((loc: { technicianId: string; latitude: any; longitude: any; updatedAt: any }) => {
         locations.set(loc.technicianId, {
           lat: loc.latitude,
@@ -278,10 +279,10 @@ export async function GET(request: NextRequest) {
         scheduleInfo,
         currentLocation: location
           ? {
-              lat: location.lat,
-              lng: location.lng,
-              updatedAt: location.updatedAt.toISOString(),
-            }
+            lat: location.lat,
+            lng: location.lng,
+            updatedAt: location.updatedAt.toISOString(),
+          }
           : null,
         currentJobCount: jobCount,
       };

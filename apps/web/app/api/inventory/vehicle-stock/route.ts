@@ -58,6 +58,7 @@ export async function GET(request: NextRequest) {
     // Get vehicle stock value
     if (view === 'value' && vehicleId) {
       const stock = await getStockForVehicle(vehicleId);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const totalValue = (stock as any[]).reduce((sum, lvl) => {
         return sum + (lvl.quantityOnHand * Number(lvl.product.costPrice || 0));
       }, 0);
@@ -73,6 +74,7 @@ export async function GET(request: NextRequest) {
         lowStock: true
       });
       // Filter for only VEHICLE type warehouses
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const vehicleNeeds = allVehicleLevels.filter((lvl: any) => lvl.warehouse?.type === 'VEHICLE');
       return NextResponse.json({ success: true, data: { items: vehicleNeeds } });
     }

@@ -232,6 +232,7 @@ export async function POST(request: NextRequest) {
       },
       message: `Transferencia completada: ${quantity} unidades de ${fromWarehouse.name} a ${toWarehouse.name}`,
     });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('Stock transfer error:', error);
     return NextResponse.json(
@@ -265,6 +266,7 @@ export async function GET(request: NextRequest) {
     const pageSize = parseInt(searchParams.get('pageSize') || '50', 10);
 
     // Build where clause
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
       organizationId: session.organizationId,
       movementType: 'TRANSFER',

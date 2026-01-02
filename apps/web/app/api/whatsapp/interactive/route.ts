@@ -8,6 +8,22 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { WhatsAppClient } from '@/src/integrations/whatsapp/client';
 
+interface InteractiveButton {
+  id: string;
+  title: string;
+}
+
+interface ListRow {
+  id: string;
+  title: string;
+  description?: string;
+}
+
+interface ListSection {
+  title: string;
+  rows: ListRow[];
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
@@ -93,7 +109,7 @@ export async function POST(request: NextRequest) {
       result = await client.sendButtonMessage(
         phone,
         bodyText,
-        buttons.map((btn: any) => ({
+        (buttons as InteractiveButton[]).map((btn) => ({
           id: btn.id,
           title: btn.title.substring(0, 20), // Max 20 chars
         })),
@@ -104,8 +120,8 @@ export async function POST(request: NextRequest) {
       );
     } else if (type === 'list') {
       // Validate total rows
-      const totalRows = sections.reduce(
-        (sum: number, s: any) => sum + (s.rows?.length || 0),
+      const totalRows = (sections as ListSection[]).reduce(
+        (sum, s) => sum + (s.rows?.length || 0),
         0
       );
       if (totalRows > 10) {
@@ -119,9 +135,9 @@ export async function POST(request: NextRequest) {
         phone,
         bodyText,
         buttonText,
-        sections.map((section: any) => ({
+        (sections as ListSection[]).map((section) => ({
           title: section.title,
-          rows: section.rows.map((row: any) => ({
+          rows: section.rows.map((row) => ({
             id: row.id,
             title: row.title.substring(0, 24), // Max 24 chars
             description: row.description?.substring(0, 72), // Max 72 chars

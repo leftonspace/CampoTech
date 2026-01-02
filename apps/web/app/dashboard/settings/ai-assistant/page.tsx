@@ -527,11 +527,10 @@ export default function AIAssistantSettingsPage() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key as typeof activeTab)}
-              className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
-                activeTab === tab.key
+              className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === tab.key
                   ? 'border-primary-600 text-primary-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+                }`}
             >
               <tab.icon className="h-4 w-4" />
               {tab.label}
@@ -556,14 +555,12 @@ export default function AIAssistantSettingsPage() {
                 </div>
                 <button
                   onClick={() => updateConfig('autoResponseEnabled', !config.autoResponseEnabled)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    config.autoResponseEnabled ? 'bg-primary-500' : 'bg-gray-300'
-                  }`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${config.autoResponseEnabled ? 'bg-primary-500' : 'bg-gray-300'
+                    }`}
                 >
                   <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      config.autoResponseEnabled ? 'translate-x-6' : 'translate-x-1'
-                    }`}
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${config.autoResponseEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
                   />
                 </button>
               </div>
@@ -617,11 +614,10 @@ export default function AIAssistantSettingsPage() {
                     <button
                       key={tone.value}
                       onClick={() => updateConfig('aiTone', tone.value)}
-                      className={`rounded-lg border p-4 text-left transition-colors ${
-                        config.aiTone === tone.value
+                      className={`rounded-lg border p-4 text-left transition-colors ${config.aiTone === tone.value
                           ? 'border-primary-500 bg-primary-50'
                           : 'border-gray-200 hover:border-gray-300'
-                      }`}
+                        }`}
                     >
                       <p className="font-medium text-gray-900">{tone.label}</p>
                       <p className="text-sm text-gray-500">{tone.description}</p>
@@ -810,14 +806,12 @@ export default function AIAssistantSettingsPage() {
                       </div>
                       <button
                         onClick={() => toggleDayOff(day.key)}
-                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                          hours ? 'bg-primary-500' : 'bg-gray-300'
-                        }`}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${hours ? 'bg-primary-500' : 'bg-gray-300'
+                          }`}
                       >
                         <span
-                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                            hours ? 'translate-x-6' : 'translate-x-1'
-                          }`}
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${hours ? 'translate-x-6' : 'translate-x-1'
+                            }`}
                         />
                       </button>
                       {hours ? (
@@ -1139,11 +1133,10 @@ export default function AIAssistantSettingsPage() {
                 {DATA_ACCESS_PERMISSIONS.map((p) => (
                   <span
                     key={p.key}
-                    className={`text-xs px-2 py-1 rounded-full ${
-                      config.dataAccessPermissions[p.key as keyof DataAccessPermissions]
+                    className={`text-xs px-2 py-1 rounded-full ${config.dataAccessPermissions[p.key as keyof DataAccessPermissions]
                         ? 'bg-green-100 text-green-800'
                         : 'bg-gray-100 text-gray-500'
-                    }`}
+                      }`}
                   >
                     {config.dataAccessPermissions[p.key as keyof DataAccessPermissions] ? '✓' : '✗'} {p.label}
                   </span>
@@ -1191,7 +1184,7 @@ export default function AIAssistantSettingsPage() {
                   <div className="flex flex-col items-center justify-center h-full text-gray-500">
                     <MessageSquare className="h-12 w-12 mb-3 text-gray-300" />
                     <p className="text-sm">Escribí un mensaje como si fueras un cliente</p>
-                    <p className="text-xs mt-1">Ejemplos: "Hola, necesito instalar un aire" o "¿Cuánto sale una limpieza?"</p>
+                    <p className="text-xs mt-1">Ejemplos: &quot;Hola, necesito instalar un aire&quot; o &quot;¿Cuánto sale una limpieza?&quot;</p>
                   </div>
                 ) : (
                   testMessages.map((msg, index) => (
@@ -1200,11 +1193,10 @@ export default function AIAssistantSettingsPage() {
                       className={`flex ${msg.role === 'customer' ? 'justify-end' : 'justify-start'}`}
                     >
                       <div
-                        className={`max-w-[80%] rounded-lg p-3 ${
-                          msg.role === 'customer'
+                        className={`max-w-[80%] rounded-lg p-3 ${msg.role === 'customer'
                             ? 'bg-primary-600 text-white'
                             : 'bg-white border shadow-sm'
-                        }`}
+                          }`}
                       >
                         <div className="flex items-start gap-2">
                           {msg.role === 'assistant' && (
@@ -1216,13 +1208,12 @@ export default function AIAssistantSettingsPage() {
                               <div className="mt-2 pt-2 border-t border-gray-100 space-y-1">
                                 <div className="flex flex-wrap gap-2 text-xs">
                                   <span
-                                    className={`px-2 py-0.5 rounded-full ${
-                                      msg.analysis.confidence >= 85
+                                    className={`px-2 py-0.5 rounded-full ${msg.analysis.confidence >= 85
                                         ? 'bg-green-100 text-green-700'
                                         : msg.analysis.confidence >= 70
                                           ? 'bg-yellow-100 text-yellow-700'
                                           : 'bg-red-100 text-red-700'
-                                    }`}
+                                      }`}
                                   >
                                     {msg.analysis.confidence}% confianza
                                   </span>

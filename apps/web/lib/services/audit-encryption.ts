@@ -321,7 +321,7 @@ export async function runRetentionCleanup(): Promise<{
   dailyUsageCleanup: number;
 }> {
   let expiredExports = 0;
-  let completedDeletions = 0;
+  const completedDeletions = 0;
   let dailyUsageCleanup = 0;
 
   try {

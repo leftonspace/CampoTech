@@ -37,13 +37,14 @@ export async function GET(request: NextRequest) {
     const jobs = result.items;
 
     // Get summary stats
+    type JobType = typeof jobs[number];
     const summary = {
       total: jobs.length,
-      pending: jobs.filter((j: any) => j.status === 'PENDING').length,
-      assigned: jobs.filter((j: any) => j.status === 'ASSIGNED').length,
-      enRoute: jobs.filter((j: any) => j.status === 'EN_ROUTE').length,
-      inProgress: jobs.filter((j: any) => j.status === 'IN_PROGRESS').length,
-      completed: jobs.filter((j: any) => j.status === 'COMPLETED').length,
+      pending: jobs.filter((j: JobType) => j.status === 'PENDING').length,
+      assigned: jobs.filter((j: JobType) => j.status === 'ASSIGNED').length,
+      enRoute: jobs.filter((j: JobType) => j.status === 'EN_ROUTE').length,
+      inProgress: jobs.filter((j: JobType) => j.status === 'IN_PROGRESS').length,
+      completed: jobs.filter((j: JobType) => j.status === 'COMPLETED').length,
     };
 
     return NextResponse.json({

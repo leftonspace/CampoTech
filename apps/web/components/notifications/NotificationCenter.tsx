@@ -150,6 +150,7 @@ export default function NotificationCenter() {
 
             if (message.event === 'notification') {
               // Add new notification to cache
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               queryClient.setQueryData(['notifications'], (old: any) => {
                 if (!old?.data) return old;
                 return {
@@ -299,9 +300,8 @@ export default function NotificationCenter() {
                   <button
                     key={notification.id}
                     onClick={() => handleNotificationClick(notification)}
-                    className={`w-full px-4 py-3 text-left transition-colors hover:bg-gray-50 ${
-                      !notification.read ? 'bg-primary-50/50' : ''
-                    }`}
+                    className={`w-full px-4 py-3 text-left transition-colors hover:bg-gray-50 ${!notification.read ? 'bg-primary-50/50' : ''
+                      }`}
                   >
                     <div className="flex gap-3">
                       {getNotificationIcon(notification.eventType)}

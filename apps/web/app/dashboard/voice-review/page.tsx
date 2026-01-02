@@ -206,7 +206,7 @@ export default function VoiceReviewPage() {
                     {/* Transcription preview */}
                     {item.transcription && (
                       <p className="text-sm text-gray-600 line-clamp-2 mb-2">
-                        "{item.transcription.text}"
+                        &quot;{item.transcription.text}&quot;
                       </p>
                     )}
 

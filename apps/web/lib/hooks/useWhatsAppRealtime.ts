@@ -94,6 +94,7 @@ export function useWhatsAppRealtime({
 }: WhatsAppRealtimeConfig) {
   const queryClient = useQueryClient();
   const pusherRef = useRef<Pusher | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const channelRef = useRef<any>(null);
 
   // Initialize Pusher
@@ -128,11 +129,12 @@ export function useWhatsAppRealtime({
       // Optimistically update message status in cache
       queryClient.setQueryData(
         ['whatsapp-messages', data.conversationId],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (oldData: any) => {
           if (!oldData?.data) return oldData;
           return {
             ...oldData,
-            data: oldData.data.map((msg: any) =>
+            data: oldData.data.map((msg: Record<string, unknown>) =>
               msg.id === data.messageId || msg.waMessageId === data.waMessageId
                 ? { ...msg, status: data.status }
                 : msg
@@ -153,11 +155,12 @@ export function useWhatsAppRealtime({
       // Optimistically update conversation in cache
       queryClient.setQueryData(
         ['whatsapp-conversations'],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (oldData: any) => {
           if (!oldData?.data) return oldData;
           return {
             ...oldData,
-            data: oldData.data.map((conv: any) =>
+            data: oldData.data.map((conv: Record<string, unknown>) =>
               conv.id === data.conversationId
                 ? { ...conv, ...data.changes }
                 : conv

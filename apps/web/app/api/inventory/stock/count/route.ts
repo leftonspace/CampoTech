@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
       const countNumber = `CNT-${(countNum + 1).toString().padStart(6, '0')}`;
 
       // Get products for the count
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const productsWhere: any = {
         organizationId: session.organizationId,
         trackInventory: true,
@@ -478,6 +479,7 @@ export async function POST(request: NextRequest) {
       { success: false, error: 'Acción no válida' },
       { status: 400 }
     );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('Stock count error:', error);
     return NextResponse.json(
@@ -554,6 +556,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build where clause for list
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
       organizationId: session.organizationId,
     };

@@ -480,8 +480,8 @@ export default function SchedulePage() {
               >
                 <option value={user?.id}>Mi horario</option>
                 {teamMembers
-                  .filter((m: any) => m.id !== user?.id)
-                  .map((member: any) => (
+                  .filter((m: import('@/types').User) => m.id !== user?.id)
+                  .map((member: import('@/types').User) => (
                     <option key={member.id} value={member.id}>
                       {member.name} ({member.role === 'TECHNICIAN' ? 'Técnico' : member.role === 'DISPATCHER' ? 'Despachador' : 'Propietario'})
                     </option>
@@ -490,300 +490,300 @@ export default function SchedulePage() {
             </div>
           )}
 
-      {/* Weekly schedule */}
-      <div className="card overflow-hidden">
-        <div className="p-4 border-b bg-gray-50">
-          <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-gray-600" />
-            <h2 className="font-semibold text-gray-900">Horario Semanal</h2>
-          </div>
-        </div>
-        <div className="divide-y">
-          {DAYS_OF_WEEK.map((day) => {
-            const schedule = getScheduleForDay(day.id);
-            const isAvailable = schedule?.isAvailable ?? false;
+          {/* Weekly schedule */}
+          <div className="card overflow-hidden">
+            <div className="p-4 border-b bg-gray-50">
+              <div className="flex items-center gap-2">
+                <Clock className="h-5 w-5 text-gray-600" />
+                <h2 className="font-semibold text-gray-900">Horario Semanal</h2>
+              </div>
+            </div>
+            <div className="divide-y">
+              {DAYS_OF_WEEK.map((day) => {
+                const schedule = getScheduleForDay(day.id);
+                const isAvailable = schedule?.isAvailable ?? false;
 
-            return (
-              <div
-                key={day.id}
-                className={cn(
-                  'flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-4',
-                  !isAvailable && 'bg-gray-50'
-                )}
-              >
-                {/* Day name and toggle */}
-                <div className="flex items-center gap-3 min-w-[160px]">
-                  {/* Toggle switch */}
-                  <button
-                    onClick={() => canEdit && handleToggleDay(day.id, schedule)}
-                    disabled={!canEdit || updateScheduleMutation.isPending}
+                return (
+                  <div
+                    key={day.id}
                     className={cn(
-                      'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
-                      isAvailable ? 'bg-green-500' : 'bg-gray-300',
-                      !canEdit && 'cursor-not-allowed opacity-70'
+                      'flex flex-col sm:flex-row sm:items-center justify-between p-4 gap-4',
+                      !isAvailable && 'bg-gray-50'
                     )}
                   >
-                    <span
+                    {/* Day name and toggle */}
+                    <div className="flex items-center gap-3 min-w-[160px]">
+                      {/* Toggle switch */}
+                      <button
+                        onClick={() => canEdit && handleToggleDay(day.id, schedule)}
+                        disabled={!canEdit || updateScheduleMutation.isPending}
+                        className={cn(
+                          'relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+                          isAvailable ? 'bg-green-500' : 'bg-gray-300',
+                          !canEdit && 'cursor-not-allowed opacity-70'
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                            isAvailable ? 'translate-x-5' : 'translate-x-0'
+                          )}
+                        />
+                      </button>
+                      <span className={cn('font-medium', !isAvailable && 'text-gray-400')}>
+                        {day.name}
+                      </span>
+                    </div>
+
+                    {/* Time inputs */}
+                    {isAvailable ? (
+                      <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
+                        <TimeInput
+                          value={schedule?.startTime || DEFAULT_START}
+                          onChange={(value) => canEdit && handleTimeChange(day.id, 'startTime', value)}
+                          disabled={!canEdit}
+                        />
+                        <span className="text-gray-500 hidden sm:inline">a</span>
+                        <TimeInput
+                          value={schedule?.endTime || DEFAULT_END}
+                          onChange={(value) => canEdit && handleTimeChange(day.id, 'endTime', value)}
+                          disabled={!canEdit}
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-sm">No disponible</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Exceptions calendar */}
+          <div className="card overflow-hidden">
+            <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-gray-600" />
+                <h2 className="font-semibold text-gray-900">Excepciones</h2>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1))}
+                  className="p-1 hover:bg-gray-200 rounded"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <span className="font-medium min-w-[140px] text-center">
+                  {currentMonth.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
+                </span>
+                <button
+                  onClick={() => setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1))}
+                  className="p-1 hover:bg-gray-200 rounded"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Mini calendar */}
+            <div className="p-4">
+              <div className="grid grid-cols-7 gap-1 text-center mb-2">
+                {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((d, i) => (
+                  <div key={i} className="text-xs font-medium text-gray-500 py-1">
+                    {d}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {generateCalendarDays().map((date, i) => {
+                  if (!date) {
+                    return <div key={i} className="aspect-square" />;
+                  }
+
+                  const exception = getExceptionForDate(date);
+                  const isToday = date.toDateString() === new Date().toDateString();
+                  const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
+
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        if (!isPast && canEdit) {
+                          setExceptionDate(date.toISOString().split('T')[0]);
+                          setShowExceptionModal(true);
+                        }
+                      }}
+                      disabled={isPast || !canEdit}
                       className={cn(
-                        'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
-                        isAvailable ? 'translate-x-5' : 'translate-x-0'
+                        'aspect-square flex items-center justify-center text-sm rounded-lg transition-colors relative',
+                        isToday && 'ring-2 ring-primary-500',
+                        (isPast || !canEdit) && 'text-gray-300 cursor-not-allowed',
+                        !isPast && canEdit && !exception && 'hover:bg-gray-100',
+                        exception && !exception.isAvailable && 'bg-red-100 text-red-700',
+                        exception && exception.isAvailable && 'bg-yellow-100 text-yellow-700'
                       )}
-                    />
+                      title={exception ? `${exception.reason || 'Excepción'}: ${exception.isAvailable ? 'Horario especial' : 'No disponible'}` : ''}
+                    >
+                      {date.getDate()}
+                      {exception && (
+                        <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-current" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Exceptions list */}
+            {exceptions.length > 0 && (
+              <div className="border-t p-4">
+                <h3 className="text-sm font-medium text-gray-700 mb-3">Días con excepciones</h3>
+                <div className="space-y-2">
+                  {exceptions.slice(0, 10).map((exception) => (
+                    <div
+                      key={exception.id}
+                      className={cn(
+                        'flex items-center justify-between p-3 rounded-lg',
+                        exception.isAvailable ? 'bg-yellow-50' : 'bg-red-50'
+                      )}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={cn(
+                            'w-2 h-2 rounded-full',
+                            exception.isAvailable ? 'bg-yellow-500' : 'bg-red-500'
+                          )}
+                        />
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {new Date(exception.date).toLocaleDateString('es-AR', {
+                              weekday: 'long',
+                              day: 'numeric',
+                              month: 'long',
+                            })}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {exception.reason || 'Sin motivo'} -{' '}
+                            {exception.isAvailable
+                              ? `${exception.startTime} - ${exception.endTime}`
+                              : 'No disponible'}
+                          </p>
+                        </div>
+                      </div>
+                      {canEdit && (
+                        <button
+                          onClick={() => deleteExceptionMutation.mutate(exception.id)}
+                          disabled={deleteExceptionMutation.isPending}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Add exception modal */}
+          {showExceptionModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-xl max-w-md w-full p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Agregar excepción</h3>
+                  <button
+                    onClick={() => setShowExceptionModal(false)}
+                    className="p-1 hover:bg-gray-100 rounded-lg"
+                  >
+                    <X className="h-5 w-5" />
                   </button>
-                  <span className={cn('font-medium', !isAvailable && 'text-gray-400')}>
-                    {day.name}
-                  </span>
                 </div>
 
-                {/* Time inputs */}
-                {isAvailable ? (
-                  <div className="flex items-center gap-3 flex-wrap sm:flex-nowrap">
-                    <TimeInput
-                      value={schedule?.startTime || DEFAULT_START}
-                      onChange={(value) => canEdit && handleTimeChange(day.id, 'startTime', value)}
-                      disabled={!canEdit}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
+                  <input
+                    type="date"
+                    value={exceptionDate}
+                    onChange={(e) => setExceptionDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="input w-full"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Motivo</label>
+                  <select
+                    value={exceptionReason}
+                    onChange={(e) => setExceptionReason(e.target.value)}
+                    className="input w-full"
+                  >
+                    {EXCEPTION_REASONS.map((reason) => (
+                      <option key={reason} value={reason}>
+                        {reason}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={exceptionIsAvailable}
+                      onChange={(e) => setExceptionIsAvailable(e.target.checked)}
+                      className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                     />
-                    <span className="text-gray-500 hidden sm:inline">a</span>
-                    <TimeInput
-                      value={schedule?.endTime || DEFAULT_END}
-                      onChange={(value) => canEdit && handleTimeChange(day.id, 'endTime', value)}
-                      disabled={!canEdit}
-                    />
-                  </div>
-                ) : (
-                  <span className="text-gray-400 text-sm">No disponible</span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
+                    <span className="text-sm text-gray-700">Disponible con horario especial</span>
+                  </label>
+                </div>
 
-      {/* Exceptions calendar */}
-      <div className="card overflow-hidden">
-        <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-gray-600" />
-            <h2 className="font-semibold text-gray-900">Excepciones</h2>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1))}
-              className="p-1 hover:bg-gray-200 rounded"
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <span className="font-medium min-w-[140px] text-center">
-              {currentMonth.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
-            </span>
-            <button
-              onClick={() => setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1))}
-              className="p-1 hover:bg-gray-200 rounded"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
-
-        {/* Mini calendar */}
-        <div className="p-4">
-          <div className="grid grid-cols-7 gap-1 text-center mb-2">
-            {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((d, i) => (
-              <div key={i} className="text-xs font-medium text-gray-500 py-1">
-                {d}
-              </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-7 gap-1">
-            {generateCalendarDays().map((date, i) => {
-              if (!date) {
-                return <div key={i} className="aspect-square" />;
-              }
-
-              const exception = getExceptionForDate(date);
-              const isToday = date.toDateString() === new Date().toDateString();
-              const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
-
-              return (
-                <button
-                  key={i}
-                  onClick={() => {
-                    if (!isPast && canEdit) {
-                      setExceptionDate(date.toISOString().split('T')[0]);
-                      setShowExceptionModal(true);
-                    }
-                  }}
-                  disabled={isPast || !canEdit}
-                  className={cn(
-                    'aspect-square flex items-center justify-center text-sm rounded-lg transition-colors relative',
-                    isToday && 'ring-2 ring-primary-500',
-                    (isPast || !canEdit) && 'text-gray-300 cursor-not-allowed',
-                    !isPast && canEdit && !exception && 'hover:bg-gray-100',
-                    exception && !exception.isAvailable && 'bg-red-100 text-red-700',
-                    exception && exception.isAvailable && 'bg-yellow-100 text-yellow-700'
-                  )}
-                  title={exception ? `${exception.reason || 'Excepción'}: ${exception.isAvailable ? 'Horario especial' : 'No disponible'}` : ''}
-                >
-                  {date.getDate()}
-                  {exception && (
-                    <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-current" />
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Exceptions list */}
-        {exceptions.length > 0 && (
-          <div className="border-t p-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Días con excepciones</h3>
-            <div className="space-y-2">
-              {exceptions.slice(0, 10).map((exception) => (
-                <div
-                  key={exception.id}
-                  className={cn(
-                    'flex items-center justify-between p-3 rounded-lg',
-                    exception.isAvailable ? 'bg-yellow-50' : 'bg-red-50'
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={cn(
-                        'w-2 h-2 rounded-full',
-                        exception.isAvailable ? 'bg-yellow-500' : 'bg-red-500'
-                      )}
-                    />
+                {exceptionIsAvailable && (
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <p className="font-medium text-gray-900">
-                        {new Date(exception.date).toLocaleDateString('es-AR', {
-                          weekday: 'long',
-                          day: 'numeric',
-                          month: 'long',
-                        })}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {exception.reason || 'Sin motivo'} -{' '}
-                        {exception.isAvailable
-                          ? `${exception.startTime} - ${exception.endTime}`
-                          : 'No disponible'}
-                      </p>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
+                      <TimeInput
+                        value={exceptionStartTime}
+                        onChange={(value) => setExceptionStartTime(value)}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
+                      <TimeInput
+                        value={exceptionEndTime}
+                        onChange={(value) => setExceptionEndTime(value)}
+                      />
                     </div>
                   </div>
-                  {canEdit && (
-                    <button
-                      onClick={() => deleteExceptionMutation.mutate(exception.id)}
-                      disabled={deleteExceptionMutation.isPending}
-                      className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+                )}
 
-      {/* Add exception modal */}
-      {showExceptionModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold">Agregar excepción</h3>
-              <button
-                onClick={() => setShowExceptionModal(false)}
-                className="p-1 hover:bg-gray-100 rounded-lg"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
+                {!exceptionIsAvailable && (
+                  <div className="flex items-center gap-2 p-3 bg-red-50 rounded-lg">
+                    <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
+                    <p className="text-sm text-red-700">
+                      Este día quedará marcado como no disponible para asignaciones de trabajo.
+                    </p>
+                  </div>
+                )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-              <input
-                type="date"
-                value={exceptionDate}
-                onChange={(e) => setExceptionDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-                className="input w-full"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Motivo</label>
-              <select
-                value={exceptionReason}
-                onChange={(e) => setExceptionReason(e.target.value)}
-                className="input w-full"
-              >
-                {EXCEPTION_REASONS.map((reason) => (
-                  <option key={reason} value={reason}>
-                    {reason}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={exceptionIsAvailable}
-                  onChange={(e) => setExceptionIsAvailable(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                />
-                <span className="text-sm text-gray-700">Disponible con horario especial</span>
-              </label>
-            </div>
-
-            {exceptionIsAvailable && (
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Desde</label>
-                  <TimeInput
-                    value={exceptionStartTime}
-                    onChange={(value) => setExceptionStartTime(value)}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Hasta</label>
-                  <TimeInput
-                    value={exceptionEndTime}
-                    onChange={(value) => setExceptionEndTime(value)}
-                  />
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => setShowExceptionModal(false)}
+                    className="btn-outline flex-1"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleAddException}
+                    disabled={!exceptionDate || addExceptionMutation.isPending}
+                    className="btn-primary flex-1"
+                  >
+                    {addExceptionMutation.isPending ? 'Guardando...' : 'Guardar'}
+                  </button>
                 </div>
               </div>
-            )}
-
-            {!exceptionIsAvailable && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 rounded-lg">
-                <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
-                <p className="text-sm text-red-700">
-                  Este día quedará marcado como no disponible para asignaciones de trabajo.
-                </p>
-              </div>
-            )}
-
-            <div className="flex gap-3 pt-4">
-              <button
-                onClick={() => setShowExceptionModal(false)}
-                className="btn-outline flex-1"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleAddException}
-                disabled={!exceptionDate || addExceptionMutation.isPending}
-                className="btn-primary flex-1"
-              >
-                {addExceptionMutation.isPending ? 'Guardando...' : 'Guardar'}
-              </button>
             </div>
-          </div>
-        </div>
-      )}
+          )}
         </>
       )}
     </div>

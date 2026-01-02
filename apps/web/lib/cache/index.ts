@@ -14,15 +14,7 @@
  * @see https://upstash.com/docs/redis/overall/getstarted
  */
 
-// Note: @upstash/redis must be installed: npm install @upstash/redis
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-let Redis: typeof import('@upstash/redis').Redis;
-try {
-  // Dynamic import to handle cases where package isn't installed yet
-  Redis = require('@upstash/redis').Redis;
-} catch {
-  // Package not installed - will use null client
-}
+import { Redis } from '@upstash/redis';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // REDIS CLIENT CONFIGURATION

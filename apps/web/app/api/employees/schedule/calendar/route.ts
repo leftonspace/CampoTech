@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
       : null;
 
     // Fetch all active employees in the organization (technicians and dispatchers)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const employeeWhere: any = {
       organizationId: session.organizationId,
       isActive: true,

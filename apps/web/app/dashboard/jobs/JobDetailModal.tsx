@@ -185,6 +185,7 @@ export default function JobDetailModal({
   const isFinal = isCompleted || isCancelled;
 
   // Format price
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const priceValue = (job as any)?.estimatedPrice || (job as any)?.total;
   const formattedPrice = priceValue ? formatCurrency(Number(priceValue)) : null;
 
@@ -370,6 +371,7 @@ export default function JobDetailModal({
 
               {/* Visits Section (for multi-visit jobs) */}
               {(() => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const jobAny = job as any;
                 const visits = jobAny.visits || [];
                 const durationType = jobAny.durationType || 'SINGLE_VISIT';
@@ -394,6 +396,7 @@ export default function JobDetailModal({
                     </h3>
                     {visits.length > 0 ? (
                       <div className="space-y-2">
+                        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                         {visits.map((visit: any) => {
                           const visitTimeSlot = visit.scheduledTimeSlot as { start?: string; end?: string } | null;
                           const visitTime = visitTimeSlot?.start && visitTimeSlot?.end
@@ -406,16 +409,16 @@ export default function JobDetailModal({
                               className={cn(
                                 'flex items-center justify-between p-3 rounded-lg border',
                                 visit.status === 'COMPLETED' ? 'bg-green-50 border-green-200' :
-                                visit.status === 'IN_PROGRESS' ? 'bg-orange-50 border-orange-200' :
-                                'bg-gray-50 border-gray-200'
+                                  visit.status === 'IN_PROGRESS' ? 'bg-orange-50 border-orange-200' :
+                                    'bg-gray-50 border-gray-200'
                               )}
                             >
                               <div className="flex items-center gap-3">
                                 <div className={cn(
                                   'w-8 h-8 rounded-full flex items-center justify-center font-medium text-sm',
                                   visit.status === 'COMPLETED' ? 'bg-green-200 text-green-700' :
-                                  visit.status === 'IN_PROGRESS' ? 'bg-orange-200 text-orange-700' :
-                                  'bg-gray-200 text-gray-700'
+                                    visit.status === 'IN_PROGRESS' ? 'bg-orange-200 text-orange-700' :
+                                      'bg-gray-200 text-gray-700'
                                 )}>
                                   {visit.visitNumber}
                                 </div>

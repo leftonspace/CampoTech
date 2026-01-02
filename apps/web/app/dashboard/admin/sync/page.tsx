@@ -22,8 +22,8 @@ interface Conflict {
     entityId: string;
     technicianName: string;
     timestamp: string;
-    serverValue: any;
-    clientValue: any;
+    serverValue: Record<string, unknown>;
+    clientValue: Record<string, unknown>;
     status: 'PENDING' | 'RESOLVED';
 }
 

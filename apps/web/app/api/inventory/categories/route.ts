@@ -68,7 +68,9 @@ export async function GET(request: NextRequest) {
     }
 
     // Build hierarchy
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const categoryMap = new Map<string, any>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rootCategories: any[] = [];
 
     // First pass: create all category objects

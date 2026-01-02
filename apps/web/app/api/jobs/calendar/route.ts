@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
     const end = new Date(endDate);
 
     // Build where clause
-    const where: any = {
+    const where: Record<string, unknown> = {
       organizationId: session.organizationId,
       scheduledDate: {
         gte: start,
@@ -54,8 +54,10 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
-    // Get jobs
+    // Get jobs - using explicit any here due to complex return types from Prisma findMany with includes
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let jobs: any[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let jobVisits: any[] = [];
 
     // Track customers who have completed jobs (for "first visit" indicator)
@@ -124,6 +126,7 @@ export async function GET(request: NextRequest) {
 
     // Also get visits from multi-visit jobs that fall within the date range
     // but whose parent job's scheduledDate might be outside the range
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const visitsWhere: any = {
       job: {
         organizationId: session.organizationId,
@@ -203,10 +206,11 @@ export async function GET(request: NextRequest) {
       timeSlot: { start?: string; end?: string } | null,
       status: string,
       estimatedDuration: number | null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       extendedProps: any
     ) => {
       // Parse start time
-      let startDateTime = new Date(scheduledDate);
+      const startDateTime = new Date(scheduledDate);
       if (timeSlot?.start) {
         const [hours, minutes] = timeSlot.start.split(':').map(Number);
         startDateTime.setHours(hours, minutes, 0, 0);
@@ -248,6 +252,7 @@ export async function GET(request: NextRequest) {
     const visitsByJobAndConfig = new Map<string, Map<number, typeof jobVisits>>();
     for (const visit of jobVisits) {
       jobsWithVisits.add(visit.jobId);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const configIndex = (visit as any).visitConfigIndex || 1;
 
       if (!visitsByJobAndConfig.has(visit.jobId)) {
@@ -304,6 +309,7 @@ export async function GET(request: NextRequest) {
       const durationType = job.durationType || (totalVisits > 1 ? 'MULTIPLE_VISITS' : 'SINGLE_VISIT');
 
       // Get config info for this visit
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const visitConfigIndex = (visit as any).visitConfigIndex || 1;
       const jobConfigs = visitsByJobAndConfig.get(visit.jobId);
       const totalConfigs = jobConfigs?.size || 1;
@@ -402,6 +408,7 @@ export async function GET(request: NextRequest) {
                 specialty: job.technician.specialty,
               }
               : null,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             assignments: job.assignments.map((a: any) => ({
               id: a.id,
               technician: a.technician

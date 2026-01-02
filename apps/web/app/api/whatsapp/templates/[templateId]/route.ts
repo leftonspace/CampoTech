@@ -87,7 +87,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     if (usageCount !== undefined) updateData.usageCount = usageCount;
     if (lastUsedAt !== undefined) updateData.lastUsedAt = new Date(lastUsedAt);
 

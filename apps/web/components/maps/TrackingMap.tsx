@@ -24,9 +24,25 @@ import {
 } from './marker-animation';
 
 // Leaflet types (loaded dynamically)
-type LeafletMap = any;
-type LeafletMarker = any;
-type LeafletPolyline = any;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type LeafletModule = any;
+interface LeafletMap {
+  remove: () => void;
+  setView: (coords: [number, number], zoom: number) => void;
+  fitBounds: (bounds: unknown, options?: Record<string, unknown>) => void;
+}
+interface LeafletMarker {
+  setLatLng: (coords: [number, number]) => void;
+  getLatLng: () => { lat: number; lng: number };
+  getElement: () => HTMLElement | null;
+  addTo: (map: LeafletMap) => LeafletMarker;
+  bindPopup: (content: string) => LeafletMarker;
+  remove: () => void;
+}
+interface LeafletPolyline {
+  remove: () => void;
+  addTo: (map: LeafletMap) => LeafletPolyline;
+}
 
 interface TrackingMapProps {
   technicianPosition?: { lat: number; lng: number } | null;
@@ -57,7 +73,7 @@ export default function TrackingMap({
   const pulseAnimationRef = useRef<(() => void) | null>(null);
 
   const [isMapReady, setIsMapReady] = useState(false);
-  const [leafletModule, setLeafletModule] = useState<any>(null);
+  const [leafletModule, setLeafletModule] = useState<LeafletModule>(null);
 
   // Load Leaflet dynamically (client-side only)
   useEffect(() => {
@@ -66,10 +82,11 @@ export default function TrackingMap({
       const L = await import('leaflet');
 
       // Import Leaflet CSS
-      // @ts-ignore - CSS import handled by bundler
+      // @ts-expect-error - CSS import handled by bundler
       await import('leaflet/dist/leaflet.css');
 
       // Fix default marker icons (common Leaflet issue with bundlers)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -404,9 +421,8 @@ export default function TrackingMap({
         <div className="absolute top-4 left-4 right-4 bg-white/90 backdrop-blur-sm rounded-lg p-3 shadow-lg">
           <div className="flex items-center gap-2">
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${
-                status === 'arrived' ? 'bg-green-500' : 'bg-gray-500'
-              }`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-white ${status === 'arrived' ? 'bg-green-500' : 'bg-gray-500'
+                }`}
             >
               {status === 'arrived' ? '✓' : '✓'}
             </div>

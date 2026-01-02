@@ -107,6 +107,7 @@ export function formatCUIT(cuit: string): string {
  * Check if organization with this CUIT already exists
  * This is used during registration to prevent duplicates
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function checkCUITExists(cuit: string, prisma: any): Promise<boolean> {
   const digits = cuit.replace(/\D/g, '');
 

@@ -138,6 +138,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Build update data
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateData: Record<string, any> = {};
 
     // Handle personal number update

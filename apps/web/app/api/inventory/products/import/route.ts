@@ -7,6 +7,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+interface ProductImportRow {
+  sku: string;
+  name?: string;
+  description?: string;
+  categoryCode?: string;
+  brand?: string;
+  model?: string;
+  unitOfMeasure?: string;
+  costPrice?: string | number;
+  salePrice?: string | number;
+  taxRate?: string | number;
+  reorderPoint?: string | number;
+  reorderQuantity?: string | number;
+  minStockLevel?: string | number;
+  maxStockLevel?: string | number;
+  barcode?: string;
+  isActive?: string | boolean;
+  trackInventory?: string | boolean;
+  [key: string]: unknown;
+}
+
 /**
  * POST /api/inventory/products/import
  * Import products from CSV data
@@ -36,7 +57,7 @@ export async function POST(request: NextRequest) {
     }
 
     const contentType = request.headers.get('content-type') || '';
-    let rows: any[] = [];
+    let rows: ProductImportRow[] = [];
 
     if (contentType.includes('application/json')) {
       // JSON format: { rows: [...] }
@@ -110,13 +131,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Parse numeric values
-        const costPrice = parseFloat(row.costPrice) || 0;
-        const salePrice = parseFloat(row.salePrice) || 0;
-        const taxRate = parseFloat(row.taxRate) ?? 21;
-        const reorderPoint = parseInt(row.reorderPoint) || 0;
-        const reorderQuantity = parseInt(row.reorderQuantity) || 1;
-        const minStockLevel = parseInt(row.minStockLevel) || 0;
-        const maxStockLevel = row.maxStockLevel ? parseInt(row.maxStockLevel) : null;
+        const costPrice = parseFloat(String(row.costPrice || '0')) || 0;
+        const salePrice = parseFloat(String(row.salePrice || '0')) || 0;
+        const taxRate = parseFloat(String(row.taxRate || '21')) ?? 21;
+        const reorderPoint = parseInt(String(row.reorderPoint || '0')) || 0;
+        const reorderQuantity = parseInt(String(row.reorderQuantity || '1')) || 1;
+        const minStockLevel = parseInt(String(row.minStockLevel || '0')) || 0;
+        const maxStockLevel = row.maxStockLevel ? parseInt(String(row.maxStockLevel)) : null;
 
         // Parse boolean values
         const isActive = row.isActive !== 'false' && row.isActive !== '0' && row.isActive !== false;
@@ -159,11 +180,11 @@ export async function POST(request: NextRequest) {
           });
           results.created++;
         }
-      } catch (error: any) {
+      } catch (error) {
         results.errors.push({
           row: rowNum,
           sku: row.sku || 'N/A',
-          error: error.message || 'Error desconocido',
+          error: error instanceof Error ? error.message : 'Error desconocido',
         });
         results.skipped++;
       }
@@ -279,7 +300,7 @@ export async function GET(request: NextRequest) {
 /**
  * Parse CSV text into array of objects
  */
-function parseCSV(text: string): any[] {
+function parseCSV(text: string): ProductImportRow[] {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return [];
 
@@ -287,16 +308,16 @@ function parseCSV(text: string): any[] {
   const headers = parseCSVLine(lines[0]);
 
   // Parse data rows
-  const rows: any[] = [];
+  const rows: ProductImportRow[] = [];
   for (let i = 1; i < lines.length; i++) {
     const values = parseCSVLine(lines[i]);
     if (values.length === 0) continue;
 
-    const row: any = {};
+    const row: Record<string, string> = {};
     for (let j = 0; j < headers.length; j++) {
       row[headers[j]] = values[j] || '';
     }
-    rows.push(row);
+    rows.push(row as ProductImportRow);
   }
 
   return rows;

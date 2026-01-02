@@ -273,7 +273,7 @@ export function AIActionBanner({
             {/* Suggestion text */}
             {action.type === 'suggestion' && action.metadata?.suggestion && (
               <div className="mt-2 p-2 bg-white/50 rounded text-xs text-purple-700 italic">
-                "{action.metadata.suggestion}"
+                &quot;{action.metadata.suggestion}&quot;
               </div>
             )}
 

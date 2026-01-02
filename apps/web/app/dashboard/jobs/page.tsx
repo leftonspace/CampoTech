@@ -187,6 +187,7 @@ export default function JobsPage() {
       if (priorityFilter && job.priority !== priorityFilter) continue;
 
       // Check if job has visits
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const jobAny = job as any;
       const visits = jobAny.visits as Array<{
         id: string;
@@ -721,12 +722,14 @@ function JobCard({ job, visitConfig, isVisitRow, totalConfigs, openMenuId, onMen
   const isUrgent = job.priority === 'urgent' || job.priority === 'high';
 
   // Multi-visit job info
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const jobAny = job as any;
   const durationType = jobAny.durationType || 'SINGLE_VISIT';
   const isRecurring = durationType === 'RECURRING';
 
   // Parse time slot - prefer visit config time slot if available
   let timeSlot = '';
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const timeSlotSource = visitConfig?.timeSlot || (job as any).scheduledTimeSlot;
   if (job.scheduledTimeStart && job.scheduledTimeEnd && !visitConfig) {
     timeSlot = `${job.scheduledTimeStart} - ${job.scheduledTimeEnd}`;
@@ -833,8 +836,8 @@ function JobCard({ job, visitConfig, isVisitRow, totalConfigs, openMenuId, onMen
             <span className="text-gray-700">
               {visitConfig
                 ? (visitConfig.firstDate === visitConfig.lastDate
-                    ? formatDate(visitConfig.firstDate)
-                    : `${formatDate(visitConfig.firstDate)} - ${formatDate(visitConfig.lastDate)}`)
+                  ? formatDate(visitConfig.firstDate)
+                  : `${formatDate(visitConfig.firstDate)} - ${formatDate(visitConfig.lastDate)}`)
                 : (job.scheduledDate ? formatDate(job.scheduledDate) : 'Sin fecha')}
             </span>
           </div>

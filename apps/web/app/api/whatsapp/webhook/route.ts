@@ -157,7 +157,9 @@ export async function POST(request: NextRequest) {
 /**
  * Process webhook events asynchronously
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function processWebhookAsync(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload: any,
   organizationId: string | null | undefined,
   phoneNumberId: string | null
@@ -248,7 +250,9 @@ function verifySignature(body: string, signature: string, secret: string): boole
 /**
  * Extract phone number ID from webhook payload
  */
-function extractPhoneNumberId(payload: any): string | null {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function extractPhoneNumberId(// eslint-disable-next-line @typescript-eslint/no-explicit-any
+  payload: any): string | null {
   try {
     return payload.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id || null;
   } catch {
@@ -261,6 +265,7 @@ function extractPhoneNumberId(payload: any): string | null {
  */
 async function logWebhookEvent(
   eventType: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload: any,
   signature: string | null,
   organizationId: string | null | undefined,

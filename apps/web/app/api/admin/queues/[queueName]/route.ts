@@ -23,6 +23,7 @@ const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 // HELPERS
 // =============================================================================
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function requireAdmin(request: NextRequest): Promise<{ user: any } | NextResponse> {
   try {
     const session = await getSession();

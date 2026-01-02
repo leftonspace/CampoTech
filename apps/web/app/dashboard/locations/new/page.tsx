@@ -23,7 +23,7 @@ interface LocationFormData {
   coverageRadiusKm?: number;
 }
 
-async function createLocation(data: LocationFormData): Promise<{ success: boolean; data?: any; error?: string }> {
+async function createLocation(data: LocationFormData): Promise<{ success: boolean; data?: { id: string }; error?: string }> {
   const response = await fetch('/api/locations', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -69,6 +69,7 @@ export default function NewLocationPage() {
     }
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleInputChange = (field: keyof LocationFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
 

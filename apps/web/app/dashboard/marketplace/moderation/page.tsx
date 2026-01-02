@@ -447,7 +447,7 @@ function ModerationContent() {
                       {/* Comment preview */}
                       {item.review.comment && (
                         <p className="mt-2 text-gray-600 line-clamp-2">
-                          "{item.review.comment}"
+                          &quot;{item.review.comment}&quot;
                         </p>
                       )}
 

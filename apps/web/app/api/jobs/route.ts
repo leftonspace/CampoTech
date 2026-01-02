@@ -8,7 +8,7 @@ import {
 import { JobService } from '@/src/services/job.service';
 
 // Transform scheduledTimeSlot JSON to separate start/end fields for frontend compatibility
-function transformJobTimeSlot(job: any): any {
+function transformJobTimeSlot<T extends { scheduledTimeSlot?: unknown }>(job: T): T & { scheduledTimeStart: string | null; scheduledTimeEnd: string | null } {
   if (!job) return job;
   const timeSlot = job.scheduledTimeSlot as { start?: string; end?: string } | null;
   return {

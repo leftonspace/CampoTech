@@ -124,6 +124,7 @@ async function fetchEmployeeVerifications(): Promise<{ data: EmployeeVerificatio
 
   // For each team member, get their verification status
   const employees: EmployeeVerification[] = await Promise.all(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     teamData.data.members.map(async (member: any) => {
       try {
         const statusRes = await fetch(`/api/verification/status?userId=${member.id}`, {
@@ -172,6 +173,7 @@ async function fetchEmployeeVerifications(): Promise<{ data: EmployeeVerificatio
         }
 
         // Find nearest expiry
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const expiringReqs = status.requirements.filter((r: any) => r.expiresAt);
         let nextExpiry: string | null = null;
         let daysUntilExpiry: number | null = null;
@@ -179,6 +181,7 @@ async function fetchEmployeeVerifications(): Promise<{ data: EmployeeVerificatio
 
         if (expiringReqs.length > 0) {
           const sorted = expiringReqs.sort(
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (a: any, b: any) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime()
           );
           nextExpiry = sorted[0].expiresAt;
@@ -200,6 +203,7 @@ async function fetchEmployeeVerifications(): Promise<{ data: EmployeeVerificatio
           nextExpiry,
           daysUntilExpiry,
           isExpiringSoon,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           issues: status.requiresAttention.map((r: any) => r.reason),
         };
       } catch (error) {

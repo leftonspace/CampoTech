@@ -221,9 +221,10 @@ const whatsappTemplateHandler: JobHandler<WhatsAppTemplateData> = async (job) =>
 // WHATSAPP AI PROCESSOR
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface WhatsAppAIProcessData extends IncomingMessage {
-  // Extends IncomingMessage with all needed fields
-}
+/**
+ * WhatsApp AI process data matches IncomingMessage
+ */
+type WhatsAppAIProcessData = IncomingMessage;
 
 /**
  * Process incoming WhatsApp message with AI

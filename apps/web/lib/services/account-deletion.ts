@@ -322,7 +322,13 @@ export class AccountDeletionService {
       });
       photosDeleted = photoResult.count;
 
-      // 2. Delete voice transcripts reviewed by user
+      // 2. Delete user documents
+      const userDocumentResult = await prisma.userDocument.deleteMany({
+        where: { uploadedById: userId },
+      });
+      documentsDeleted = userDocumentResult.count;
+
+      // 3. Delete voice transcripts reviewed by user
       await prisma.voiceTranscript.updateMany({
         where: { reviewedById: userId },
         data: { reviewedById: null },

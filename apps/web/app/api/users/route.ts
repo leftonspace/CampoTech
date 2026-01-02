@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const page = parseInt(searchParams.get('page') || '1');
 
-    const where: any = {
+    const where: Record<string, unknown> = {
       organizationId: session.organizationId,
     };
 

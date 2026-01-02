@@ -61,18 +61,18 @@ export async function GET(req: NextRequest) {
 
         const changes = {
             jobs: {
-                created: jobs.filter((j: any) => j.createdAt > lastPulledDate),
-                updated: jobs.filter((j: any) => j.createdAt <= lastPulledDate),
+                created: jobs.filter((j: typeof jobs[number]) => j.createdAt > lastPulledDate),
+                updated: jobs.filter((j: typeof jobs[number]) => j.createdAt <= lastPulledDate),
                 deleted: [] // TODO: Implement Deleted table tracking
             },
             customers: {
-                created: customers.filter((c: any) => c.createdAt > lastPulledDate),
-                updated: customers.filter((c: any) => c.createdAt <= lastPulledDate),
+                created: customers.filter((c: typeof customers[number]) => c.createdAt > lastPulledDate),
+                updated: customers.filter((c: typeof customers[number]) => c.createdAt <= lastPulledDate),
                 deleted: []
             },
             products: {
-                created: products.filter((p: any) => p.createdAt > lastPulledDate),
-                updated: products.filter((p: any) => p.createdAt <= lastPulledDate),
+                created: products.filter((p: typeof products[number]) => p.createdAt > lastPulledDate),
+                updated: products.filter((p: typeof products[number]) => p.createdAt <= lastPulledDate),
                 deleted: []
             }
         };

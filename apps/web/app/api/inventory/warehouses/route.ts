@@ -90,6 +90,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (type) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       where.type = type as any;
     }
 
@@ -114,6 +115,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Try to fetch vehicle info separately (handles case where migration hasn't run)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let vehicleMap: Record<string, any> = {};
     try {
       const warehousesWithVehicles = await prisma.warehouse.findMany({
@@ -442,6 +444,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Don't allow deleting vehicle warehouses - they are linked to fleet
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const isVehicleWarehouse = warehouse.type === 'VEHICLE' || (warehouse as any).vehicleId;
     if (isVehicleWarehouse) {
       return NextResponse.json(

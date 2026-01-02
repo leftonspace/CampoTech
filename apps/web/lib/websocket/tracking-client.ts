@@ -168,6 +168,7 @@ export function useTrackingClient(options: UseTrackingClientOptions = {}) {
 
           // Emit updates for each technician
           if (data.data?.technicians) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             data.data.technicians.forEach((tech: any) => {
               if (tech.location) {
                 onLocationUpdate?.({
@@ -314,10 +315,10 @@ export function useLocationReporter(options: UseLocationReporterOptions = {}) {
     const R = 6371000; // Earth radius in meters
     const dLat = (lat - lastPositionRef.current.lat) * Math.PI / 180;
     const dLng = (lng - lastPositionRef.current.lng) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lastPositionRef.current.lat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
-              Math.sin(dLng/2) * Math.sin(dLng/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lastPositionRef.current.lat * Math.PI / 180) * Math.cos(lat * Math.PI / 180) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const distance = R * c;
 
     return distance > 10; // More than 10 meters

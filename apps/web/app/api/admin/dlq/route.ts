@@ -37,7 +37,8 @@ interface DLQEntry {
   sourceQueue: string;
   originalJobId: string;
   jobName: string;
-  data: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  data: Record<string, any>;
   failedReason: string;
   stacktrace?: string[];
   attemptsMade: number;
@@ -48,7 +49,7 @@ interface DLQEntry {
 // HELPERS
 // =============================================================================
 
-async function requireAdmin(request: NextRequest): Promise<{ user: any } | NextResponse> {
+async function requireAdmin(_request: NextRequest): Promise<{ user: { email?: string | null } } | NextResponse> {
   try {
     const session = await getSession();
 
@@ -253,7 +254,7 @@ export async function POST(request: NextRequest) {
           discarded: true,
           discardReason: reason || 'Manually discarded',
           discardedAt: new Date().toISOString(),
-          discardedBy: (auth as any).user?.email || 'admin',
+          discardedBy: (auth as { user?: { email?: string } }).user?.email || 'admin',
         });
 
         await job.remove();

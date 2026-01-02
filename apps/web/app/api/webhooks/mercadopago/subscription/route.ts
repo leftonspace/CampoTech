@@ -175,7 +175,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Fetch full subscription details from MP API if needed
-    let eventData: Record<string, unknown> = {
+    const eventData: Record<string, unknown> = {
       webhook_id: webhookId,
       subscription_id: subscriptionId,
       live_mode: payload.live_mode,

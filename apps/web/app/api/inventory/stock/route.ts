@@ -121,15 +121,18 @@ export async function GET(request: NextRequest) {
       }
 
       if (movementType) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         where.movementType = movementType as any;
       }
 
       if (startDate || endDate) {
         where.performedAt = {};
         if (startDate) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (where.performedAt as any).gte = new Date(startDate);
         }
         if (endDate) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (where.performedAt as any).lte = new Date(endDate);
         }
       }
@@ -184,9 +187,11 @@ export async function GET(request: NextRequest) {
       if (startDate || endDate) {
         where.performedAt = {};
         if (startDate) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (where.performedAt as any).gte = new Date(startDate);
         }
         if (endDate) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (where.performedAt as any).lte = new Date(endDate);
         }
       }
@@ -267,6 +272,7 @@ export async function GET(request: NextRequest) {
       };
 
       if (status) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         where.status = status as any;
       }
 

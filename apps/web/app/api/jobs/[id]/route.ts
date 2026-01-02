@@ -9,7 +9,7 @@ import {
 import { JobService } from '@/src/services/job.service';
 
 // Transform scheduledTimeSlot JSON to separate start/end fields for frontend compatibility
-function transformJobTimeSlot(job: any): any {
+function transformJobTimeSlot<T extends { scheduledTimeSlot?: unknown }>(job: T): T & { scheduledTimeStart: string | null; scheduledTimeEnd: string | null } {
   if (!job) return job;
   const timeSlot = job.scheduledTimeSlot as { start?: string; end?: string } | null;
   return {
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // For technicians, only show their own jobs or jobs they are assigned to
     const isAssigned = job.technicianId === session.userId ||
-      job.assignments.some((a: any) => a.technicianId === session.userId);
+      job.assignments.some((a: { technicianId: string }) => a.technicianId === session.userId);
 
     if (userRole === 'TECHNICIAN' && !isAssigned) {
       return NextResponse.json(
@@ -107,7 +107,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
     // Prepare update data
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       description,
       urgency: urgency || priority?.toUpperCase(),
       scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
@@ -128,7 +128,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // For technicians, only allow editing their own jobs
     const isAssigned = existing.technicianId === session.userId ||
-      existing.assignments.some((a: any) => a.technicianId === session.userId);
+      existing.assignments.some((a: { technicianId: string }) => a.technicianId === session.userId);
 
     if (userRole === 'TECHNICIAN' && !isAssigned) {
       return NextResponse.json(

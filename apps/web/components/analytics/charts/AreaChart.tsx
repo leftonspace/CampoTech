@@ -37,6 +37,8 @@ export default function AreaChart({
   showGrid = true,
   formatValue = (v) => v.toLocaleString('es-AR'),
 }: AreaChartProps) {
+  const gradientId = useMemo(() => `gradient-${Math.random().toString(36).substr(2, 9)}`, []);
+
   // Use a fixed viewBox for consistent coordinate system
   const viewBoxWidth = 1000;
   const viewBoxHeight = height;
@@ -79,9 +81,6 @@ export default function AreaChart({
     );
   }
 
-  const gradientId = useMemo(() => `gradient-${Math.random().toString(36).substr(2, 9)}`, []);
-
-  // Calculate grid line positions
   const gridLines = [0, 25, 50, 75, 100].map((percent) =>
     paddingTop + (percent / 100) * chartHeight
   );

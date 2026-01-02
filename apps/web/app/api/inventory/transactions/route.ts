@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
       organizationId: session.organizationId,
     };
@@ -32,7 +33,10 @@ export async function GET(request: NextRequest) {
         { toWarehouseId: warehouseId },
       ];
     }
-    if (type) where.movementType = type as any;
+    if (type) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      where.movementType = type as any;
+    }
 
     const [movements, total] = await Promise.all([
       prisma.stockMovement.findMany({
@@ -59,6 +63,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Map to the format expected by the frontend
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const transactions = movements.map((m: any) => ({
       id: m.id,
       itemId: m.productId,

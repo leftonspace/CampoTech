@@ -5,6 +5,8 @@ import { onJobStatusChange } from '@/src/modules/whatsapp/notification-triggers.
 import { randomUUID } from 'crypto';
 import { JobService } from '@/src/services/job.service';
 
+type JobStatus = 'PENDING' | 'SCHEDULED' | 'ASSIGNED' | 'EN_ROUTE' | 'ARRIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
@@ -85,8 +87,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Trigger WhatsApp notification for status change (non-blocking)
-    const oldStatus = existing.status as any;
-    const newStatus = dbStatus as any;
+    const oldStatus = existing.status as JobStatus;
+    const newStatus = dbStatus as JobStatus;
     if (oldStatus !== newStatus) {
       onJobStatusChange(id, oldStatus, newStatus, {
         technicianId: job.technicianId || undefined,

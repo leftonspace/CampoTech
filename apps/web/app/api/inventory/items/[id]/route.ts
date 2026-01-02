@@ -8,6 +8,40 @@ import {
   UserRole,
 } from '@/lib/middleware/field-filter';
 
+interface InventoryLevel {
+  id: string;
+  warehouseId: string;
+  warehouse?: { name: string } | null;
+  quantityOnHand: number;
+  quantityAvailable: number;
+}
+
+interface StockMovement {
+  id: string;
+  performedAt: Date;
+  movementType: string;
+  quantity: number;
+  fromWarehouseId?: string | null;
+  fromWarehouse?: { name: string } | null;
+  toWarehouseId?: string | null;
+  toWarehouse?: { name: string } | null;
+  performedBy?: string | null;
+  notes?: string | null;
+}
+
+interface ProductWithDetails {
+  id: string;
+  sku: string;
+  name: string;
+  description: string | null;
+  category?: { name: string } | null;
+  unitOfMeasure: string;
+  minStockLevel: number;
+  trackInventory: boolean;
+  inventoryLevels: InventoryLevel[];
+  stockMovements: StockMovement[];
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -34,32 +68,33 @@ export async function GET(
     }
 
     // Map Product to the response format expected by the frontend
-    const totalStock = (product as any).inventoryLevels.reduce((sum: number, lvl: any) => sum + lvl.quantityOnHand, 0);
+    const productWithDetails = product as unknown as ProductWithDetails;
+    const totalStock = productWithDetails.inventoryLevels.reduce((sum, lvl) => sum + lvl.quantityOnHand, 0);
 
     const mappedProduct = {
       ...product,
       category: product.category?.name || 'PARTS',
       unit: product.unitOfMeasure,
       totalStock,
-      availableStock: (product as any).inventoryLevels.reduce((sum: number, lvl: any) => sum + lvl.quantityAvailable, 0),
+      availableStock: productWithDetails.inventoryLevels.reduce((sum, lvl) => sum + lvl.quantityAvailable, 0),
       isLowStock: product.trackInventory && totalStock <= product.minStockLevel,
-      stocks: (product as any).inventoryLevels.map((lvl: any) => ({
+      stocks: productWithDetails.inventoryLevels.map((lvl) => ({
         id: lvl.id,
         locationId: lvl.warehouseId,
         location: {
           id: lvl.warehouseId,
           name: lvl.warehouse?.name || 'Depósito',
-          locationType: 'WAREHOUSE',
+          locationType: 'WAREHOUSE' as const,
         },
         quantity: lvl.quantityOnHand,
       })),
-      transactions: (product as any).stockMovements.map((mov: any) => ({
+      transactions: productWithDetails.stockMovements.map((mov) => ({
         id: mov.id,
         createdAt: mov.performedAt,
         transactionType: mov.movementType,
         quantity: mov.quantity,
-        fromLocation: mov.fromWarehouse ? { id: mov.fromWarehouseId, name: mov.fromWarehouse.name } : null,
-        toLocation: mov.toWarehouse ? { id: mov.toWarehouseId, name: mov.toWarehouse.name } : null,
+        fromLocation: mov.fromWarehouse ? { id: mov.fromWarehouseId!, name: mov.fromWarehouse.name } : null,
+        toLocation: mov.toWarehouse ? { id: mov.toWarehouseId!, name: mov.toWarehouse.name } : null,
         performedBy: mov.performedBy,
         notes: mov.notes,
       })),

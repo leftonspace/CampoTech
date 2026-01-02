@@ -669,7 +669,7 @@ export default function JobDetailPage() {
                 <Package className="h-5 w-5" />
                 Materiales Utilizados
               </h2>
-              {(job as any).materialsUsed && Array.isArray((job as any).materialsUsed) && (job as any).materialsUsed.length > 0 ? (
+              {job.materialsUsed && Array.isArray(job.materialsUsed) && job.materialsUsed.length > 0 ? (
                 <div>
                   <table className="min-w-full text-sm">
                     <thead>
@@ -681,7 +681,7 @@ export default function JobDetailPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {((job as any).materialsUsed as Array<{name: string; quantity: number; unitPrice: number}>).map((material, idx) => (
+                      {job.materialsUsed.map((material, idx) => (
                         <tr key={idx} className="border-b last:border-0">
                           <td className="py-2">{material.name}</td>
                           <td className="text-center py-2">{material.quantity}</td>
@@ -695,7 +695,7 @@ export default function JobDetailPage() {
                         <td colSpan={3} className="py-2 text-right">Total Materiales:</td>
                         <td className="text-right py-2">
                           {formatCurrency(
-                            ((job as any).materialsUsed as Array<{quantity: number; unitPrice: number}>).reduce(
+                            job.materialsUsed.reduce(
                               (sum, m) => sum + m.quantity * m.unitPrice,
                               0
                             )

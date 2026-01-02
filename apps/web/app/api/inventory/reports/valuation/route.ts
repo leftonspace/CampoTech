@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     const groupBy = searchParams.get('groupBy') || 'product'; // product, category, warehouse
 
     // Build where clause for inventory levels
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
       product: {
         organizationId: session.organizationId,
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
     let totalCostValue = 0;
     let totalRetailValue = 0;
     let totalUnits = 0;
-    let totalSKUs = new Set<string>();
+    const totalSKUs = new Set<string>();
 
     const items = inventoryLevels.map((level: typeof inventoryLevels[number]) => {
       const costValue = level.quantityOnHand * Number(level.product.costPrice);
@@ -102,6 +103,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Group results if requested
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let grouped: any = null;
 
     if (groupBy === 'category') {

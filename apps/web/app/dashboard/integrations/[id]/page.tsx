@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 
 // Integration data (in production, this would come from an API)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const integrationsData: Record<string, any> = {
   mercadopago: {
     id: 'mercadopago',
@@ -445,13 +446,13 @@ export default function IntegrationDetailPage() {
           ].map((tab) => (
             <button
               key={tab.id}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               onClick={() => setActiveTab(tab.id as any)}
               disabled={tab.requiresInstall && !integration.installed}
-              className={`pb-3 border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              } ${tab.requiresInstall && !integration.installed ? 'opacity-50 cursor-not-allowed' : ''}`}
+              className={`pb-3 border-b-2 transition-colors ${activeTab === tab.id
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+                } ${tab.requiresInstall && !integration.installed ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
               {tab.label}
             </button>
@@ -476,6 +477,7 @@ export default function IntegrationDetailPage() {
             <div className="card p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Funcionalidades</h2>
               <div className="grid gap-3 sm:grid-cols-2">
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                 {integration.features?.map((feature: any, idx: number) => (
                   <div
                     key={idx}
@@ -648,9 +650,8 @@ export default function IntegrationDetailPage() {
                 className="flex items-center gap-4 p-3 rounded-lg bg-gray-50"
               >
                 <div
-                  className={`h-2 w-2 rounded-full ${
-                    log.status === 'success' ? 'bg-success-500' : 'bg-error-500'
-                  }`}
+                  className={`h-2 w-2 rounded-full ${log.status === 'success' ? 'bg-success-500' : 'bg-error-500'
+                    }`}
                 />
                 <div className="flex-1">
                   <div className="font-medium text-gray-900">{log.action}</div>

@@ -398,6 +398,7 @@ export async function PUT(request: NextRequest) {
     if (body.address !== undefined) updateData.address = body.address;
     // Handle separate address fields by building JSON
     if (body.city !== undefined || body.state !== undefined || body.postalCode !== undefined || body.country !== undefined) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const currentAddress = existingSupplier.address as Record<string, any> || {};
       updateData.address = {
         ...currentAddress,

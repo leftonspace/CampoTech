@@ -158,7 +158,7 @@ export async function PUT(
     // For now, we just log it and let the admin make the change manually
     // In production, you'd want to implement the actual change application
 
-    let message = status === 'approved'
+    const message = status === 'approved'
       ? 'Solicitud aprobada. El cambio debe ser aplicado manualmente por el administrador del sistema.'
       : `Solicitud rechazada: ${rejectionReason}`;
 

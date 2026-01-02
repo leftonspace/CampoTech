@@ -298,6 +298,7 @@ export default function StockMovementsPage() {
                   className="input pl-10"
                 >
                   <option value="">Todos los almacenes</option>
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
                   {warehouses.map((wh: any) => (
                     <option key={wh.id} value={wh.id}>
                       {wh.name}

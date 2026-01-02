@@ -137,6 +137,7 @@ export async function GET(request: NextRequest) {
     };
 
     if (status) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       where.status = status as any;
     }
 
@@ -296,7 +297,7 @@ export async function POST(request: NextRequest) {
           });
 
           // Find or create inventory level
-          let inventoryLevel = await tx.inventoryLevel.findFirst({
+          const inventoryLevel = await tx.inventoryLevel.findFirst({
             where: {
               productId: orderItem.productId,
               warehouseId: order.warehouseId,

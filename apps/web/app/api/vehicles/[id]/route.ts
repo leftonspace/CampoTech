@@ -42,6 +42,7 @@ export async function GET(
     const { id } = await params;
 
     // Try full query with related tables, fall back to basic query if tables don't exist
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let vehicle: any = null;
     try {
       vehicle = await prisma.vehicle.findFirst({
@@ -146,7 +147,7 @@ export async function GET(
     }
 
     // Add expiry status to documents
-    const documentsWithStatus = vehicle.documents.map((doc: { expiryDate?: Date | null; [key: string]: unknown }) => {
+    const documentsWithStatus = vehicle.documents.map((doc: { expiryDate?: Date | null;[key: string]: unknown }) => {
       let expiryStatus: 'valid' | 'expiring_soon' | 'expired' | 'no_expiry' = 'no_expiry';
 
       if (doc.expiryDate) {

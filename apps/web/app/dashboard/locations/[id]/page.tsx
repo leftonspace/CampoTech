@@ -423,7 +423,7 @@ export default function LocationDetailPage() {
           <div className="card w-full max-w-md p-6">
             <h3 className="text-lg font-semibold text-gray-900">Eliminar zona</h3>
             <p className="mt-2 text-gray-500">
-              ¿Estás seguro de que deseas eliminar la zona "{location.name}"? Esta acción no
+              ¿Estás seguro de que deseas eliminar la zona &quot;{location.name}&quot;? Esta acción no
               se puede deshacer.
             </p>
             <div className="mt-6 flex justify-end gap-3">

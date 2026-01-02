@@ -212,6 +212,7 @@ async function processOperation(
   return {};
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function formatJobForMobile(job: any) {
   return {
     id: job.id,

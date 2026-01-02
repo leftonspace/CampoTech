@@ -66,6 +66,7 @@ class AcknowledgmentServiceClass {
       where: {
         userId_acknowledgmentType_version: {
           userId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           acknowledgmentType: type as any,
           version: config.version,
         },
@@ -82,6 +83,7 @@ class AcknowledgmentServiceClass {
     const count = await prisma.complianceAcknowledgment.count({
       where: {
         userId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         acknowledgmentType: type as any,
       },
     });
@@ -105,6 +107,7 @@ class AcknowledgmentServiceClass {
     const acknowledgment = await prisma.complianceAcknowledgment.findFirst({
       where: {
         userId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         acknowledgmentType: type as any,
       },
       orderBy: { acknowledgedAt: 'desc' },
@@ -155,6 +158,7 @@ class AcknowledgmentServiceClass {
       where: {
         userId,
         acknowledgmentType: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           in: requiredAcks.map((a) => a.type) as any[],
         },
       },
@@ -195,6 +199,7 @@ class AcknowledgmentServiceClass {
       where: {
         userId,
         acknowledgmentType: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           in: requiredAcks.map((a) => a.type) as any[],
         },
       },
@@ -233,6 +238,7 @@ class AcknowledgmentServiceClass {
       where: {
         userId,
         acknowledgmentType: {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           in: requiredAcks.map((a) => a.type) as any[],
         },
       },
@@ -281,6 +287,7 @@ class AcknowledgmentServiceClass {
       where: {
         userId_acknowledgmentType_version: {
           userId: input.userId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           acknowledgmentType: input.acknowledgmentType as any,
           version,
         },
@@ -288,6 +295,7 @@ class AcknowledgmentServiceClass {
       create: {
         userId: input.userId,
         organizationId: input.organizationId,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         acknowledgmentType: input.acknowledgmentType as any,
         version,
         ipAddress: input.ipAddress,

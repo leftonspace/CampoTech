@@ -44,8 +44,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     let totalValue = 0;
     let lowStockItems = 0;
     let outOfStockItems = 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const alerts: any[] = [];
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const items = (levels as any[]).map(level => {
       const product = level.product;
       const value = level.quantityOnHand * Number(product.costPrice || 0);

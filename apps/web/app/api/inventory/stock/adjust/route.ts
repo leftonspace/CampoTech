@@ -199,6 +199,7 @@ export async function POST(request: NextRequest) {
       },
       message: `Ajuste de ${direction === 'IN' ? 'entrada' : 'salida'} registrado: ${absQuantity} unidades`,
     });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     console.error('Stock adjustment error:', error);
     return NextResponse.json(
@@ -234,6 +235,7 @@ export async function GET(request: NextRequest) {
 
     // Build where clause
     const adjustmentTypes = ['ADJUSTMENT_IN', 'ADJUSTMENT_OUT', 'DAMAGE', 'THEFT', 'CORRECTION', 'EXPIRED', 'FOUND'];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
       organizationId: session.organizationId,
       movementType: { in: adjustmentTypes },

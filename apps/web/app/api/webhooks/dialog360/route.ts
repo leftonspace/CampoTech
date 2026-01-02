@@ -258,7 +258,7 @@ async function processInboundMessage(
 
     // Extract message content based on type
     let content = '';
-    let mediaUrl: string | null = null;
+    const mediaUrl: string | null = null;
     let mediaType: string | null = null;
 
     switch (message.type) {

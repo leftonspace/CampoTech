@@ -23,6 +23,7 @@ interface DiscountCalculation {
 }
 
 function calculateDiscount(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   coupon: any,
   tier: Exclude<SubscriptionTier, 'FREE'>,
   billingCycle: BillingCycle

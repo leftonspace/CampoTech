@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     const { name, categoryId, brand, productType } = body;
 
     // Build SKU from product attributes
-    let skuParts: string[] = [];
+    const skuParts: string[] = [];
 
     // Add category code if provided
     if (categoryId) {

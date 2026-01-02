@@ -157,6 +157,7 @@ export async function POST(
     });
 
     // Update vehicle's last service date and mileage if completed
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateData: Record<string, any> = {};
     if (completedDate || !scheduledDate) {
       updateData.lastServiceDate = completedDate ? new Date(completedDate) : new Date();

@@ -133,6 +133,12 @@ export interface JobAssignment {
   notes?: string;
 }
 
+export interface MaterialUsed {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+}
+
 export interface Job {
   id: string;
   orgId: string;
@@ -160,6 +166,7 @@ export interface Job {
   estimatedDuration?: number;
   actualDuration?: number;
   invoiceId?: string;
+  materialsUsed?: MaterialUsed[];
   createdAt: string;
   updatedAt: string;
 }

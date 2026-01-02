@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
 
     const result = await CustomerService.listCustomers(organizationId, {
       search: search || undefined,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       filter: filter as any,
     }, {
       page,

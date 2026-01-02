@@ -113,6 +113,7 @@ export default function ProductsPage() {
             <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
             <select
               value={stockFilter}
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               onChange={(e) => setStockFilter(e.target.value as any)}
               className="input pl-10 pr-8 appearance-none"
             >

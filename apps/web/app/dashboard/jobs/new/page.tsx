@@ -63,7 +63,7 @@ const expandDateRange = (startDate: string, endDate: string): string[] => {
 
   // Ensure we don't create too many dates (max 30 days)
   const maxDays = 30;
-  let current = new Date(start);
+  const current = new Date(start);
   let count = 0;
 
   while (current <= end && count < maxDays) {
@@ -887,11 +887,10 @@ export default function NewJobPage() {
                             onClick={() => toggleVisitTechnician(visit.id, currentUser.id)}
                             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
                           >
-                            <span className={`flex h-4 w-4 items-center justify-center rounded border ${
-                              visit.technicianIds.includes(currentUser.id)
+                            <span className={`flex h-4 w-4 items-center justify-center rounded border ${visit.technicianIds.includes(currentUser.id)
                                 ? 'border-primary-600 bg-primary-600 text-white'
                                 : 'border-gray-300'
-                            }`}>
+                              }`}>
                               {visit.technicianIds.includes(currentUser.id) && <Check className="h-3 w-3" />}
                             </span>
                             <span>Yo ({currentUser.name})</span>
@@ -904,11 +903,10 @@ export default function NewJobPage() {
                             onClick={() => toggleVisitTechnician(visit.id, member.id)}
                             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
                           >
-                            <span className={`flex h-4 w-4 items-center justify-center rounded border ${
-                              visit.technicianIds.includes(member.id)
+                            <span className={`flex h-4 w-4 items-center justify-center rounded border ${visit.technicianIds.includes(member.id)
                                 ? 'border-primary-600 bg-primary-600 text-white'
                                 : 'border-gray-300'
-                            }`}>
+                              }`}>
                               {visit.technicianIds.includes(member.id) && <Check className="h-3 w-3" />}
                             </span>
                             <span>{member.name}</span>
@@ -934,54 +932,54 @@ export default function NewJobPage() {
                   )}
                 </div>
 
-              {/* Recurrence option per visit */}
-              <div className="mt-4 pt-4 border-t border-gray-200">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={visit.isRecurring}
-                    onChange={(e) => updateVisit(visit.id, 'isRecurring', e.target.checked)}
-                    className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                  />
-                  <div className="flex items-center gap-2">
-                    <Repeat className="h-4 w-4 text-gray-400" />
-                    <span className="text-sm font-medium text-gray-700">Repetir esta visita</span>
-                  </div>
-                </label>
+                {/* Recurrence option per visit */}
+                <div className="mt-4 pt-4 border-t border-gray-200">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={visit.isRecurring}
+                      onChange={(e) => updateVisit(visit.id, 'isRecurring', e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <div className="flex items-center gap-2">
+                      <Repeat className="h-4 w-4 text-gray-400" />
+                      <span className="text-sm font-medium text-gray-700">Repetir esta visita</span>
+                    </div>
+                  </label>
 
-                {visit.isRecurring && (
-                  <div className="mt-3 ml-7 grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <label className="label mb-1 block text-xs">Frecuencia</label>
-                      <select
-                        value={visit.recurrencePattern}
-                        onChange={(e) => updateVisit(visit.id, 'recurrencePattern', e.target.value)}
-                        className="input text-sm"
-                      >
-                        {RECURRENCE_PATTERNS.map((pattern) => (
-                          <option key={pattern.value} value={pattern.value}>
-                            {pattern.label}
-                          </option>
-                        ))}
-                      </select>
+                  {visit.isRecurring && (
+                    <div className="mt-3 ml-7 grid gap-3 sm:grid-cols-2">
+                      <div>
+                        <label className="label mb-1 block text-xs">Frecuencia</label>
+                        <select
+                          value={visit.recurrencePattern}
+                          onChange={(e) => updateVisit(visit.id, 'recurrencePattern', e.target.value)}
+                          className="input text-sm"
+                        >
+                          {RECURRENCE_PATTERNS.map((pattern) => (
+                            <option key={pattern.value} value={pattern.value}>
+                              {pattern.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="label mb-1 block text-xs">Repeticiones</label>
+                        <input
+                          type="number"
+                          min={2}
+                          max={24}
+                          value={visit.recurrenceCount}
+                          onChange={(e) => updateVisit(visit.id, 'recurrenceCount', parseInt(e.target.value) || 6)}
+                          className="input text-sm"
+                        />
+                      </div>
+                      <p className="sm:col-span-2 text-xs text-gray-500">
+                        Se crearán {visit.recurrenceCount} visitas con frecuencia {RECURRENCE_PATTERNS.find(p => p.value === visit.recurrencePattern)?.label.toLowerCase()}
+                      </p>
                     </div>
-                    <div>
-                      <label className="label mb-1 block text-xs">Repeticiones</label>
-                      <input
-                        type="number"
-                        min={2}
-                        max={24}
-                        value={visit.recurrenceCount}
-                        onChange={(e) => updateVisit(visit.id, 'recurrenceCount', parseInt(e.target.value) || 6)}
-                        className="input text-sm"
-                      />
-                    </div>
-                    <p className="sm:col-span-2 text-xs text-gray-500">
-                      Se crearán {visit.recurrenceCount} visitas con frecuencia {RECURRENCE_PATTERNS.find(p => p.value === visit.recurrencePattern)?.label.toLowerCase()}
-                    </p>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}

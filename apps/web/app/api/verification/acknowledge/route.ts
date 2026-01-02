@@ -114,7 +114,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<Acknowled
       where: {
         userId_acknowledgmentType_version: {
           userId,
-          acknowledgmentType: acknowledgmentType as any, // Prisma enum
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          acknowledgmentType: acknowledgmentType as any, // Prisma enum - required for dynamic enum values
           version: effectiveVersion,
         },
       },
@@ -134,7 +135,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<Acknowled
       data: {
         userId,
         organizationId,
-        acknowledgmentType: acknowledgmentType as any, // Prisma enum
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        acknowledgmentType: acknowledgmentType as any, // Prisma enum - required for dynamic enum values
         version: effectiveVersion,
         ipAddress: effectiveIpAddress,
         userAgent: effectiveUserAgent,
@@ -244,7 +246,8 @@ export async function GET(request: NextRequest): Promise<NextResponse<GetAcknowl
       const acknowledgments = await prisma.complianceAcknowledgment.findMany({
         where: {
           userId,
-          acknowledgmentType: { in: typesToCheck as any[] },
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          acknowledgmentType: { in: typesToCheck as any[] }, // Prisma enum array
         },
         select: {
           acknowledgmentType: true,

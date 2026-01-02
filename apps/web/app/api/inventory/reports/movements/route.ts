@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
     const dateTo = endDate ? new Date(endDate) : new Date();
 
     // Build where clause
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const where: any = {
       organizationId: session.organizationId,
       performedAt: {
@@ -103,6 +104,7 @@ export async function GET(request: NextRequest) {
       byType[mov.movementType].value += value;
 
       // By product
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const product = mov.product as any;
       if (!byProduct[mov.productId]) {
         byProduct[mov.productId] = {
@@ -221,10 +223,13 @@ export async function GET(request: NextRequest) {
           direction: m.direction,
           quantity: m.quantity,
           value: Number(m.totalCost),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           productSku: (m.product as any)?.sku,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           productName: (m.product as any)?.name,
           fromWarehouse: m.fromWarehouse?.name,
           toWarehouse: m.toWarehouse?.name,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           jobNumber: (m.job as any)?.jobNumber,
           performedAt: m.performedAt,
         })),

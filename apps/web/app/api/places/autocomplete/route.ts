@@ -62,6 +62,7 @@ export async function GET(request: NextRequest) {
 
     if (response.ok) {
       // Transform new API response to match legacy format for compatibility
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const predictions = (data.suggestions || []).map((suggestion: any) => ({
         place_id: suggestion.placePrediction?.placeId || '',
         description: suggestion.placePrediction?.text?.text || '',
