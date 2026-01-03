@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import Image from 'next/image';
 import { apiRequest } from '@/lib/api-client';
 import { cn, searchMatchesAny } from '@/lib/utils';
 import {
@@ -18,7 +19,7 @@ import {
   Search,
   Filter,
   RefreshCw,
-  Image,
+  Image as ImageIcon,
   AlertCircle,
   TrendingUp,
   Eye,
@@ -416,14 +417,16 @@ export default function LeadsPage() {
                   {/* Left: Photo preview or placeholder */}
                   <div className="flex-shrink-0">
                     {lead.photos.length > 0 ? (
-                      <img
+                      <Image
                         src={lead.photos[0]}
                         alt=""
+                        width={96}
+                        height={96}
                         className="h-24 w-24 rounded-lg object-cover"
                       />
                     ) : (
                       <div className="h-24 w-24 rounded-lg bg-gray-100 flex items-center justify-center">
-                        <Image className="h-8 w-8 text-gray-400" />
+                        <ImageIcon className="h-8 w-8 text-gray-400" />
                       </div>
                     )}
                   </div>
@@ -496,9 +499,11 @@ export default function LeadsPage() {
                       {/* Consumer info */}
                       <div className="flex items-center gap-2">
                         {lead.consumer.profilePhotoUrl ? (
-                          <img
+                          <Image
                             src={lead.consumer.profilePhotoUrl}
                             alt=""
+                            width={24}
+                            height={24}
                             className="h-6 w-6 rounded-full"
                           />
                         ) : (
@@ -533,7 +538,7 @@ export default function LeadsPage() {
                     {/* Photos indicator */}
                     {lead.photos.length > 1 && (
                       <div className="mt-2 flex items-center gap-1 text-xs text-gray-500">
-                        <Image className="h-3 w-3" />
+                        <ImageIcon className="h-3 w-3" />
                         {lead.photos.length} fotos
                       </div>
                     )}

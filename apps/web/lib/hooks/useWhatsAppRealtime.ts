@@ -8,7 +8,7 @@
 
 import { useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import Pusher from 'pusher-js';
+import Pusher, { Channel } from 'pusher-js';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -73,6 +73,22 @@ interface ConversationUpdatedData {
   };
 }
 
+interface WhatsAppMessagesResponse {
+  data: {
+    id: string;
+    waMessageId?: string;
+    status: string;
+    [key: string]: unknown;
+  }[];
+}
+
+interface WhatsAppConversationsResponse {
+  data: {
+    id: string;
+    [key: string]: unknown;
+  }[];
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // PUSHER CONFIG
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -94,8 +110,7 @@ export function useWhatsAppRealtime({
 }: WhatsAppRealtimeConfig) {
   const queryClient = useQueryClient();
   const pusherRef = useRef<Pusher | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<Channel | null>(null);
 
   // Initialize Pusher
   useEffect(() => {
@@ -127,15 +142,14 @@ export function useWhatsAppRealtime({
 
     channelRef.current.bind('message_status_update', (data: MessageStatusData) => {
       // Optimistically update message status in cache
-      queryClient.setQueryData(
+      queryClient.setQueryData<WhatsAppMessagesResponse>(
         ['whatsapp-messages', data.conversationId],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (oldData: any) => {
-          if (!oldData?.data) return oldData;
+        (oldData) => {
+          if (!oldData?.data) return oldData || { data: [] };
           return {
             ...oldData,
-            data: oldData.data.map((msg: Record<string, unknown>) =>
-              msg.id === data.messageId || msg.waMessageId === data.waMessageId
+            data: oldData.data.map((msg) =>
+              msg.id === data.messageId || (msg.waMessageId && msg.waMessageId === data.waMessageId)
                 ? { ...msg, status: data.status }
                 : msg
             ),
@@ -153,14 +167,13 @@ export function useWhatsAppRealtime({
 
     channelRef.current.bind('conversation_updated', (data: ConversationUpdatedData) => {
       // Optimistically update conversation in cache
-      queryClient.setQueryData(
+      queryClient.setQueryData<WhatsAppConversationsResponse>(
         ['whatsapp-conversations'],
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (oldData: any) => {
-          if (!oldData?.data) return oldData;
+        (oldData) => {
+          if (!oldData?.data) return oldData || { data: [] };
           return {
             ...oldData,
-            data: oldData.data.map((conv: Record<string, unknown>) =>
+            data: oldData.data.map((conv) =>
               conv.id === data.conversationId
                 ? { ...conv, ...data.changes }
                 : conv

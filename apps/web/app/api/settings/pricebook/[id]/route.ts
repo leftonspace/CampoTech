@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError, Decimal } from '@prisma/client/runtime/library';
 
 // Helper to check if error is "table doesn't exist"
@@ -23,7 +23,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getSession();
     const { id } = await params;

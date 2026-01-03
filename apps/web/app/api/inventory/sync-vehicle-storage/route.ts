@@ -8,7 +8,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { syncAllVehicleWarehouses } from '@/lib/services/vehicle-storage';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const session = await getSession();
 

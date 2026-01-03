@@ -5,27 +5,28 @@
  * Integration tests for WhatsApp notification triggers.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+// Using Jest globals and mocking
+const { jest } = require('@jest/globals');
 
 // Mock the services
-vi.mock('@/src/integrations/whatsapp/whatsapp.service', () => ({
-  getWhatsAppConfig: vi.fn(),
-  sendTemplate: vi.fn(),
+jest.mock('@/src/integrations/whatsapp/whatsapp.service', () => ({
+  getWhatsAppConfig: jest.fn(),
+  sendTemplate: jest.fn(),
 }));
 
-vi.mock('@/src/lib/db', () => ({
+jest.mock('@/src/lib/db', () => ({
   db: {
     job: {
-      findFirst: vi.fn(),
+      findFirst: jest.fn(),
     },
     customer: {
-      findFirst: vi.fn(),
+      findFirst: jest.fn(),
     },
     invoice: {
-      findFirst: vi.fn(),
+      findFirst: jest.fn(),
     },
     payment: {
-      findFirst: vi.fn(),
+      findFirst: jest.fn(),
     },
   },
 }));
@@ -42,7 +43,7 @@ import {
 
 describe('WhatsApp Notifications Service', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('notifyJobScheduled', () => {
@@ -67,9 +68,9 @@ describe('WhatsApp Notifications Service', () => {
         assignments: [],
       };
 
-      (db.job.findFirst as any).mockResolvedValueOnce(mockJob);
-      (getWhatsAppConfig as any).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
-      (sendTemplate as any).mockResolvedValueOnce({ success: true, messageId: 'wamid.123' });
+      (db.job.findFirst).mockResolvedValueOnce(mockJob);
+      (getWhatsAppConfig).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
+      (sendTemplate).mockResolvedValueOnce({ success: true, messageId: 'wamid.123' });
 
       const result = await notifyJobScheduled('job_123');
 
@@ -87,7 +88,7 @@ describe('WhatsApp Notifications Service', () => {
     });
 
     it('should return error if job not found', async () => {
-      (db.job.findFirst as any).mockResolvedValueOnce(null);
+      (db.job.findFirst).mockResolvedValueOnce(null);
 
       const result = await notifyJobScheduled('invalid_job');
 
@@ -111,8 +112,8 @@ describe('WhatsApp Notifications Service', () => {
         assignments: [],
       };
 
-      (db.job.findFirst as any).mockResolvedValueOnce(mockJob);
-      (getWhatsAppConfig as any).mockResolvedValueOnce(null);
+      (db.job.findFirst).mockResolvedValueOnce(mockJob);
+      (getWhatsAppConfig).mockResolvedValueOnce(null);
 
       const result = await notifyJobScheduled('job_123');
 
@@ -136,8 +137,8 @@ describe('WhatsApp Notifications Service', () => {
         assignments: [],
       };
 
-      (db.job.findFirst as any).mockResolvedValueOnce(mockJob);
-      (getWhatsAppConfig as any).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
+      (db.job.findFirst).mockResolvedValueOnce(mockJob);
+      (getWhatsAppConfig).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
 
       const result = await notifyJobScheduled('job_123');
 
@@ -172,9 +173,9 @@ describe('WhatsApp Notifications Service', () => {
         ],
       };
 
-      (db.job.findFirst as any).mockResolvedValueOnce(mockJob);
-      (getWhatsAppConfig as any).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
-      (sendTemplate as any).mockResolvedValueOnce({ success: true, messageId: 'wamid.124' });
+      (db.job.findFirst).mockResolvedValueOnce(mockJob);
+      (getWhatsAppConfig).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
+      (sendTemplate).mockResolvedValueOnce({ success: true, messageId: 'wamid.124' });
 
       const result = await notifyTechnicianAssigned('job_123');
 
@@ -209,9 +210,9 @@ describe('WhatsApp Notifications Service', () => {
         assignments: [],
       };
 
-      (db.job.findFirst as any).mockResolvedValueOnce(mockJob);
-      (getWhatsAppConfig as any).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
-      (sendTemplate as any).mockResolvedValueOnce({ success: true, messageId: 'wamid.125' });
+      (db.job.findFirst).mockResolvedValueOnce(mockJob);
+      (getWhatsAppConfig).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
+      (sendTemplate).mockResolvedValueOnce({ success: true, messageId: 'wamid.125' });
 
       const result = await notifyJobCompleted('job_123');
 
@@ -231,18 +232,18 @@ describe('WhatsApp Notifications Service', () => {
 
   describe('notifyInvoiceReady', () => {
     it('should send invoice ready notification', async () => {
-      (getWhatsAppConfig as any).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
-      (db.customer.findFirst as any).mockResolvedValueOnce({
+      (getWhatsAppConfig).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
+      (db.customer.findFirst).mockResolvedValueOnce({
         id: 'cust_123',
         name: 'John Doe',
         phone: '5491112345678',
       });
-      (db.invoice.findFirst as any).mockResolvedValueOnce({
+      (db.invoice.findFirst).mockResolvedValueOnce({
         id: 'inv_123',
         invoiceNumber: 'INV-001',
         total: 15000.5,
       });
-      (sendTemplate as any).mockResolvedValueOnce({ success: true, messageId: 'wamid.126' });
+      (sendTemplate).mockResolvedValueOnce({ success: true, messageId: 'wamid.126' });
 
       const result = await notifyInvoiceReady('inv_123', 'cust_123', 'org_123');
 
@@ -260,8 +261,8 @@ describe('WhatsApp Notifications Service', () => {
     });
 
     it('should return error if customer not found', async () => {
-      (getWhatsAppConfig as any).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
-      (db.customer.findFirst as any).mockResolvedValueOnce(null);
+      (getWhatsAppConfig).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
+      (db.customer.findFirst).mockResolvedValueOnce(null);
 
       const result = await notifyInvoiceReady('inv_123', 'cust_123', 'org_123');
 
@@ -272,17 +273,17 @@ describe('WhatsApp Notifications Service', () => {
 
   describe('notifyPaymentReceived', () => {
     it('should send payment received notification', async () => {
-      (getWhatsAppConfig as any).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
-      (db.customer.findFirst as any).mockResolvedValueOnce({
+      (getWhatsAppConfig).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
+      (db.customer.findFirst).mockResolvedValueOnce({
         id: 'cust_123',
         name: 'John Doe',
         phone: '5491112345678',
       });
-      (db.payment.findFirst as any).mockResolvedValueOnce({
+      (db.payment.findFirst).mockResolvedValueOnce({
         id: 'pay_123',
         amount: 5000,
       });
-      (sendTemplate as any).mockResolvedValueOnce({ success: true, messageId: 'wamid.127' });
+      (sendTemplate).mockResolvedValueOnce({ success: true, messageId: 'wamid.127' });
 
       const result = await notifyPaymentReceived('pay_123', 'cust_123', 'org_123');
 

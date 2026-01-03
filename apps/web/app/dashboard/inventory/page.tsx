@@ -152,8 +152,8 @@ export default function InventoryPage() {
     },
   });
 
-  const products: Product[] = productsData?.data?.products || [];
-  const categories: ProductCategory[] = categoriesData?.data?.categories || [];
+  const products = useMemo(() => (productsData?.data?.products as Product[]) || [], [productsData?.data?.products]);
+  const categories = useMemo(() => (categoriesData?.data?.categories as ProductCategory[]) || [], [categoriesData?.data?.categories]);
 
   // Calculate stats
   const stats = useMemo(() => {

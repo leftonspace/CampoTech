@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import Image from 'next/image';
 import { cn, formatCurrency } from '@/lib/utils';
 import {
   Plus,
@@ -147,12 +148,13 @@ export default function ProductsPage() {
                 href={`/dashboard/inventory/products/${product.id}`}
                 className="flex items-center gap-4 p-4 transition-colors hover:bg-gray-50"
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100">
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-gray-100 relative overflow-hidden">
                   {product.imageUrl ? (
-                    <img
+                    <Image
                       src={product.imageUrl}
                       alt={product.name}
-                      className="h-12 w-12 rounded-lg object-cover"
+                      fill
+                      className="rounded-lg object-cover"
                     />
                   ) : (
                     <Package className="h-6 w-6 text-gray-400" />

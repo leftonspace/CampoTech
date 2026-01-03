@@ -2927,3 +2927,390 @@ Before launching each phase to production:
 
 ## Phase 3 (WhatsApp):
 - [ ] 50%+ of customers use interactive buttons
+- [ ] 20%+ conversion rate (marketplace clicks → jobs)
+
+## Phase 4 (Onboarding):
+
+ MP OAuth adoption: 80%+ use OAuth vs manual
+ Average onboarding time < 10 minutes
+ Zero failed AFIP certificate uploads
+
+## Phase 5 (Voice AI):
+
+ Voice AI accuracy > 80% (up from 70%)
+ 50%+ reduction in human review queue
+ Zero downtime during migration
+
+
+RISK MITIGATION
+Technical Risks
+Risk 1: Google Maps API Costs
+Impact: High usage = high costs
+Mitigation:
+
+Set daily quota limits ($50/day)
+Cache routes for same-day requests
+Monitor costs daily
+Alert at 80% of budget
+
+Risk 2: LangGraph Learning Curve
+Impact: Phase 5 takes longer than estimated
+Mitigation:
+
+Keep V1 running in parallel
+Feature flag controls rollout
+Can pause migration if issues arise
+2.5 days buffer in timeline
+
+Risk 3: Database Migration Failures
+Impact: Downtime during AFIP encryption migration
+Mitigation:
+
+Test migration on staging 3 times
+Backup production before migration
+Run migration during low-traffic hours (2am-4am)
+Have rollback script ready
+
+Risk 4: WhatsApp Rate Limits
+Impact: Interactive messages hit rate limits
+Mitigation:
+
+Monitor message volume
+Queue messages if approaching limit
+Fall back to templates if interactive fails
+Alert at 80% of limit
+
+
+Business Risks
+Risk 1: User Confusion with New Features
+Impact: Support tickets increase
+Mitigation:
+
+In-app tooltips for new features
+Video tutorials
+Gradual rollout (10% → 50% → 100%)
+Email announcement before launch
+
+Risk 2: Marketplace Attribution Privacy Concerns
+Impact: Users uncomfortable with click tracking
+Mitigation:
+
+Clear privacy policy
+Anonymous tracking (no personal data)
+Opt-out option for businesses
+Transparent about what's tracked
+
+Risk 3: OAuth Setup Complexity
+Impact: Businesses struggle with MP OAuth
+Mitigation:
+
+Keep manual option available
+Step-by-step video tutorial
+Live chat support during setup
+Fall back to manual if OAuth fails
+
+
+ROLLBACK PROCEDURES
+Phase 1 Rollback (Security):
+bash# If AFIP encryption breaks:
+1. Revert migration: npx prisma migrate rollback
+2. Revert code: git revert <commit>
+3. Deploy previous version
+4. Test CAE request
+5. Decrypt any encrypted data if needed
+Phase 2 Rollback (Core Features):
+bash# If vehicle scheduling breaks:
+1. Disable feature flag: CAPABILITY_VEHICLE_SCHEDULING=false
+2. Jobs revert to manual vehicle selection
+3. Fix issues
+4. Re-enable flag
+
+# If navigation breaks:
+1. Google Maps API unavailable = graceful degradation
+2. Show job addresses without routes
+3. Technicians navigate manually
+Phase 3 Rollback (WhatsApp):
+bash# If interactive messages fail:
+1. Feature flag: CAPABILITY_WHATSAPP_INTERACTIVE=false
+2. Falls back to template messages
+3. No user impact
+
+# If attribution breaks:
+1. Redirect endpoint returns 500 = direct WhatsApp link
+2. No click tracking but WhatsApp still works
+Phase 5 Rollback (Voice AI):
+bash# If LangGraph service down:
+1. Node.js webhook detects Python service unavailable
+2. Falls back to V1 (Node.js) voice processing
+3. No user-facing errors
+4. Alert sent to admin
+
+# If V2 accuracy worse than V1:
+1. Disable feature flag per org
+2. Compare metrics
+3. Fix prompt/workflow
+4. Re-enable when improved
+```
+
+---
+
+# COMMUNICATION PLAN
+
+## Internal Team Communication
+
+### Weekly Stand-ups:
+- **Monday:** Review last week, plan current week
+- **Wednesday:** Mid-week check-in, blockers
+- **Friday:** Demo completed features, retrospective
+
+### Slack Channels:
+- `#dev-implementation` - Development updates
+- `#production-alerts` - Production issues
+- `#feature-launches` - New feature announcements
+
+---
+
+## External (User) Communication
+
+### Phase 1 (Security):
+**No announcement** - Backend improvements, users won't notice
+
+### Phase 2 (Core Features):
+**Email to all businesses:**
+```
+Subject: 🚀 Nuevas funciones: Programación de vehículos y navegación
+
+Hola [Name],
+
+Estamos emocionados de anunciar nuevas funciones en CampoTech:
+
+✅ Programación Inteligente de Vehículos
+   Ahora podés asignar vehículos a técnicos por día/horario.
+   
+✅ Navegación Multi-Parada
+   Tus técnicos reciben rutas optimizadas con Google Maps.
+   
+✅ Gestión Automática de Inventario
+   El sistema deduce automáticamente desde el vehículo o depósito.
+
+📹 Video Tutorial: [link]
+📖 Guía Completa: [link]
+
+¿Preguntas? Respondé este email o chateanos en la app.
+
+Equipo CampoTech
+```
+
+### Phase 3 (WhatsApp):
+**In-app banner:**
+```
+🎉 Nuevo: Botones Interactivos en WhatsApp
+Tus clientes ahora pueden agendar con un toque.
+[Ver Demo →]
+```
+
+### Phase 4 (Onboarding):
+**Email to new signups:**
+```
+Subject: Conectá Mercado Pago en 2 clicks
+
+Hola [Name],
+
+¡Buenas noticias! Ahora podés conectar Mercado Pago con un solo click.
+
+[Conectar Mercado Pago →]
+
+Sin más copiar y pegar tokens. Seguro y rápido.
+```
+
+### Phase 5 (Voice AI):
+**No announcement initially** - Gradual rollout, monitor silently
+
+**After successful rollout:**
+```
+Subject: 📣 Mejoras en el Asistente de Voz
+
+Hola [Name],
+
+Mejoramos nuestro asistente de voz:
+- 80% de precisión (antes 70%)
+- Maneja conversaciones complejas
+- Confirma automáticamente con clientes
+
+No necesitás hacer nada, ya está activo.
+
+APPENDIX A: TECH STACK SUMMARY
+Frontend
+
+Web: Next.js 14 (App Router), React, TypeScript, TailwindCSS
+Mobile: React Native (Expo), TypeScript, WatermelonDB
+
+Backend
+
+API: Node.js, TypeScript, Express (v1 routes) + Next.js API (dashboard)
+AI Service: Python 3.11, FastAPI, LangGraph, LangChain
+
+Database & Storage
+
+Primary: PostgreSQL (via Supabase/Prisma)
+Cache: Redis (Upstash)
+Queue: BullMQ (Redis-backed)
+Storage: Supabase Storage
+
+External Services
+
+AFIP: WSAA, WSFEv1, WS_SR_PADRON (SOAP)
+Mercado Pago: Preferences, Webhooks, OAuth
+WhatsApp: Cloud API (via Dialog360)
+OpenAI: Whisper (transcription), GPT-4 (extraction)
+Google Maps: Directions, Distance Matrix, Geocoding
+
+Infrastructure
+
+Web Hosting: Vercel
+Workers: Railway or Render
+AI Service: Railway or Render
+CI/CD: GitHub Actions
+Monitoring: Sentry, LangSmith (for AI)
+
+
+APPENDIX B: ENVIRONMENT VARIABLES
+Required Environment Variables
+bash# Database
+DATABASE_URL=postgresql://...
+REDIS_URL=redis://...
+
+# Authentication
+NEXTAUTH_SECRET=...
+NEXTAUTH_URL=https://app.campotech.com
+
+# AFIP
+AFIP_ENVIRONMENT=production  # or 'homologation'
+AFIP_WSAA_URL=https://wsaa.afip.gov.ar/ws/services/LoginCms
+AFIP_WSFE_URL=https://servicios1.afip.gov.ar/wsfev1/service.asmx
+
+# Mercado Pago
+MP_CLIENT_ID=...
+MP_CLIENT_SECRET=...
+MP_PUBLIC_KEY=...
+MP_WEBHOOK_SECRET=...
+
+# WhatsApp
+WA_PHONE_NUMBER_ID=...
+WA_BUSINESS_ACCOUNT_ID=...
+WA_ACCESS_TOKEN=...
+WA_VERIFY_TOKEN=...
+
+# OpenAI
+OPENAI_API_KEY=...
+
+# Google Maps
+GOOGLE_MAPS_SERVER_KEY=...
+GOOGLE_MAPS_CLIENT_KEY=...
+
+# Python AI Service
+AI_SERVICE_URL=https://ai.campotech.com
+AI_SERVICE_API_KEY=...
+
+# LangSmith (AI monitoring)
+LANGSMITH_API_KEY=...
+LANGSMITH_PROJECT=campotech-production
+
+# Feature Flags
+CAPABILITY_VOICE_AI_V2_LANGGRAPH=false
+CAPABILITY_VEHICLE_SCHEDULING=true
+CAPABILITY_INTERACTIVE_MESSAGES=true
+
+# Encryption
+ENCRYPTION_KEY=... # 32-byte hex string
+
+APPENDIX C: DATABASE SCHEMA ADDITIONS
+New Tables (Create these migrations)
+sql-- 1. Vehicle Schedules
+CREATE TABLE vehicle_schedules (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL REFERENCES organizations(id),
+  user_id UUID NOT NULL REFERENCES users(id),
+  vehicle_id UUID NOT NULL REFERENCES vehicles(id),
+  schedule_type TEXT NOT NULL CHECK (schedule_type IN ('permanent', 'date_range', 'recurring')),
+  start_date DATE,
+  end_date DATE,
+  days_of_week INTEGER[],
+  time_start TIME,
+  time_end TIME,
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Technician Routes
+CREATE TABLE technician_routes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  org_id UUID NOT NULL REFERENCES organizations(id),
+  technician_id UUID NOT NULL REFERENCES users(id),
+  date DATE NOT NULL,
+  segment_number INTEGER NOT NULL,
+  job_ids UUID[] NOT NULL,
+  origin TEXT NOT NULL,
+  destination TEXT NOT NULL,
+  waypoints TEXT[],
+  optimized_order INTEGER[],
+  route_url TEXT NOT NULL,
+  distance_meters INTEGER,
+  duration_seconds INTEGER,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(technician_id, date, segment_number)
+);
+
+-- 3. Marketplace Clicks
+CREATE TABLE marketplace_clicks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID NOT NULL REFERENCES organizations(id),
+  business_slug TEXT NOT NULL,
+  consumer_ip TEXT,
+  consumer_fingerprint TEXT,
+  consumer_user_agent TEXT,
+  source TEXT,
+  referrer TEXT,
+  converted_job_id UUID REFERENCES jobs(id),
+  converted_at TIMESTAMPTZ,
+  clicked_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 4. AFIP Encrypted Fields
+ALTER TABLE organizations 
+  ADD COLUMN afip_cuit TEXT,
+  ADD COLUMN afip_certificate_encrypted TEXT,
+  ADD COLUMN afip_password_encrypted TEXT,
+  ADD COLUMN afip_connected_at TIMESTAMPTZ;
+
+-- 5. Add DISPATCHER Role
+ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'DISPATCHER';
+
+CONCLUSION
+This roadmap provides a complete, actionable plan to finish CampoTech V1.
+Key Points:
+
+70% done - Most infrastructure exists
+8-10 weeks to complete remaining features
+Phased approach - Can launch after Phase 1-3 (5 weeks)
+Risk mitigation - Rollback plans, feature flags, gradual rollouts
+Clear metrics - Know when each phase succeeds
+
+Next Steps:
+
+Review this plan with your team
+Adjust timeline if needed
+Start Phase 1 (Security) immediately
+Set up project management board (GitHub Projects, Linear, etc.)
+Begin weekly stand-ups
+Execute! 🚀
+
+Questions to Answer Before Starting:
+
+Do you have a developer to help, or are you coding this yourself?
+What's your target launch date for V1?
+Any features you want to deprioritize or remove?
+Budget confirmed for Google Maps API costs?
+Meta Business account ready for WhatsApp OAuth (or stick with manual)?

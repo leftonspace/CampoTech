@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getStats } from '@/src/integrations/whatsapp/whatsapp.service';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession();
 

@@ -5,25 +5,25 @@
  * Integration tests for WhatsApp Cloud API client.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+// Using Jest globals
 import axios from 'axios';
 import { WhatsAppClient } from '@/src/integrations/whatsapp/client';
 
 // Mock axios
-vi.mock('axios', () => ({
+jest.mock('axios', () => ({
   default: {
-    create: vi.fn(() => ({
-      post: vi.fn(),
-      get: vi.fn(),
-      delete: vi.fn(),
+    create: jest.fn(() => ({
+      post: jest.fn(),
+      get: jest.fn(),
+      delete: jest.fn(),
       defaults: { headers: {} },
       interceptors: {
         response: {
-          use: vi.fn(),
+          use: jest.fn(),
         },
       },
     })),
-    get: vi.fn(),
+    get: jest.fn(),
   },
 }));
 
@@ -33,13 +33,13 @@ describe('WhatsAppClient', () => {
 
   beforeEach(() => {
     mockAxiosInstance = {
-      post: vi.fn(),
-      get: vi.fn(),
-      delete: vi.fn(),
+      post: jest.fn(),
+      get: jest.fn(),
+      delete: jest.fn(),
       defaults: { headers: { Authorization: 'Bearer test_token' } },
       interceptors: {
         response: {
-          use: vi.fn(),
+          use: jest.fn(),
         },
       },
     };
@@ -54,7 +54,7 @@ describe('WhatsAppClient', () => {
   });
 
   afterEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('sendTextMessage', () => {

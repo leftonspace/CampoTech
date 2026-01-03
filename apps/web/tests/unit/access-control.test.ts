@@ -8,7 +8,7 @@
  * - Block enforcement
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+// Using Jest globals
 import {
   createMockOrgWithSubscription,
   createMockBlockedOrg,
@@ -19,7 +19,7 @@ import {
 
 // Mock prisma
 const mockPrisma = createMockPrisma();
-vi.mock('@/lib/prisma', () => ({
+jest.mock('@/lib/prisma', () => ({
   prisma: mockPrisma,
 }));
 
@@ -30,7 +30,7 @@ describe('AccessControl', () => {
   beforeEach(() => {
     resetAllMocks();
     mockPrisma._clearAll();
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('checkRouteAccess', () => {
@@ -186,7 +186,7 @@ describe('AccessControl', () => {
 
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
       mockPrisma.job = {
-        count: vi.fn().mockResolvedValueOnce(25), // 25 jobs used
+        count: jest.fn().mockResolvedValueOnce(25), // 25 jobs used
       };
 
       const access = await accessControl.checkJobLimits(org.id);
@@ -203,7 +203,7 @@ describe('AccessControl', () => {
 
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
       mockPrisma.job = {
-        count: vi.fn().mockResolvedValueOnce(50), // Limit reached
+        count: jest.fn().mockResolvedValueOnce(50), // Limit reached
       };
 
       const access = await accessControl.checkJobLimits(org.id);
@@ -221,7 +221,7 @@ describe('AccessControl', () => {
 
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
       mockPrisma.job = {
-        count: vi.fn().mockResolvedValueOnce(1000), // Lots of jobs
+        count: jest.fn().mockResolvedValueOnce(1000), // Lots of jobs
       };
 
       const access = await accessControl.checkJobLimits(org.id);

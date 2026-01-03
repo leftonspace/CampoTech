@@ -87,7 +87,7 @@ interface AccessStatusResponse {
 // GET - Get Access Status
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export async function GET(request: NextRequest): Promise<NextResponse<AccessStatusResponse>> {
+export async function GET(): Promise<NextResponse<AccessStatusResponse>> {
   try {
     // Authenticate user
     const session = await getSession();

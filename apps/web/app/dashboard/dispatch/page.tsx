@@ -65,8 +65,8 @@ function DispatchContent() {
     },
   });
 
-  const jobs = (jobsData?.data as Job[]) || [];
-  const technicians = (usersData?.data as UserType[]) || [];
+  const jobs = useMemo(() => (jobsData?.data as Job[]) || [], [jobsData?.data]);
+  const technicians = useMemo(() => (usersData?.data as UserType[]) || [], [usersData?.data]);
 
   // Group jobs by assignee
   const { unassigned, byTechnician } = useMemo(() => {

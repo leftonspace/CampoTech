@@ -12,7 +12,7 @@ import {
   getWASystemStatus,
   getWACircuitBreaker,
   resetRateLimiters,
-  isWAAvailable,
+  // isWAAvailable,
 } from '@/lib/integrations/whatsapp';
 
 export async function GET(request: NextRequest) {

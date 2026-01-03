@@ -89,7 +89,7 @@ const defaultPreferences = {
 };
 
 // Critical notifications that cannot be disabled
-const criticalNotifications = [
+const _criticalNotifications = [
   'verification.accountBlockedEmail',
   'subscription.paymentFailedEmail',
 ];
@@ -235,7 +235,7 @@ export async function PUT(request: NextRequest) {
 /**
  * POST /api/notifications/preferences
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const session = await getSession();
 

@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { createCheckoutPreference } from '@/lib/mercadopago/checkout';
-import { SUBSCRIPTION_PLANS, isMercadoPagoConfigured } from '@/lib/mercadopago/config';
+import { SUBSCRIPTION_PLANS /* , isMercadoPagoConfigured */ } from '@/lib/mercadopago/config';
 import { isMercadoPagoConfigured as checkMPConfig } from '@/lib/mercadopago/client';
 import { prisma } from '@/lib/prisma';
 import { logAuditEntry } from '@/lib/audit/logger';

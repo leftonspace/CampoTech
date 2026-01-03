@@ -9,7 +9,6 @@ import {
   ArrowLeft,
   Save,
   Bot,
-  Power,
   Sliders,
   Building2,
   Clock,
@@ -228,7 +227,7 @@ async function fetchTeamMembers(): Promise<Array<{ id: string; name: string; rol
 
 export default function AIAssistantSettingsPage() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  useAuth();
 
   // AI Assistant context - for synced toggle state
   const { isEnabled: aiIsEnabled, settings: aiSettings } = useAIAssistant();
@@ -282,7 +281,7 @@ export default function AIAssistantSettingsPage() {
     if (aiSettings && config.isEnabled !== aiIsEnabled) {
       setConfig((prev) => ({ ...prev, isEnabled: aiIsEnabled }));
     }
-  }, [aiIsEnabled, aiSettings]);
+  }, [aiIsEnabled, aiSettings, config.isEnabled]);
 
   const updateConfig = <K extends keyof AIConfig>(key: K, value: AIConfig[K]) => {
     setConfig((prev) => ({ ...prev, [key]: value }));
@@ -421,7 +420,7 @@ export default function AIAssistantSettingsPage() {
 
       setTestMessages((prev) => [...prev, assistantMessage]);
       setTestContext(data.context);
-    } catch (err) {
+    } catch (_err) {
       setTestMessages((prev) => [
         ...prev,
         {
@@ -528,8 +527,8 @@ export default function AIAssistantSettingsPage() {
               key={tab.key}
               onClick={() => setActiveTab(tab.key as typeof activeTab)}
               className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === tab.key
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
             >
               <tab.icon className="h-4 w-4" />
@@ -615,8 +614,8 @@ export default function AIAssistantSettingsPage() {
                       key={tone.value}
                       onClick={() => updateConfig('aiTone', tone.value)}
                       className={`rounded-lg border p-4 text-left transition-colors ${config.aiTone === tone.value
-                          ? 'border-primary-500 bg-primary-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                        ? 'border-primary-500 bg-primary-50'
+                        : 'border-gray-200 hover:border-gray-300'
                         }`}
                     >
                       <p className="font-medium text-gray-900">{tone.label}</p>
@@ -1134,8 +1133,8 @@ export default function AIAssistantSettingsPage() {
                   <span
                     key={p.key}
                     className={`text-xs px-2 py-1 rounded-full ${config.dataAccessPermissions[p.key as keyof DataAccessPermissions]
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-gray-100 text-gray-500'
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-gray-100 text-gray-500'
                       }`}
                   >
                     {config.dataAccessPermissions[p.key as keyof DataAccessPermissions] ? '✓' : '✗'} {p.label}
@@ -1194,8 +1193,8 @@ export default function AIAssistantSettingsPage() {
                     >
                       <div
                         className={`max-w-[80%] rounded-lg p-3 ${msg.role === 'customer'
-                            ? 'bg-primary-600 text-white'
-                            : 'bg-white border shadow-sm'
+                          ? 'bg-primary-600 text-white'
+                          : 'bg-white border shadow-sm'
                           }`}
                       >
                         <div className="flex items-start gap-2">
@@ -1209,10 +1208,10 @@ export default function AIAssistantSettingsPage() {
                                 <div className="flex flex-wrap gap-2 text-xs">
                                   <span
                                     className={`px-2 py-0.5 rounded-full ${msg.analysis.confidence >= 85
-                                        ? 'bg-green-100 text-green-700'
-                                        : msg.analysis.confidence >= 70
-                                          ? 'bg-yellow-100 text-yellow-700'
-                                          : 'bg-red-100 text-red-700'
+                                      ? 'bg-green-100 text-green-700'
+                                      : msg.analysis.confidence >= 70
+                                        ? 'bg-yellow-100 text-yellow-700'
+                                        : 'bg-red-100 text-red-700'
                                       }`}
                                   >
                                     {msg.analysis.confidence}% confianza

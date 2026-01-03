@@ -22,7 +22,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   managePartitions,
   checkPartitionHealth,
-  type PartitionManagerResult,
+  // type PartitionManagerResult,
 } from '@/lib/jobs/partition-manager';
 
 // Verify cron secret for security
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
         ),
         timestamp: new Date().toISOString(),
       });
-    } catch (error) {
+    } catch (_error) {
       return NextResponse.json(
         {
           status: 'error',

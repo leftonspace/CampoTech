@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { JobService } from '@/src/services/job.service';
+// import { JobService } from '@/src/services/job.service';
 
 export async function GET(request: NextRequest) {
   try {

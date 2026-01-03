@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { jobId, customerId, explicitLocationId } = body;
+    const { explicitLocationId } = body;
 
     // If explicit location provided, use it
     if (explicitLocationId) {
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession();
 

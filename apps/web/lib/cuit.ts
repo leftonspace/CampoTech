@@ -13,6 +13,8 @@
  * Last digit: Verification digit (calculated with mod 11)
  */
 
+import { type PrismaClient } from '@prisma/client';
+
 // Valid CUIT type prefixes
 const VALID_PREFIXES = ['20', '23', '24', '27', '30', '33', '34'];
 
@@ -107,8 +109,7 @@ export function formatCUIT(cuit: string): string {
  * Check if organization with this CUIT already exists
  * This is used during registration to prevent duplicates
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function checkCUITExists(cuit: string, prisma: any): Promise<boolean> {
+export async function checkCUITExists(cuit: string, prisma: PrismaClient): Promise<boolean> {
   const digits = cuit.replace(/\D/g, '');
 
   const existing = await prisma.organization.findFirst({

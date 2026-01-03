@@ -123,7 +123,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<SubmitRes
 
     // Determine initial status based on auto-verification
     let initialStatus: 'pending' | 'in_review' | 'approved' = 'pending';
-    const autoVerifyResult = null;
+    // const autoVerifyResult = null;
 
     // For CUIL, check if it was auto-verified
     if (requirementCode === 'employee_cuil' && value) {

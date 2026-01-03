@@ -166,10 +166,29 @@ export function useTrackingClient(options: UseTrackingClientOptions = {}) {
           setIsConnected(true);
           setError(null);
 
+          interface TechnicianResponse {
+            id: string;
+            name: string;
+            location: {
+              lat: number;
+              lng: number;
+              speed?: number;
+              heading?: number;
+            } | null;
+            tracking?: {
+              movementMode: string;
+              etaMinutes?: number;
+            };
+            isOnline: boolean;
+            currentJob?: {
+              id: string;
+            };
+            lastSeen?: string;
+          }
+
           // Emit updates for each technician
           if (data.data?.technicians) {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            data.data.technicians.forEach((tech: any) => {
+            data.data.technicians.forEach((tech: TechnicianResponse) => {
               if (tech.location) {
                 onLocationUpdate?.({
                   id: tech.id,

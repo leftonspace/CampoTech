@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const warehouseId = searchParams.get('warehouseId');
     const productId = searchParams.get('productId');
     const movementType = searchParams.get('movementType');
-    const groupBy = searchParams.get('groupBy') || 'type'; // type, product, warehouse, day
+    const _groupBy = searchParams.get('groupBy') || 'type'; // type, product, warehouse, day
 
     // Default to last 30 days
     const dateFrom = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);

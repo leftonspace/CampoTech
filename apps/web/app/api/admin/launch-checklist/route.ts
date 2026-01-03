@@ -441,7 +441,7 @@ async function checkAlertingSystem(): Promise<CheckResult> {
 // MAIN HANDLER
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   // Run all checks in parallel
   const checks = await Promise.all([
     // Infrastructure

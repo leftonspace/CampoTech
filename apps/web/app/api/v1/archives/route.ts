@@ -15,8 +15,6 @@ import { getSession } from '@/lib/auth';
 import {
   listArchives,
   getSignedUrl,
-  downloadArchive,
-  ArchiveListItem,
 } from '@/lib/storage/archive-storage';
 
 // ═══════════════════════════════════════════════════════════════════════════════

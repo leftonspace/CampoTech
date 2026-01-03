@@ -6,7 +6,7 @@
  * These utilities support the INICIAL tier wa.me link integration.
  */
 
-import { describe, it, expect } from 'vitest';
+// Using Jest globals (describe, it, expect)
 import {
   normalizePhoneNumber,
   generateWhatsAppLink,

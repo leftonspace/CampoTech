@@ -33,7 +33,7 @@ import {
   markAsProcessed,
   isRateLimited,
   getRateLimitRemaining,
-  mapPaymentStatus,
+  // mapPaymentStatus,
   shouldActivateSubscription,
 } from '@/lib/mercadopago/webhooks';
 import {

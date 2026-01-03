@@ -8,7 +8,7 @@
  * - Error handling
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+// Using Jest globals
 import {
   mockAFIPResponses,
   createMockPrisma,
@@ -16,11 +16,11 @@ import {
 } from '../utils/subscription-test-helpers';
 
 // Mock fetch
-global.fetch = vi.fn();
+global.fetch = jest.fn();
 
 // Mock prisma
 const mockPrisma = createMockPrisma();
-vi.mock('@/lib/prisma', () => ({
+jest.mock('@/lib/prisma', () => ({
   prisma: mockPrisma,
 }));
 
@@ -30,7 +30,7 @@ import { validateCUIT, formatCUIT } from '@/lib/cuit';
 describe('AFIP Client', () => {
   beforeEach(() => {
     resetAllMocks();
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('CUIT Validation', () => {

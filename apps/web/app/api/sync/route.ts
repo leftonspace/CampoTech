@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { z } from 'zod';
+// import { z } from 'zod';
 
 // Full Sync "pull" endpoint
 // Mobile device sends its lastPulledAt timestamp
@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
         const lastPulledAtRaw = searchParams.get('last_pulled_at');
-        const schemaVersion = searchParams.get('schema_version');
-        const migration = searchParams.get('migration');
+        const _schemaVersion = searchParams.get('schema_version');
+        const _migration = searchParams.get('migration');
 
         // Default to epoch if first sync
         const lastPulledAt = lastPulledAtRaw && lastPulledAtRaw !== 'null'
@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { changes, lastPulledAt } = body;
+        const { changes, _lastPulledAt } = body;
 
         // changes object looks like: { jobs: { created: [], updated: [], deleted: [] }, ... }
 

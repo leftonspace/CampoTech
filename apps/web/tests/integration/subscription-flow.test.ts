@@ -9,7 +9,7 @@
  * - Reactivation
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+// Using Jest globals
 import {
   createMockOrgWithSubscription,
   createMockTrialOrg,
@@ -29,20 +29,20 @@ import {
 const mockPrisma = createMockPrisma();
 const mockEmail = createMockEmailService();
 
-vi.mock('@/lib/prisma', () => ({
+jest.mock('@/lib/prisma', () => ({
   prisma: mockPrisma,
 }));
 
-vi.mock('@/lib/email', () => ({
+jest.mock('@/lib/email', () => ({
   sendEmail: mockEmail.sendEmail,
 }));
 
-vi.mock('@/lib/integrations/mercadopago/client', () => ({
+jest.mock('@/lib/integrations/mercadopago/client', () => ({
   mercadoPagoClient: {
-    getPayment: vi.fn(),
-    createRefund: vi.fn(),
-    createSubscription: vi.fn(),
-    cancelSubscription: vi.fn(),
+    getPayment: jest.fn(),
+    createRefund: jest.fn(),
+    createSubscription: jest.fn(),
+    cancelSubscription: jest.fn(),
   },
 }));
 
@@ -58,7 +58,7 @@ describe('Subscription Flow Integration', () => {
     resetAllMocks();
     mockPrisma._clearAll();
     mockEmail.clearSentEmails();
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   afterEach(() => {
@@ -168,7 +168,7 @@ describe('Subscription Flow Integration', () => {
         ...org,
         subscriptionStatus: 'expired',
       });
-      mockPrisma.organizationSubscription.updateMany = vi.fn().mockResolvedValueOnce({ count: 1 });
+      mockPrisma.organizationSubscription.updateMany = jest.fn().mockResolvedValueOnce({ count: 1 });
       mockPrisma.subscriptionEvent.create.mockResolvedValueOnce({});
 
       await trialManager.expireTrial(org.id);
@@ -268,7 +268,7 @@ describe('Subscription Flow Integration', () => {
       mockPrisma.subscriptionPayment.findUnique.mockResolvedValueOnce(payment);
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
 
-      (mercadoPagoClient.createRefund as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+      jest.mocked(mercadoPagoClient.createRefund).mockResolvedValueOnce(
         mockMercadoPagoResponses.refundSuccess('refund-1', 25000)
       );
 
@@ -347,7 +347,7 @@ describe('Subscription Flow Integration', () => {
         status: 'pending',
       });
 
-      mockPrisma.subscriptionPayment.findFirst = vi.fn().mockResolvedValueOnce(payment);
+      mockPrisma.subscriptionPayment.findFirst = jest.fn().mockResolvedValueOnce(payment);
       mockPrisma.subscriptionPayment.findUnique.mockResolvedValueOnce(payment);
       mockPrisma.organization.findUnique.mockResolvedValueOnce(
         createMockOrgWithSubscription({ subscriptionStatus: 'trialing' })

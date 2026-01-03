@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const date = searchParams.get('date');
   const month = searchParams.get('month');
-  const period = searchParams.get('period') || 'current';
+  // const _period = searchParams.get('period') || 'current';
 
   try {
     if (date) {
@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get full dashboard data
-    const [dashboardData, summary, trend] = await Promise.all([
+    const [_dashboardData, summary, trend] = await Promise.all([
       costs.getDashboardData(),
       getCostSummary(),
       costs.getDailyTrend(30),

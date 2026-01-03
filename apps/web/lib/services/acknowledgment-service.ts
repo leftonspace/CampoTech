@@ -19,6 +19,15 @@ import {
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// Define Prisma Enum locally since it's not being exported correctly from @prisma/client in this env
+enum PrismaAcknowledgmentType {
+  terms_of_service = 'terms_of_service',
+  verification_responsibility = 'verification_responsibility',
+  employee_responsibility = 'employee_responsibility',
+  data_accuracy = 'data_accuracy',
+  update_obligation = 'update_obligation'
+}
+
 export interface AcknowledgmentInput {
   userId: string;
   organizationId: string;
@@ -66,8 +75,7 @@ class AcknowledgmentServiceClass {
       where: {
         userId_acknowledgmentType_version: {
           userId,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          acknowledgmentType: type as any,
+          acknowledgmentType: type as unknown as PrismaAcknowledgmentType,
           version: config.version,
         },
       },
@@ -83,8 +91,7 @@ class AcknowledgmentServiceClass {
     const count = await prisma.complianceAcknowledgment.count({
       where: {
         userId,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        acknowledgmentType: type as any,
+        acknowledgmentType: type as unknown as PrismaAcknowledgmentType,
       },
     });
 
@@ -107,8 +114,7 @@ class AcknowledgmentServiceClass {
     const acknowledgment = await prisma.complianceAcknowledgment.findFirst({
       where: {
         userId,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        acknowledgmentType: type as any,
+        acknowledgmentType: type as unknown as PrismaAcknowledgmentType,
       },
       orderBy: { acknowledgedAt: 'desc' },
     });
@@ -158,8 +164,7 @@ class AcknowledgmentServiceClass {
       where: {
         userId,
         acknowledgmentType: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          in: requiredAcks.map((a) => a.type) as any[],
+          in: requiredAcks.map((a) => a.type) as unknown as PrismaAcknowledgmentType[],
         },
       },
     });
@@ -199,8 +204,7 @@ class AcknowledgmentServiceClass {
       where: {
         userId,
         acknowledgmentType: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          in: requiredAcks.map((a) => a.type) as any[],
+          in: requiredAcks.map((a) => a.type) as unknown as PrismaAcknowledgmentType[],
         },
       },
     });
@@ -238,8 +242,7 @@ class AcknowledgmentServiceClass {
       where: {
         userId,
         acknowledgmentType: {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          in: requiredAcks.map((a) => a.type) as any[],
+          in: requiredAcks.map((a) => a.type) as unknown as PrismaAcknowledgmentType[],
         },
       },
     });
@@ -287,16 +290,14 @@ class AcknowledgmentServiceClass {
       where: {
         userId_acknowledgmentType_version: {
           userId: input.userId,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          acknowledgmentType: input.acknowledgmentType as any,
+          acknowledgmentType: input.acknowledgmentType as unknown as PrismaAcknowledgmentType,
           version,
         },
       },
       create: {
         userId: input.userId,
         organizationId: input.organizationId,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        acknowledgmentType: input.acknowledgmentType as any,
+        acknowledgmentType: input.acknowledgmentType as unknown as PrismaAcknowledgmentType,
         version,
         ipAddress: input.ipAddress,
         userAgent: input.userAgent,

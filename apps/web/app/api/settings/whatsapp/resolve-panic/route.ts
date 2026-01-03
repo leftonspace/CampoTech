@@ -8,7 +8,7 @@ import { getSession } from '@/lib/auth';
  * Placeholder - CapabilityOverride and AuditLog models not yet implemented.
  */
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const session = await getSession();
 

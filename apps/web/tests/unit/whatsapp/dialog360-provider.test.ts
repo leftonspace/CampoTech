@@ -6,23 +6,27 @@
  * Covers number provisioning, message sending, and webhook handling.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+// Using Jest globals
 import { Dialog360Provider } from '@/lib/integrations/whatsapp/providers/dialog360.provider';
 import crypto from 'crypto';
 
 // Mock prisma
-vi.mock('@/lib/prisma', () => ({
+jest.mock('@/lib/prisma', () => ({
   prisma: {
     whatsAppBusinessAccount: {
-      findUnique: vi.fn(),
-      update: vi.fn(),
+      findUnique: jest.fn(),
+      update: jest.fn(),
     },
   },
 }));
 
+// Import mocked prisma
+import { prisma } from '@/lib/prisma';
+
 // Mock fetch globally
-const mockFetch = vi.fn();
+const mockFetch = jest.fn();
 global.fetch = mockFetch;
+
 
 describe('Dialog360Provider', () => {
   let provider: Dialog360Provider;
@@ -34,7 +38,7 @@ describe('Dialog360Provider', () => {
 
   beforeEach(() => {
     provider = new Dialog360Provider(config);
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   afterEach(() => {
@@ -87,7 +91,9 @@ describe('Dialog360Provider', () => {
         ok: false,
         status: 500,
         statusText: 'Internal Server Error',
+        json: async () => ({ error: 'Internal Server Error' }),
       });
+
 
       const numbers = await provider.getAvailableNumbers('AR');
       expect(numbers).toEqual([]);
@@ -177,13 +183,13 @@ describe('Dialog360Provider', () => {
   describe('sendMessage', () => {
     beforeEach(() => {
       // Mock prisma to return account with API key
-      const { prisma } = require('@/lib/prisma');
       prisma.whatsAppBusinessAccount.findUnique.mockResolvedValue({
         accessToken: 'waba_api_key',
         phoneNumberId: 'phone_123',
         provisioningStatus: 'ACTIVE',
       });
     });
+
 
     it('should send text message successfully', async () => {
       mockFetch.mockResolvedValueOnce({
@@ -224,9 +230,9 @@ describe('Dialog360Provider', () => {
 
     it('should check usage limits before sending', async () => {
       // Mock usage check to return limit reached
-      vi.mock('@/lib/services/whatsapp-usage.service', () => ({
+      jest.mock('@/lib/services/whatsapp-usage.service', () => ({
         WhatsAppUsageService: {
-          canSendMessage: vi.fn().mockResolvedValue({
+          canSendMessage: jest.fn().mockResolvedValue({
             allowed: false,
             reason: 'Monthly limit reached',
           }),
@@ -365,7 +371,7 @@ describe('Dialog360Provider Error Handling', () => {
       apiKey: 'test_key',
       partnerId: 'test_partner',
     });
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   it('should handle network errors gracefully', async () => {

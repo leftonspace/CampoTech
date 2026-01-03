@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma';
  * Returns recent activity for the dashboard
  */
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession();
 
@@ -86,7 +86,7 @@ export async function GET(request: NextRequest) {
         },
       })),
     ].sort((a: { timestamp: Date }, b: { timestamp: Date }) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-     .slice(0, 15);
+      .slice(0, 15);
 
     return NextResponse.json({
       success: true,

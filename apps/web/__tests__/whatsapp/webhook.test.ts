@@ -5,7 +5,7 @@
  * Integration tests for WhatsApp webhook handlers.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+// Using Jest globals
 import crypto from 'crypto';
 import {
   validateWebhookSignature,
@@ -176,7 +176,7 @@ describe('WhatsApp Webhook Handler', () => {
         from: '5491112345678',
         id: 'wamid.123',
         timestamp: '1234567890',
-        type: 'text' as const,
+        type: 'text',
         text: { body: 'Hello World' },
       };
 
@@ -188,7 +188,7 @@ describe('WhatsApp Webhook Handler', () => {
         from: '5491112345678',
         id: 'wamid.123',
         timestamp: '1234567890',
-        type: 'image' as const,
+        type: 'image',
         image: { id: 'media_id', mimeType: 'image/jpeg', caption: 'My photo' },
       };
 
@@ -196,7 +196,7 @@ describe('WhatsApp Webhook Handler', () => {
         from: '5491112345678',
         id: 'wamid.124',
         timestamp: '1234567890',
-        type: 'image' as const,
+        type: 'image',
         image: { id: 'media_id', mimeType: 'image/jpeg' },
       };
 
@@ -209,7 +209,7 @@ describe('WhatsApp Webhook Handler', () => {
         from: '5491112345678',
         id: 'wamid.123',
         timestamp: '1234567890',
-        type: 'audio' as const,
+        type: 'audio',
         audio: { id: 'media_id', mimeType: 'audio/ogg' },
       };
 
@@ -221,9 +221,9 @@ describe('WhatsApp Webhook Handler', () => {
         from: '5491112345678',
         id: 'wamid.123',
         timestamp: '1234567890',
-        type: 'interactive' as const,
+        type: 'interactive',
         interactive: {
-          type: 'button_reply' as const,
+          type: 'button_reply',
           buttonReply: { id: 'btn_1', title: 'Yes' },
         },
       };
@@ -251,7 +251,7 @@ describe('WhatsApp Webhook Handler', () => {
   describe('getMediaId', () => {
     it('should extract media ID from image message', () => {
       const message = {
-        type: 'image' as const,
+        type: 'image',
         image: { id: 'IMG_MEDIA_ID', mimeType: 'image/jpeg' },
       };
 
@@ -260,7 +260,7 @@ describe('WhatsApp Webhook Handler', () => {
 
     it('should return null for text message', () => {
       const message = {
-        type: 'text' as const,
+        type: 'text',
         text: { body: 'Hello' },
       };
 

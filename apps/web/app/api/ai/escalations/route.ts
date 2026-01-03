@@ -16,7 +16,7 @@ import { getOpenAIFallbackHandler } from '@/lib/integrations/openai';
 /**
  * GET - Get pending escalations
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession();
     if (!session) {

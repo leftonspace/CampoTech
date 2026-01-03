@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   MapPin,
@@ -17,21 +17,14 @@ import {
   X,
   Layers,
   Filter,
-  Calendar,
-  Phone,
-  ExternalLink,
   Maximize2,
   Minimize2,
   Navigation2,
-  Car,
-  Zap,
-  XCircle,
   MapPinOff,
   UserPlus,
   Plus,
   Route,
-  History,
-  Wifi,
+  History as HistoryIcon,
   WifiOff,
   Radio,
 } from 'lucide-react';
@@ -45,7 +38,6 @@ import { searchMatchesAny } from '@/lib/utils';
 import {
   useTrackingClient,
   TechnicianLocationUpdate,
-  JobStatusChangeUpdate,
 } from '@/lib/websocket/tracking-client';
 
 // Types
@@ -384,7 +376,7 @@ const defaultFilters: MapFilters = {
 const markerPositions = new Map<string, { lat: number; lng: number }>();
 
 export default function LiveMapPage() {
-  const router = useRouter();
+
   const searchParams = useSearchParams();
   const { user, isLoading: authLoading } = useAuth();
 
@@ -423,7 +415,7 @@ export default function LiveMapPage() {
     lng?: number;
     address?: string;
   } | null>(null);
-  const [breadcrumbTrail, setBreadcrumbTrail] = useState<[number, number][]>([]);
+  const [breadcrumbTrail] = useState<[number, number][]>([]);
   const [routeDeviations, setRouteDeviations] = useState<RouteDeviation[]>([]);
 
   // Refs
@@ -491,15 +483,15 @@ export default function LiveMapPage() {
     }
   }, [L]);
 
-  const handleTechnicianOnline = useCallback((userId: string) => {
+  const handleTechnicianOnline = useCallback(() => {
     refetch();
   }, [refetch]);
 
-  const handleTechnicianOffline = useCallback((userId: string) => {
+  const handleTechnicianOffline = useCallback(() => {
     refetch();
   }, [refetch]);
 
-  const handleJobStatusChanged = useCallback((update: JobStatusChangeUpdate) => {
+  const handleJobStatusChanged = useCallback(() => {
     refetch();
   }, [refetch]);
 
@@ -552,10 +544,20 @@ export default function LiveMapPage() {
     return data?.data?.technicians.map((t) => ({
       id: t.id,
       name: t.name,
+      email: '', // Placeholder or fetch if needed
+      phone: t.phone,
+      role: 'TECHNICIAN' as const, // Explicitly cast to role type
+      organizationId: '', // Placeholder
       status: t.status,
+      currentJobId: t.currentJobId,
       currentJobCount: t.currentJobId ? 1 : 0,
       specialty: t.specialty,
       avatarUrl: t.avatarUrl,
+
+      // Add other required properties from Technician interface if strict matching is needed
+      active: true, // Assuming active since they show up
+      updatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString()
     })) || [];
   }, [data]);
 
@@ -732,7 +734,7 @@ export default function LiveMapPage() {
       map.remove();
       leafletMapRef.current = null;
     };
-  }, [L]);
+  }, [L, mapTileType]);
 
   // Handle map tile type changes
   useEffect(() => {
@@ -1903,7 +1905,7 @@ export default function LiveMapPage() {
                   } hover:bg-gray-50`}
                 title="Mostrar recorrido"
               >
-                <History className="h-5 w-5 text-gray-600" />
+                <HistoryIcon className="h-5 w-5 text-gray-600" />
               </button>
             </div>
 

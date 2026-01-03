@@ -340,7 +340,7 @@ export async function POST(request: NextRequest) {
             },
           });
 
-          type CountItem = typeof count.items[number];
+          // type CountItem = typeof count.items[number];
           for (const item of count.items) {
             if (item.variance && item.variance !== 0) {
               const direction = item.variance > 0 ? 'IN' : 'OUT';

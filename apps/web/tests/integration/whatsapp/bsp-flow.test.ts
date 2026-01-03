@@ -19,47 +19,47 @@ vi.stubEnv('DIALOG360_WEBHOOK_SECRET', 'test_webhook_secret');
 // Mock prisma
 const mockPrisma = {
   organization: {
-    findUnique: vi.fn(),
+    findUnique: jest.fn(),
   },
   subscription: {
-    findFirst: vi.fn(),
+    findFirst: jest.fn(),
   },
   whatsAppBusinessAccount: {
-    findUnique: vi.fn(),
-    findFirst: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
   },
   whatsAppConversation: {
-    findFirst: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
   },
   whatsAppMessage: {
-    create: vi.fn(),
-    updateMany: vi.fn(),
-    findMany: vi.fn(),
+    create: jest.fn(),
+    updateMany: jest.fn(),
+    findMany: jest.fn(),
   },
   customer: {
-    findFirst: vi.fn(),
-    create: vi.fn(),
+    findFirst: jest.fn(),
+    create: jest.fn(),
   },
   aIConfiguration: {
-    findUnique: vi.fn(),
+    findUnique: jest.fn(),
   },
 };
 
-vi.mock('@/lib/prisma', () => ({
+jest.mock('@/lib/prisma', () => ({
   prisma: mockPrisma,
 }));
 
 // Mock fetch
-const mockFetch = vi.fn();
+const mockFetch = jest.fn();
 global.fetch = mockFetch;
 
 describe('WhatsApp BSP Integration Flow', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   afterEach(() => {
@@ -376,7 +376,7 @@ describe('WhatsApp BSP Integration Flow', () => {
       };
 
       // Monday at 10:00 should be within hours
-      const isWithinHours = (day: string, time: string) => {
+      const isWithinHours: (day: string, time: string) => boolean = (day, time) => {
         const hours = businessHours[day as keyof typeof businessHours];
         if (!hours) return false;
         return time >= hours.open && time <= hours.close;

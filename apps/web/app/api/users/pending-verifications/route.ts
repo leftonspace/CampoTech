@@ -9,7 +9,7 @@ import { getSession } from '@/lib/auth';
 /**
  * GET /api/users/pending-verifications
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession();
 
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/users/pending-verifications
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const session = await getSession();
 

@@ -20,7 +20,7 @@
  * ```
  */
 
-import { type Job, type JobResult } from './config';
+import { type JobResult } from './config';
 import { registerHandler, type JobHandler } from './workers';
 import { getOrCreateEmailProvider, type EmailOptions } from '../email';
 import { getOrCreateWhatsAppProvider } from '../whatsapp';
@@ -407,7 +407,7 @@ const invoiceGenerateHandler: JobHandler<InvoiceGenerateData> = async (job) => {
  * Generate AFIP electronic invoice
  */
 const afipInvoiceHandler: JobHandler<AFIPInvoiceData> = async (job) => {
-  const { invoiceId, organizationId, invoiceType, cuit, pointOfSale } = job.data;
+  const { invoiceId, organizationId: _organizationId, invoiceType, cuit, pointOfSale } = job.data;
 
   try {
     // TODO: Implement actual AFIP integration

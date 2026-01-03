@@ -9,7 +9,7 @@ import { getSession } from '@/lib/auth';
 /**
  * POST /api/users/verify/resend
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const session = await getSession();
 

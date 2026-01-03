@@ -12,7 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
-import { getSession } from '@/lib/auth';
+import { getSession, type TokenPayload } from '@/lib/auth';
 
 // =============================================================================
 // CONFIGURATION
@@ -39,8 +39,7 @@ const ALL_QUEUES = [
 // HELPERS
 // =============================================================================
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function requireAdmin(request: NextRequest): Promise<{ user: any } | NextResponse> {
+async function requireAdmin(): Promise<{ user: TokenPayload } | NextResponse> {
   try {
     const session = await getSession();
 
@@ -103,8 +102,8 @@ async function getQueueStats(queueName: string) {
 // GET /api/admin/queues
 // =============================================================================
 
-export async function GET(request: NextRequest) {
-  const auth = await requireAdmin(request);
+export async function GET() {
+  const auth = await requireAdmin();
   if (auth instanceof NextResponse) return auth;
 
   try {

@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const session = await getSession();
 
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function PUT(request: NextRequest) {
+export async function PUT() {
   try {
     const session = await getSession();
 
@@ -103,7 +103,7 @@ export async function PUT(request: NextRequest) {
   }
 }
 
-export async function PATCH(request: NextRequest) {
+export async function PATCH() {
   try {
     const session = await getSession();
 

@@ -15,7 +15,7 @@ import { getSession } from '@/lib/auth';
  * GET /api/analytics/etl
  * Get ETL status and last update time
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession();
     if (!session?.organizationId) {
@@ -88,7 +88,7 @@ export async function POST(request: NextRequest) {
  * DELETE /api/analytics/etl
  * Clean up old analytics data
  */
-export async function DELETE(request: NextRequest) {
+export async function DELETE() {
   try {
     const session = await getSession();
     if (!session?.organizationId) {

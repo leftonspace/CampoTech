@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Queue, Job } from 'bullmq';
 import Redis from 'ioredis';
-import { getSession } from '@/lib/auth';
+import { getSession, type TokenPayload } from '@/lib/auth';
 
 // =============================================================================
 // CONFIGURATION
@@ -37,8 +37,7 @@ interface DLQEntry {
   sourceQueue: string;
   originalJobId: string;
   jobName: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  data: Record<string, any>;
+  data: Record<string, unknown>;
   failedReason: string;
   stacktrace?: string[];
   attemptsMade: number;
@@ -49,7 +48,7 @@ interface DLQEntry {
 // HELPERS
 // =============================================================================
 
-async function requireAdmin(_request: NextRequest): Promise<{ user: { email?: string | null } } | NextResponse> {
+async function requireAdmin(): Promise<{ user: TokenPayload } | NextResponse> {
   try {
     const session = await getSession();
 
@@ -112,7 +111,7 @@ function classifyError(errorMessage: string): string {
 // =============================================================================
 
 export async function GET(request: NextRequest) {
-  const auth = await requireAdmin(request);
+  const auth = await requireAdmin();
   if (auth instanceof NextResponse) return auth;
 
   const { searchParams } = new URL(request.url);
@@ -171,7 +170,7 @@ export async function GET(request: NextRequest) {
 // =============================================================================
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAdmin(request);
+  const auth = await requireAdmin();
   if (auth instanceof NextResponse) return auth;
 
   const body = await request.json();

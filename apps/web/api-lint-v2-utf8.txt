@@ -1,0 +1,330 @@
+﻿
+> @campotech/web@0.1.0 lint D:\projects\CampoTech\apps\web
+> next lint "--dir" "app/api" "--max-warnings" "0"
+
+node.exe : `next lint` is deprecated and will be removed in Next.js 16.
+At C:\Users\lapto\AppData\Roaming\npm\pnpm.ps1:24 char:5
++     & "node$exe"  "$basedir/node_modules/pnpm/bin/pnpm.cjs" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (`next lint` is ... in Next.js 16.:String) [], RemoteExcep 
+   tion
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+For new projects, use create-next-app to choose your preferred linter.
+For existing projects, migrate to the ESLint CLI:
+npx @next/codemod@canary next-lint-to-eslint-cli .
+
+ ΓÜá Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of D:\projects\pnpm-lock.yaml as the root 
+directory.
+ To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one 
+of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more 
+information.
+ Detected additional lockfiles: 
+   * D:\projects\CampoTech\apps\web\pnpm-lock.yaml
+   * D:\projects\CampoTech\pnpm-lock.yaml
+
+
+./app/api/access/status/route.ts
+90:27  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/admin/capabilities/route.ts
+154:27  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/admin/costs/route.ts
+31:9  Warning: 'period' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+47:12  Warning: 'dashboardData' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/admin/dashboard/metrics/route.ts
+18:27  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/admin/dlq/route.ts
+51:29  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/admin/launch-checklist/route.ts
+444:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/admin/queue-dashboard/route.ts
+111:21  Warning: 'queueStats' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/admin/queues/route.ts
+42:29  Warning: '_request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/admin/queues/[queueName]/route.ts
+27:29  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/afip/queue/route.ts
+36:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/ai/escalations/route.ts
+19:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/analytics/customers/route.ts
+371:3  Warning: 'invoices' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/analytics/etl/route.ts
+18:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+91:30  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/analytics/reports/route.ts
+75:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/analytics/reports/scheduled/route.ts
+9:27  Warning: 'req' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/analytics/technicians/route.ts
+84:11  Warning: 'completedJobs' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/audit-logs/route.ts
+14:10  Warning: 'Prisma' is defined but never used.  @typescript-eslint/no-unused-vars
+62:11  Warning: 'search' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/auth/login/route.ts
+3:10  Warning: 'createToken' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/billing/charges/route.ts
+57:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+82:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+106:29  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/billing/routing/route.ts
+22:13  Warning: 'jobId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+22:20  Warning: 'customerId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+79:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/copilot/availability/route.ts
+25:11  Warning: 'durationHours' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/cron/manage-partitions/route.ts
+25:8  Warning: 'PartitionManagerResult' is defined but never used.  @typescript-eslint/no-unused-vars
+78:14  Warning: 'error' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/dashboard/activity/route.ts
+10:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/dashboard/stats/route.ts
+60:7  Warning: 'lastMonthCustomers' is assigned a value but never used.  
+@typescript-eslint/no-unused-vars
+
+./app/api/dispatch/availability/route.ts
+134:11  Warning: 'serviceType' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/dispatch/recommend/route.ts
+204:3  Warning: 'avgDuration' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/docs/route.ts
+17:9  Warning: 'format' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/employees/schedule/all/route.ts
+10:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/employees/verification/route.ts
+12:10  Warning: 'prisma' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/inventory/alerts/route.ts
+5:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/inventory/categories/route.ts
+9:10  Warning: 'Prisma' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/inventory/categories/[categoryId]/route.ts
+9:10  Warning: 'Prisma' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/inventory/job-materials/route.ts
+10:11  Warning: 'JobWithRelations' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/inventory/products/route.ts
+9:10  Warning: 'Prisma' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/inventory/products/[productId]/route.ts
+9:10  Warning: 'Prisma' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/inventory/reports/low-stock/route.ts
+69:13  Warning: 'totalOnHand' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+75:13  Warning: 'isCritical' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/inventory/reports/movements/route.ts
+31:11  Warning: 'groupBy' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/inventory/stock/count/route.ts
+343:16  Warning: 'CountItem' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/inventory/stock/route.ts
+8:18  Warning: 'TransactionClient' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/inventory/suppliers/route.ts
+9:10  Warning: 'Prisma' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/inventory/sync-vehicle-storage/route.ts
+11:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/inventory/warehouses/route.ts
+9:10  Warning: 'Prisma' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/invoices/queue-status/route.ts
+9:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/jobs/calendar/route.ts
+11:10  Warning: 'JobService' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/jobs/today/route.ts
+10:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/locations/dispatch/route.ts
+88:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+116:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/locations/team/route.ts
+72:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+100:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+128:30  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/locations/[id]/afip/route.ts
+20:13  Warning: 'id' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/map/route/route.ts
+32:11  Warning: 'RouteResponse' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/mobile/jobs/today/route.ts
+13:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/mobile/push-token/route.ts
+11:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+36:30  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/mobile/sync/route.ts
+54:37  Warning: 'deviceId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+146:3  Warning: 'userId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/notifications/defaults/route.ts
+37:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+72:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+104:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/notifications/history/route.ts
+48:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/notifications/preferences/route.ts
+92:7  Warning: 'criticalNotifications' is assigned a value but never used.  
+@typescript-eslint/no-unused-vars
+100:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+238:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/organization/route.ts
+17:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/payments/disputes/route.ts
+9:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/settings/afip/route.ts
+11:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/settings/mercadopago/route.ts
+11:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/settings/pricebook/route.ts
+10:10  Warning: 'Prisma' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/settings/pricebook/[id]/route.ts
+11:10  Warning: 'Prisma' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/settings/service-types/route.ts
+20:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/settings/service-types/[id]/route.ts
+11:10  Warning: 'Prisma' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/settings/whatsapp/resolve-panic/route.ts
+11:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/settings/whatsapp/route.ts
+14:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/settings/whatsapp/test/route.ts
+9:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/subscription/checkout/route.ts
+14:30  Warning: 'isMercadoPagoConfigured' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/sync/route.ts
+3:10  Warning: 'z' is defined but never used.  @typescript-eslint/no-unused-vars
+13:15  Warning: 'schemaVersion' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+14:15  Warning: 'migration' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+96:26  Warning: 'lastPulledAt' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/users/me/export/route.ts
+11:10  Warning: 'NextRequest' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/users/me/profile/route.ts
+17:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/users/pending-verifications/route.ts
+12:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+46:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/users/route.ts
+120:15  Warning: '_count' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/users/verify/resend/route.ts
+12:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/users/verify/route.ts
+49:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/v1/archives/route.ts
+18:3  Warning: 'downloadArchive' is defined but never used.  @typescript-eslint/no-unused-vars
+19:3  Warning: 'ArchiveListItem' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/vehicles/route.ts
+10:10  Warning: 'Prisma' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/vehicles/[id]/route.ts
+11:10  Warning: 'Prisma' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/verification/employee/status/route.ts
+106:3  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/verification/employee/submit/route.ts
+126:11  Warning: 'autoVerifyResult' is assigned a value but never used.  
+@typescript-eslint/no-unused-vars
+
+./app/api/verification/validate-cuit/route.ts
+376:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/voice/route.ts
+7:7  Warning: 'voiceUploadSchema' is assigned a value but never used.  
+@typescript-eslint/no-unused-vars
+
+./app/api/webhooks/mercadopago/route.ts
+36:3  Warning: 'mapPaymentStatus' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/whatsapp/interactive/route.ts
+44:7  Warning: 'conversationId' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/whatsapp/queue/route.ts
+13:3  Warning: 'getWAMessageQueue' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/whatsapp/stats/route.ts
+10:27  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/whatsapp/status/route.ts
+15:3  Warning: 'isWAAvailable' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/whatsapp/templates/sync/route.ts
+10:28  Warning: 'request' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/whatsapp/webhook/route.ts
+15:3  Warning: 'processWebhookEvents' is defined but never used.  @typescript-eslint/no-unused-vars
+16:3  Warning: 'validateWebhookSignature' is defined but never used.  @typescript-eslint/no-unused-vars
+17:3  Warning: 'verifyWebhook' is defined but never used.  @typescript-eslint/no-unused-vars
+24:3  Warning: 'getWhatsAppConfig' is defined but never used.  @typescript-eslint/no-unused-vars
+165:3  Warning: 'phoneNumberId' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./app/api/zones/[id]/route.ts
+20:13  Warning: 'id' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+info  - Need to disable some ESLint rules? Learn more here: 
+https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+ΓÇëELIFECYCLEΓÇë Command failed with exit code 1.
+

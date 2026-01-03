@@ -7,7 +7,6 @@ import { cn, formatDateTime } from '@/lib/utils';
 import { ProtectedRoute } from '@/lib/auth-context';
 import {
   ArrowLeft,
-  Activity,
   Server,
   Database,
   Cloud,
@@ -32,13 +31,7 @@ interface ServiceHealth {
   endpoint?: string;
 }
 
-interface SystemHealthDetails {
-  services: ServiceHealth[];
-  uptime: number;
-  version: string;
-  environment: string;
-  lastCheck: string;
-}
+
 
 export default function HealthPage() {
   return (
@@ -60,47 +53,47 @@ function HealthContent() {
 
   const services: ServiceHealth[] = health
     ? [
-        {
-          name: 'Base de datos',
-          status: health.database || 'down',
-          latency: Math.floor(Math.random() * 50) + 10,
-          lastCheck: new Date().toISOString(),
-          details: 'PostgreSQL 15',
-          endpoint: 'postgres://localhost:5432',
-        },
-        {
-          name: 'Redis',
-          status: health.redis || 'down',
-          latency: Math.floor(Math.random() * 10) + 1,
-          lastCheck: new Date().toISOString(),
-          details: 'Redis 7.0',
-          endpoint: 'redis://localhost:6379',
-        },
-        {
-          name: 'AFIP',
-          status: health.afip || 'down',
-          latency: Math.floor(Math.random() * 500) + 200,
-          lastCheck: new Date().toISOString(),
-          details: 'WSFEv1 + WSAA',
-          endpoint: 'https://wsaa.afip.gov.ar',
-        },
-        {
-          name: 'MercadoPago',
-          status: health.mercadopago || 'down',
-          latency: Math.floor(Math.random() * 200) + 50,
-          lastCheck: new Date().toISOString(),
-          details: 'API v1',
-          endpoint: 'https://api.mercadopago.com',
-        },
-        {
-          name: 'WhatsApp',
-          status: health.whatsapp || 'down',
-          latency: Math.floor(Math.random() * 300) + 100,
-          lastCheck: new Date().toISOString(),
-          details: 'Cloud API v18.0',
-          endpoint: 'https://graph.facebook.com',
-        },
-      ]
+      {
+        name: 'Base de datos',
+        status: health.database || 'down',
+        latency: Math.floor(Math.random() * 50) + 10,
+        lastCheck: new Date().toISOString(),
+        details: 'PostgreSQL 15',
+        endpoint: 'postgres://localhost:5432',
+      },
+      {
+        name: 'Redis',
+        status: health.redis || 'down',
+        latency: Math.floor(Math.random() * 10) + 1,
+        lastCheck: new Date().toISOString(),
+        details: 'Redis 7.0',
+        endpoint: 'redis://localhost:6379',
+      },
+      {
+        name: 'AFIP',
+        status: health.afip || 'down',
+        latency: Math.floor(Math.random() * 500) + 200,
+        lastCheck: new Date().toISOString(),
+        details: 'WSFEv1 + WSAA',
+        endpoint: 'https://wsaa.afip.gov.ar',
+      },
+      {
+        name: 'MercadoPago',
+        status: health.mercadopago || 'down',
+        latency: Math.floor(Math.random() * 200) + 50,
+        lastCheck: new Date().toISOString(),
+        details: 'API v1',
+        endpoint: 'https://api.mercadopago.com',
+      },
+      {
+        name: 'WhatsApp',
+        status: health.whatsapp || 'down',
+        latency: Math.floor(Math.random() * 300) + 100,
+        lastCheck: new Date().toISOString(),
+        details: 'Cloud API v18.0',
+        endpoint: 'https://graph.facebook.com',
+      },
+    ]
     : [];
 
   const getOverallStatus = () => {
@@ -219,69 +212,69 @@ function HealthContent() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {isLoading
           ? [1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="card h-48 animate-pulse bg-gray-100" />
-            ))
+            <div key={i} className="card h-48 animate-pulse bg-gray-100" />
+          ))
           : services.map((service) => {
-              const Icon = getServiceIcon(service.name);
-              return (
-                <div key={service.name} className="card p-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        'rounded-lg p-2',
-                        service.status === 'healthy' && 'bg-green-100 text-green-600',
-                        service.status === 'degraded' && 'bg-yellow-100 text-yellow-600',
-                        service.status === 'down' && 'bg-red-100 text-red-600'
-                      )}>
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium text-gray-900">{service.name}</h3>
-                        <p className="text-sm text-gray-500">{service.details}</p>
-                      </div>
+            const Icon = getServiceIcon(service.name);
+            return (
+              <div key={service.name} className="card p-6">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      'rounded-lg p-2',
+                      service.status === 'healthy' && 'bg-green-100 text-green-600',
+                      service.status === 'degraded' && 'bg-yellow-100 text-yellow-600',
+                      service.status === 'down' && 'bg-red-100 text-red-600'
+                    )}>
+                      <Icon className="h-5 w-5" />
                     </div>
-                    {getStatusIcon(service.status)}
+                    <div>
+                      <h3 className="font-medium text-gray-900">{service.name}</h3>
+                      <p className="text-sm text-gray-500">{service.details}</p>
+                    </div>
                   </div>
+                  {getStatusIcon(service.status)}
+                </div>
 
-                  <div className="mt-4 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Estado</span>
-                      <span className={cn(
-                        'font-medium',
-                        service.status === 'healthy' && 'text-green-600',
-                        service.status === 'degraded' && 'text-yellow-600',
-                        service.status === 'down' && 'text-red-600'
-                      )}>
-                        {service.status === 'healthy' && 'Operativo'}
-                        {service.status === 'degraded' && 'Degradado'}
-                        {service.status === 'down' && 'Caído'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-500">Latencia</span>
-                      <span className={getLatencyColor(service.latency)}>
-                        {service.latency ? `${service.latency}ms` : '-'}
-                      </span>
-                    </div>
-                    {service.endpoint && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-500">Endpoint</span>
-                        <span className="truncate text-gray-600" title={service.endpoint}>
-                          {new URL(service.endpoint).hostname}
-                        </span>
-                      </div>
-                    )}
+                <div className="mt-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Estado</span>
+                    <span className={cn(
+                      'font-medium',
+                      service.status === 'healthy' && 'text-green-600',
+                      service.status === 'degraded' && 'text-yellow-600',
+                      service.status === 'down' && 'text-red-600'
+                    )}>
+                      {service.status === 'healthy' && 'Operativo'}
+                      {service.status === 'degraded' && 'Degradado'}
+                      {service.status === 'down' && 'Caído'}
+                    </span>
                   </div>
-
-                  {service.status !== 'healthy' && (
-                    <div className="mt-4 rounded-md bg-gray-50 p-2 text-xs text-gray-500">
-                      {service.status === 'degraded' && 'Tiempo de respuesta elevado'}
-                      {service.status === 'down' && 'No se puede conectar al servicio'}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Latencia</span>
+                    <span className={getLatencyColor(service.latency)}>
+                      {service.latency ? `${service.latency}ms` : '-'}
+                    </span>
+                  </div>
+                  {service.endpoint && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-500">Endpoint</span>
+                      <span className="truncate text-gray-600" title={service.endpoint}>
+                        {new URL(service.endpoint).hostname}
+                      </span>
                     </div>
                   )}
                 </div>
-              );
-            })}
+
+                {service.status !== 'healthy' && (
+                  <div className="mt-4 rounded-md bg-gray-50 p-2 text-xs text-gray-500">
+                    {service.status === 'degraded' && 'Tiempo de respuesta elevado'}
+                    {service.status === 'down' && 'No se puede conectar al servicio'}
+                  </div>
+                )}
+              </div>
+            );
+          })}
       </div>
 
       {/* System info */}

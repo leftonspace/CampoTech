@@ -66,13 +66,13 @@ export async function GET(request: NextRequest) {
 
     for (const product of products) {
       // Calculate total stock across all warehouses
-      const totalOnHand = product.inventoryLevels.reduce((sum: number, l: typeof product.inventoryLevels[number]) => sum + l.quantityOnHand, 0);
+      const _totalOnHand = product.inventoryLevels.reduce((sum: number, l: typeof product.inventoryLevels[number]) => sum + l.quantityOnHand, 0);
       const totalAvailable = product.inventoryLevels.reduce((sum: number, l: typeof product.inventoryLevels[number]) => sum + l.quantityAvailable, 0);
 
       // Check for low stock at product level (minStockLevel serves as reorder point)
       const isAtOrBelowReorder = totalAvailable <= product.minStockLevel;
       const isBelowMin = totalAvailable < product.minStockLevel;
-      const isCritical = isBelowMin || totalAvailable === 0;
+      // const isCritical = isBelowMin || totalAvailable === 0;
 
       if (isAtOrBelowReorder || isBelowMin) {
         // Get warehouse-level details

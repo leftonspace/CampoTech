@@ -9,47 +9,55 @@
  * - Provisioning status management
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+// Using Jest globals
 
 // Mock prisma
-vi.mock('@/lib/prisma', () => ({
+jest.mock('@/lib/prisma', () => ({
   prisma: {
     organization: {
-      findUnique: vi.fn(),
+      findUnique: jest.fn(),
     },
     whatsAppBusinessAccount: {
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
+      findUnique: jest.fn(),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
     },
     subscription: {
-      findFirst: vi.fn(),
+      findFirst: jest.fn(),
     },
   },
 }));
 
-// Mock the provider factory
-vi.mock('@/lib/integrations/whatsapp/providers', () => ({
-  getBSPProvider: vi.fn(() => ({
-    getAvailableNumbers: vi.fn(),
-    provisionNumber: vi.fn(),
-    verifyNumber: vi.fn(),
-    releaseNumber: vi.fn(),
-  })),
+// Create a shared mock provider instance
+const mockProvider = {
+  getAvailableNumbers: jest.fn(),
+  provisionNumber: jest.fn(),
+  verifyNumber: jest.fn(),
+  releaseNumber: jest.fn(),
+  resendVerification: jest.fn(),
+};
+
+// Mock the provider factory to return the shared instance
+jest.mock('@/lib/integrations/whatsapp/providers', () => ({
+  getBSPProvider: vi.fn(() => mockProvider),
 }));
 
-const mockFetch = vi.fn();
+// Import mocked modules
+import { prisma } from '@/lib/prisma';
+import { getBSPProvider } from '@/lib/integrations/whatsapp/providers';
+
+const mockFetch = jest.fn();
 global.fetch = mockFetch;
+
 
 describe('Provisioning API', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('GET /api/whatsapp/provision - Status Check', () => {
     it('should return provisioning status for configured account', async () => {
-      const { prisma } = require('@/lib/prisma');
       prisma.whatsAppBusinessAccount.findUnique.mockResolvedValue({
         id: 'waba123',
         phoneNumber: '+5491155551234',
@@ -72,7 +80,6 @@ describe('Provisioning API', () => {
     });
 
     it('should return not provisioned for new organization', async () => {
-      const { prisma } = require('@/lib/prisma');
       prisma.whatsAppBusinessAccount.findUnique.mockResolvedValue(null);
 
       const expectedResponse = {
@@ -87,9 +94,6 @@ describe('Provisioning API', () => {
 
   describe('GET /api/whatsapp/provision/available - Number Listing', () => {
     it('should return available numbers for PROFESIONAL tier', async () => {
-      const { prisma } = require('@/lib/prisma');
-      const { getBSPProvider } = require('@/lib/integrations/whatsapp/providers');
-
       prisma.subscription.findFirst.mockResolvedValue({
         tier: 'PROFESIONAL',
         status: 'ACTIVE',
@@ -107,7 +111,6 @@ describe('Provisioning API', () => {
     });
 
     it('should reject request for FREE tier', async () => {
-      const { prisma } = require('@/lib/prisma');
       prisma.subscription.findFirst.mockResolvedValue({
         tier: 'FREE',
         status: 'ACTIVE',
@@ -152,9 +155,6 @@ describe('Provisioning API', () => {
 
   describe('POST /api/whatsapp/provision - Start Provisioning', () => {
     it('should start provisioning flow', async () => {
-      const { prisma } = require('@/lib/prisma');
-      const { getBSPProvider } = require('@/lib/integrations/whatsapp/providers');
-
       prisma.subscription.findFirst.mockResolvedValue({
         tier: 'PROFESIONAL',
         status: 'ACTIVE',
@@ -184,7 +184,6 @@ describe('Provisioning API', () => {
     });
 
     it('should reject if already provisioned', async () => {
-      const { prisma } = require('@/lib/prisma');
       prisma.whatsAppBusinessAccount.findUnique.mockResolvedValue({
         id: 'existing_waba',
         provisioningStatus: 'ACTIVE',
@@ -205,9 +204,6 @@ describe('Provisioning API', () => {
 
   describe('POST /api/whatsapp/provision/verify - Verification', () => {
     it('should verify with valid 6-digit code', async () => {
-      const { getBSPProvider } = require('@/lib/integrations/whatsapp/providers');
-      const { prisma } = require('@/lib/prisma');
-
       prisma.whatsAppBusinessAccount.findUnique.mockResolvedValue({
         id: 'waba123',
         provisioningStatus: 'PENDING_VERIFICATION',
@@ -242,9 +238,7 @@ describe('Provisioning API', () => {
     });
 
     it('should handle resend verification request', async () => {
-      const { getBSPProvider } = require('@/lib/integrations/whatsapp/providers');
-
-      getBSPProvider().resendVerification = vi.fn().mockResolvedValue({
+      getBSPProvider().resendVerification = jest.fn().mockResolvedValue({
         success: true,
         method: 'sms',
         expiresAt: new Date(Date.now() + 600000), // 10 minutes
@@ -257,9 +251,6 @@ describe('Provisioning API', () => {
 
   describe('DELETE /api/whatsapp/provision - Release Number', () => {
     it('should release provisioned number', async () => {
-      const { prisma } = require('@/lib/prisma');
-      const { getBSPProvider } = require('@/lib/integrations/whatsapp/providers');
-
       prisma.whatsAppBusinessAccount.findUnique.mockResolvedValue({
         id: 'waba123',
         provisioningStatus: 'ACTIVE',
@@ -275,8 +266,6 @@ describe('Provisioning API', () => {
     });
 
     it('should update database after release', async () => {
-      const { prisma } = require('@/lib/prisma');
-
       // Simulate updating the record to mark as released
       prisma.whatsAppBusinessAccount.update.mockResolvedValue({
         id: 'waba123',
@@ -356,3 +345,4 @@ describe('Tier-Based Access Control', () => {
     expect(tierAccess.ENTERPRISE.canUseWameLinks).toBe(true);
   });
 });
+

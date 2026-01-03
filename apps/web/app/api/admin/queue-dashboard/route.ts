@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Fetch core metrics
-    const [metrics, queueStats] = await Promise.all([
+    const [metrics, _queueStats] = await Promise.all([
       getQueueMetrics(),
       getQueueStats(),
     ]);

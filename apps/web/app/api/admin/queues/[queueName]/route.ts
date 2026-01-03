@@ -24,7 +24,7 @@ const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
 // =============================================================================
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function requireAdmin(request: NextRequest): Promise<{ user: any } | NextResponse> {
+async function requireAdmin(): Promise<{ user: any } | NextResponse> {
   try {
     const session = await getSession();
 
@@ -57,7 +57,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ queueName: string }> }
 ) {
-  const auth = await requireAdmin(request);
+  const auth = await requireAdmin();
   if (auth instanceof NextResponse) return auth;
 
   const { queueName } = await params;
@@ -126,7 +126,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ queueName: string }> }
 ) {
-  const auth = await requireAdmin(request);
+  const auth = await requireAdmin();
   if (auth instanceof NextResponse) return auth;
 
   const { queueName } = await params;

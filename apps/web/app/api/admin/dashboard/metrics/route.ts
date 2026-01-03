@@ -7,7 +7,7 @@
  * Returns comprehensive metrics for launch monitoring dashboard.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { launchDashboard } from '@/lib/services/launch-dashboard';
 
@@ -15,7 +15,7 @@ import { launchDashboard } from '@/lib/services/launch-dashboard';
 let cachedMetrics: { data: unknown; timestamp: number } | null = null;
 const CACHE_TTL = 30 * 1000;
 
-export async function GET(_request: NextRequest): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   try {
     // Verify admin access
     const session = await getSession();

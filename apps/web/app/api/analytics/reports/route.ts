@@ -72,7 +72,7 @@ const templates = [
  * GET /api/analytics/reports
  * Returns available report templates
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession();
 

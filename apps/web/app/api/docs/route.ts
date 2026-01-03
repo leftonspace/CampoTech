@@ -14,7 +14,7 @@ import { API_VERSION } from '@/lib/api/versioning';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const format = searchParams.get('format') || 'json';
+  const _format = searchParams.get('format') || 'json';
 
   // Get base URL from request
   const protocol = request.headers.get('x-forwarded-proto') || 'https';

@@ -8,7 +8,7 @@
  * Implements Right of Access per Ley 25.326
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { dataExporter } from '@/lib/services/data-exporter';
 

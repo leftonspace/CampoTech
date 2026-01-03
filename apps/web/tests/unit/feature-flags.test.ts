@@ -4,7 +4,7 @@
  * Tests for tier-based feature access control
  */
 
-import { describe, it, expect } from 'vitest';
+// Using Jest globals
 import {
   hasFeatureAccess,
   getFeaturesForTier,
@@ -18,8 +18,8 @@ import {
   createFeatureNotAvailableError,
   FEATURES,
   TIER_FEATURES,
-  type FeatureId,
 } from '@/lib/config/feature-flags';
+import type { FeatureId } from '@/lib/config/feature-flags';
 import { SubscriptionTier } from '@/lib/config/tier-limits';
 
 describe('Feature Flags', () => {
@@ -32,7 +32,7 @@ describe('Feature Flags', () => {
         expect(hasFeatureAccess('FREE', 'whatsapp_receive')).toBe(true);
       });
 
-      it('should NOT have access to BASICO features', () => {
+      it('should NOT have access to INICIAL features', () => {
         expect(hasFeatureAccess('FREE', 'afip_integration')).toBe(false);
         expect(hasFeatureAccess('FREE', 'mercado_pago')).toBe(false);
         expect(hasFeatureAccess('FREE', 'whatsapp_send')).toBe(false);
@@ -44,30 +44,30 @@ describe('Feature Flags', () => {
         expect(hasFeatureAccess('FREE', 'voice_transcription')).toBe(false);
       });
 
-      it('should NOT have access to EMPRESARIAL features', () => {
+      it('should NOT have access to EMPRESA features', () => {
         expect(hasFeatureAccess('FREE', 'multi_location')).toBe(false);
         expect(hasFeatureAccess('FREE', 'advanced_analytics')).toBe(false);
         expect(hasFeatureAccess('FREE', 'public_api')).toBe(false);
       });
     });
 
-    describe('BASICO Tier', () => {
+    describe('INICIAL Tier', () => {
       it('should have access to FREE features', () => {
-        expect(hasFeatureAccess('BASICO', 'basic_jobs')).toBe(true);
-        expect(hasFeatureAccess('BASICO', 'whatsapp_receive')).toBe(true);
+        expect(hasFeatureAccess('INICIAL', 'basic_jobs')).toBe(true);
+        expect(hasFeatureAccess('INICIAL', 'whatsapp_receive')).toBe(true);
       });
 
-      it('should have access to BASICO features', () => {
-        expect(hasFeatureAccess('BASICO', 'afip_integration')).toBe(true);
-        expect(hasFeatureAccess('BASICO', 'mercado_pago')).toBe(true);
-        expect(hasFeatureAccess('BASICO', 'calendar_view')).toBe(true);
-        expect(hasFeatureAccess('BASICO', 'whatsapp_send')).toBe(true);
-        expect(hasFeatureAccess('BASICO', 'multi_user')).toBe(true);
+      it('should have access to INICIAL features', () => {
+        expect(hasFeatureAccess('INICIAL', 'afip_integration')).toBe(true);
+        expect(hasFeatureAccess('INICIAL', 'mercado_pago')).toBe(true);
+        expect(hasFeatureAccess('INICIAL', 'calendar_view')).toBe(true);
+        expect(hasFeatureAccess('INICIAL', 'whatsapp_send')).toBe(true);
+        expect(hasFeatureAccess('INICIAL', 'multi_user')).toBe(true);
       });
 
       it('should NOT have access to PROFESIONAL features', () => {
-        expect(hasFeatureAccess('BASICO', 'whatsapp_ai')).toBe(false);
-        expect(hasFeatureAccess('BASICO', 'fleet_management')).toBe(false);
+        expect(hasFeatureAccess('INICIAL', 'whatsapp_ai')).toBe(false);
+        expect(hasFeatureAccess('INICIAL', 'fleet_management')).toBe(false);
       });
     });
 
@@ -86,33 +86,33 @@ describe('Feature Flags', () => {
         expect(hasFeatureAccess('PROFESIONAL', 'inventory_management')).toBe(true);
       });
 
-      it('should NOT have access to EMPRESARIAL features', () => {
+      it('should NOT have access to EMPRESA features', () => {
         expect(hasFeatureAccess('PROFESIONAL', 'multi_location')).toBe(false);
         expect(hasFeatureAccess('PROFESIONAL', 'advanced_analytics')).toBe(false);
         expect(hasFeatureAccess('PROFESIONAL', 'customer_portal')).toBe(false);
       });
     });
 
-    describe('EMPRESARIAL Tier', () => {
+    describe('EMPRESA Tier', () => {
       it('should have access to all features except white_label', () => {
-        expect(hasFeatureAccess('EMPRESARIAL', 'basic_jobs')).toBe(true);
-        expect(hasFeatureAccess('EMPRESARIAL', 'afip_integration')).toBe(true);
-        expect(hasFeatureAccess('EMPRESARIAL', 'whatsapp_ai')).toBe(true);
-        expect(hasFeatureAccess('EMPRESARIAL', 'multi_location')).toBe(true);
-        expect(hasFeatureAccess('EMPRESARIAL', 'advanced_analytics')).toBe(true);
-        expect(hasFeatureAccess('EMPRESARIAL', 'customer_portal')).toBe(true);
-        expect(hasFeatureAccess('EMPRESARIAL', 'public_api')).toBe(true);
-        expect(hasFeatureAccess('EMPRESARIAL', 'webhooks')).toBe(true);
+        expect(hasFeatureAccess('EMPRESA', 'basic_jobs')).toBe(true);
+        expect(hasFeatureAccess('EMPRESA', 'afip_integration')).toBe(true);
+        expect(hasFeatureAccess('EMPRESA', 'whatsapp_ai')).toBe(true);
+        expect(hasFeatureAccess('EMPRESA', 'multi_location')).toBe(true);
+        expect(hasFeatureAccess('EMPRESA', 'advanced_analytics')).toBe(true);
+        expect(hasFeatureAccess('EMPRESA', 'customer_portal')).toBe(true);
+        expect(hasFeatureAccess('EMPRESA', 'public_api')).toBe(true);
+        expect(hasFeatureAccess('EMPRESA', 'webhooks')).toBe(true);
       });
 
       it('should NOT have access to white_label (requires custom contract)', () => {
-        expect(hasFeatureAccess('EMPRESARIAL', 'white_label')).toBe(false);
+        expect(hasFeatureAccess('EMPRESA', 'white_label')).toBe(false);
       });
     });
 
     describe('Edge Cases', () => {
       it('should return false for non-existent feature', () => {
-        expect(hasFeatureAccess('EMPRESARIAL', 'non_existent_feature' as FeatureId)).toBe(false);
+        expect(hasFeatureAccess('EMPRESA', 'non_existent_feature' as FeatureId)).toBe(false);
       });
     });
   });
@@ -123,8 +123,8 @@ describe('Feature Flags', () => {
       expect(features.length).toBe(4);
     });
 
-    it('should return correct number of features for BASICO tier', () => {
-      const features = getFeaturesForTier('BASICO');
+    it('should return correct number of features for INICIAL tier', () => {
+      const features = getFeaturesForTier('INICIAL');
       expect(features.length).toBe(9);
     });
 
@@ -133,13 +133,13 @@ describe('Feature Flags', () => {
       expect(features.length).toBe(15);
     });
 
-    it('should return correct number of features for EMPRESARIAL tier', () => {
-      const features = getFeaturesForTier('EMPRESARIAL');
+    it('should return correct number of features for EMPRESA tier', () => {
+      const features = getFeaturesForTier('EMPRESA');
       expect(features.length).toBe(20);
     });
 
     it('should return valid FeatureConfig objects', () => {
-      const features = getFeaturesForTier('BASICO');
+      const features = getFeaturesForTier('INICIAL');
       for (const feature of features) {
         expect(feature).toHaveProperty('id');
         expect(feature).toHaveProperty('name');
@@ -156,9 +156,9 @@ describe('Feature Flags', () => {
       expect(getMinimumTierForFeature('basic_customers')).toBe('FREE');
     });
 
-    it('should return BASICO for BASICO features', () => {
-      expect(getMinimumTierForFeature('afip_integration')).toBe('BASICO');
-      expect(getMinimumTierForFeature('mercado_pago')).toBe('BASICO');
+    it('should return INICIAL for INICIAL features', () => {
+      expect(getMinimumTierForFeature('afip_integration')).toBe('INICIAL');
+      expect(getMinimumTierForFeature('mercado_pago')).toBe('INICIAL');
     });
 
     it('should return PROFESIONAL for PROFESIONAL features', () => {
@@ -166,9 +166,9 @@ describe('Feature Flags', () => {
       expect(getMinimumTierForFeature('live_tracking')).toBe('PROFESIONAL');
     });
 
-    it('should return EMPRESARIAL for EMPRESARIAL features', () => {
-      expect(getMinimumTierForFeature('multi_location')).toBe('EMPRESARIAL');
-      expect(getMinimumTierForFeature('public_api')).toBe('EMPRESARIAL');
+    it('should return EMPRESA for EMPRESA features', () => {
+      expect(getMinimumTierForFeature('multi_location')).toBe('EMPRESA');
+      expect(getMinimumTierForFeature('public_api')).toBe('EMPRESA');
     });
 
     it('should return null for non-existent feature', () => {
@@ -182,7 +182,7 @@ describe('Feature Flags', () => {
       expect(feature).not.toBeNull();
       expect(feature?.id).toBe('afip_integration');
       expect(feature?.name).toBe('Integración AFIP');
-      expect(feature?.minTier).toBe('BASICO');
+      expect(feature?.minTier).toBe('INICIAL');
     });
 
     it('should return null for non-existent feature', () => {
@@ -222,8 +222,8 @@ describe('Feature Flags', () => {
   });
 
   describe('getUnlockableFeatures', () => {
-    it('should return BASICO features when upgrading from FREE', () => {
-      const unlockable = getUnlockableFeatures('FREE', 'BASICO');
+    it('should return INICIAL features when upgrading from FREE', () => {
+      const unlockable = getUnlockableFeatures('FREE', 'INICIAL');
       const featureIds = unlockable.map(f => f.id);
 
       expect(featureIds).toContain('afip_integration');
@@ -236,20 +236,20 @@ describe('Feature Flags', () => {
       expect(featureIds).not.toContain('basic_jobs');
     });
 
-    it('should return PROFESIONAL features when upgrading from BASICO', () => {
-      const unlockable = getUnlockableFeatures('BASICO', 'PROFESIONAL');
+    it('should return PROFESIONAL features when upgrading from INICIAL', () => {
+      const unlockable = getUnlockableFeatures('INICIAL', 'PROFESIONAL');
       const featureIds = unlockable.map(f => f.id);
 
       expect(featureIds).toContain('whatsapp_ai');
       expect(featureIds).toContain('live_tracking');
       expect(featureIds).toContain('fleet_management');
 
-      // Should NOT contain BASICO features
+      // Should NOT contain INICIAL features
       expect(featureIds).not.toContain('afip_integration');
     });
 
     it('should return empty array when upgrading to same tier', () => {
-      const unlockable = getUnlockableFeatures('BASICO', 'BASICO');
+      const unlockable = getUnlockableFeatures('INICIAL', 'INICIAL');
       expect(unlockable).toHaveLength(0);
     });
   });
@@ -278,9 +278,9 @@ describe('Module Feature Gating', () => {
       expect(isModuleLocked('fleet', 'FREE')).toBe(true);
     });
 
-    it('should lock PROFESIONAL modules for BASICO tier', () => {
-      expect(isModuleLocked('map', 'BASICO')).toBe(true);
-      expect(isModuleLocked('fleet', 'BASICO')).toBe(true);
+    it('should lock PROFESIONAL modules for INICIAL tier', () => {
+      expect(isModuleLocked('map', 'INICIAL')).toBe(true);
+      expect(isModuleLocked('fleet', 'INICIAL')).toBe(true);
     });
 
     it('should unlock PROFESIONAL modules for PROFESIONAL tier', () => {
@@ -288,9 +288,9 @@ describe('Module Feature Gating', () => {
       expect(isModuleLocked('fleet', 'PROFESIONAL')).toBe(false);
     });
 
-    it('should lock calendar for FREE tier but unlock for BASICO', () => {
+    it('should lock calendar for FREE tier but unlock for INICIAL', () => {
       expect(isModuleLocked('calendar', 'FREE')).toBe(true);
-      expect(isModuleLocked('calendar', 'BASICO')).toBe(false);
+      expect(isModuleLocked('calendar', 'INICIAL')).toBe(false);
     });
 
     it('should not lock non-gated modules for any tier', () => {
@@ -302,9 +302,9 @@ describe('Module Feature Gating', () => {
   describe('getModuleMinimumTier', () => {
     it('should return correct tier for gated modules', () => {
       expect(getModuleMinimumTier('map')).toBe('PROFESIONAL');
-      expect(getModuleMinimumTier('calendar')).toBe('BASICO');
+      expect(getModuleMinimumTier('calendar')).toBe('INICIAL');
       expect(getModuleMinimumTier('fleet')).toBe('PROFESIONAL');
-      expect(getModuleMinimumTier('analytics')).toBe('EMPRESARIAL');
+      expect(getModuleMinimumTier('analytics')).toBe('EMPRESA');
     });
 
     it('should return null for non-gated modules', () => {
@@ -323,7 +323,7 @@ describe('Feature Not Available Error', () => {
       expect(error.feature).toBe('afip_integration');
       expect(error.feature_name).toBe('Integración AFIP');
       expect(error.current_tier).toBe('FREE');
-      expect(error.required_tier).toBe('BASICO');
+      expect(error.required_tier).toBe('INICIAL');
       expect(error.message).toContain('no está disponible');
       expect(error.upgrade_url).toContain('/settings/billing/upgrade');
       expect(error.upgrade_url).toContain('feature=afip_integration');
@@ -353,12 +353,12 @@ describe('Feature Configuration Integrity', () => {
       expect(feature.name).toBeTruthy();
       expect(feature.description).toBeTruthy();
       expect(['core', 'integrations', 'communication', 'operations', 'analytics', 'enterprise']).toContain(feature.category);
-      expect(['FREE', 'BASICO', 'PROFESIONAL', 'EMPRESARIAL']).toContain(feature.minTier);
+      expect(['FREE', 'INICIAL', 'PROFESIONAL', 'EMPRESA']).toContain(feature.minTier);
     }
   });
 
   it('tier features should be cumulative', () => {
-    const tiers: SubscriptionTier[] = ['FREE', 'BASICO', 'PROFESIONAL', 'EMPRESARIAL'];
+    const tiers: SubscriptionTier[] = ['FREE', 'INICIAL', 'PROFESIONAL', 'EMPRESA'];
 
     for (let i = 1; i < tiers.length; i++) {
       const lowerTierFeatures = new Set(TIER_FEATURES[tiers[i - 1]]);
@@ -371,3 +371,4 @@ describe('Feature Configuration Integrity', () => {
     }
   });
 });
+

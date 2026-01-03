@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const dateStr = searchParams.get('date');
-    const durationHours = parseInt(searchParams.get('duration_hours') || '2', 10);
+    const _durationHours = parseInt(searchParams.get('duration_hours') || '2', 10);
 
     const date = dateStr ? new Date(dateStr) : new Date();
     date.setHours(0, 0, 0, 0);
@@ -132,10 +132,10 @@ export async function GET(request: NextRequest) {
       slots,
       recommendation: recommendation
         ? {
-            technician: recommendation.technicianName,
-            time: `${recommendation.start} - ${recommendation.end}`,
-            message: `${recommendation.technicianName} está disponible de ${recommendation.start} a ${recommendation.end}`,
-          }
+          technician: recommendation.technicianName,
+          time: `${recommendation.start} - ${recommendation.end}`,
+          message: `${recommendation.technicianName} está disponible de ${recommendation.start} a ${recommendation.end}`,
+        }
         : null,
     });
   } catch (error) {

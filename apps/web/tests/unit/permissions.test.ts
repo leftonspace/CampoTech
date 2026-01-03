@@ -4,7 +4,7 @@
  * Tests for role-based field and module permissions
  */
 
-import { describe, it, expect } from 'vitest';
+// Using Jest globals
 import {
   canViewField,
   canEditField,
@@ -17,9 +17,8 @@ import {
   CUSTOMER_FIELDS,
   JOB_FIELDS,
   MODULE_ACCESS,
-  type UserRole,
-  type FieldPermission,
 } from '@/lib/config/field-permissions';
+import type { UserRole, FieldPermission } from '@/lib/config/field-permissions';
 
 describe('Field Permissions', () => {
   describe('Organization Fields', () => {

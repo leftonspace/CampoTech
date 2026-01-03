@@ -17,7 +17,7 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getSession();
-    const { id } = await params;
+    const { id: _id } = await params;
 
     if (!session) {
       return NextResponse.json(

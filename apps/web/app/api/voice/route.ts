@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { z } from 'zod'; // Assuming zod is used for validation
+// import { z } from 'zod'; // Assuming zod is used for validation
 import { prisma } from '@/lib/prisma'; // Assuming prisma client location
 import { dispatch } from '@/lib/queue'; // Use the new dispatcher
 
 // Schema for Voice Upload
-const voiceUploadSchema = z.object({
-    audio: z.any(), // File validation would be more specific in a real implementation
-    technicianId: z.string(),
-    context: z.enum(['JOB_CREATION', 'JOB_NOTE', 'CUSTOMER_REPLY']).optional().default('JOB_CREATION'),
-    referenceId: z.string().optional(), // e.g. Job ID if adding a note
-});
+// const voiceUploadSchema = z.object({
+//     audio: z.any(), // File validation would be more specific in a real implementation
+//     technicianId: z.string(),
+//     context: z.enum(['JOB_CREATION', 'JOB_NOTE', 'CUSTOMER_REPLY']).optional().default('JOB_CREATION'),
+//     referenceId: z.string().optional(), // e.g. Job ID if adding a note
+// });
 
 export async function POST(req: NextRequest) {
     try {

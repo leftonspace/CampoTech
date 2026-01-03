@@ -9,6 +9,7 @@
  */
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useQuery } from '@tanstack/react-query';
 import {
   Users,
@@ -90,9 +91,9 @@ export default function TechniciansAnalyticsPage() {
     name: tech.name,
     avatar: tech.avatar,
     value: sortBy === 'jobs' ? tech.jobsCompleted :
-           sortBy === 'revenue' ? tech.revenue :
-           sortBy === 'rating' ? tech.avgRating :
-           tech.efficiency,
+      sortBy === 'revenue' ? tech.revenue :
+        sortBy === 'rating' ? tech.avgRating :
+          tech.efficiency,
     secondaryValue: tech.revenue,
     trend: tech.trend,
   }));
@@ -217,9 +218,9 @@ export default function TechniciansAnalyticsPage() {
                   items={leaderboardItems}
                   valueLabel={
                     sortBy === 'jobs' ? 'Trabajos' :
-                    sortBy === 'revenue' ? 'Ingresos' :
-                    sortBy === 'rating' ? 'Rating' :
-                    'Eficiencia'
+                      sortBy === 'revenue' ? 'Ingresos' :
+                        sortBy === 'rating' ? 'Rating' :
+                          'Eficiencia'
                   }
                   secondaryValueLabel="Ingresos generados"
                   unit={sortBy === 'revenue' ? 'currency' : sortBy === 'efficiency' ? 'percentage' : 'number'}
@@ -275,7 +276,7 @@ export default function TechniciansAnalyticsPage() {
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           {tech.avatar ? (
-                            <img src={tech.avatar} alt={tech.name} className="w-8 h-8 rounded-full" />
+                            <Image src={tech.avatar} alt={tech.name} width={32} height={32} className="w-8 h-8 rounded-full" />
                           ) : (
                             <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
                               <span className="text-xs font-medium text-green-700">

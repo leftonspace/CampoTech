@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
       const reviewCount = stats?.reviewCount ?? 0;
 
       // Remove internal fields and add computed ones
-      const { _count, ...userData } = user;
+      const { _count: _c, ...userData } = user;
       return {
         ...userData,
         jobCount,

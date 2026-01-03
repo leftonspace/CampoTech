@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Bot,
   TrendingUp,
@@ -80,7 +80,7 @@ export default function AIAnalyticsPage() {
   const [error, setError] = useState<string | null>(null);
   const [days, setDays] = useState(30);
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
@@ -98,11 +98,11 @@ export default function AIAnalyticsPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [days]);
 
   useEffect(() => {
     fetchAnalytics();
-  }, [days]);
+  }, [fetchAnalytics]);
 
   if (isLoading) {
     return (

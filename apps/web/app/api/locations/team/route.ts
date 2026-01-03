@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
  * POST /api/locations/team
  * Assign a technician to a location
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const session = await getSession();
 
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
  * PUT /api/locations/team
  * Bulk assign technicians to locations
  */
-export async function PUT(request: NextRequest) {
+export async function PUT() {
   try {
     const session = await getSession();
 
@@ -125,7 +125,7 @@ export async function PUT(request: NextRequest) {
  * DELETE /api/locations/team
  * Unassign a technician from their location
  */
-export async function DELETE(request: NextRequest) {
+export async function DELETE() {
   try {
     const session = await getSession();
 

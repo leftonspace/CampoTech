@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import type { Map as LeafletMap, Marker as LeafletMarker, Polyline as LeafletPolyline } from 'leaflet';
 import {
   getMapProvider,
   getTileLayerUrl,
@@ -23,26 +24,7 @@ import {
   createPulseAnimation,
 } from './marker-animation';
 
-// Leaflet types (loaded dynamically)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type LeafletModule = any;
-interface LeafletMap {
-  remove: () => void;
-  setView: (coords: [number, number], zoom: number) => void;
-  fitBounds: (bounds: unknown, options?: Record<string, unknown>) => void;
-}
-interface LeafletMarker {
-  setLatLng: (coords: [number, number]) => void;
-  getLatLng: () => { lat: number; lng: number };
-  getElement: () => HTMLElement | null;
-  addTo: (map: LeafletMap) => LeafletMarker;
-  bindPopup: (content: string) => LeafletMarker;
-  remove: () => void;
-}
-interface LeafletPolyline {
-  remove: () => void;
-  addTo: (map: LeafletMap) => LeafletPolyline;
-}
+type LeafletModule = typeof import('leaflet');
 
 interface TrackingMapProps {
   technicianPosition?: { lat: number; lng: number } | null;
@@ -73,7 +55,7 @@ export default function TrackingMap({
   const pulseAnimationRef = useRef<(() => void) | null>(null);
 
   const [isMapReady, setIsMapReady] = useState(false);
-  const [leafletModule, setLeafletModule] = useState<LeafletModule>(null);
+  const [leafletModule, setLeafletModule] = useState<LeafletModule | null>(null);
 
   // Load Leaflet dynamically (client-side only)
   useEffect(() => {
@@ -86,8 +68,7 @@ export default function TrackingMap({
       await import('leaflet/dist/leaflet.css');
 
       // Fix default marker icons (common Leaflet issue with bundlers)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
+      delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
         iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -285,7 +266,7 @@ export default function TrackingMap({
         oldPosition,
         newPosition,
         (pos) => {
-          technicianMarkerRef.current?.setLatLng([pos.lat, pos.lng]);
+          technicianMarkerRef.current?.setLatLng([pos.lat, pos.lng] as [number, number]);
         },
         undefined,
         { duration: 1000, easing: 'easeOut' }
@@ -333,7 +314,7 @@ export default function TrackingMap({
       }
 
       // Draw route line
-      const latLngs = routeCoords.map((c) => [c.lat, c.lng]);
+      const latLngs = routeCoords.map((c) => [c.lat, c.lng] as [number, number]);
       const polyline = L.polyline(latLngs, {
         color: '#3B82F6',
         weight: 4,

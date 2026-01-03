@@ -9,7 +9,7 @@
  * Different layouts for soft vs hard blocks.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -118,7 +118,7 @@ export default function BlockedPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Fetch access status
-  const fetchStatus = async (showRefresh = false) => {
+  const fetchStatus = useCallback(async (showRefresh = false) => {
     if (showRefresh) setIsRefreshing(true);
     try {
       const response = await fetch('/api/access/status');
@@ -141,11 +141,11 @@ export default function BlockedPage() {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  };
+  }, [router]);
 
   useEffect(() => {
     fetchStatus();
-  }, []);
+  }, [fetchStatus]);
 
   // Group block reasons by type
   const groupedReasons = accessStatus?.blockReasons.reduce(

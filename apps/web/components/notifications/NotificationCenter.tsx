@@ -44,6 +44,10 @@ interface Notification {
   createdAt: string;
 }
 
+interface NotificationsResponse {
+  data: Notification[];
+}
+
 const EVENT_ICONS: Record<string, React.ElementType> = {
   job_assigned: Briefcase,
   job_updated: Briefcase,
@@ -150,9 +154,8 @@ export default function NotificationCenter() {
 
             if (message.event === 'notification') {
               // Add new notification to cache
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              queryClient.setQueryData(['notifications'], (old: any) => {
-                if (!old?.data) return old;
+              queryClient.setQueryData<NotificationsResponse>(['notifications'], (old) => {
+                if (!old?.data) return old || { data: [] };
                 return {
                   ...old,
                   data: [message.payload, ...old.data].slice(0, 50),

@@ -4,7 +4,7 @@
  * Tests for customer rating validation logic
  */
 
-import { describe, it, expect } from 'vitest';
+// Using Jest globals
 import {
   validateToken,
   validateRating,
@@ -160,7 +160,7 @@ describe('Rating Validation', () => {
       const result = validateRatingInput({
         token: '', // invalid
         rating: 10, // invalid
-        comment: 123 as any, // invalid
+        comment: 123, // invalid
       });
       expect(result.valid).toBe(false);
       expect(result.errors.length).toBe(3);

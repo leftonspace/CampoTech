@@ -11,7 +11,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { isValidWhatsAppNumber, formatPhoneForDisplay } from '@/lib/whatsapp-links';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession();
 

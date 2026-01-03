@@ -8,12 +8,10 @@ import { cn, formatDateTime } from '@/lib/utils';
 import { ProtectedRoute } from '@/lib/auth-context';
 import {
   ArrowLeft,
-  Shield,
   AlertTriangle,
   CheckCircle,
   XCircle,
   RefreshCw,
-  Power,
   Zap,
   MessageSquare,
   CreditCard,

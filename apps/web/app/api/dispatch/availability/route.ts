@@ -71,9 +71,9 @@ function calculateDistance(
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) *
-      Math.sin(dLng / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) *
+    Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
     const targetLng = searchParams.get('targetLng')
       ? parseFloat(searchParams.get('targetLng')!)
       : null;
-    const serviceType = searchParams.get('serviceType');
+    const _serviceType = searchParams.get('serviceType');
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -278,13 +278,13 @@ export async function GET(request: NextRequest) {
         currentStatus: status,
         currentLocation: tech.currentLocation
           ? {
-              lat: Number(tech.currentLocation.latitude),
-              lng: Number(tech.currentLocation.longitude),
-              accuracy: tech.currentLocation.accuracy
-                ? Number(tech.currentLocation.accuracy)
-                : null,
-              lastUpdated: tech.currentLocation.lastSeen.toISOString(),
-            }
+            lat: Number(tech.currentLocation.latitude),
+            lng: Number(tech.currentLocation.longitude),
+            accuracy: tech.currentLocation.accuracy
+              ? Number(tech.currentLocation.accuracy)
+              : null,
+            lastUpdated: tech.currentLocation.lastSeen.toISOString(),
+          }
           : null,
         todaysSchedule: {
           totalJobs: todaysJobs.length,
@@ -296,17 +296,17 @@ export async function GET(request: NextRequest) {
         },
         currentJob: currentJob
           ? {
-              id: currentJob.id,
-              jobNumber: currentJob.jobNumber,
-              customerName: currentJob.customer.name,
-              address:
-                typeof currentJob.customer === 'object'
-                  ? 'Ver detalles'
-                  : 'Sin dirección',
-              status: currentJob.status,
-              startedAt: currentJob.startedAt?.toISOString() || null,
-              estimatedDuration: currentJob.estimatedDuration,
-            }
+            id: currentJob.id,
+            jobNumber: currentJob.jobNumber,
+            customerName: currentJob.customer.name,
+            address:
+              typeof currentJob.customer === 'object'
+                ? 'Ver detalles'
+                : 'Sin dirección',
+            status: currentJob.status,
+            startedAt: currentJob.startedAt?.toISOString() || null,
+            estimatedDuration: currentJob.estimatedDuration,
+          }
           : null,
         distanceToTarget: distanceToTarget
           ? Math.round(distanceToTarget * 10) / 10

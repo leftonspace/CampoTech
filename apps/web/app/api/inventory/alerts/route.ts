@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { InventoryService } from '@/src/services/inventory.service';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession();
 

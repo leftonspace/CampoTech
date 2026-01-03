@@ -57,7 +57,7 @@ export async function GET() {
       todayRevenue,
       lastWeekRevenue,
       activeCustomers,
-      lastMonthCustomers,
+      // lastMonthCustomers,
       averageRating,
     ] = await Promise.all([
       // Jobs scheduled for today

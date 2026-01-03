@@ -151,7 +151,7 @@ const CATEGORY_MAP: Record<CapabilityCategory, 'integration' | 'feature' | 'syst
   ui: 'feature',
 };
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession();
 
@@ -203,7 +203,7 @@ export async function GET(request: NextRequest) {
         // Find override for this capability
         const override = overrides.find(
           o => o.capability_path === path &&
-              (o.org_id === session.organizationId || o.org_id === null)
+            (o.org_id === session.organizationId || o.org_id === null)
         );
 
         capabilities.push({

@@ -7,24 +7,24 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-interface JobWithRelations {
-  id: string;
-  jobNumber: string;
-  serviceType: string;
-  completedAt: Date | null;
-  technicianId: string | null;
-  customer?: { name: string } | null;
-  technician?: { name: string } | null;
-  materials: Array<{
-    id: string;
-    productId: string;
-    usedQty: number;
-    unitCost: number | string;
-    unitPrice: number | string;
-    lineTotal: number | string;
-    product?: { name: string; sku: string } | null;
-  }>;
-}
+// interface JobWithRelations {
+//   id: string;
+//   jobNumber: string;
+//   serviceType: string;
+//   completedAt: Date | null;
+//   technicianId: string | null;
+//   customer?: { name: string } | null;
+//   technician?: { name: string } | null;
+//   materials: Array<{
+//     id: string;
+//     productId: string;
+//     usedQty: number;
+//     unitCost: number | string;
+//     unitPrice: number | string;
+//     lineTotal: number | string;
+//     product?: { name: string; sku: string } | null;
+//   }>;
+// }
 
 /**
  * GET /api/inventory/job-materials

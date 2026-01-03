@@ -8,7 +8,7 @@ import { getSession } from '@/lib/auth';
  * Placeholder - Push notification system not yet implemented.
  */
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const session = await getSession();
 
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function DELETE(request: NextRequest) {
+export async function DELETE() {
   try {
     const session = await getSession();
 

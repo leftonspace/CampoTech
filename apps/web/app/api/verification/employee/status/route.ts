@@ -102,9 +102,7 @@ const EMPLOYEE_BADGES = [
 // GET - Get Employee Verification Status
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export async function GET(
-  request: NextRequest
-): Promise<NextResponse<EmployeeStatusResponse | ErrorResponse>> {
+export async function GET(): Promise<NextResponse<EmployeeStatusResponse | ErrorResponse>> {
   try {
     // Authenticate user
     const session = await getSession();

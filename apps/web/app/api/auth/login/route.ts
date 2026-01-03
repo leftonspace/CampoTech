@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { createToken } from '@/lib/auth';
+// import { createToken } from '@/lib/auth';
 import {
   checkLoginAllowed,
   recordLoginAttempt,

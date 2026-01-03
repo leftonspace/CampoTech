@@ -7,7 +7,7 @@ import { JobService } from '@/src/services/job.service';
  * Returns today's jobs for the dashboard
  */
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession();
 

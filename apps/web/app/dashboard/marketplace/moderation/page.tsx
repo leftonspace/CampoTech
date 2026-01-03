@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import Image from 'next/image';
 import { apiRequest } from '@/lib/api-client';
-import { cn, formatDateTime, searchMatchesAny } from '@/lib/utils';
+import { cn, searchMatchesAny } from '@/lib/utils';
 import { ProtectedRoute } from '@/lib/auth-context';
 import {
   ArrowLeft,
@@ -17,16 +18,11 @@ import {
   User,
   Building2,
   Eye,
-  ChevronDown,
-  ChevronUp,
   RefreshCw,
   Search,
   Filter,
-  Image,
-  MessageSquare,
+  Image as PhotosIcon,
   Flag,
-  TrendingUp,
-  TrendingDown,
   Zap,
 } from 'lucide-react';
 
@@ -454,7 +450,7 @@ function ModerationContent() {
                       {/* Photos indicator */}
                       {item.review.photos.length > 0 && (
                         <span className="mt-2 inline-flex items-center gap-1 text-sm text-gray-500">
-                          <Image className="h-4 w-4" />
+                          <PhotosIcon className="h-4 w-4" />
                           {item.review.photos.length} foto
                           {item.review.photos.length > 1 ? 's' : ''}
                         </span>
@@ -577,10 +573,12 @@ function ModerationContent() {
                             </h5>
                             <div className="flex gap-2 flex-wrap">
                               {item.review.photos.map((photo, index) => (
-                                <img
+                                <Image
                                   key={index}
                                   src={photo}
                                   alt={`Foto ${index + 1}`}
+                                  width={80}
+                                  height={80}
                                   className="h-20 w-20 rounded-lg object-cover"
                                 />
                               ))}

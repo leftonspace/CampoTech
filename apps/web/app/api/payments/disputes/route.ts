@@ -6,7 +6,7 @@ import { getSession } from '@/lib/auth';
  * List and manage payment disputes
  */
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession();
 

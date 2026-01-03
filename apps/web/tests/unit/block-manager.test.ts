@@ -9,7 +9,7 @@
  * - Block status checking
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+// Using Jest globals
 import {
   createMockOrgWithSubscription,
   createMockBlockedOrg,
@@ -19,7 +19,7 @@ import {
 
 // Mock prisma
 const mockPrisma = createMockPrisma();
-vi.mock('@/lib/prisma', () => ({
+jest.mock('@/lib/prisma', () => ({
   prisma: mockPrisma,
 }));
 
@@ -30,7 +30,7 @@ describe('BlockManager', () => {
   beforeEach(() => {
     resetAllMocks();
     mockPrisma._clearAll();
-    vi.clearAllMocks();
+    jest.clearAllMocks();
   });
 
   describe('applyBlock', () => {
@@ -315,7 +315,7 @@ describe('BlockManager', () => {
         createMockBlockedOrg('hard_block'),
       ];
 
-      mockPrisma.organization.findMany = vi.fn().mockResolvedValueOnce(blockedOrgs);
+      mockPrisma.organization.findMany = jest.fn().mockResolvedValueOnce(blockedOrgs);
 
       const result = await blockManager.getBlockedOrganizations();
 
@@ -325,7 +325,7 @@ describe('BlockManager', () => {
     it('should filter by block type', async () => {
       const hardBlockedOrg = createMockBlockedOrg('hard_block');
 
-      mockPrisma.organization.findMany = vi.fn().mockResolvedValueOnce([hardBlockedOrg]);
+      mockPrisma.organization.findMany = jest.fn().mockResolvedValueOnce([hardBlockedOrg]);
 
       const result = await blockManager.getBlockedOrganizations('hard_block');
 
@@ -343,7 +343,7 @@ describe('BlockManager', () => {
         blockType: null,
       });
 
-      mockPrisma.organization.findMany = vi.fn().mockResolvedValueOnce([expiredOrg]);
+      mockPrisma.organization.findMany = jest.fn().mockResolvedValueOnce([expiredOrg]);
       mockPrisma.organization.update.mockResolvedValueOnce({
         ...expiredOrg,
         blockType: 'soft_block',
@@ -363,7 +363,7 @@ describe('BlockManager', () => {
         // Blocked more than 14 days ago
       });
 
-      mockPrisma.organization.findMany = vi.fn().mockResolvedValueOnce([softBlockedOrg]);
+      mockPrisma.organization.findMany = jest.fn().mockResolvedValueOnce([softBlockedOrg]);
       mockPrisma.organization.update.mockResolvedValueOnce({
         ...softBlockedOrg,
         blockType: 'hard_block',

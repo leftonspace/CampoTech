@@ -326,27 +326,6 @@ export default function NewJobPage() {
     };
   };
 
-  // Sort team members by availability
-  const getSortedTeamMembers = () => {
-    if (!teamMembers) return [];
-
-    if (availabilityMap.size === 0) return teamMembers;
-
-    return [...teamMembers].sort((a, b) => {
-      const aAvail = availabilityMap.get(a.id);
-      const bAvail = availabilityMap.get(b.id);
-
-      // Available first
-      if (aAvail?.isAvailable && !bAvail?.isAvailable) return -1;
-      if (!aAvail?.isAvailable && bAvail?.isAvailable) return 1;
-
-      // Then by job count (less busy first)
-      const aJobs = aAvail?.currentJobCount || 0;
-      const bJobs = bAvail?.currentJobCount || 0;
-      return aJobs - bJobs;
-    });
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedCustomer) {
@@ -888,8 +867,8 @@ export default function NewJobPage() {
                             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
                           >
                             <span className={`flex h-4 w-4 items-center justify-center rounded border ${visit.technicianIds.includes(currentUser.id)
-                                ? 'border-primary-600 bg-primary-600 text-white'
-                                : 'border-gray-300'
+                              ? 'border-primary-600 bg-primary-600 text-white'
+                              : 'border-gray-300'
                               }`}>
                               {visit.technicianIds.includes(currentUser.id) && <Check className="h-3 w-3" />}
                             </span>
@@ -904,8 +883,8 @@ export default function NewJobPage() {
                             className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50"
                           >
                             <span className={`flex h-4 w-4 items-center justify-center rounded border ${visit.technicianIds.includes(member.id)
-                                ? 'border-primary-600 bg-primary-600 text-white'
-                                : 'border-gray-300'
+                              ? 'border-primary-600 bg-primary-600 text-white'
+                              : 'border-gray-300'
                               }`}>
                               {visit.technicianIds.includes(member.id) && <Check className="h-3 w-3" />}
                             </span>

@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@prisma/client';
+// import { Prisma } from '@prisma/client';
 
 // Maximum allowed page size to prevent abuse
 const MAX_PAGE_SIZE = 100;
@@ -59,7 +59,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const userId = searchParams.get('userId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    const search = searchParams.get('search');
+    const _search = searchParams.get('search');
 
     const offset = (page - 1) * pageSize;
     const { organizationId } = session;

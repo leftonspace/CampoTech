@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
 
     const activeTechnicians = technicians.length;
     const totalJobs = jobs.length;
-    const completedJobs = jobs.filter((j: typeof jobs[number]) => j.status === 'COMPLETED').length;
+    // const completedJobs = jobs.filter((j: typeof jobs[number]) => j.status === 'COMPLETED').length;
     const avgJobsPerTech = activeTechnicians > 0 ? totalJobs / activeTechnicians : 0;
 
     // Calculate per-technician stats

@@ -10,7 +10,7 @@ import { prisma } from '@/lib/prisma';
  * Optimized for mobile app usage.
  */
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession();
 
