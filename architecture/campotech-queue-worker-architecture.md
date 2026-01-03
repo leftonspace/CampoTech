@@ -2106,10 +2106,10 @@ Via Bull Board Admin UI:
   - [View] → Inspect job data and error stack
 
 Via CLI (for bulk operations):
-  $ npm run dlq:list --queue=afip:invoice
-  $ npm run dlq:retry --queue=afip:invoice --ids=job1,job2
-  $ npm run dlq:retry-all --queue=afip:invoice --error-pattern="timeout"
-  $ npm run dlq:discard --ids=job1,job2 --reason="customer deleted"
+  $ pnpm dlq:list --queue=afip:invoice
+  $ pnpm dlq:retry --queue=afip:invoice --ids=job1,job2
+  $ pnpm dlq:retry-all --queue=afip:invoice --error-pattern="timeout"
+  $ pnpm dlq:discard --ids=job1,job2 --reason="customer deleted"
 ```
 
 ### 14.4 Failure Severity by Queue
@@ -2135,10 +2135,10 @@ Effect:  All new CAE requests queued, not processed
 UI:      Shows "AFIP temporalmente no disponible"
 
 To Enable Manually:
-  $ npm run panic:enable --service=afip
+  $ pnpm panic:enable --service=afip
 
 To Disable (after AFIP recovers):
-  $ npm run panic:disable --service=afip
+  $ pnpm panic:disable --service=afip
 
 Recovery Procedure:
   1. Verify AFIP is responding (check status page)
@@ -2229,46 +2229,46 @@ Job Detail Modal (click job ID):
 
 ```bash
 # View queue status
-npm run queue:status
+pnpm queue:status
 
 # View specific queue
-npm run queue:status --queue=afip:invoice
+pnpm queue:status --queue=afip:invoice
 
 # Pause a queue (stop processing, keep accepting)
-npm run queue:pause --queue=afip:invoice
+pnpm queue:pause --queue=afip:invoice
 
 # Resume a queue
-npm run queue:resume --queue=afip:invoice
+pnpm queue:resume --queue=afip:invoice
 
 # Drain a queue (remove all waiting jobs)
-npm run queue:drain --queue=cleanup --confirm
+pnpm queue:drain --queue=cleanup --confirm
 
 # List DLQ items
-npm run dlq:list
-npm run dlq:list --queue=afip:invoice
-npm run dlq:list --older-than=24h
+pnpm dlq:list
+pnpm dlq:list --queue=afip:invoice
+pnpm dlq:list --older-than=24h
 
 # Retry DLQ items
-npm run dlq:retry --id=dlq_123
-npm run dlq:retry-all --queue=afip:invoice
-npm run dlq:retry-all --error-contains="timeout"
+pnpm dlq:retry --id=dlq_123
+pnpm dlq:retry-all --queue=afip:invoice
+pnpm dlq:retry-all --error-contains="timeout"
 
 # Discard DLQ items
-npm run dlq:discard --id=dlq_123 --reason="duplicate"
-npm run dlq:discard-all --queue=analytics --older-than=7d
+pnpm dlq:discard --id=dlq_123 --reason="duplicate"
+pnpm dlq:discard-all --queue=analytics --older-than=7d
 
 # Export DLQ for analysis
-npm run dlq:export --queue=afip:invoice --format=csv > dlq-export.csv
+pnpm dlq:export --queue=afip:invoice --format=csv > dlq-export.csv
 
 # Panic mode management
-npm run panic:status
-npm run panic:enable --service=afip
-npm run panic:disable --service=afip
+pnpm panic:status
+pnpm panic:enable --service=afip
+pnpm panic:disable --service=afip
 
 # Worker management
-npm run workers:status
-npm run workers:scale --pool=high --count=4
-npm run workers:restart --pool=normal
+pnpm workers:status
+pnpm workers:scale --pool=high --count=4
+pnpm workers:restart --pool=normal
 ```
 
 ### 14.8 Monitoring Checklist (Daily)

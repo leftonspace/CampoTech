@@ -12,12 +12,12 @@
 
 - [ ] **All tests passing**
   ```bash
-  cd apps/web && npm run test:run
+  cd apps/web && pnpm test:run
   ```
 
 - [ ] **Build succeeds without errors**
   ```bash
-  cd apps/web && npm run build
+  cd apps/web && pnpm build
   ```
 
 - [ ] **Load tests passed** (see [tests/load/README.md](../tests/load/README.md))
@@ -27,7 +27,7 @@
   - [ ] Soak test (2 hours) - run before major releases
 
 - [ ] **Security scan clean**
-  - [ ] `npm audit` shows no high/critical vulnerabilities
+  - [ ] `pnpm audit` shows no high/critical vulnerabilities
   - [ ] OWASP Top 10 audit passed (see `apps/web/SECURITY-AUDIT-OWASP.md`)
 
 - [ ] **Error tracking active**
@@ -36,7 +36,7 @@
   - [ ] Alert notifications configured
 
 - [ ] **Database ready**
-  - [ ] Migrations applied: `npx prisma migrate deploy`
+  - [ ] Migrations applied: `pnpm dlx prisma migrate deploy`
   - [ ] Connection pooling enabled (Supabase pooler URL)
   - [ ] Backups configured in Supabase Dashboard
   - [ ] Read replica configured (if Pro plan)

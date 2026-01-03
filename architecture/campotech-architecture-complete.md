@@ -2012,7 +2012,7 @@ export enum VoiceProcessingStatus {
 
 ```bash
 # Generate all status-related code from canonical definitions
-# Run: npm run generate:statuses
+# Run: pnpm generate:statuses
 
 # Outputs:
 # - prisma/enums.prisma          (DB enum definitions)

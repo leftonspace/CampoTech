@@ -5,11 +5,11 @@ Official TypeScript/JavaScript SDK for the CampoTech API.
 ## Installation
 
 ```bash
+pnpm add @campotech/sdk
+# or
 npm install @campotech/sdk
 # or
 yarn add @campotech/sdk
-# or
-pnpm add @campotech/sdk
 ```
 
 ## Quick Start
