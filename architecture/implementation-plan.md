@@ -8,6 +8,25 @@
 ## 📋 Executive Summary
 Based on comprehensive codebase audit, 19/27 features (70%) are complete. This roadmap addresses the remaining 8 critical features plus 3 security regressions discovered during audit.
 
+---
+
+> **📎 ADDENDUM: Strategic Features (January 2026)**
+> 
+> Four additional strategic features have been defined in a separate addendum document:
+> 
+> | Feature | Phase | File Reference |
+> |---------|-------|----------------|
+> | Fiscal Health Dashboard (Monotributo) | Phase 2.4 | See addendum |
+> | Barcode Inventory Scanning | Phase 2.2.4 | See addendum |
+> | Digital Entry Badge (Countries) | Phase 4.3 | See addendum |
+> | Unclaimed Profile Growth Engine | Phase 4.4 | See addendum |
+> 
+> **📄 Full specifications:** `architecture/implementation-plan-addendum.md`
+> 
+> These features add **+19 days** to the original timeline (new total: 12-14 weeks).
+
+---
+
 ### Critical Path:
 - **Week 1-2:** Security fixes + RBAC
 - **Week 3-5:** Core features (Vehicle scheduling, Inventory, Navigation)

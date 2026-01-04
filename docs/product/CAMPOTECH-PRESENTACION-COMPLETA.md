@@ -119,13 +119,18 @@ CampoTech resuelve estos problemas con una plataforma integral:
 │                                                                         │
 │  👷 EQUIPO            📦 INVENTARIO       🚗 FLOTA                     │
 │  - Técnicos           - Stock             - Vehículos                   │
-│  - Despachadores      - Materiales        - Asignación                  │
-│  - Permisos           - Reposición        - Mantenimiento               │
+│  - Despachadores      - Escaneo código    - Asignación horaria          │
+│  - Permisos           - Deducción auto    - Mantenimiento               │
 │                                                                         │
 │  💬 WHATSAPP + IA     📊 ANALYTICS        ⚙️ CONFIGURACIÓN            │
 │  - Atención 24/7      - Métricas          - Marca                       │
-│  - Reservas auto      - Rendimiento       - Plantillas PDF              │
+│  - Botones interac.   - Salud Fiscal      - Plantillas PDF              │
 │  - Transcripción voz  - Posición mercado  - Notificaciones              │
+│                                                                         │
+│  🪪 CREDENCIAL        🗺️ NAVEGACIÓN       📈 CRECIMIENTO               │
+│  - QR dinámico        - Rutas multi-stop  - Perfiles públicos           │
+│  - Verificación ART   - Google Maps       - Claim via SMS               │
+│  - Antecedentes       - Optimización      - Matrículas ENARGAS          │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -453,18 +458,33 @@ CampoTech consiste en **5 aplicaciones** que trabajan juntas:
    └── Auto-completa formulario
    └── Editar si es necesario
 
-📦 Inventario
+📦 Inventario + Escaneo
    └── Ver stock del vehículo
-   └── Registrar materiales usados
-   └── Solicitar reposición
+   └── 📷 ESCANEAR CÓDIGO DE BARRAS
+   └── Deducción automática (vehículo → depósito)
+   └── Funciona offline (sincroniza después)
 
 📸 Fotos y Firma
    └── Tomar fotos del trabajo
    └── Capturar firma del cliente
    └── Adjuntar al trabajo
 
-⚙️ Perfil
+🗺️ Navegación Multi-Parada
+   └── Ruta optimizada de todos los trabajos del día
+   └── Botón "Navegar todos" → Google Maps
+   └── Nueva ruta automática después del trabajo #10
+   └── Maneja +10 trabajos con rutas segmentadas
+
+🪪 Credencial Digital (Countries/Barrios Cerrados)
+   └── QR dinámico que muestra:
+       └── Identidad del técnico
+       └── Estado de ART (vigente/vencido)
+       └── Verificación de antecedentes
+   └── Seguridad puede escanear para verificar
+
+⚙️ Perfil + Salud Fiscal
    └── Datos personales
+   └── 🟢🟡🔴 Indicador Monotributo
    └── Configuración de notificaciones
    └── Cerrar sesión
 ```
@@ -1095,63 +1115,122 @@ OFFLINE (App Técnico)
 
 ## Hoja de Ruta
 
-### Fases de Implementación
+### Fases de Implementación (Actualizado Enero 2026)
 
 ```
-FASE 1: Correcciones Web ⚠️ EN PROGRESO
+FASE 1: SEGURIDAD E INFRAESTRUCTURA 🔐
 ────────────────────────────────────────
-├── Landing page con precios
-├── Sistema de calificaciones
-├── Actualizar precios de planes
-├── Simplificar roles (3 en vez de 6)
-├── Watermark "Powered by CampoTech" en PDFs
-└── Estado: 60% completado
+├── Encriptación de credenciales AFIP
+├── Rol DISPATCHER (operaciones sin facturación)
+├── Validación de locks distribuidos
+└── Estado: En progreso
 
-FASE 2: Dashboard Listo para Producción
+FASE 2: FUNCIONALIDADES CORE 🔧
 ────────────────────────────────────────
-├── Reportes por voz
-├── Analytics de posición de mercado
-├── Personalización de PDFs
-├── Flujo completo de trabajo + pago
-├── Compliance legal Argentina
-└── Estado: Por comenzar
+├── Programación de vehículos por horario
+│   └── Asignar vehículos Lun-Vie, por turnos
+│   └── Auto-poblar vehículo al crear trabajo
+├── Cascada de inventario automática
+│   └── Deducir de vehículo primero
+│   └── Fallback a depósito si no hay stock
+├── 📷 Escaneo de código de barras (NUEVO)
+│   └── Cámara del celular → buscar producto
+│   └── Seleccionar cantidad → deducir
+│   └── Funciona offline
+├── Navegación multi-parada
+│   └── Rutas optimizadas con Google Maps
+│   └── Maneja +10 trabajos (rutas segmentadas)
+│   └── Nueva ruta automática después de cada 10
+├── 🏛️ Dashboard de Salud Fiscal (NUEVO)
+│   └── Semáforo verde/amarillo/rojo Monotributo
+│   └── % de límite anual usado
+│   └── Recomendación de recategorización
+└── Estado: En desarrollo
 
-FASE 3: App Técnico
+FASE 3: MEJORAS WHATSAPP 💬
 ────────────────────────────────────────
-├── Remover features de consumidor
-├── Completar features de técnico
-├── Soporte offline
-├── Compatibilidad con celulares viejos
-└── Estado: 70% base existente
-
-FASE 4: Panel Admin (Interno)
-────────────────────────────────────────
-├── Dashboard de métricas
-├── Gestión de empresas
-├── Entrenamiento de IA
-├── Chat asistente
-└── Estado: Por comenzar
-
-FASE 5: App Consumidor
-────────────────────────────────────────
-├── Estructura de app correcta
-├── Búsqueda y filtros
-├── Perfiles de empresas
-├── Integración WhatsApp
-└── Estado: 30% pantallas existentes
-
-FASE 6: Lanzamiento Marketplace
-────────────────────────────────────────
-├── Habilitar calificaciones
-├── Publicar apps en stores
-├── Marketing inicial
+├── Botones interactivos (en vez de texto)
+│   └── "Mañana 9-12hs" / "Mañana 14-18hs"
+├── Listas de selección de servicios
+├── Tracking de atribución marketplace
+│   └── Click WhatsApp → trabajo = conversión
+├── Analytics de conversión por fuente
 └── Estado: Pendiente
 
-FASE 7: Portal Desarrolladores
+FASE 4: AUTOMATIZACIÓN ONBOARDING 🚀
 ────────────────────────────────────────
-├── Documentación API
-├── Playground interactivo
-└── Estado: Baja prioridad
+├── OAuth Mercado Pago (1 click)
+├── Mejora UX carga certificado AFIP
+├── 🪪 Credencial Digital Técnico (NUEVO)
+│   └── QR dinámico para countries/barrios
+│   └── Muestra: identidad, ART, antecedentes
+│   └── Seguridad escanea para verificar
+├── 🏆 Motor de Crecimiento "Unclaimed Profiles" (NUEVO)
+│   └── Importar matrículas públicas (ENARGAS, Gasnor)
+│   └── Profesionales "reclaman" su perfil via SMS
+│   └── Conversión automática a usuario
+└── Estado: Pendiente
+
+FASE 5: MIGRACIÓN VOZ IA A LANGGRAPH 🤖
+────────────────────────────────────────
+├── Servicio Python con FastAPI
+├── Workflow LangGraph stateful
+│   └── Transcribir → Extraer → Confirmar → Crear
+│   └── Puede "esperar" respuesta del cliente
+├── Integración con backend Node.js
+├── Rollout gradual (1% → 100%)
+└── Estado: Última fase
+
+📊 TIMELINE TOTAL: 12-14 semanas
+```
+
+### Nuevas Funcionalidades Destacadas
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    FUNCIONALIDADES ESTRATÉGICAS                          │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│  🏛️ SALUD FISCAL (Monotributo)                                         │
+│  ─────────────────────────────────────────────────────────────────────  │
+│  Widget en dashboard que muestra:                                       │
+│  • Categoría actual (A-K)                                               │
+│  • Facturación YTD vs límite anual                                      │
+│  • 🟢 SALUDABLE (< 70%) | 🟡 ATENCIÓN (70-90%) | 🔴 ALERTA (> 90%)     │
+│  • Recomendación: "Consultá con tu contador sobre recategorización"    │
+│                                                                         │
+│  📷 ESCANEO ANTI-EXCEL                                                  │
+│  ─────────────────────────────────────────────────────────────────────  │
+│  Flujo en app técnico:                                                  │
+│  1. Abrir cámara → escanear código de barras                            │
+│  2. Producto encontrado → seleccionar cantidad                          │
+│  3. Deducción automática (vehículo primero, depósito si falta)         │
+│  4. Funciona sin internet (sincroniza después)                          │
+│                                                                         │
+│  🪪 CREDENCIAL DIGITAL (Countries/Barrios Cerrados)                     │
+│  ─────────────────────────────────────────────────────────────────────  │
+│  QR dinámico en app del técnico que muestra:                            │
+│  • Nombre + foto + empresa                                              │
+│  • ✅ ART Vigente (vence DD/MM/YYYY)                                    │
+│  • ✅ Antecedentes Verificados                                          │
+│  Seguridad escanea → ve página de verificación pública                  │
+│                                                                         │
+│  🏆 PERFILES NO RECLAMADOS (Crecimiento)                                │
+│  ─────────────────────────────────────────────────────────────────────  │
+│  Estrategia de adquisición:                                             │
+│  1. Importamos matrículas públicas (ENARGAS, provinciales)             │
+│  2. Creamos "perfil fantasma" con datos públicos                       │
+│  3. Profesional busca su matrícula en campotech.com.ar/claim           │
+│  4. Verificación por SMS/WhatsApp → se convierte en usuario            │
+│                                                                         │
+│  🗺️ NAVEGACIÓN MULTI-PARADA                                            │
+│  ─────────────────────────────────────────────────────────────────────  │
+│  • Botón "Navegar todos" genera ruta optimizada Google Maps            │
+│  • Maneja +10 trabajos (divide en rutas de 10)                          │
+│  • Nueva ruta automática cuando completa trabajo #10, #20, etc.        │
+│  • Notificación push: "🎉 Nueva ruta generada"                         │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -1235,4 +1314,5 @@ FASE 7: Portal Desarrolladores
 ---
 
 *Powered by CampoTech*
-*Documento actualizado: Diciembre 2024*
+*Documento actualizado: Enero 2026*
+*Versión: 2.0 - Incluye funcionalidades de implementation-plan.md y implementation-plan-addendum.md*
