@@ -151,6 +151,399 @@ export class FiscalHealthService {
 
 ---
 
+# CRITICAL: COST-SAFE SAAS MODEL (🛡️ Monetization Rules)
+**Applies to:** All Features
+**Priority:** 🔴 CRITICAL (Must implement BEFORE Growth Engine launch)
+**Estimated Effort:** 2 days
+
+## Strategic Context: The Cost Risk
+
+```
+⚠️ PROBLEM IDENTIFIED:
+┌────────────────────────────────────────────────────────────────┐
+│  Giving free WhatsApp API access to 61,000 "Ghost Profiles"     │
+│  would result in MASSIVE infrastructure costs.                  │
+│                                                                  │
+│  WhatsApp API Cost: ~$0.05/message × 61,000 = $3,050/month      │
+│  (If each profile sends just 1 message/month)                   │
+└────────────────────────────────────────────────────────────────┘
+
+✅ SOLUTION: COST-SAFE SAAS MODEL
+┌────────────────────────────────────────────────────────────────┐
+│  FREE/TRIAL Experience = Zero cost to us                        │
+│  PAID Experience = Unlocks premium API features                 │
+│                                                                  │
+│  Key Insight: The "Forever Free" public profile is our anchor.  │
+│  We NEVER block their visibility. That's the free tier.         │
+└────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Task 2.5.1: The "SaaS Trial" Time Bomb ⏱️
+**Goal:** Convert users from "Claimed Profile" to "Paying Subscriber" by giving them a 3-week taste of professional power, then locking premium features.
+
+### Schema Changes
+**Files to modify:**
+- `apps/web/prisma/schema.prisma`
+
+```prisma
+model Organization {
+  // ... existing fields ...
+  
+  // Subscription & Trial Management
+  subscriptionStatus    SubscriptionStatus @default(TRIAL)
+  trialEndsAt           DateTime?          // Set on profile claim
+  plan                  PlanType           @default(FREE)
+  planExpiresAt         DateTime?          // For annual subscriptions
+  stripeCustomerId      String?            // For payment processing
+  stripeSubscriptionId  String?            
+}
+
+enum SubscriptionStatus {
+  TRIAL           // 21-day trial, full access
+  TRIAL_EXPIRED   // Trial ended, locked features
+  ACTIVE          // Paying customer
+  PAST_DUE        // Payment failed, grace period
+  CANCELLED       // Subscription cancelled
+  FREE_FOREVER    // Special accounts (partners, etc.)
+}
+
+enum PlanType {
+  FREE            // Public profile only
+  INITIAL         // $25/mo - Basic tools
+  PROFESIONAL     // $55/mo - Full features
+  EMPRESA         // $120/mo - Unlimited
+}
+```
+
+### Trial Trigger Logic
+**Files to modify:**
+- `apps/web/app/api/claim/verify-otp/route.ts`
+
+```typescript
+// On successful profile claim:
+async function handleSuccessfulClaim(userId: string, unclaimedProfileId: string) {
+  // Create or link organization
+  const org = await prisma.organization.upsert({
+    where: { ownerId: userId },
+    update: {},
+    create: {
+      name: `${user.name}'s Business`,
+      ownerId: userId,
+      // 🔥 THE TIME BOMB: Trial starts NOW
+      subscriptionStatus: 'TRIAL',
+      trialEndsAt: addDays(new Date(), 21), // 21 days from now
+      plan: 'FREE',
+    }
+  });
+  
+  // Link unclaimed profile
+  await prisma.unclaimedProfile.update({
+    where: { id: unclaimedProfileId },
+    data: {
+      status: 'claimed',
+      claimedByUserId: userId,
+      claimedAt: new Date(),
+    }
+  });
+}
+```
+
+### Trial Lockout Middleware
+**Files to create:**
+- `apps/web/middleware/subscription-guard.ts`
+
+```typescript
+import { NextRequest, NextResponse } from 'next/server';
+
+// Routes that require ACTIVE subscription (locked after trial)
+const PREMIUM_ROUTES = [
+  '/dashboard/invoices',      // Cannot create new fiscal documents
+  '/dashboard/invoices/new',
+  '/api/invoices',            // Block API too
+  '/api/afip',                // Block AFIP integration
+];
+
+// Routes that become READ-ONLY after trial
+const RESTRICTED_ROUTES = [
+  '/dashboard/inventory',     // Can view, cannot edit
+  '/dashboard/jobs/new',      // Cannot create new jobs
+];
+
+// Routes that are ALWAYS FREE (Forever Free anchor)
+const FOREVER_FREE_ROUTES = [
+  '/p/',                      // Public profile: /p/[slug]
+  '/wa-redirect/',            // WhatsApp redirect
+  '/track/',                  // Job tracking
+  '/rate/',                   // Ratings
+  '/verify-badge/',           // Badge verification
+];
+
+export async function subscriptionGuard(req: NextRequest, org: Organization) {
+  const path = req.nextUrl.pathname;
+  
+  // Forever Free routes - NEVER block
+  if (FOREVER_FREE_ROUTES.some(r => path.startsWith(r))) {
+    return NextResponse.next();
+  }
+  
+  // Check trial status
+  const isTrialExpired = org.subscriptionStatus === 'TRIAL' && 
+                         org.trialEndsAt && 
+                         new Date() > org.trialEndsAt;
+  
+  const isLockedOut = isTrialExpired || 
+                      org.subscriptionStatus === 'TRIAL_EXPIRED' ||
+                      org.subscriptionStatus === 'CANCELLED';
+  
+  // Premium routes - BLOCK if locked out
+  if (isLockedOut && PREMIUM_ROUTES.some(r => path.startsWith(r))) {
+    // Redirect to upgrade page
+    return NextResponse.redirect(new URL('/upgrade?reason=trial_expired', req.url));
+  }
+  
+  // Restricted routes - READ-ONLY if locked out
+  if (isLockedOut && RESTRICTED_ROUTES.some(r => path.startsWith(r))) {
+    // For API routes, return 403
+    if (path.startsWith('/api/')) {
+      return NextResponse.json(
+        { error: 'Subscription required', upgrade_url: '/upgrade' },
+        { status: 403 }
+      );
+    }
+    // For pages, add read-only flag to context
+    req.headers.set('x-read-only', 'true');
+  }
+  
+  return NextResponse.next();
+}
+```
+
+### Trial Expiry UI
+**Files to create:**
+- `apps/web/components/trial/TrialBanner.tsx`
+- `apps/web/app/(dashboard)/upgrade/page.tsx`
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  ⚠️ Tu período de prueba termina en 5 días                        │
+│  Después, perderás acceso a facturación e inventario.           │
+│  Tu perfil público seguirá visible.                             │
+│                                                                  │
+│  [💳 Elegir Plan - desde $25/mes]                               │
+└────────────────────────────────────────────────────────────────┘
+
+[After expiry:]
+┌────────────────────────────────────────────────────────────────┐
+│  🔒 Tu período de prueba terminó                                  │
+│                                                                  │
+│  ❌ Facturación AFIP - Bloqueada                                 │
+│  ❌ Inventario - Solo lectura                                    │
+│  ✅ Perfil público - ¡Sigue activo!                              │
+│  ✅ Recibir contactos por WhatsApp - ¡Sigue activo!              │
+│                                                                  │
+│  [💳 Suscribite desde $25/mes para desbloquear]                 │
+└────────────────────────────────────────────────────────────────┘
+```
+
+**Acceptance Criteria:**
+- [ ] Schema updated with `trialEndsAt` and `subscriptionStatus`
+- [ ] Trial starts on profile claim (21 days)
+- [ ] Premium routes blocked after trial
+- [ ] Public profile routes ALWAYS accessible
+- [ ] Upgrade page with pricing shown on lockout
+- [ ] Trial countdown banner in dashboard
+
+---
+
+## Task 2.5.2: WhatsApp Cost Protection Architecture 💰
+**Goal:** Strictly separate the "Free Redirect" from the "Paid API" to ensure zero-cost free tier.
+
+### The Two WhatsApp Paths
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│                 WHATSAPP INTEGRATION MATRIX                      │
+├────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  FREE / TRIAL TIER                  PAID TIER (PRO/BUSINESS)    │
+│  ─────────────────────────────────  ──────────────────────────────  │
+│                                                                  │
+│  🔗 REDIRECT METHOD                 🤖 CLOUD API (BSP)            │
+│  https://wa.me/{phone}             Meta Business API             │
+│                                                                  │
+│  ✅ Opens consumer's WA app         ✅ Interactive buttons        │
+│  ✅ Pre-filled message              ✅ Rich templates             │
+│  ✅ Zero server cost                ✅ Bot automation             │
+│  ✅ No API calls                    ✅ Read receipts              │
+│                                     ✅ Conversation analytics     │
+│  💰 Cost: $0                        💰 Cost: ~$0.05/message       │
+│                                                                  │
+└────────────────────────────────────────────────────────────────┘
+```
+
+### Free Tier: Redirect Implementation
+**Files to create:**
+- `apps/web/app/wa-redirect/[slug]/route.ts`
+
+```typescript
+// apps/web/app/wa-redirect/[slug]/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: { slug: string } }
+) {
+  const org = await prisma.organization.findFirst({
+    where: { slug: params.slug },
+    select: { phone: true, name: true }
+  });
+  
+  if (!org?.phone) {
+    return NextResponse.redirect('/404');
+  }
+  
+  // Track the click (zero cost - just DB write)
+  await prisma.waRedirectClick.create({
+    data: {
+      organizationSlug: params.slug,
+      referrer: req.headers.get('referer'),
+      userAgent: req.headers.get('user-agent'),
+    }
+  });
+  
+  // Format phone for wa.me (remove +, spaces, dashes)
+  const formattedPhone = org.phone.replace(/[^\d]/g, '');
+  
+  // Pre-filled message (optional)
+  const message = encodeURIComponent(
+    `Hola ${org.name}! Los encontré en CampoTech.`
+  );
+  
+  // 🔑 THE MAGIC: Simple redirect, ZERO API cost
+  const waUrl = `https://wa.me/${formattedPhone}?text=${message}`;
+  
+  return NextResponse.redirect(waUrl);
+}
+```
+
+### Feature Gating by Plan
+**Files to modify:**
+- `apps/web/lib/features/whatsapp-features.ts`
+
+```typescript
+// apps/web/lib/features/whatsapp-features.ts
+
+export const WHATSAPP_FEATURES = {
+  // FREE / TRIAL - Always available
+  redirect: {
+    plans: ['FREE', 'INITIAL', 'PROFESIONAL', 'EMPRESA'],
+    description: 'WhatsApp redirect link (wa.me)',
+    cost: 0,
+  },
+  
+  // PAID ONLY - Requires active subscription
+  interactiveButtons: {
+    plans: ['PROFESIONAL', 'EMPRESA'],
+    description: 'Interactive button messages',
+    cost: 0.05, // per message
+  },
+  
+  aiBot: {
+    plans: ['PROFESIONAL', 'EMPRESA'],
+    description: 'AI-powered auto-responses',
+    cost: 0.05, // per message + AI cost
+  },
+  
+  templates: {
+    plans: ['INICIAL', 'PROFESIONAL', 'EMPRESA'],
+    description: 'Pre-approved message templates',
+    cost: 0.05, // per message
+  },
+} as const;
+
+// ⚠️ CRITICAL: Check before any API call
+export function canUseWhatsAppAPI(org: Organization): boolean {
+  // Never allow API for non-paying users
+  if (org.subscriptionStatus !== 'ACTIVE') {
+    return false;
+  }
+  
+  // Only PRO and BUSINESS plans
+  return ['PROFESIONAL', 'EMPRESA'].includes(org.plan);
+}
+```
+
+### ⚠️ IMPORTANT: No "Free API Credits"
+
+```
+❌ REMOVED FROM PLAN:
+────────────────────────────────────────────────────────────────
+• "Free API Credits" concept - DELETED
+• "Trial includes X WhatsApp messages" - DELETED
+• Any form of free API access - DELETED
+
+✅ REPLACED WITH:
+────────────────────────────────────────────────────────────────
+• Free tier = Redirect only (wa.me links)
+• Paid tier = Full API access (buttons, bots, templates)
+• Clear upgrade path with value proposition
+```
+
+**Acceptance Criteria:**
+- [ ] `/wa-redirect/[slug]` works for all users (free)
+- [ ] WhatsApp API calls blocked for non-PROFESIONAL/EMPRESA
+- [ ] Click tracking for redirect links
+- [ ] Clear messaging about upgrade benefits
+- [ ] No "free credits" terminology anywhere
+
+---
+
+## Task 2.5.3: Plan Feature Matrix
+**Goal:** Clear documentation of what's included in each tier.
+
+```
+┌───────────────────────────────────────────────────────────────────────────┐
+│                     PLAN FEATURE MATRIX                                 │
+├───────────────────────────────────────────────────────────────────────────┤
+│  Feature              │ FREE      │ TRIAL   │ INICIAL │ PRO     │ EMPRESA│
+│                       │ $0        │ 21 días │ $25/mo  │ $55/mo  │ $120/mo│
+├───────────────────────────────────────────────────────────────────────────┤
+│  FOREVER FREE (never locked):                                            │
+│  ──────────────────────────────────────────────────────────────────────── │
+│  Public Profile       │ ✅        │ ✅      │ ✅      │ ✅      │ ✅     │
+│  WhatsApp Redirect    │ ✅        │ ✅      │ ✅      │ ✅      │ ✅     │
+│  Digital Badge        │ ✅        │ ✅      │ ✅      │ ✅      │ ✅     │
+│  Ratings Display      │ ✅        │ ✅      │ ✅      │ ✅      │ ✅     │
+├───────────────────────────────────────────────────────────────────────────┤
+│  TRIAL FEATURES (21 days, then locked):                                  │
+│  ──────────────────────────────────────────────────────────────────────── │
+│  AFIP Invoicing       │ 🔒        │ ✅      │ ✅      │ ✅      │ ✅     │
+│  Inventory Mgmt       │ 🔒        │ ✅      │ ✅      │ ✅      │ ✅     │
+│  Job Management       │ 🔒        │ ✅      │ ✅      │ ✅      │ ✅     │
+│  Fiscal Dashboard     │ 🔒        │ ✅      │ ✅      │ ✅      │ ✅     │
+├───────────────────────────────────────────────────────────────────────────┤
+│  PAID FEATURES (subscription required):                                  │
+│  ──────────────────────────────────────────────────────────────────────── │
+│  WA Templates         │ ❌        │ ❌      │ ✅      │ ✅      │ ✅     │
+│  WA Interactive       │ ❌        │ ❌      │ ❌      │ ✅      │ ✅     │
+│  WA AI Bot            │ ❌        │ ❌      │ ❌      │ ✅      │ ✅     │
+│  Barcode Scanner      │ ❌        │ ❌      │ ✅      │ ✅      │ ✅     │
+│  Multi-stop Nav       │ ❌        │ ❌      │ ❌      │ ✅      │ ✅     │
+│  Team Members         │ ❌        │ ❌      │ 1       │ 5       │ ∞      │
+│  Analytics            │ ❌        │ ❌      │ Basic   │ Full    │ Full   │
+│                       │          │        │         │         │        │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+**Acceptance Criteria:**
+- [ ] Feature matrix documented and enforced
+- [ ] Each feature has plan check middleware 
+- [ ] Upgrade prompts shown when blocked
+
+---
+
 # FEATURE 2: DIGITAL ENTRY BADGE (Gated Community Access)
 **Assigned Phase:** Phase 4 (Onboarding Automation) - Insert after Task 4.1.3
 **Priority:** 🟠 MEDIUM (Differentiation for Countries/gated communities)
@@ -1163,8 +1556,10 @@ TRADITIONAL APPROACH (Risky):          OUR APPROACH (Trust-First):
 
 ---
 
-### Task 4.5.2: The "Trust Anchor" WhatsApp Template 📩
-**Goal:** Send outreach messages that prioritize self-verification over direct links.
+### Task 4.5.2: The "Product-First" Trust Anchor WhatsApp Template 📩
+**Goal:** Send outreach messages that sell the TOOL, not just the directory listing.
+
+**Key Insight:** Professionals pay for tools that save time (Invoicing), not just for leads.
 
 **Files to create:**
 - `apps/web/lib/templates/unclaimed-outreach.ts`
@@ -1172,21 +1567,23 @@ TRADITIONAL APPROACH (Risky):          OUR APPROACH (Trust-First):
 
 **WhatsApp Template (Submit to Meta for Approval):**
 ```
-Template Name: profile_claim_trust_anchor
+Template Name: profile_claim_product_first
 Category: UTILITY
 Language: es_AR
 
 👋 Hola {{1}},
 
-Detectamos que tu matrícula {{2}} figura en los registros públicos de {{3}}.
+Encontramos tu matrícula {{2}} en los registros de {{3}}.
 
-🔍 **Buscános en Google como "CampoTech"** para ver y reclamar tu perfil de trabajo gratuito.
+💸 **Probá nuestra App de Facturación Profesional GRATIS por 3 semanas.**
 
-O accedé directo acá: {{4}}
+✅ Facturá con AFIP en 2 clicks
+✅ Control de inventario
+✅ Perfil público verificado
 
-✅ Sin costo
-✅ Sin compromiso  
-✅ Tu matrícula ya está verificada
+🔍 **Buscá 'CampoTech' en Google** para empezar.
+
+O entrá directo: {{4}}
 
 ¿Preguntas? Respondé este mensaje.
 ```
@@ -1197,12 +1594,24 @@ O accedé directo acá: {{4}}
 - `{{3}}` = Authority (e.g., "ERSEP Córdoba")
 - `{{4}}` = Short URL (e.g., "campotech.com.ar/r/abc123")
 
-**Key Design Decisions:**
-1. **"Buscános en Google"** comes BEFORE the link
-2. Uses **third-party validation** (Google) as trust signal
-3. Mentions they're in **public records** (transparency)
-4. Includes matricula number as **proof we have their data**
-5. "Respondé este mensaje" enables **two-way conversation**
+**Key Design Decisions (UPDATED):**
+1. **"App de Facturación Profesional"** - Sell the TOOL, not the listing
+2. **"GRATIS por 3 semanas"** - Clear trial period, no bait-and-switch
+3. **Specific benefits** - Invoicing, Inventory, Profile (power features)
+4. **"Buscá CampoTech"** - Trust anchor via Google search
+5. **"Respondé este mensaje"** - Enable conversation
+
+**Why Product-First Works Better:**
+```
+OLD APPROACH:                       NEW APPROACH:
+┌──────────────────────────────┐      ┌──────────────────────────────┐
+│ "Claim your profile"           │      │ "Try our Invoicing App"     │
+│                                │      │ "Free for 3 weeks"          │
+└──────────────────────────────┘      └──────────────────────────────┘
+         ↓                                       ↓
+  "Why do I need this?"              "I HATE invoicing! Let me try!"
+  (low engagement)                        (high engagement)
+```
 
 **Outreach Throttling Logic:**
 ```typescript
@@ -1435,8 +1844,16 @@ export async function GET(req: Request) {
 │  7. Claim Started        919        70%       1.5%             │
 │  8. OTP Verified         826        90%       1.4%             │
 │  9. Profile Claimed      743        90%       1.2%             │
+│  10. Started Trial       743        100%      1.2%             │
+│  11. Converted to Paid   111        15%       0.18%            │
 │                                                                │
 │  🎯 Target: 1% claim rate = 610 new users (zero CAC)           │
+│  💰 Revenue: 15% trial conversion = 91 paid × $40 = $3,640 MRR  │
+│                                                                │
+│  ⚠️ COST-SAFE CHECK:                                           │
+│  • Free tier cost: $0 (redirect only)                         │
+│  • Trial tier cost: $0 (no API access during trial)           │
+│  • Paid tier profit: $40 - ~$5 API cost = $35/user            │
 │                                                                │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -1447,12 +1864,16 @@ export async function GET(req: Request) {
 ```
 ORIGINAL PHASES (unchanged):
 ├── Phase 1: Security & Infrastructure (5 days)
-├── Phase 2: Core Features (14 days) 
+├── Phase 2: Core Features (16 days) 
 │   └── 2.1: Vehicle Scheduling (6d)
 │   └── 2.2: Inventory Cascade (3d)
 │   └── 2.2.4: Barcode Scanning (4d) ← NEW
 │   └── 2.3: Multi-stop Navigation (5d)
 │   └── 2.4: Fiscal Health Dashboard (4d) ← NEW
+│   └── 2.5: Cost-Safe SaaS Model (2d) 🔴 CRITICAL ← NEW
+│       └── 2.5.1: Trial Time Bomb Schema (0.5d)
+│       └── 2.5.2: WhatsApp Cost Protection (1d)
+│       └── 2.5.3: Plan Feature Matrix (0.5d)
 ├── Phase 3: WhatsApp Enhancements (6 days)
 ├── Phase 4: Onboarding & Growth (5 days + 8 days growth)
 │   └── 4.1: OAuth Flows (4d)
@@ -1464,23 +1885,31 @@ ORIGINAL PHASES (unchanged):
 │       └── 4.4.3: CACAAV Scraper - 23k records (1d)
 │       └── 4.4.4: PDF Pipeline - 5k records (1.5d)
 │       └── 4.4.5-7: Claim API + Admin UI (1.5d)
-│   └── 4.5: The Activation Workflow - Trust-First (2d) ← NEW
+│   └── 4.5: The Activation Workflow - Product-First (2d) ← NEW
 │       └── 4.5.1: SEO & Identity Setup (0.5d)
-│       └── 4.5.2: Trust Anchor WhatsApp Template (0.5d)
+│       └── 4.5.2: Product-First WhatsApp Template (0.5d)
 │       └── 4.5.3: Pre-Validation Search Page (0.5d)
 │       └── 4.5.4: OTP Verification Flow (0.5d)
 └── Phase 5: Voice AI Migration (12.5 days)
 
 NEW TOTAL TIMELINE:
 ├── Original: 8-10 weeks (42.5 days)
-├── Addendum: +21 days (was 19, +2 for activation workflow)
-└── New Total: 12-14 weeks (63.5 days)
+├── Addendum: +23 days (was 21, +2 for Cost-Safe SaaS)
+└── New Total: 13-15 weeks (65.5 days)
 
-GROWTH ENGINE IMPACT:
+⚠️ DEPENDENCY: Phase 2.5 (Cost-Safe SaaS) MUST complete BEFORE Phase 4.4 (Growth Engine)
+└── Reason: Cannot launch Growth Engine without trial/monetization infrastructure
+
+GROWTH ENGINE IMPACT (Updated):
 ├── Total Profiles to Import: ~61,000 professionals
 ├── Target Claim Rate: 1% = ~610 new users
+├── Trial Conversion Rate: 15% = ~91 paid subscribers
 ├── Cost per Acquisition: $0 (zero CAC)
-└── Potential Revenue: 610 × $40/mo = $24,400 MRR
+├── ──────────────────────────────────────────────────
+├── MRR Projection: 91 × $40/mo = $3,640 MRR
+├── Infrastructure Cost: $0 (free tier = redirect only)
+└── Profit Margin: ~87% ($3,640 - ~$455 API costs)
+
 ```
 
 ---
