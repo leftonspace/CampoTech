@@ -427,13 +427,22 @@ export function BarcodeScanner({ onScan }: { onScan: (barcode: string) => void }
 
 ---
 
-# FEATURE 4: UNCLAIMED PROFILE GROWTH ENGINE
+# FEATURE 4: THE GROWTH ENGINE (Unclaimed Profile System)
 **Assigned Phase:** Phase 4 (Onboarding) - Insert after Task 4.2.2
 **Priority:** 🟠 MEDIUM (Growth/acquisition strategy)
-**Estimated Effort:** 6 days
+**Estimated Effort:** 8 days (includes activation workflow)
 
 ## Overview
-Pre-populate database with public professional data (Gasnor/ENARGAS matriculas) to create "ghost profiles" that technicians can claim via SMS/WhatsApp verification.
+Pre-populate database with public professional data from validated sources to create "ghost profiles" that technicians can claim via SMS/WhatsApp verification. This is our **"land grab"** strategy to acquire users with zero CAC.
+
+**Validated Data Sources - "The Gold Mines" (January 2026 Research):**
+| Source | Region | Profession | Est. Records | Data Quality | Priority |
+|--------|--------|------------|--------------|--------------|----------|
+| ERSEP via volta.net.ar | Córdoba | Electricistas | **~33,000** | ⭐⭐⭐ Phone + Email | 🔴 CRITICAL |
+| CACAAV | Nacional | HVAC/Refrigeración | **~23,000** | ⭐⭐ Mobile + City | 🟡 HIGH |
+| Gasnor/GasNEA PDFs | Norte (Salta, Jujuy, Tucumán) | Gasistas | **~5,000** | ⭐⭐ Email + Matrícula | 🟢 MEDIUM |
+
+**Total Addressable Profiles: ~61,000 professionals**
 
 ## Task 4.4: Unclaimed Profile System
 
@@ -448,9 +457,10 @@ model UnclaimedProfile {
   // Professional identity (from public data)
   fullName          String
   matriculaNumber   String   // Professional license number
-  matriculaType     String   // GASISTA, ELECTRICISTA, etc.
-  matriculaAuthority String  // ENARGAS, ENRE, provincial body
+  matriculaType     String   // GASISTA, ELECTRICISTA, HVAC, etc.
+  matriculaAuthority String  // ERSEP, CACAAV, GASNOR, GASNEA, ENARGAS
   phone             String?  // If available from public records
+  mobilePhone       String?  // Mobile specifically (CACAAV)
   email             String?
   
   // Location (from registration)
@@ -458,8 +468,10 @@ model UnclaimedProfile {
   locality          String?
   
   // Source tracking
-  dataSource        String   // "GASNOR_CSV", "ENARGAS_API", "MANUAL"
+  dataSource        String   // "ERSEP_SCRAPER", "CACAAV_SCRAPER", "GASNOR_PDF", "GASNEA_PDF"
   sourceRecordId    String?  // ID from source system
+  sourceUrl         String?  // URL where data was scraped from
+  scrapedAt         DateTime? // When data was last scraped
   importedAt        DateTime @default(now())
   
   // Claim status
@@ -476,9 +488,12 @@ model UnclaimedProfile {
   
   @@unique([matriculaNumber, matriculaAuthority])
   @@index([phone])
+  @@index([mobilePhone])
+  @@index([email])
   @@index([status])
   @@index([matriculaType])
   @@index([province])
+  @@index([dataSource])
   @@map("unclaimed_profiles")
 }
 
@@ -490,45 +505,518 @@ enum UnclaimedStatus {
 }
 ```
 
-### Task 4.4.2: Create Data Import Worker
+### Task 4.4.2: Build ERSEP Scraper (Córdoba - Electricity) 🔴 CRITICAL
+**Source:** `volta.net.ar` (ERSEP public registry)
+**Target Volume:** ~33,000 electricians
+**Strategy:** Playwright script to iterate paginated HTML results
+**Data Points:** Name, Phone, Email, Category, Matrícula
+**Priority:** CRITICAL - Highest quality contact data (phone + email)
+
 **Files to create:**
-- `apps/web/lib/workers/unclaimed-profile-import.worker.ts`
+- `apps/worker/src/scrapers/ersep-scraper.ts`
+- `apps/worker/src/scrapers/ersep-scraper.test.ts`
 
 ```typescript
-// Ingest CSV/JSON of professionals
-// Expected format:
-// { name, matricula, type, authority, phone?, province? }
+// apps/worker/src/scrapers/ersep-scraper.ts
+import { chromium } from 'playwright';
+import { prisma } from '@/lib/prisma';
 
-export async function importProfiles(source: string, data: ProfileImport[]) {
-  for (const record of data) {
-    await prisma.unclaimedProfile.upsert({
-      where: {
-        matriculaNumber_matriculaAuthority: {
+interface ERSEPRecord {
+  name: string;
+  phone: string | null;
+  email: string | null;
+  category: string; // "Instalador Electricista Categoría I", etc.
+  matricula: string;
+}
+
+export class ERSEPScraper {
+  private baseUrl = 'https://volta.net.ar';
+  
+  /**
+   * Scrape ERSEP electrician registry from volta.net.ar
+   * Iterates through paginated HTML results
+   */
+  async scrapeAll(): Promise<ERSEPRecord[]> {
+    const browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage();
+    
+    const records: ERSEPRecord[] = [];
+    let currentPage = 1;
+    let hasNextPage = true;
+    
+    while (hasNextPage) {
+      await page.goto(`${this.baseUrl}/matriculados?page=${currentPage}`);
+      
+      // Wait for table to load
+      await page.waitForSelector('.matriculados-table', { timeout: 10000 });
+      
+      // Extract records from current page
+      const pageRecords = await page.evaluate(() => {
+        const rows = document.querySelectorAll('.matriculados-table tbody tr');
+        return Array.from(rows).map(row => ({
+          name: row.querySelector('.nombre')?.textContent?.trim() || '',
+          phone: row.querySelector('.telefono')?.textContent?.trim() || null,
+          email: row.querySelector('.email')?.textContent?.trim() || null,
+          category: row.querySelector('.categoria')?.textContent?.trim() || '',
+          matricula: row.querySelector('.matricula')?.textContent?.trim() || '',
+        }));
+      });
+      
+      records.push(...pageRecords);
+      
+      // Check for next page
+      hasNextPage = await page.evaluate(() => {
+        const nextButton = document.querySelector('.pagination .next:not(.disabled)');
+        return nextButton !== null;
+      });
+      
+      currentPage++;
+      
+      // Rate limiting - be respectful
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    
+    await browser.close();
+    return records;
+  }
+  
+  /**
+   * Import scraped records into UnclaimedProfile table
+   */
+  async importRecords(records: ERSEPRecord[]): Promise<{ imported: number; updated: number }> {
+    let imported = 0;
+    let updated = 0;
+    
+    for (const record of records) {
+      if (!record.matricula || !record.name) continue;
+      
+      const result = await prisma.unclaimedProfile.upsert({
+        where: {
+          matriculaNumber_matriculaAuthority: {
+            matriculaNumber: record.matricula,
+            matriculaAuthority: 'ERSEP',
+          }
+        },
+        create: {
+          fullName: record.name,
           matriculaNumber: record.matricula,
-          matriculaAuthority: record.authority,
+          matriculaType: 'ELECTRICISTA',
+          matriculaAuthority: 'ERSEP',
+          phone: record.phone,
+          email: record.email,
+          province: 'Córdoba',
+          dataSource: 'ERSEP_SCRAPER',
+          sourceUrl: 'https://volta.net.ar/matriculados',
+          scrapedAt: new Date(),
+        },
+        update: {
+          fullName: record.name,
+          phone: record.phone,
+          email: record.email,
+          scrapedAt: new Date(),
         }
-      },
-      create: {
-        fullName: record.name,
-        matriculaNumber: record.matricula,
-        matriculaType: record.type,
-        matriculaAuthority: record.authority,
-        phone: record.phone,
-        province: record.province,
-        dataSource: source,
-        sourceRecordId: record.sourceId,
-      },
-      update: {
-        fullName: record.name,
-        phone: record.phone,
-        province: record.province,
+      });
+      
+      if (result.createdAt === result.updatedAt) {
+        imported++;
+      } else {
+        updated++;
       }
-    });
+    }
+    
+    return { imported, updated };
   }
 }
 ```
 
-### Task 4.4.3: Create Claim Profile API Flow
+**Acceptance Criteria:**
+- [ ] Scraper handles pagination correctly
+- [ ] Extracts Name, Phone, Email, Category, Matricula
+- [ ] Respects rate limiting (1 req/sec)
+- [ ] Handles DOM changes gracefully (try/catch)
+- [ ] Logs errors without crashing
+
+### Task 4.4.3: Build CACAAV Scraper (National - HVAC)
+**Source:** `cacaav.com.ar/matriculados/listado`
+**Target Volume:** ~23,000 HVAC technicians
+**Strategy:** JSDOM HTML Table DOM parsing (simpler than ERSEP)
+**Data Points:** Name, Mobile Phone, City
+
+**Files to create:**
+- `apps/worker/src/scrapers/cacaav-scraper.ts`
+- `apps/worker/src/scrapers/cacaav-scraper.test.ts`
+
+```typescript
+// apps/worker/src/scrapers/cacaav-scraper.ts
+import { JSDOM } from 'jsdom';
+import { prisma } from '@/lib/prisma';
+
+interface CACAAVRecord {
+  name: string;
+  mobilePhone: string | null;
+  city: string | null;
+  matricula: string;
+}
+
+export class CACAAVScraper {
+  private baseUrl = 'https://cacaav.com.ar/matriculados/listado';
+  
+  /**
+   * Scrape CACAAV HVAC registry
+   * Simple HTML table parsing - no pagination needed (single page)
+   */
+  async scrape(): Promise<CACAAVRecord[]> {
+    const response = await fetch(this.baseUrl);
+    const html = await response.text();
+    const dom = new JSDOM(html);
+    const document = dom.window.document;
+    
+    const records: CACAAVRecord[] = [];
+    
+    // Find the matriculados table
+    const table = document.querySelector('table.matriculados, #matriculados-table, .listado-table');
+    if (!table) {
+      console.error('CACAAV: Could not find matriculados table');
+      return [];
+    }
+    
+    const rows = table.querySelectorAll('tbody tr');
+    
+    rows.forEach((row) => {
+      const cells = row.querySelectorAll('td');
+      if (cells.length >= 3) {
+        records.push({
+          name: cells[0]?.textContent?.trim() || '',
+          mobilePhone: cells[1]?.textContent?.trim() || null,
+          city: cells[2]?.textContent?.trim() || null,
+          matricula: cells[3]?.textContent?.trim() || this.generateMatriculaFromName(cells[0]?.textContent?.trim() || ''),
+        });
+      }
+    });
+    
+    return records;
+  }
+  
+  /**
+   * Import scraped records into UnclaimedProfile table
+   */
+  async importRecords(records: CACAAVRecord[]): Promise<{ imported: number; updated: number }> {
+    let imported = 0;
+    let updated = 0;
+    
+    for (const record of records) {
+      if (!record.name) continue;
+      
+      // Generate stable matricula if not provided
+      const matricula = record.matricula || `CACAAV-${this.hashName(record.name)}`;
+      
+      const result = await prisma.unclaimedProfile.upsert({
+        where: {
+          matriculaNumber_matriculaAuthority: {
+            matriculaNumber: matricula,
+            matriculaAuthority: 'CACAAV',
+          }
+        },
+        create: {
+          fullName: record.name,
+          matriculaNumber: matricula,
+          matriculaType: 'HVAC',
+          matriculaAuthority: 'CACAAV',
+          mobilePhone: record.mobilePhone,
+          locality: record.city,
+          dataSource: 'CACAAV_SCRAPER',
+          sourceUrl: 'https://cacaav.com.ar/matriculados/listado',
+          scrapedAt: new Date(),
+        },
+        update: {
+          fullName: record.name,
+          mobilePhone: record.mobilePhone,
+          locality: record.city,
+          scrapedAt: new Date(),
+        }
+      });
+      
+      if (result.createdAt === result.updatedAt) {
+        imported++;
+      } else {
+        updated++;
+      }
+    }
+    
+    return { imported, updated };
+  }
+  
+  private hashName(name: string): string {
+    // Simple hash for stable ID generation
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      const char = name.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    return Math.abs(hash).toString(36);
+  }
+  
+  private generateMatriculaFromName(name: string): string {
+    return `CACAAV-${this.hashName(name)}`;
+  }
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Parses HTML table correctly
+- [ ] Extracts Name, Mobile Phone, City
+- [ ] Handles missing fields gracefully
+- [ ] Generates stable matricula ID if not present
+- [ ] Logs warnings for malformed rows
+
+### Task 4.4.4: Build PDF Pipeline for Gasnor/GasNEA (North - Gas)
+**Source:** Static PDF Lists from distributor websites
+**Strategy:** Implement `pdfplumber` (Python) to extract tabular data from PDFs
+**Data Points:** Name, Email (often present), Matricula ID
+
+**Files to create:**
+- `apps/worker/src/parsers/gasnor-pdf.py`
+- `apps/worker/src/parsers/gasnea-pdf.py`
+- `apps/worker/src/parsers/pdf-import-coordinator.ts`
+
+```python
+# apps/worker/src/parsers/gasnor-pdf.py
+"""
+PDF Parser for Gasnor/GasNEA matriculados lists
+Uses pdfplumber for tabular data extraction
+"""
+
+import pdfplumber
+import json
+import sys
+import re
+from typing import List, Dict, Optional
+
+def extract_matriculados(pdf_path: str) -> List[Dict]:
+    """
+    Extract matriculados data from Gasnor/GasNEA PDF
+    
+    Expected PDF format:
+    | Nombre | Email | Matrícula | Localidad |
+    |--------|-------|-----------|-----------|
+    
+    Returns list of dicts with extracted data
+    """
+    records = []
+    
+    with pdfplumber.open(pdf_path) as pdf:
+        for page_num, page in enumerate(pdf.pages):
+            # Extract tables from page
+            tables = page.extract_tables()
+            
+            for table in tables:
+                if not table:
+                    continue
+                    
+                # Skip header row
+                for row in table[1:]:
+                    if len(row) < 3:
+                        continue
+                    
+                    # Clean and parse row data
+                    name = clean_text(row[0]) if row[0] else None
+                    email = extract_email(row[1]) if len(row) > 1 else None
+                    matricula = clean_text(row[2]) if len(row) > 2 else None
+                    locality = clean_text(row[3]) if len(row) > 3 else None
+                    
+                    if name and matricula:
+                        records.append({
+                            'name': name,
+                            'email': email,
+                            'matricula': matricula,
+                            'locality': locality,
+                            'page': page_num + 1
+                        })
+    
+    return records
+
+def clean_text(text: Optional[str]) -> Optional[str]:
+    """Remove extra whitespace and normalize text"""
+    if not text:
+        return None
+    return ' '.join(text.split()).strip()
+
+def extract_email(text: Optional[str]) -> Optional[str]:
+    """Extract email from text, handling common OCR issues"""
+    if not text:
+        return None
+    
+    # Email regex pattern
+    email_pattern = r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}'
+    match = re.search(email_pattern, text)
+    
+    if match:
+        return match.group(0).lower()
+    return None
+
+def main():
+    if len(sys.argv) < 2:
+        print(json.dumps({'error': 'No PDF path provided'}))
+        sys.exit(1)
+    
+    pdf_path = sys.argv[1]
+    source = sys.argv[2] if len(sys.argv) > 2 else 'GASNOR'
+    
+    try:
+        records = extract_matriculados(pdf_path)
+        
+        # Add source metadata
+        for record in records:
+            record['source'] = source
+            record['source_file'] = pdf_path
+        
+        print(json.dumps({
+            'success': True,
+            'count': len(records),
+            'records': records
+        }))
+    except Exception as e:
+        print(json.dumps({
+            'error': str(e),
+            'success': False
+        }))
+        sys.exit(1)
+
+if __name__ == '__main__':
+    main()
+```
+
+```typescript
+// apps/worker/src/parsers/pdf-import-coordinator.ts
+import { spawn } from 'child_process';
+import { prisma } from '@/lib/prisma';
+import path from 'path';
+
+interface PDFRecord {
+  name: string;
+  email: string | null;
+  matricula: string;
+  locality: string | null;
+  source: string;
+  source_file: string;
+}
+
+export class PDFImportCoordinator {
+  
+  /**
+   * Process a Gasnor/GasNEA PDF and import records
+   */
+  async processGasnorPDF(pdfPath: string, source: 'GASNOR' | 'GASNEA'): Promise<{ imported: number; updated: number }> {
+    const records = await this.extractFromPDF(pdfPath, source);
+    return this.importRecords(records, source);
+  }
+  
+  /**
+   * Call Python pdfplumber script to extract data
+   */
+  private async extractFromPDF(pdfPath: string, source: string): Promise<PDFRecord[]> {
+    return new Promise((resolve, reject) => {
+      const pythonScript = path.join(__dirname, 'gasnor-pdf.py');
+      const python = spawn('python3', [pythonScript, pdfPath, source]);
+      
+      let stdout = '';
+      let stderr = '';
+      
+      python.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+      
+      python.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+      
+      python.on('close', (code) => {
+        if (code !== 0) {
+          reject(new Error(`Python script failed: ${stderr}`));
+          return;
+        }
+        
+        try {
+          const result = JSON.parse(stdout);
+          if (result.success) {
+            resolve(result.records);
+          } else {
+            reject(new Error(result.error));
+          }
+        } catch (e) {
+          reject(new Error(`Failed to parse Python output: ${stdout}`));
+        }
+      });
+    });
+  }
+  
+  /**
+   * Import extracted records into database
+   */
+  private async importRecords(records: PDFRecord[], source: 'GASNOR' | 'GASNEA'): Promise<{ imported: number; updated: number }> {
+    let imported = 0;
+    let updated = 0;
+    
+    const authority = source === 'GASNOR' ? 'GASNOR' : 'GASNEA';
+    const provinces = source === 'GASNOR' 
+      ? ['Salta', 'Jujuy', 'Tucumán', 'Santiago del Estero']
+      : ['Corrientes', 'Chaco', 'Formosa', 'Misiones'];
+    
+    for (const record of records) {
+      if (!record.matricula || !record.name) continue;
+      
+      // Infer province from locality if possible
+      let province = provinces[0]; // Default to first province in region
+      
+      const result = await prisma.unclaimedProfile.upsert({
+        where: {
+          matriculaNumber_matriculaAuthority: {
+            matriculaNumber: record.matricula,
+            matriculaAuthority: authority,
+          }
+        },
+        create: {
+          fullName: record.name,
+          matriculaNumber: record.matricula,
+          matriculaType: 'GASISTA',
+          matriculaAuthority: authority,
+          email: record.email,
+          locality: record.locality,
+          province,
+          dataSource: `${source}_PDF`,
+          sourceUrl: record.source_file,
+          scrapedAt: new Date(),
+        },
+        update: {
+          fullName: record.name,
+          email: record.email,
+          locality: record.locality,
+          scrapedAt: new Date(),
+        }
+      });
+      
+      if (result.createdAt === result.updatedAt) {
+        imported++;
+      } else {
+        updated++;
+      }
+    }
+    
+    return { imported, updated };
+  }
+}
+```
+
+**Acceptance Criteria:**
+- [ ] Python pdfplumber script extracts tables correctly
+- [ ] Handles multi-page PDFs
+- [ ] Email extraction with regex validation
+- [ ] TypeScript coordinator calls Python subprocess
+- [ ] Imports records to UnclaimedProfile table
+- [ ] Logs extraction errors per page
+
+### Task 4.4.5: Create Claim Profile API Flow
 **Files to create:**
 - `apps/web/app/api/claim-profile/search/route.ts`
 - `apps/web/app/api/claim-profile/request/route.ts`
@@ -539,7 +1027,7 @@ export async function importProfiles(source: string, data: ProfileImport[]) {
 2. `POST /claim-profile/request` - Send SMS/WhatsApp OTP to registered phone
 3. `POST /claim-profile/verify` - Verify OTP, link to user account
 
-### Task 4.4.4: Create Public Claim Landing Page
+### Task 4.4.6: Create Public Claim Landing Page
 **Files to create:**
 - `apps/web/app/claim/page.tsx`
 - `apps/web/app/claim/[matricula]/page.tsx`
@@ -554,7 +1042,10 @@ export async function importProfiles(source: string, data: ProfileImport[]) {
 │ tu perfil en CampoTech                │
 │                                        │
 │ [Número de matrícula: ________]       │
-│ [Ente: ENARGAS ▼]                     │
+│ [Ente: ERSEP ▼]                        │
+│       CACAAV                           │
+│       GASNOR                           │
+│       GASNEA                           │
 │                                        │
 │ [Buscar mi perfil]                    │
 │                                        │
@@ -568,24 +1059,387 @@ export async function importProfiles(source: string, data: ProfileImport[]) {
 └────────────────────────────────────────┘
 ```
 
-### Task 4.4.5: Admin Import Dashboard
+### Task 4.4.7: Admin Import Dashboard & Scraper Management
 **Files to create:**
 - `apps/web/app/(dashboard)/admin/unclaimed-profiles/page.tsx`
+- `apps/web/app/api/admin/scrapers/run/route.ts`
+- `apps/web/app/api/admin/scrapers/status/route.ts`
 
 **Admin can:**
-- Upload CSV/JSON files
-- View import status
-- See claim conversion metrics
+- Trigger scraper runs manually (ERSEP, CACAAV)
+- Upload Gasnor/GasNEA PDFs for processing
+- View import status and history
+- See claim conversion metrics by source
+- Monitor scraper health (last run, errors)
+
+**Metrics Dashboard:**
+```
+┌────────────────────────────────────────────────────────────┐
+│ 📊 Unclaimed Profiles - Import Status                      │
+├────────────────────────────────────────────────────────────┤
+│                                                            │
+│  Source          Records   Claimed   Conversion   Last Run │
+│  ─────────────────────────────────────────────────────────│
+│  ERSEP           1,247     89        7.1%        2h ago   │
+│  CACAAV          623       34        5.5%        1d ago   │
+│  Gasnor PDF      412       12        2.9%        3d ago   │
+│  GasNEA PDF      156       4         2.6%        3d ago   │
+│                                                            │
+│  [Run ERSEP Scraper] [Run CACAAV Scraper] [Upload PDF]    │
+│                                                            │
+└────────────────────────────────────────────────────────────┘
+```
 
 **Acceptance Criteria (Phase 4.4 Complete):**
-- [ ] UnclaimedProfile schema created
-- [ ] CSV/JSON import worker functional
+- [ ] UnclaimedProfile schema created with source tracking
+- [ ] ERSEP scraper functional (volta.net.ar) - ~33k records
+- [ ] CACAAV scraper functional (cacaav.com.ar) - ~23k records
+- [ ] Gasnor/GasNEA PDF parser functional (pdfplumber) - ~5k records
 - [ ] Search by matricula number
-- [ ] SMS/WhatsApp OTP verification for claim
-- [ ] Profile linked to user account on claim
 - [ ] Public landing page for claim flow
-- [ ] Admin dashboard for imports and metrics
+- [ ] Admin dashboard with scraper management
+- [ ] Conversion metrics by source
 
+---
+
+## Phase 4.5: THE ACTIVATION WORKFLOW (🛡️ Trust-First Strategy)
+**Estimated Effort:** 2 days
+**Priority:** 🔴 CRITICAL (Must launch WITH Phase 4.4)
+
+### Overview: The "Trust Anchor" Problem
+Sending unsolicited WhatsApp messages with links is a **phishing red flag**. We need a strategy that builds trust BEFORE asking for action.
+
+**Core Insight:** If someone Googles "CampoTech" and finds our site, they trust us. If we ask them to Google us, we're leveraging their own verification process.
+
+```
+TRADITIONAL APPROACH (Risky):          OUR APPROACH (Trust-First):
+┌─────────────────────┐                 ┌─────────────────────┐
+│ "Click this link"    │                 │ "Google 'CampoTech'" │
+│   [suspicious URL]   │                 │   (self-verify)      │
+└─────────────────────┘                 └─────────────────────┘
+         │                                          │
+         ▼                                          ▼
+   ❌ IGNORED                              ✅ TRUSTED
+   (looks like spam)                      (they verified us)
+```
+
+### Task 4.5.1: SEO & Identity Setup (Prerequisite) 🏁
+**Goal:** Ensure searching "CampoTech" or "CampoTech Matrícula" ranks #1 on Google immediately.
+
+**Files to create/modify:**
+- `apps/web/app/reclamar/page.tsx` (or `/claim`)
+- `apps/web/app/sitemap.ts`
+- Google Search Console configuration
+
+**Actions:**
+1. **Submit sitemap to Google Search Console**
+   - Include `/reclamar` landing page
+   - Priority: 1.0, changefreq: daily
+
+2. **SEO Metadata for Claim Page:**
+   ```tsx
+   // apps/web/app/reclamar/page.tsx
+   export const metadata: Metadata = {
+     title: 'CampoTech | Reclamá tu Perfil de Matriculado',
+     description: 'Encontrá y reclamá tu perfil profesional en CampoTech. Verificamos tu matrícula de ERSEP, CACAAV, Gasnor y más.',
+     keywords: ['CampoTech', 'matriculado', 'reclamar perfil', 'ERSEP', 'CACAAV', 'gasista', 'electricista'],
+     openGraph: {
+       title: 'CampoTech - Perfil Profesional Verificado',
+       description: 'Tu matrícula ya está en nuestro sistema. Reclamá tu perfil gratuito.',
+       url: 'https://campotech.com.ar/reclamar',
+     }
+   };
+   ```
+
+3. **Google Business Profile** (if not exists)
+   - Verify business for local search
+   - Link to `/reclamar` page
+
+**Acceptance Criteria:**
+- [ ] "CampoTech" search shows our site as #1 result
+- [ ] "CampoTech matricula" search shows claim page
+- [ ] Sitemap submitted and indexed
+- [ ] Meta descriptions optimized for trust
+
+---
+
+### Task 4.5.2: The "Trust Anchor" WhatsApp Template 📩
+**Goal:** Send outreach messages that prioritize self-verification over direct links.
+
+**Files to create:**
+- `apps/web/lib/templates/unclaimed-outreach.ts`
+- `apps/web/app/api/admin/outreach/send/route.ts`
+
+**WhatsApp Template (Submit to Meta for Approval):**
+```
+Template Name: profile_claim_trust_anchor
+Category: UTILITY
+Language: es_AR
+
+👋 Hola {{1}},
+
+Detectamos que tu matrícula {{2}} figura en los registros públicos de {{3}}.
+
+🔍 **Buscános en Google como "CampoTech"** para ver y reclamar tu perfil de trabajo gratuito.
+
+O accedé directo acá: {{4}}
+
+✅ Sin costo
+✅ Sin compromiso  
+✅ Tu matrícula ya está verificada
+
+¿Preguntas? Respondé este mensaje.
+```
+
+**Template Variables:**
+- `{{1}}` = First name (e.g., "Juan")
+- `{{2}}` = Matricula number (e.g., "12345")
+- `{{3}}` = Authority (e.g., "ERSEP Córdoba")
+- `{{4}}` = Short URL (e.g., "campotech.com.ar/r/abc123")
+
+**Key Design Decisions:**
+1. **"Buscános en Google"** comes BEFORE the link
+2. Uses **third-party validation** (Google) as trust signal
+3. Mentions they're in **public records** (transparency)
+4. Includes matricula number as **proof we have their data**
+5. "Respondé este mensaje" enables **two-way conversation**
+
+**Outreach Throttling Logic:**
+```typescript
+// apps/web/lib/services/outreach.service.ts
+export class OutreachService {
+  private readonly DAILY_LIMIT = 1000; // Messages per day
+  private readonly BATCH_SIZE = 50;     // Messages per batch
+  private readonly BATCH_DELAY = 60000; // 1 minute between batches
+  
+  async sendCampaign(source: 'ERSEP' | 'CACAAV' | 'GASNOR') {
+    const profiles = await this.getUncontactedProfiles(source, this.DAILY_LIMIT);
+    
+    for (let i = 0; i < profiles.length; i += this.BATCH_SIZE) {
+      const batch = profiles.slice(i, i + this.BATCH_SIZE);
+      await this.sendBatch(batch);
+      await this.delay(this.BATCH_DELAY);
+    }
+  }
+}
+```
+
+**Acceptance Criteria:**
+- [ ] WhatsApp template submitted to Meta
+- [ ] Template approved for UTILITY category
+- [ ] Outreach service with rate limiting
+- [ ] Tracking: sent, delivered, clicked, claimed
+- [ ] "Google search" instruction prioritized in message
+
+---
+
+### Task 4.5.3: The "Pre-Validation" Search Page (✅ Trust Builder) 
+**Goal:** When they search, immediately prove we have their data before asking for action.
+
+**URL:** `/reclamar` (primary) or `/claim` (redirect)
+
+**Files to create:**
+- `apps/web/app/reclamar/page.tsx`
+- `apps/web/app/api/claim/validate/route.ts`
+- `apps/web/components/claim/ProfilePreview.tsx`
+
+**UX Flow:**
+```
+┌────────────────────────────────────────────────┐
+│                                                │
+│   🔍 Verificá si tu perfil ya existe            │
+│                                                │
+│   Ingresá tu número de matrícula:              │
+│   ┌────────────────────────────────────────┐  │
+│   │ 12345                              🔍 │  │
+│   └────────────────────────────────────────┘  │
+│                                                │
+└────────────────────────────────────────────────┘
+                         │
+                         ▼ (API call)
+┌────────────────────────────────────────────────┐
+│                                                │
+│   ✅ ¡Matrícula Verificada!                     │
+│                                                │
+│   ┌────────────────────────────────────────┐  │
+│   │ 👤 Juan P****z                          │  │
+│   │    Electricista - ERSEP Córdoba        │  │
+│   │    Matrícula: 12345                    │  │
+│   │                                        │  │
+│   │    📱 Tel: ****-1234                    │  │
+│   │    📧 Email: j***@***.com               │  │
+│   └────────────────────────────────────────┘  │
+│                                                │
+│   ¿Este sos vos?                               │
+│                                                │
+│   [ ✅ Sí, reclamar mi perfil ]                │
+│                                                │
+└────────────────────────────────────────────────┘
+```
+
+**Privacy-First Data Masking:**
+```typescript
+// apps/web/lib/utils/mask-pii.ts
+export function maskName(name: string): string {
+  // "Juan Pérez" -> "Juan P****z"
+  const parts = name.split(' ');
+  return parts.map((part, i) => {
+    if (i === 0) return part; // Keep first name
+    if (part.length <= 2) return part;
+    return part[0] + '****' + part[part.length - 1];
+  }).join(' ');
+}
+
+export function maskPhone(phone: string): string {
+  // "3514123456" -> "****-3456"
+  return '****-' + phone.slice(-4);
+}
+
+export function maskEmail(email: string): string {
+  // "juan@empresa.com" -> "j***@***.com"
+  const [local, domain] = email.split('@');
+  const [name, tld] = domain.split('.');
+  return `${local[0]}***@***.${tld}`;
+}
+```
+
+**API Response:**
+```typescript
+// apps/web/app/api/claim/validate/route.ts
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const matricula = searchParams.get('matricula');
+  
+  const profile = await prisma.unclaimedProfile.findFirst({
+    where: {
+      matriculaNumber: matricula,
+      status: 'unclaimed'
+    }
+  });
+  
+  if (!profile) {
+    return Response.json({ 
+      found: false,
+      message: 'No encontramos esta matrícula. ¿Está bien escrita?' 
+    });
+  }
+  
+  // Return MASKED data only - prove we have it without exposing PII
+  return Response.json({
+    found: true,
+    preview: {
+      name: maskName(profile.fullName),
+      type: profile.matriculaType,
+      authority: profile.matriculaAuthority,
+      phone: profile.phone ? maskPhone(profile.phone) : null,
+      email: profile.email ? maskEmail(profile.email) : null,
+      province: profile.province,
+    },
+    claimToken: generateClaimToken(profile.id), // Short-lived token
+  });
+}
+```
+
+**Why This Works (Psychology):**
+1. **Instant gratification** - They see their name immediately
+2. **Proof we're legit** - We already have their public data
+3. **Privacy respected** - Masked data shows we're careful
+4. **Low commitment** - Just "confirm this is you"
+5. **No login required** - Reduce friction to zero
+
+**Acceptance Criteria:**
+- [ ] `/reclamar` page with search box
+- [ ] API returns masked preview of profile
+- [ ] "Matrícula Verificada" success state
+- [ ] Claim button leads to SMS/WhatsApp verification
+- [ ] Track: searches, found, not found, claimed
+- [ ] Mobile-first responsive design
+
+---
+
+### Task 4.5.4: Claim Verification Flow (SMS/WhatsApp OTP)
+**Goal:** Verify ownership of the profile via the phone number on file.
+
+**Files to create:**
+- `apps/web/app/api/claim/request-otp/route.ts`
+- `apps/web/app/api/claim/verify-otp/route.ts`
+- `apps/web/app/reclamar/verificar/page.tsx`
+
+**Flow:**
+```
+[ Reclamar mi perfil ]
+         │
+         ▼
+┌────────────────────────────────────────┐
+│  Enviamos un código al:              │
+│  📱 ****-1234                         │
+│                                        │
+│  [WhatsApp] [SMS]                      │
+└────────────────────────────────────────┘
+         │
+         ▼ (OTP sent)
+┌────────────────────────────────────────┐
+│  Ingresá el código de 6 dígitos:      │
+│                                        │
+│  [ 1 ] [ 2 ] [ 3 ] [ 4 ] [ 5 ] [ 6 ]  │
+│                                        │
+│  ¿No lo recibiste? [Reenviar]         │
+└────────────────────────────────────────┘
+         │
+         ▼ (OTP verified)
+┌────────────────────────────────────────┐
+│  🎉 ¡Perfil Reclamado!                  │
+│                                        │
+│  Bienvenido a CampoTech, Juan.        │
+│  Tu matrícula está verificada.         │
+│                                        │
+│  [ Completar mi perfil → ]            │
+└────────────────────────────────────────┘
+```
+
+**Acceptance Criteria:**
+- [ ] OTP via WhatsApp (preferred) or SMS
+- [ ] 6-digit code, 10-minute expiry
+- [ ] Rate limiting: 3 attempts per hour
+- [ ] On success: create User, link to profile
+- [ ] Redirect to onboarding flow
+
+---
+
+**Acceptance Criteria (Phase 4.5 Complete):**
+- [ ] SEO optimized claim page ranking on Google
+- [ ] WhatsApp template approved and ready
+- [ ] Pre-validation search shows masked preview
+- [ ] OTP verification flow working
+- [ ] End-to-end claim journey < 2 minutes
+- [ ] Tracking: funnel conversion at each step
+
+---
+
+## Growth Engine Metrics Dashboard
+
+**KPIs to Track:**
+```
+┌────────────────────────────────────────────────────────────────┐
+│ 📊 GROWTH ENGINE - Conversion Funnel                           │
+├────────────────────────────────────────────────────────────────┤
+│                                                                │
+│  Step                    Count      Rate      Cumulative       │
+│  ─────────────────────────────────────────────────────────────  │
+│  1. Profiles Imported    61,000     100%      100%             │
+│  2. WhatsApp Sent        12,000     19.7%     19.7%            │
+│  3. Message Delivered    10,800     90%       17.7%            │
+│  4. Link Clicked         1,620      15%       2.7%             │
+│  5. Search Performed     1,458      90%       2.4%             │
+│  6. Profile Found        1,312      90%       2.2%             │
+│  7. Claim Started        919        70%       1.5%             │
+│  8. OTP Verified         826        90%       1.4%             │
+│  9. Profile Claimed      743        90%       1.2%             │
+│                                                                │
+│  🎯 Target: 1% claim rate = 610 new users (zero CAC)           │
+│                                                                │
+└────────────────────────────────────────────────────────────────┘
+```
 ---
 
 # REVISED TIMELINE
@@ -600,29 +1454,47 @@ ORIGINAL PHASES (unchanged):
 │   └── 2.3: Multi-stop Navigation (5d)
 │   └── 2.4: Fiscal Health Dashboard (4d) ← NEW
 ├── Phase 3: WhatsApp Enhancements (6 days)
-├── Phase 4: Onboarding Automation (5 days)
+├── Phase 4: Onboarding & Growth (5 days + 8 days growth)
 │   └── 4.1: OAuth Flows (4d)
 │   └── 4.2: Dead Code Cleanup (1d)
 │   └── 4.3: Digital Entry Badge (5d) ← NEW
-│   └── 4.4: Unclaimed Profile Engine (6d) ← NEW
+│   └── 4.4: The Growth Engine - Data Pipelines (6d) ← NEW
+│       └── 4.4.1: Schema Setup (0.5d)
+│       └── 4.4.2: ERSEP Scraper - 33k records (1.5d) 🔴 CRITICAL
+│       └── 4.4.3: CACAAV Scraper - 23k records (1d)
+│       └── 4.4.4: PDF Pipeline - 5k records (1.5d)
+│       └── 4.4.5-7: Claim API + Admin UI (1.5d)
+│   └── 4.5: The Activation Workflow - Trust-First (2d) ← NEW
+│       └── 4.5.1: SEO & Identity Setup (0.5d)
+│       └── 4.5.2: Trust Anchor WhatsApp Template (0.5d)
+│       └── 4.5.3: Pre-Validation Search Page (0.5d)
+│       └── 4.5.4: OTP Verification Flow (0.5d)
 └── Phase 5: Voice AI Migration (12.5 days)
 
 NEW TOTAL TIMELINE:
 ├── Original: 8-10 weeks (42.5 days)
-├── Addendum: +19 days
-└── New Total: 12-14 weeks (61.5 days)
+├── Addendum: +21 days (was 19, +2 for activation workflow)
+└── New Total: 12-14 weeks (63.5 days)
+
+GROWTH ENGINE IMPACT:
+├── Total Profiles to Import: ~61,000 professionals
+├── Target Claim Rate: 1% = ~610 new users
+├── Cost per Acquisition: $0 (zero CAC)
+└── Potential Revenue: 610 × $40/mo = $24,400 MRR
 ```
 
 ---
 
 # FEATURE SUMMARY TABLE
 
-| Feature | Phase | Effort | Files Touched | Priority |
-|---------|-------|--------|---------------|----------|
-| Fiscal Health Dashboard | 2.4 | 4 days | 5 new, 2 modified | HIGH |
-| Digital Entry Badge | 4.3 | 5 days | 8 new, 3 modified | MEDIUM |
-| Barcode Scanning | 2.2.4 | 4 days | 4 new, 2 modified | HIGH |
-| Unclaimed Profile Engine | 4.4 | 6 days | 7 new, 1 modified | MEDIUM |
+| Feature | Phase | Effort | Files Touched | Priority | Impact |
+|---------|-------|--------|---------------|----------|--------|
+| Fiscal Health Dashboard | 2.4 | 4 days | 5 new, 2 modified | HIGH | Compliance |
+| Digital Entry Badge | 4.3 | 5 days | 8 new, 3 modified | MEDIUM | Differentiation |
+| Barcode Scanning | 2.2.4 | 4 days | 4 new, 2 modified | HIGH | Efficiency |
+| Growth Engine (Data) | 4.4 | 6 days | 12 new, 1 modified | HIGH | **61k leads** |
+| Growth Engine (Activation) | 4.5 | 2 days | 6 new, 2 modified | CRITICAL | **Zero CAC** |
+
 
 ---
 
@@ -644,6 +1516,8 @@ Feature Dependencies:
 └── Unclaimed Profile Engine
     └── Requires: SMS/WhatsApp OTP service (existing)
     └── Requires: Admin dashboard access
+    └── Requires: Python 3.9+ with pdfplumber (for PDF parsing)
+    └── Requires: Playwright or JSDOM (for web scraping)
 ```
 
 ---
@@ -656,4 +1530,7 @@ Feature Dependencies:
 | Digital Badge | ART verification accuracy | Manual admin review option, clear disclaimers |
 | Barcode Scanner | Camera compatibility on low-end devices | Fallback to manual SKU entry |
 | Unclaimed Profiles | Privacy concerns with public data | Only use publicly available matricula data, clear consent |
+| **ERSEP/CACAAV Scrapers** | **DOM structure changes break scraper** | **Build with try/catch, log errors, add health monitoring. Scrapers should fail gracefully and alert admin.** |
+| **ERSEP/CACAAV Scrapers** | **Rate limiting / IP blocking** | **Implement 1 req/sec throttling, rotate user agents, consider proxy rotation for production** |
+| **PDF Pipeline** | **PDF format changes** | **Table extraction is format-dependent. Keep original PDFs, log extraction issues per page** |
 
