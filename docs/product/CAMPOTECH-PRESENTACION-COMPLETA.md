@@ -186,11 +186,31 @@ CampoTech resuelve estos problemas con una plataforma integral:
 
 ### Estrategia de Crecimiento
 
-1. **Fase 1**: Captar empresas con herramientas de gestión (dashboard, app técnico, WhatsApp AI, facturación AFIP)
-2. **Fase 2**: Usar datos de empresas para alimentar marketplace de consumidores
-3. **Fase 3**: Consumidores descubren y contratan empresas por el marketplace
-4. **Fase 4**: Empresas exitosas generan FOMO en competidores no suscritos
-5. **Resultado**: Efectos de red impulsan crecimiento exponencial
+```
+┌───────────────────────────────────────────────────────────────────────┐
+│                 MODELO COST-SAFE SAAS                                   │
+├───────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   FOREVER FREE (Ancla de Valor)        TRIAL 21 DÍAS                   │
+│   ───────────────────────────────   ──────────────────────────────  │
+│   ✅ Perfil público verificado          ✅ Facturación AFIP completa     │
+│   ✅ Contacto WhatsApp directo          ✅ Gestión de inventario          │
+│   ✅ Credencial digital                 ✅ Trabajos y clientes            │
+│   ✅ Calificaciones visibles            ✅ Dashboard de salud fiscal      │
+│                                                                         │
+│   💰 Costo para nosotros: $0           💰 Costo para nosotros: $0        │
+│   (wa.me redirect, no API)            (Sin acceso a API de WA)         │
+│                                                                         │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+**Fases de Crecimiento:**
+
+1. **Fase 1 - Motor de Crecimiento**: Importar 61,000 matrículas públicas (ERSEP, CACAAV, Gasnor)
+2. **Fase 2 - Activación**: Profesionales reclaman su perfil, inician trial de 21 días
+3. **Fase 3 - Conversión**: ~15% convierte a suscripción paga después del trial
+4. **Fase 4 - Efecto Red**: Más profesionales = mejor marketplace = más consumidores
+5. **Resultado**: Crecimiento exponencial con CAC = $0
 
 ### Por Qué Funciona
 
@@ -198,9 +218,9 @@ CampoTech resuelve estos problemas con una plataforma integral:
 |------------|--------|----------|
 | MercadoLibre Servicios | Comisión por lead | Empresas evitan la plataforma |
 | Apps de delivery | Comisión por transacción | Margen muy bajo para servicios |
-| **CampoTech** | Suscripción fija | Empresas pagan por herramientas, no por leads |
+| **CampoTech** | Suscripción fija + Trial gratis | Prueba sin riesgo, valor inmediato |
 
-**Ventaja CampoTech**: Las empresas ya pagan por gestionar su negocio. El marketplace es un beneficio adicional sin costo extra.
+**Ventaja CampoTech**: Las empresas prueban la facturación AFIP por 21 días. Cuando ven el ahorro de tiempo, pagan.
 
 ---
 
@@ -1128,60 +1148,51 @@ FASE 1: SEGURIDAD E INFRAESTRUCTURA 🔐
 FASE 2: FUNCIONALIDADES CORE 🔧
 ────────────────────────────────────────
 ├── Programación de vehículos por horario
-│   └── Asignar vehículos Lun-Vie, por turnos
-│   └── Auto-poblar vehículo al crear trabajo
 ├── Cascada de inventario automática
-│   └── Deducir de vehículo primero
-│   └── Fallback a depósito si no hay stock
 ├── 📷 Escaneo de código de barras (NUEVO)
-│   └── Cámara del celular → buscar producto
-│   └── Seleccionar cantidad → deducir
-│   └── Funciona offline
 ├── Navegación multi-parada
-│   └── Rutas optimizadas con Google Maps
-│   └── Maneja +10 trabajos (rutas segmentadas)
-│   └── Nueva ruta automática después de cada 10
 ├── 🏛️ Dashboard de Salud Fiscal (NUEVO)
-│   └── Semáforo verde/amarillo/rojo Monotributo
-│   └── % de límite anual usado
-│   └── Recomendación de recategorización
+├── 🛡️ MODELO COST-SAFE SAAS (NUEVO) 🔴 CRÍTICO
+│   ├── Trial 21 días → lockout automático
+│   ├── WhatsApp: Redirect gratis vs API paga
+│   └── Perfil público SIEMPRE gratis ("∞ Free")
 └── Estado: En desarrollo
 
 FASE 3: MEJORAS WHATSAPP 💬
 ────────────────────────────────────────
-├── Botones interactivos (en vez de texto)
-│   └── "Mañana 9-12hs" / "Mañana 14-18hs"
+├── Botones interactivos (solo planes pagos)
 ├── Listas de selección de servicios
 ├── Tracking de atribución marketplace
-│   └── Click WhatsApp → trabajo = conversión
-├── Analytics de conversión por fuente
 └── Estado: Pendiente
 
-FASE 4: AUTOMATIZACIÓN ONBOARDING 🚀
+FASE 4: MOTOR DE CRECIMIENTO 🚀 (61k Perfiles)
 ────────────────────────────────────────
-├── OAuth Mercado Pago (1 click)
-├── Mejora UX carga certificado AFIP
-├── 🪪 Credencial Digital Técnico (NUEVO)
-│   └── QR dinámico para countries/barrios
-│   └── Muestra: identidad, ART, antecedentes
-│   └── Seguridad escanea para verificar
-├── 🏆 Motor de Crecimiento "Unclaimed Profiles" (NUEVO)
-│   └── Importar matrículas públicas (ENARGAS, Gasnor)
-│   └── Profesionales "reclaman" su perfil via SMS
-│   └── Conversión automática a usuario
+├── 🎯 Scrapers de matrículas públicas:
+│   ├── ERSEP (Córdoba) - 33k electricistas 🔴
+│   ├── CACAAV (Nacional) - 23k HVAC
+│   └── Gasnor/GasNEA PDFs - 5k gasistas
+├── 📩 Template WhatsApp "Product-First":
+│   └── "Probá nuestra App de Facturación GRATIS 21 días"
+├── 🔍 Página de reclamo /reclamar
+│   └── Buscar matrícula → ver datos enmascarados → OTP
+├── 🪪 Credencial Digital Técnico
 └── Estado: Pendiente
 
 FASE 5: MIGRACIÓN VOZ IA A LANGGRAPH 🤖
 ────────────────────────────────────────
 ├── Servicio Python con FastAPI
 ├── Workflow LangGraph stateful
-│   └── Transcribir → Extraer → Confirmar → Crear
-│   └── Puede "esperar" respuesta del cliente
-├── Integración con backend Node.js
 ├── Rollout gradual (1% → 100%)
 └── Estado: Última fase
 
-📊 TIMELINE TOTAL: 12-14 semanas
+📊 TIMELINE TOTAL: 13-15 semanas
+
+🚀 PROYECCIÓN MOTOR DE CRECIMIENTO:
+├── Perfiles importados: 61,000
+├── Tasa de reclamo: 1% = 610 usuarios
+├── Conversión trial: 15% = 91 suscriptores
+├── CAC (Costo adquisición): $0
+└── MRR proyectado: $3,640/mes
 ```
 
 ### Nuevas Funcionalidades Destacadas
@@ -1229,6 +1240,34 @@ FASE 5: MIGRACIÓN VOZ IA A LANGGRAPH 🤖
 │  • Maneja +10 trabajos (divide en rutas de 10)                          │
 │  • Nueva ruta automática cuando completa trabajo #10, #20, etc.        │
 │  • Notificación push: "🎉 Nueva ruta generada"                         │
+│                                                                         │
+│  🛡️ MODELO COST-SAFE SAAS                                             │
+│  ─────────────────────────────────────────────────────────────────────  │
+│  Trial de 21 días con acceso completo:                                  │
+│  • Facturación AFIP → BLOQUEADA después del trial                       │
+│  • Inventario → Solo lectura después del trial                         │
+│  • Perfil público → SIEMPRE GRATIS ("∞ Free")                          │
+│  • WhatsApp redirect → SIEMPRE GRATIS                                  │
+│                                                                         │
+│  Protección de costos WhatsApp:                                         │
+│  • FREE/TRIAL: wa.me redirect (costo $0)                               │
+│  • PAGOS: Cloud API con botones/IA                                     │
+│                                                                         │
+│  🎯 MOTOR DE CRECIMIENTO (61k Perfiles)                                 │
+│  ─────────────────────────────────────────────────────────────────────  │
+│  Fuentes de datos con scrapers automáticos:                             │
+│  • ERSEP (Córdoba): ~33k electricistas                                  │
+│  • CACAAV (Nacional): ~23k HVAC                                         │
+│  • Gasnor/GasNEA PDFs: ~5k gasistas                                     │
+│                                                                         │
+│  Mensaje WhatsApp "Product-First":                                      │
+│  "Probá nuestra App de Facturación GRATIS por 3 semanas"                │
+│  (Vende la HERRAMIENTA, no solo el directorio)                          │
+│                                                                         │
+│  Proyección:                                                            │
+│  • Reclamo: 1% = 610 usuarios (CAC=$0)                                  │
+│  • Conversión: 15% = 91 suscriptores                                    │
+│  • MRR: $3,640/mes                                                      │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -1315,4 +1354,5 @@ FASE 5: MIGRACIÓN VOZ IA A LANGGRAPH 🤖
 
 *Powered by CampoTech*
 *Documento actualizado: Enero 2026*
-*Versión: 2.0 - Incluye funcionalidades de implementation-plan.md y implementation-plan-addendum.md*
+*Versión: 3.0 - Incluye Cost-Safe SaaS Model, Motor de Crecimiento 61k, y posicionamiento Product-First*
+

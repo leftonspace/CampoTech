@@ -43,6 +43,33 @@ CampoTech is a field service management platform targeting service businesses in
 4. **Phase 4**: Successful businesses create FOMO for non-subscribers
 5. **Result**: Network effects drive exponential growth
 
+### The Growth Engine (Zero CAC Acquisition)
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│               GROWTH ENGINE (61k Profiles)                             │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   STEP 1: Import Public Licenses        STEP 2: WhatsApp Outreach      │
+│   ──────────────────────────────   ───────────────────────────────   │
+│   • ERSEP (Córdoba): ~33k electricians   • "Product-First" message       │
+│   • CACAAV (National): ~23k HVAC         • "Try our Invoicing App FREE"  │
+│   • Gasnor/GasNEA: ~5k gas techs         • Trust anchor: "Google us"     │
+│                                                                         │
+│   STEP 3: Claim & Trial                  STEP 4: Conversion             │
+│   ──────────────────────────────   ───────────────────────────────   │
+│   • /reclamar search page                • 21-day trial expires          │
+│   • OTP verification via SMS/WA          • Premium features locked       │
+│   • 21-day trial starts                  • ~15% convert to paid          │
+│                                                                         │
+│   PROJECTION:                                                           │
+│   • 1% claim rate = 610 users (CAC = $0)                                │
+│   • 15% trial conversion = 91 subscribers                               │
+│   • MRR: $3,640/month                                                   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
 ---
 
 ## The Users
@@ -333,46 +360,85 @@ Business Dashboard → Analytics:
 
 ---
 
-## Subscription Tiers
+## Subscription Tiers & Cost-Safe SaaS Model
+
+### The Forever Free Anchor
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│             COST-SAFE SAAS MODEL (Zero Infrastructure Cost)              │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   FOREVER FREE (∞ Free)                 TRIAL (21 days)                 │
+│   ──────────────────────────────   ──────────────────────────────────   │
+│   ✅ Public profile (verified)          ✅ AFIP invoicing               │
+│   ✅ WhatsApp redirect (wa.me)          ✅ Inventory management         │
+│   ✅ Digital badge (countries)          ✅ Job management               │
+│   ✅ Ratings display                    ✅ Fiscal health dashboard      │
+│   ✅ Job tracking links                 ✅ Full mobile app              │
+│                                                                         │
+│   💰 Our cost: $0                       💰 Our cost: $0                 │
+│   (No API calls, just redirects)       (No WA API during trial)        │
+│                                                                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                         │
+│   After trial expires, if not subscribed:                               │
+│   ❌ Invoicing → BLOCKED                                                │
+│   ❌ Inventory → READ-ONLY                                              │
+│   ❌ New jobs → BLOCKED                                                 │
+│   ✅ Public profile → STILL ACTIVE (forever free anchor)                │
+│   ✅ WhatsApp redirect → STILL ACTIVE                                   │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### WhatsApp Cost Protection
+
+| Tier | WhatsApp Method | Our Cost | Features |
+|------|-----------------|----------|----------|
+| FREE/TRIAL | `wa.me/{phone}` redirect | $0 | Opens consumer's WhatsApp app |
+| INICIAL+ | Cloud API (BSP) | ~$0.05/msg | Templates, Interactive buttons |
+| PROFESIONAL+ | Cloud API (BSP) | ~$0.05/msg | + AI Bot, conversation tracking |
+
+**Important**: NO "Free API Credits." Free tier = redirect only.
+
+### Pricing Tiers
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                         CAMPOTECH PRICING                                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   INICIAL              PROFESIONAL           EMPRESA                        │
-│   $25/mes              $55/mes               $120/mes                       │
-│   ─────────────        ─────────────         ─────────────                  │
+│   FREE               INICIAL              PROFESIONAL        EMPRESA        │
+│   $0 (∞ Free)        $25/mes              $55/mes            $120/mes       │
+│   ─────────────      ─────────────        ─────────────      ─────────────  │
 │                                                                             │
-│   ✓ 1 usuario          ✓ 5 usuarios          ✓ Usuarios ilimitados         │
-│   ✓ 50 trabajos/mes    ✓ 200 trabajos/mes    ✓ Trabajos ilimitados         │
-│   ✓ App técnico        ✓ App técnico         ✓ App técnico                  │
-│   ✓ Facturación AFIP   ✓ Facturación AFIP    ✓ Facturación AFIP            │
-│   ✓ Inventario básico  ✓ Inventario completo ✓ Inventario completo         │
-│   ✓ WhatsApp manual    ✓ WhatsApp + AI       ✓ WhatsApp + AI               │
-│                          (100 conv/mes)        (ilimitado)                  │
-│   ✗ Reportes voz       ✓ Reportes voz        ✓ Reportes voz                │
-│   ✗ Analytics          ✓ Analytics básico    ✓ Analytics avanzado          │
-│   ✗ Marketplace        ✓ Marketplace         ✓ Marketplace destacado       │
+│   ✅ Public profile  ✅ 1 user            ✅ 5 users          ✅ Unlimited   │
+│   ✅ WA redirect     ✅ 50 jobs/mo        ✅ 200 jobs/mo      ✅ Unlimited   │
+│   ✅ Digital badge   ✅ AFIP invoicing    ✅ AFIP invoicing   ✅ Everything  │
+│   ✅ Ratings         ✅ Basic inventory   ✅ Full inventory   ✅ Priority    │
+│   ❌ Invoicing       ✅ WA Templates      ✅ WA + AI Bot      ✅ WA + AI     │
+│   ❌ Inventory       ✅ Barcode scan      ✅ Multi-stop nav   ✅ Analytics   │
+│   ❌ Jobs mgmt       ❌ Analytics         ✅ Analytics        ✅ Marketplace │
+│                                                              highlight      │
 │                                                                             │
-│   Ideal para:          Ideal para:           Ideal para:                   │
-│   Trabajadores         Pequeñas empresas     Empresas medianas             │
-│   independientes       (2-5 empleados)       (6+ empleados)                │
+│   Ideal for:         Ideal for:          Ideal for:         Ideal for:     │
+│   Claimed profiles   Solo workers        Small teams        Companies      │
+│   (trial expired)    (1 person)          (2-5 employees)    (6+ people)    │
 │                                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│   💡 Todos los planes incluyen: Soporte WhatsApp, Actualizaciones,         │
-│      Backup de datos                                                        │
-│                                                                             │
-│   🎁 Primeros 3 meses: 50% descuento para early adopters                   │
+│   💡 All paid plans include: Support, Updates, Backup, Marketplace access  │
+│   🎁 Early Adopter: 50% off first 3 months                                 │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **AI Usage Model**: Included in tiers with limits, NOT separate billing
-- Inicial: WhatsApp manual only (no AI)
-- Profesional: 100 AI conversations/month
+- Free: WhatsApp redirect only (no AI)
+- Inicial: WhatsApp templates (100 messages/month)
+- Profesional: 100 AI conversations/month + templates
 - Empresa: Unlimited AI
 
-**Marketplace**: Available for ALL tiers when launched (no tier advantage for ranking)
+**Marketplace**: Available for ALL paid tiers when launched (no tier advantage for ranking)
 
 ---
 
@@ -667,4 +733,29 @@ Since the initial vision, several key components have been implemented to streng
 - **TypeScript SDK**: Full-featured client for web and Node.js environments.
 - **Python SDK**: Targeting automation and data science workflows.
 
+### 5. Cost-Safe SaaS Infrastructure (January 2026)
+**Purpose**: Sustainable growth without infrastructure cost explosion.
+- **Trial Time Bomb**: 21-day trial with automatic lockout on premium features.
+- **WhatsApp Cost Protection**: Free tier uses `wa.me` redirect ($0 cost), paid tier uses Cloud API.
+- **Forever Free Anchor**: Public profile + WhatsApp redirect never locked.
+
+### 6. Growth Engine (January 2026)
+**Purpose**: Zero-CAC user acquisition at scale.
+- **Data Scrapers**: ERSEP (33k), CACAAV (23k), Gasnor/GasNEA (5k) = 61k profiles.
+- **Product-First Messaging**: "Try our Invoicing App FREE for 3 weeks."
+- **Trust Anchor Strategy**: "Google 'CampoTech'" builds credibility.
+- **Claim Flow**: /reclamar page with masked preview + OTP verification.
+
+---
+
+## Document Version
+
+- **Version**: 2.0
+- **Last Updated**: January 2026
+- **Author**: CampoTech Team
+- **Changelog**:
+  - v2.0: Added Cost-Safe SaaS Model, Growth Engine (61k profiles), Product-First positioning
+  - v1.1: Added Price Book, Audit system, Argentine localization, SDKs
+
 *Powered by CampoTech*
+
