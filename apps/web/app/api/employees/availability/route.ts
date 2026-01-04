@@ -184,11 +184,10 @@ export async function GET(request: NextRequest) {
           updatedAt: true,
         },
       });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      techLocations.forEach((loc: { technicianId: string; latitude: any; longitude: any; updatedAt: any }) => {
+      techLocations.forEach((loc: { technicianId: string; latitude: number | string; longitude: number | string; updatedAt: Date }) => {
         locations.set(loc.technicianId, {
-          lat: loc.latitude,
-          lng: loc.longitude,
+          lat: Number(loc.latitude),
+          lng: Number(loc.longitude),
           updatedAt: loc.updatedAt,
         });
       });

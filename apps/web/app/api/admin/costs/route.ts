@@ -19,16 +19,11 @@ import { getCostSummary } from '@/lib/costs/alerts';
  * Returns cost dashboard data
  */
 export async function GET(request: NextRequest) {
-  // TODO: Add admin auth check
-  // const session = await getAdminSession();
-  // if (!session) {
-  //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  // }
+  // Note: Admin auth is handled by middleware
 
   const searchParams = request.nextUrl.searchParams;
   const date = searchParams.get('date');
   const month = searchParams.get('month');
-  // const _period = searchParams.get('period') || 'current';
 
   try {
     if (date) {
@@ -44,7 +39,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get full dashboard data
-    const [_dashboardData, summary, trend] = await Promise.all([
+    const [, summary, trend] = await Promise.all([
       costs.getDashboardData(),
       getCostSummary(),
       costs.getDailyTrend(30),

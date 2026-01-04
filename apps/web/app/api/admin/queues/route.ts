@@ -9,7 +9,7 @@
  * POST /api/admin/queues/:queueName/resume - Resume a queue
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { getSession, type TokenPayload } from '@/lib/auth';

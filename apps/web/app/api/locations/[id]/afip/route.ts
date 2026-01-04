@@ -14,10 +14,10 @@ interface RouteParams {
  * GET /api/locations/[id]/afip
  * Get AFIP configuration for a location
  */
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function GET(_request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getSession();
-    const { id } = await params;
+    await params;
 
     if (!session) {
       return NextResponse.json(
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
  * POST /api/locations/[id]/afip
  * Create AFIP configuration for a location
  */
-export async function POST(request: NextRequest, { params }: RouteParams) {
+export async function POST(_request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getSession();
     await params;
@@ -89,7 +89,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
  * PUT /api/locations/[id]/afip
  * Update AFIP configuration for a location
  */
-export async function PUT(request: NextRequest, { params }: RouteParams) {
+export async function PUT(_request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getSession();
     await params;

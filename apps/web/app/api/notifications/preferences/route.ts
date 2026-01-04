@@ -88,16 +88,10 @@ const defaultPreferences = {
   quietHoursTimezone: 'America/Argentina/Buenos_Aires',
 };
 
-// Critical notifications that cannot be disabled
-const _criticalNotifications = [
-  'verification.accountBlockedEmail',
-  'subscription.paymentFailedEmail',
-];
-
 /**
  * GET /api/notifications/preferences
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getSession();
 

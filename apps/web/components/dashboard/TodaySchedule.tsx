@@ -2,14 +2,11 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Calendar,
-  Clock,
-  MapPin,
-  User,
   ArrowRight,
   CheckCircle,
-  AlertCircle,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 
@@ -155,9 +152,11 @@ export function TodaySchedule() {
           {/* Technician header */}
           <div className="flex items-center gap-3 mb-3">
             {tech.avatar ? (
-              <img
+              <Image
                 src={tech.avatar}
                 alt={tech.name}
+                width={40}
+                height={40}
                 className="h-10 w-10 rounded-full object-cover"
               />
             ) : (

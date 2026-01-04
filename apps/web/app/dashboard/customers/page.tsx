@@ -9,7 +9,6 @@ import { cn, formatCurrency, formatPhone, formatAddress, getInitials } from '@/l
 import {
   Plus,
   Search,
-  User,
   Mail,
   Phone,
   MapPin,
@@ -21,8 +20,6 @@ import {
   Briefcase,
   History,
   Users,
-  TrendingUp,
-  Crown,
   LayoutGrid,
   List,
   Check,
@@ -585,7 +582,6 @@ function ColumnFilterDropdown({
   onToggle,
   align = 'left',
 }: ColumnFilterDropdownProps) {
-  const selectedOption = options.find((opt) => opt.value === value);
   const isFiltered = value !== 'all';
 
   return (

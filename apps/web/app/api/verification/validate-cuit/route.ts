@@ -373,7 +373,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<ValidateC
 // GET - Check CUIT validation status
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
+export async function GET(): Promise<NextResponse> {
   try {
     // Authenticate user
     const session = await getSession();

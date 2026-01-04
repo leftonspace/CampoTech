@@ -17,13 +17,10 @@ import {
   Trash2,
   FileText,
   Calendar,
-  Clock,
-  Filter,
   Search,
   RefreshCw,
   CheckCircle,
   XCircle,
-  AlertCircle,
   Loader,
   FileSpreadsheet,
   File,
@@ -96,16 +93,6 @@ export default function ReportHistoryPage() {
     }
   };
 
-  const getStatusIcon = (status: ReportHistoryItem['status']) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle size={16} className="text-green-500" />;
-      case 'failed':
-        return <XCircle size={16} className="text-red-500" />;
-      case 'processing':
-        return <Loader size={16} className="text-blue-500 animate-spin" />;
-    }
-  };
 
   const getStatusBadge = (status: ReportHistoryItem['status']) => {
     switch (status) {

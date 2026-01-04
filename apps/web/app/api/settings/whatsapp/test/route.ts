@@ -1,9 +1,9 @@
-/**
+﻿/**
  * WhatsApp Test Connection API Route
  * Self-contained implementation (placeholder)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 
 export async function POST() {
@@ -29,3 +29,4 @@ export async function POST() {
     );
   }
 }
+

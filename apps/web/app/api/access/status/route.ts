@@ -15,7 +15,7 @@
  * This endpoint is used by the client-side useAccessStatus hook.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { checkAccess, checkUserAccess } from '@/lib/access-control/checker';
 

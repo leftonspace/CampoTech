@@ -9,7 +9,7 @@
  * - Tier completion checks
  */
 
-// Using Jest globals
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   createMockOrgWithSubscription,
   createMockVerificationDocument,
@@ -24,7 +24,7 @@ import {
 
 // Mock prisma
 const mockPrisma = createMockPrisma();
-jest.mock('@/lib/prisma', () => ({
+vi.mock('@/lib/prisma', () => ({
   prisma: mockPrisma,
 }));
 
@@ -35,7 +35,7 @@ describe('VerificationManager', () => {
   beforeEach(() => {
     resetAllMocks();
     mockPrisma._clearAll();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -125,8 +125,8 @@ describe('VerificationManager', () => {
         status: 'pending',
       });
 
-      mockPrisma.verificationDocument.findFirst = jest.fn().mockResolvedValueOnce(existingDoc);
-      mockPrisma.verificationDocument.update = jest.fn().mockResolvedValueOnce({
+      mockPrisma.verificationDocument.findFirst = vi.fn().mockResolvedValueOnce(existingDoc);
+      mockPrisma.verificationDocument.update = vi.fn().mockResolvedValueOnce({
         ...existingDoc,
         status: 'replaced',
       });
@@ -272,7 +272,7 @@ describe('VerificationManager', () => {
         status: 'rejected',
       });
       mockPrisma.notification = {
-        create: jest.fn().mockResolvedValueOnce({}),
+        create: vi.fn().mockResolvedValueOnce({}),
       };
       mockPrisma.subscriptionEvent.create.mockResolvedValueOnce({});
 

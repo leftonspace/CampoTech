@@ -2,29 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { InventoryService } from '@/src/services/inventory.service';
 
-interface ProductWithStock {
-  id: string;
-  sku: string;
-  name: string;
-  description: string | null;
-  category?: { name: string } | null;
-  unitOfMeasure: string;
-  minStockLevel: number;
-  costPrice: number | string;
-  salePrice: number | string;
-  imageUrl?: string | null;
-  isActive: boolean;
-  stock: {
-    onHand: number;
-    isLowStock: boolean;
-  };
-  inventoryLevels: Array<{
-    warehouseId: string;
-    warehouse?: { name: string } | null;
-    quantityOnHand: number;
-    quantityAvailable: number;
-  }>;
-}
+import { ProductWithStock } from '@/lib/types/inventory';
 
 export async function GET(request: NextRequest) {
   try {

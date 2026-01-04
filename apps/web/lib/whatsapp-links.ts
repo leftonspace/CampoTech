@@ -28,11 +28,18 @@ export function normalizePhoneNumber(phone: string): string {
   if (digits.length === 10 && !digits.startsWith('54')) {
     // Check if it's a mobile number (starts with 11, 15, or other mobile area codes)
     const areaCode = digits.slice(0, 2);
-    const mobileAreaCodes = ['11', '15', '22', '23', '26', '29', '34', '35', '37', '38', '26', '29', '34', '35', '36', '37', '38', '54', '26', '29'];
+    // Common mobile area codes in Argentina
+    const mobileAreaCodes = ['11', '15', '22', '23', '26', '29', '34', '35', '36', '37', '38'];
 
     // For mobile numbers in Argentina, use 54 9 format
-    // Area code 11 (Buenos Aires), 351 (Córdoba), 261 (Mendoza), etc.
-    digits = '549' + digits;
+    // Area code 11 (Buenos Aires), 351 (Córdoba), etc.
+    // If it's 10 digits and not starting with 54, we assume it's mobile for WhatsApp purposes
+    if (mobileAreaCodes.includes(areaCode) || digits.startsWith('15')) {
+      digits = '549' + digits;
+    } else {
+      // Fallback for other 10-digit formats
+      digits = '549' + digits; // Still use 9 for WhatsApp compatibility
+    }
   }
 
   // If it already has 54 but missing the 9 for mobile, add it

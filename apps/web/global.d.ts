@@ -108,10 +108,21 @@ declare module '@prisma/client' {
   };
   export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
+  export const MovementType: {
+    IN: 'IN';
+    OUT: 'OUT';
+    TRANSFER: 'TRANSFER';
+    SALE: 'SALE';
+    USE: 'USE';
+    CONSUMPTION: 'CONSUMPTION';
+    ADJUSTMENT: 'ADJUSTMENT';
+  };
+  export type MovementType = (typeof MovementType)[keyof typeof MovementType];
+
   export namespace Prisma {
     export type InputJsonValue = string | number | boolean | null | InputJsonObject | InputJsonArray;
     interface InputJsonObject { [key: string]: InputJsonValue; }
-    interface InputJsonArray extends Array<InputJsonValue> {}
+    interface InputJsonArray extends Array<InputJsonValue> { }
 
     export interface ProductWhereInput { [key: string]: any; }
     export interface ProductOrderByWithRelationInput { [key: string]: 'asc' | 'desc' | any; }
@@ -121,5 +132,7 @@ declare module '@prisma/client' {
     export interface ZoneWhereInput { [key: string]: any; }
     export interface InterLocationTransferWhereInput { [key: string]: any; }
     export interface InterLocationTransferUpdateInput { [key: string]: any; }
+    export interface StockMovementWhereInput { [key: string]: any; }
+    export interface InventoryCountWhereInput { [key: string]: any; }
   }
 }

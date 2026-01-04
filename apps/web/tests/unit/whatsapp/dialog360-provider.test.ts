@@ -6,16 +6,16 @@
  * Covers number provisioning, message sending, and webhook handling.
  */
 
-// Using Jest globals
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { Dialog360Provider } from '@/lib/integrations/whatsapp/providers/dialog360.provider';
 import crypto from 'crypto';
 
 // Mock prisma
-jest.mock('@/lib/prisma', () => ({
+vi.mock('@/lib/prisma', () => ({
   prisma: {
     whatsAppBusinessAccount: {
-      findUnique: jest.fn(),
-      update: jest.fn(),
+      findUnique: vi.fn(),
+      update: vi.fn(),
     },
   },
 }));
@@ -24,7 +24,7 @@ jest.mock('@/lib/prisma', () => ({
 import { prisma } from '@/lib/prisma';
 
 // Mock fetch globally
-const mockFetch = jest.fn();
+const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 
@@ -38,7 +38,7 @@ describe('Dialog360Provider', () => {
 
   beforeEach(() => {
     provider = new Dialog360Provider(config);
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -230,9 +230,9 @@ describe('Dialog360Provider', () => {
 
     it('should check usage limits before sending', async () => {
       // Mock usage check to return limit reached
-      jest.mock('@/lib/services/whatsapp-usage.service', () => ({
+      vi.mock('@/lib/services/whatsapp-usage.service', () => ({
         WhatsAppUsageService: {
-          canSendMessage: jest.fn().mockResolvedValue({
+          canSendMessage: vi.fn().mockResolvedValue({
             allowed: false,
             reason: 'Monthly limit reached',
           }),
@@ -371,7 +371,7 @@ describe('Dialog360Provider Error Handling', () => {
       apiKey: 'test_key',
       partnerId: 'test_partner',
     });
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('should handle network errors gracefully', async () => {

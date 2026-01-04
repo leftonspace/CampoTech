@@ -241,9 +241,9 @@ async function handlePreapprovalEvent(
 ): Promise<{ success: boolean; action?: string; error?: string }> {
   logWebhook('info', 'Processing preapproval event', { preapprovalId, action });
 
-  // TODO: Fetch preapproval details from MP API
-  // For now, log and acknowledge
-  // This would be used for recurring billing setup
+  // FIXME: Future implementation - Fetch preapproval details from MP API
+  // This would be used for recurring billing setup (Phase: Subscription Management)
+  // For now, we acknowledge the event to prevent webhook retries
 
   return { success: true, action: 'preapproval_acknowledged' };
 }
@@ -257,12 +257,14 @@ async function handleChargebackEvent(
 ): Promise<{ success: boolean; action?: string; error?: string }> {
   logWebhook('warn', 'Chargeback event received', { chargebackId, action });
 
-  // TODO: Implement chargeback handling
-  // - Fetch chargeback details
-  // - Find related payment
-  // - Update payment status
-  // - Notify admins
-  // - May need to suspend subscription
+  // FIXME: Future implementation - Chargeback handling (Phase: Payment Disputes)
+  // Steps needed:
+  // 1. Fetch chargeback details from MercadoPago API
+  // 2. Find related payment and subscription
+  // 3. Update payment status to 'disputed'
+  // 4. Send notification to admins
+  // 5. Consider suspending subscription if chargeback confirmed
+  // For now, we acknowledge to prevent webhook retries
 
   return { success: true, action: 'chargeback_acknowledged' };
 }

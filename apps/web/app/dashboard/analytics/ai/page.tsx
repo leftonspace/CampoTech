@@ -3,8 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   Bot,
-  TrendingUp,
-  TrendingDown,
   MessageSquare,
   CheckCircle,
   AlertTriangle,
@@ -93,7 +91,7 @@ export default function AIAnalyticsPage() {
       } else {
         setError(result.error || 'Error fetching analytics');
       }
-    } catch (err) {
+    } catch (_) {
       setError('Error de conexión');
     } finally {
       setIsLoading(false);

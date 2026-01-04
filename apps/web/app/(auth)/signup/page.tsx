@@ -234,7 +234,7 @@ export default function SignupPage() {
           setStep('info');
         }
       }
-    } catch (err) {
+    } catch {
       setError({ message: 'Error de conexión. Intentá de nuevo.' });
     } finally {
       setIsLoading(false);
@@ -294,11 +294,10 @@ export default function SignupPage() {
             {['info', 'phone', 'otp'].map((s, i) => (
               <div
                 key={s}
-                className={`h-2 w-8 rounded-full ${
-                  ['info', 'phone', 'otp'].indexOf(step) >= i
+                className={`h-2 w-8 rounded-full ${['info', 'phone', 'otp'].indexOf(step) >= i
                     ? 'bg-primary-500'
                     : 'bg-gray-200'
-                }`}
+                  }`}
               />
             ))}
           </div>

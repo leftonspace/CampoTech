@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-// import { z } from 'zod';
 
 // Full Sync "pull" endpoint
 // Mobile device sends its lastPulledAt timestamp
@@ -10,8 +9,6 @@ export async function GET(req: NextRequest) {
     try {
         const { searchParams } = new URL(req.url);
         const lastPulledAtRaw = searchParams.get('last_pulled_at');
-        const _schemaVersion = searchParams.get('schema_version');
-        const _migration = searchParams.get('migration');
 
         // Default to epoch if first sync
         const lastPulledAt = lastPulledAtRaw && lastPulledAtRaw !== 'null'
@@ -20,10 +17,8 @@ export async function GET(req: NextRequest) {
 
         const lastPulledDate = new Date(lastPulledAt);
 
-        // Get current user (Organization/Technician context)
-        // const user = await getCurrentUser(req);
-        // if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        const organizationId = 'demo-org-id'; // MOCK for this snippet
+        // Note: Auth handled by middleware
+        const organizationId = 'demo-org-id'; // FIXME: Get from session/context
 
         // Fetch changes from Core Tables
         // In a real WatermelonDB backend, we tracks "deleted" records via a Deleted table
@@ -63,7 +58,7 @@ export async function GET(req: NextRequest) {
             jobs: {
                 created: jobs.filter((j: typeof jobs[number]) => j.createdAt > lastPulledDate),
                 updated: jobs.filter((j: typeof jobs[number]) => j.createdAt <= lastPulledDate),
-                deleted: [] // TODO: Implement Deleted table tracking
+                deleted: [] // FIXME: Implement Deleted table tracking for WatermelonDB sync
             },
             customers: {
                 created: customers.filter((c: typeof customers[number]) => c.createdAt > lastPulledDate),
@@ -93,7 +88,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { changes, _lastPulledAt } = body;
+        const { changes } = body;
 
         // changes object looks like: { jobs: { created: [], updated: [], deleted: [] }, ... }
 

@@ -5,28 +5,27 @@
  * Integration tests for WhatsApp notification triggers.
  */
 
-// Using Jest globals and mocking
-const { jest } = require('@jest/globals');
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock the services
-jest.mock('@/src/integrations/whatsapp/whatsapp.service', () => ({
-  getWhatsAppConfig: jest.fn(),
-  sendTemplate: jest.fn(),
+vi.mock('@/src/integrations/whatsapp/whatsapp.service', () => ({
+  getWhatsAppConfig: vi.fn(),
+  sendTemplate: vi.fn(),
 }));
 
-jest.mock('@/src/lib/db', () => ({
+vi.mock('@/src/lib/db', () => ({
   db: {
     job: {
-      findFirst: jest.fn(),
+      findFirst: vi.fn(),
     },
     customer: {
-      findFirst: jest.fn(),
+      findFirst: vi.fn(),
     },
     invoice: {
-      findFirst: jest.fn(),
+      findFirst: vi.fn(),
     },
     payment: {
-      findFirst: jest.fn(),
+      findFirst: vi.fn(),
     },
   },
 }));
@@ -43,7 +42,7 @@ import {
 
 describe('WhatsApp Notifications Service', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('notifyJobScheduled', () => {
@@ -68,9 +67,9 @@ describe('WhatsApp Notifications Service', () => {
         assignments: [],
       };
 
-      (db.job.findFirst).mockResolvedValueOnce(mockJob);
-      (getWhatsAppConfig).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
-      (sendTemplate).mockResolvedValueOnce({ success: true, messageId: 'wamid.123' });
+      (db.job.findFirst as jest.Mock).mockResolvedValueOnce(mockJob);
+      (getWhatsAppConfig as jest.Mock).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
+      (sendTemplate as jest.Mock).mockResolvedValueOnce({ success: true, messageId: 'wamid.123' });
 
       const result = await notifyJobScheduled('job_123');
 
@@ -88,7 +87,7 @@ describe('WhatsApp Notifications Service', () => {
     });
 
     it('should return error if job not found', async () => {
-      (db.job.findFirst).mockResolvedValueOnce(null);
+      (db.job.findFirst as jest.Mock).mockResolvedValueOnce(null);
 
       const result = await notifyJobScheduled('invalid_job');
 
@@ -112,8 +111,8 @@ describe('WhatsApp Notifications Service', () => {
         assignments: [],
       };
 
-      (db.job.findFirst).mockResolvedValueOnce(mockJob);
-      (getWhatsAppConfig).mockResolvedValueOnce(null);
+      (db.job.findFirst as jest.Mock).mockResolvedValueOnce(mockJob);
+      (getWhatsAppConfig as jest.Mock).mockResolvedValueOnce(null);
 
       const result = await notifyJobScheduled('job_123');
 
@@ -137,8 +136,8 @@ describe('WhatsApp Notifications Service', () => {
         assignments: [],
       };
 
-      (db.job.findFirst).mockResolvedValueOnce(mockJob);
-      (getWhatsAppConfig).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
+      (db.job.findFirst as jest.Mock).mockResolvedValueOnce(mockJob);
+      (getWhatsAppConfig as jest.Mock).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
 
       const result = await notifyJobScheduled('job_123');
 
@@ -173,9 +172,9 @@ describe('WhatsApp Notifications Service', () => {
         ],
       };
 
-      (db.job.findFirst).mockResolvedValueOnce(mockJob);
-      (getWhatsAppConfig).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
-      (sendTemplate).mockResolvedValueOnce({ success: true, messageId: 'wamid.124' });
+      (db.job.findFirst as jest.Mock).mockResolvedValueOnce(mockJob);
+      (getWhatsAppConfig as jest.Mock).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
+      (sendTemplate as jest.Mock).mockResolvedValueOnce({ success: true, messageId: 'wamid.124' });
 
       const result = await notifyTechnicianAssigned('job_123');
 
@@ -210,9 +209,9 @@ describe('WhatsApp Notifications Service', () => {
         assignments: [],
       };
 
-      (db.job.findFirst).mockResolvedValueOnce(mockJob);
-      (getWhatsAppConfig).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
-      (sendTemplate).mockResolvedValueOnce({ success: true, messageId: 'wamid.125' });
+      (db.job.findFirst as jest.Mock).mockResolvedValueOnce(mockJob);
+      (getWhatsAppConfig as jest.Mock).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
+      (sendTemplate as jest.Mock).mockResolvedValueOnce({ success: true, messageId: 'wamid.125' });
 
       const result = await notifyJobCompleted('job_123');
 
@@ -232,18 +231,18 @@ describe('WhatsApp Notifications Service', () => {
 
   describe('notifyInvoiceReady', () => {
     it('should send invoice ready notification', async () => {
-      (getWhatsAppConfig).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
-      (db.customer.findFirst).mockResolvedValueOnce({
+      (getWhatsAppConfig as jest.Mock).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
+      (db.customer.findFirst as jest.Mock).mockResolvedValueOnce({
         id: 'cust_123',
         name: 'John Doe',
         phone: '5491112345678',
       });
-      (db.invoice.findFirst).mockResolvedValueOnce({
+      (db.invoice.findFirst as jest.Mock).mockResolvedValueOnce({
         id: 'inv_123',
         invoiceNumber: 'INV-001',
         total: 15000.5,
       });
-      (sendTemplate).mockResolvedValueOnce({ success: true, messageId: 'wamid.126' });
+      (sendTemplate as jest.Mock).mockResolvedValueOnce({ success: true, messageId: 'wamid.126' });
 
       const result = await notifyInvoiceReady('inv_123', 'cust_123', 'org_123');
 
@@ -261,8 +260,8 @@ describe('WhatsApp Notifications Service', () => {
     });
 
     it('should return error if customer not found', async () => {
-      (getWhatsAppConfig).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
-      (db.customer.findFirst).mockResolvedValueOnce(null);
+      (getWhatsAppConfig as jest.Mock).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
+      (db.customer.findFirst as jest.Mock).mockResolvedValueOnce(null);
 
       const result = await notifyInvoiceReady('inv_123', 'cust_123', 'org_123');
 
@@ -273,17 +272,17 @@ describe('WhatsApp Notifications Service', () => {
 
   describe('notifyPaymentReceived', () => {
     it('should send payment received notification', async () => {
-      (getWhatsAppConfig).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
-      (db.customer.findFirst).mockResolvedValueOnce({
+      (getWhatsAppConfig as jest.Mock).mockResolvedValueOnce({ phoneNumberId: 'PHONE_ID' });
+      (db.customer.findFirst as jest.Mock).mockResolvedValueOnce({
         id: 'cust_123',
         name: 'John Doe',
         phone: '5491112345678',
       });
-      (db.payment.findFirst).mockResolvedValueOnce({
+      (db.payment.findFirst as jest.Mock).mockResolvedValueOnce({
         id: 'pay_123',
         amount: 5000,
       });
-      (sendTemplate).mockResolvedValueOnce({ success: true, messageId: 'wamid.127' });
+      (sendTemplate as jest.Mock).mockResolvedValueOnce({ success: true, messageId: 'wamid.127' });
 
       const result = await notifyPaymentReceived('pay_123', 'cust_123', 'org_123');
 

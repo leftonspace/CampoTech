@@ -16,7 +16,6 @@ import { ProtectedRoute } from '@/lib/auth-context';
 import {
   ArrowLeft,
   RefreshCw,
-  Activity,
   Clock,
   CheckCircle,
   XCircle,
@@ -325,10 +324,10 @@ function TierCard({
                 <p className={cn(
                   'font-medium',
                   littleLaw.concurrencyRecommendation === 'increase' ? 'text-yellow-600' :
-                  littleLaw.concurrencyRecommendation === 'decrease' ? 'text-blue-600' : 'text-green-600'
+                    littleLaw.concurrencyRecommendation === 'decrease' ? 'text-blue-600' : 'text-green-600'
                 )}>
                   {littleLaw.concurrencyRecommendation === 'increase' ? 'Aumentar concurrencia' :
-                   littleLaw.concurrencyRecommendation === 'decrease' ? 'Reducir concurrencia' : 'Mantener'}
+                    littleLaw.concurrencyRecommendation === 'decrease' ? 'Reducir concurrencia' : 'Mantener'}
                 </p>
               </div>
             </div>

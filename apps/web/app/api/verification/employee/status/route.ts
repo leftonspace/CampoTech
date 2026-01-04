@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Employee Verification Status API
  * =================================
  *
@@ -13,14 +13,14 @@
  * Only accessible by the authenticated user for their own status.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { verificationManager } from '@/lib/services/verification-manager';
 import type { UserVerificationSummary } from '@/lib/services/verification-types';
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 interface EmployeeStatusResponse {
   success: boolean;
@@ -77,30 +77,30 @@ interface ErrorResponse {
   error: string;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // EMPLOYEE BADGES CONFIG
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const EMPLOYEE_BADGES = [
   {
     code: 'background_check',
     name: 'Antecedentes Verificados',
     description: 'Certificado de antecedentes penales validado',
-    benefit: 'Destaca en el marketplace y accede a más trabajos',
+    benefit: 'Destaca en el marketplace y accede a mÃ¡s trabajos',
     icon: 'shield',
   },
   {
     code: 'professional_cert',
-    name: 'Certificación Profesional',
-    description: 'Certificación técnica o profesional validada',
+    name: 'CertificaciÃ³n Profesional',
+    description: 'CertificaciÃ³n tÃ©cnica o profesional validada',
     benefit: 'Aumenta la confianza de los clientes',
     icon: 'award',
   },
 ];
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // GET - Get Employee Verification Status
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export async function GET(): Promise<NextResponse<EmployeeStatusResponse | ErrorResponse>> {
   try {
@@ -159,7 +159,7 @@ export async function GET(): Promise<NextResponse<EmployeeStatusResponse | Error
       } else if (r.status === 'expired') {
         reason = 'Documento vencido';
       } else if (r.isExpiringSoon) {
-        reason = `Vence en ${r.daysUntilExpiry} días`;
+        reason = `Vence en ${r.daysUntilExpiry} dÃ­as`;
       } else if (r.requirement.isRequired && r.status === 'not_started') {
         reason = 'Requisito obligatorio pendiente';
       }
@@ -204,16 +204,16 @@ export async function GET(): Promise<NextResponse<EmployeeStatusResponse | Error
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Error al obtener estado de verificación',
+        error: error instanceof Error ? error.message : 'Error al obtener estado de verificaciÃ³n',
       },
       { status: 500 }
     );
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // HELPER FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 async function getEmployeeBadges(userId: string, organizationId: string) {
   // For now, return the static badge definitions with earned status from database
@@ -250,3 +250,4 @@ async function getEmployeeBadges(userId: string, organizationId: string) {
     }));
   }
 }
+

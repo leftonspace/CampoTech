@@ -18,7 +18,6 @@ import {
   Calendar,
   RefreshCw,
   Download,
-  Settings,
   Activity,
 } from 'lucide-react';
 

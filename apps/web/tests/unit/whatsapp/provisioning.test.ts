@@ -9,37 +9,37 @@
  * - Provisioning status management
  */
 
-// Using Jest globals
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 // Mock prisma
-jest.mock('@/lib/prisma', () => ({
+vi.mock('@/lib/prisma', () => ({
   prisma: {
     organization: {
-      findUnique: jest.fn(),
+      findUnique: vi.fn(),
     },
     whatsAppBusinessAccount: {
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      update: jest.fn(),
-      delete: jest.fn(),
+      findUnique: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
     },
     subscription: {
-      findFirst: jest.fn(),
+      findFirst: vi.fn(),
     },
   },
 }));
 
 // Create a shared mock provider instance
 const mockProvider = {
-  getAvailableNumbers: jest.fn(),
-  provisionNumber: jest.fn(),
-  verifyNumber: jest.fn(),
-  releaseNumber: jest.fn(),
-  resendVerification: jest.fn(),
+  getAvailableNumbers: vi.fn(),
+  provisionNumber: vi.fn(),
+  verifyNumber: vi.fn(),
+  releaseNumber: vi.fn(),
+  resendVerification: vi.fn(),
 };
 
 // Mock the provider factory to return the shared instance
-jest.mock('@/lib/integrations/whatsapp/providers', () => ({
+vi.mock('@/lib/integrations/whatsapp/providers', () => ({
   getBSPProvider: vi.fn(() => mockProvider),
 }));
 
@@ -47,13 +47,13 @@ jest.mock('@/lib/integrations/whatsapp/providers', () => ({
 import { prisma } from '@/lib/prisma';
 import { getBSPProvider } from '@/lib/integrations/whatsapp/providers';
 
-const mockFetch = jest.fn();
+const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 
 describe('Provisioning API', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   describe('GET /api/whatsapp/provision - Status Check', () => {
@@ -238,7 +238,7 @@ describe('Provisioning API', () => {
     });
 
     it('should handle resend verification request', async () => {
-      getBSPProvider().resendVerification = jest.fn().mockResolvedValue({
+      getBSPProvider().resendVerification = vi.fn().mockResolvedValue({
         success: true,
         method: 'sms',
         expiresAt: new Date(Date.now() + 600000), // 10 minutes

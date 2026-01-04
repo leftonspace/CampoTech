@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { InventoryService } from '@/src/services/inventory.service';
+import { Prisma, MovementType } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,8 +22,7 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {
+    const where: Prisma.StockMovementWhereInput = {
       organizationId: session.organizationId,
     };
 
@@ -34,8 +34,7 @@ export async function GET(request: NextRequest) {
       ];
     }
     if (type) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      where.movementType = type as any;
+      where.movementType = type as MovementType;
     }
 
     const [movements, total] = await Promise.all([
@@ -62,9 +61,35 @@ export async function GET(request: NextRequest) {
       prisma.stockMovement.count({ where }),
     ]);
 
-    // Map to the format expected by the frontend
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const transactions = movements.map((m: any) => ({
+    interface StockMovementWithIncludes {
+      id: string;
+      productId: string;
+      product: {
+        name: string;
+        sku: string;
+        unitOfMeasure: string;
+      };
+      fromWarehouseId: string | null;
+      fromWarehouse: {
+        name: string;
+        type: string;
+      } | null;
+      toWarehouseId: string | null;
+      toWarehouse: {
+        name: string;
+        type: string;
+      } | null;
+      movementType: MovementType;
+      quantity: number;
+      performedAt: Date;
+      performedById: string;
+      performedBy: {
+        name: string;
+      };
+      notes: string | null;
+    }
+
+    const transactions = (movements as unknown as StockMovementWithIncludes[]).map((m) => ({
       id: m.id,
       itemId: m.productId,
       item: {

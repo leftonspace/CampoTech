@@ -20,7 +20,6 @@ import {
   type HistoricalMetrics,
 } from '@/lib/queue/metrics';
 import {
-  getQueueStats,
   getQueueLength,
 } from '@/lib/queue/dispatcher';
 import {
@@ -108,9 +107,8 @@ export async function GET(request: NextRequest) {
 
   try {
     // Fetch core metrics
-    const [metrics, _queueStats] = await Promise.all([
+    const [metrics] = await Promise.all([
       getQueueMetrics(),
-      getQueueStats(),
     ]);
 
     // Fetch Little's Law analysis for all tiers

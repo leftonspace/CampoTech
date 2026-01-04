@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
-import { cn, formatDateTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { ProtectedRoute } from '@/lib/auth-context';
 import {
   ArrowLeft,
@@ -35,17 +35,6 @@ interface QueueStatus {
   workers: number;
 }
 
-interface QueueJob {
-  id: string;
-  name: string;
-  data: Record<string, unknown>;
-  status: 'waiting' | 'active' | 'completed' | 'failed' | 'delayed';
-  createdAt: string;
-  processedAt?: string;
-  failedReason?: string;
-  attemptsMade: number;
-}
-
 const QUEUE_DISPLAY_NAMES: Record<string, string> = {
   CAE: 'Cola AFIP (CAE)',
   WHATSAPP: 'Cola WhatsApp',
@@ -73,7 +62,6 @@ export default function QueuesPage() {
 }
 
 function QueuesContent() {
-  const queryClient = useQueryClient();
   const [expandedQueue, setExpandedQueue] = useState<string | null>(null);
 
   const { data, isLoading, refetch, isFetching } = useQuery({

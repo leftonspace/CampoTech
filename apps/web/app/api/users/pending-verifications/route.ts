@@ -1,9 +1,9 @@
-/**
+﻿/**
  * Pending Verifications API Route
  * Self-contained implementation (placeholder)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 
 /**
@@ -68,8 +68,9 @@ export async function POST() {
   } catch (error) {
     console.error('Pending verification action error:', error);
     return NextResponse.json(
-      { success: false, error: 'Error procesando acción' },
+      { success: false, error: 'Error procesando acciÃ³n' },
       { status: 500 }
     );
   }
 }
+

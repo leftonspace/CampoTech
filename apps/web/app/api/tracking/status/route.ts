@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // TODO: Add activity logging when ActivityLog model is created
+    // FIXME: Add activity logging when ActivityLog model is created (Phase: Audit Trail)
     // For now, log to console for debugging
     console.log('Status change:', {
       userId: session.userId,

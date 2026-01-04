@@ -131,7 +131,6 @@ export async function GET(request: NextRequest) {
     const targetLng = searchParams.get('targetLng')
       ? parseFloat(searchParams.get('targetLng')!)
       : null;
-    const _serviceType = searchParams.get('serviceType');
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -210,8 +209,32 @@ export async function GET(request: NextRequest) {
     );
 
     // Build availability data for each technician
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const availability: TechnicianAvailability[] = technicians.map((tech: any) => {
+    interface TechnicianWithData {
+      id: string;
+      name: string;
+      phone: string;
+      avatar: string | null;
+      specialty: string | null;
+      skillLevel: string | null;
+      currentLocation: {
+        latitude: number | string;
+        longitude: number | string;
+        accuracy: number | string | null;
+        lastSeen: Date;
+        isOnline: boolean;
+      } | null;
+      assignedJobs: Array<{
+        id: string;
+        jobNumber: string;
+        status: string;
+        startedAt: Date | null;
+        estimatedDuration: number | null;
+        scheduledDate: Date | null;
+        customer: { name: string };
+      }>;
+    }
+
+    const availability: TechnicianAvailability[] = (technicians as unknown as TechnicianWithData[]).map((tech) => {
       const todaysJobs = tech.assignedJobs;
       const completedJobs = todaysJobs.filter((j: { status: string }) => j.status === 'COMPLETED');
       const inProgressJobs = todaysJobs.filter(

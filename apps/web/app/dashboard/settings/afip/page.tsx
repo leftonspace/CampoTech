@@ -19,7 +19,7 @@ export default function AFIPSettingsPage() {
   const [file, setFile] = useState<File | null>(null);
   const [password, setPassword] = useState('');
 
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ['settings-afip'],
     queryFn: () => api.settings.afip.get(),
   });
@@ -65,11 +65,10 @@ export default function AFIPSettingsPage() {
       <div className="card p-6">
         <div className="flex items-center gap-4">
           <div
-            className={`rounded-full p-3 ${
-              settings?.configured
+            className={`rounded-full p-3 ${settings?.configured
                 ? 'bg-success-50 text-success-500'
                 : 'bg-warning-50 text-warning-500'
-            }`}
+              }`}
           >
             {settings?.configured ? (
               <CheckCircle className="h-6 w-6" />
@@ -168,7 +167,7 @@ export default function AFIPSettingsPage() {
               name="environment"
               value="homologation"
               checked={settings?.environment === 'homologation'}
-              onChange={() => {}}
+              onChange={() => { }}
               className="h-4 w-4 text-primary-600"
             />
             <div>
@@ -183,7 +182,7 @@ export default function AFIPSettingsPage() {
               name="environment"
               value="production"
               checked={settings?.environment === 'production'}
-              onChange={() => {}}
+              onChange={() => { }}
               className="h-4 w-4 text-primary-600"
             />
             <div>
@@ -206,7 +205,7 @@ export default function AFIPSettingsPage() {
             min={1}
             max={99999}
             value={settings?.puntoVenta || ''}
-            onChange={() => {}}
+            onChange={() => { }}
             placeholder="Ej: 1"
             className="input"
           />

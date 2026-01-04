@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { JobService } from '@/src/services/job.service';
 
@@ -63,3 +63,4 @@ export async function GET() {
     );
   }
 }
+

@@ -21,7 +21,6 @@ import {
 import {
   processInboundMessage,
   processStatusUpdate,
-  getWhatsAppConfig,
 } from '@/src/integrations/whatsapp/whatsapp.service';
 
 // Environment variables for default webhook handling

@@ -59,7 +59,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const userId = searchParams.get('userId');
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    const _search = searchParams.get('search');
 
     const offset = (page - 1) * pageSize;
     const { organizationId } = session;

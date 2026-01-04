@@ -122,14 +122,6 @@ interface TrialStatusResponse {
   };
 }
 
-interface SubscriptionInfo {
-  tier: string;
-  billingCycle: 'MONTHLY' | 'YEARLY';
-  status: 'active' | 'trialing' | 'past_due' | 'cancelled';
-  currentPeriodEnd: string;
-  nextBillingAmount: number;
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // API
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -346,8 +338,8 @@ function TrialStatusBanner({ daysRemaining, trialEndsAt, hasTrialExpired }: Tria
   const bgClass = isUrgent
     ? 'from-red-500 to-rose-600'
     : isWarning
-    ? 'from-amber-500 to-orange-500'
-    : 'from-primary-600 to-purple-600';
+      ? 'from-amber-500 to-orange-500'
+      : 'from-primary-600 to-purple-600';
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('es-AR', {
@@ -824,11 +816,10 @@ export default function BillingPage() {
           {data.warnings.map((warning, i) => (
             <div
               key={i}
-              className={`p-3 rounded-lg flex items-center gap-3 ${
-                warning.percentage >= 100
-                  ? 'bg-danger-50 text-danger-700'
-                  : 'bg-amber-50 text-amber-700'
-              }`}
+              className={`p-3 rounded-lg flex items-center gap-3 ${warning.percentage >= 100
+                ? 'bg-danger-50 text-danger-700'
+                : 'bg-amber-50 text-amber-700'
+                }`}
             >
               <AlertTriangle className="h-5 w-5 flex-shrink-0" />
               <span className="text-sm">{warning.message}</span>

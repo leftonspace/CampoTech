@@ -176,7 +176,7 @@ export async function GET(req: NextRequest) {
     const satisfactionTrend = aggregateSatisfactionTrend(reviews, dateRange.start, dateRange.end);
 
     // Churn risk distribution
-    const churnRiskDistribution = calculateChurnRisk(customers, currentJobs, invoices);
+    const churnRiskDistribution = calculateChurnRisk(customers, currentJobs);
 
     // Customers by purchase frequency
     const customersByFrequency = calculateFrequencyDistribution(customers, currentJobs);
@@ -367,8 +367,7 @@ function aggregateSatisfactionTrend(
 
 function calculateChurnRisk(
   customers: { id: string }[],
-  jobs: { customerId: string | null; createdAt: Date }[],
-  _invoices: { customerId: string | null; createdAt: Date }[]
+  jobs: { customerId: string | null; createdAt: Date }[]
 ): { label: string; value: number; color: string }[] {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);

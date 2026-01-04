@@ -1,9 +1,9 @@
-/**
+﻿/**
  * Resend Verification API Route
  * Self-contained implementation (placeholder)
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 
 /**
@@ -27,8 +27,9 @@ export async function POST() {
   } catch (error) {
     console.error('Resend verification error:', error);
     return NextResponse.json(
-      { success: false, error: 'Error reenviando código' },
+      { success: false, error: 'Error reenviando cÃ³digo' },
       { status: 500 }
     );
   }
 }
+

@@ -9,7 +9,7 @@
  * - Extending trials
  */
 
-// Using Jest globals
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   createMockOrgWithSubscription,
   createMockTrialOrg,
@@ -24,7 +24,7 @@ import {
 
 // Mock prisma
 const mockPrisma = createMockPrisma();
-jest.mock('@/lib/prisma', () => ({
+vi.mock('@/lib/prisma', () => ({
   prisma: mockPrisma,
 }));
 
@@ -35,7 +35,7 @@ describe('TrialManager', () => {
   beforeEach(() => {
     resetAllMocks();
     mockPrisma._clearAll();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -210,7 +210,7 @@ describe('TrialManager', () => {
         trialEndsAt: new Date('2024-01-25T10:00:00Z'), // 10 days
       });
 
-      mockPrisma.organization.findMany = jest.fn().mockResolvedValueOnce([expiringOrg]);
+      mockPrisma.organization.findMany = vi.fn().mockResolvedValueOnce([expiringOrg]);
 
       const expiring = await trialManager.checkExpiringTrials(3);
 
@@ -228,7 +228,7 @@ describe('TrialManager', () => {
         ...org,
         subscriptionStatus: 'expired',
       });
-      mockPrisma.organizationSubscription.updateMany = jest.fn().mockResolvedValueOnce({ count: 1 });
+      mockPrisma.organizationSubscription.updateMany = vi.fn().mockResolvedValueOnce({ count: 1 });
       mockPrisma.subscriptionEvent.create.mockResolvedValueOnce({});
 
       const result = await trialManager.expireTrial(org.id);
@@ -248,7 +248,7 @@ describe('TrialManager', () => {
       mockPrisma._addOrganization(org);
 
       mockPrisma.organization.update.mockResolvedValueOnce({});
-      mockPrisma.organizationSubscription.updateMany = jest.fn().mockResolvedValueOnce({ count: 1 });
+      mockPrisma.organizationSubscription.updateMany = vi.fn().mockResolvedValueOnce({ count: 1 });
       mockPrisma.subscriptionEvent.create.mockResolvedValueOnce({});
 
       await trialManager.expireTrial(org.id);
@@ -278,7 +278,7 @@ describe('TrialManager', () => {
         ...org,
         trialEndsAt: new Date('2024-01-27T10:00:00Z'), // +7 days
       });
-      mockPrisma.organizationSubscription.updateMany = jest.fn().mockResolvedValueOnce({ count: 1 });
+      mockPrisma.organizationSubscription.updateMany = vi.fn().mockResolvedValueOnce({ count: 1 });
       mockPrisma.subscriptionEvent.create.mockResolvedValueOnce({});
 
       const result = await trialManager.extendTrial(org.id, 7, 'Customer request');
@@ -312,7 +312,7 @@ describe('TrialManager', () => {
 
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
       mockPrisma.organization.update.mockResolvedValueOnce({});
-      mockPrisma.organizationSubscription.updateMany = jest.fn().mockResolvedValueOnce({ count: 1 });
+      mockPrisma.organizationSubscription.updateMany = vi.fn().mockResolvedValueOnce({ count: 1 });
       mockPrisma.subscriptionEvent.create.mockResolvedValueOnce({});
 
       await trialManager.extendTrial(org.id, 7, 'Sales promotion');

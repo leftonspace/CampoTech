@@ -8,10 +8,8 @@ import {
     Smartphone,
     ArrowRight,
     Check,
-    X,
     Clock
 } from 'lucide-react';
-import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 
@@ -53,7 +51,7 @@ const MOCK_CONFLICTS: Conflict[] = [
 export default function SyncConflictsPage() {
     const [conflicts, setConflicts] = useState<Conflict[]>(MOCK_CONFLICTS);
 
-    const handleResolve = (id: string, strategy: 'server' | 'client') => {
+    const handleResolve = (id: string, _strategy: 'server' | 'client') => {
         // In real app: call API to resolve conflict
         setConflicts(prev => prev.filter(c => c.id !== id));
     };

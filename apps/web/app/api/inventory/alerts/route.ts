@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+﻿import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { InventoryService } from '@/src/services/inventory.service';
+import { ProductWithStock, StockAlert } from '@/lib/types/inventory';
 
 export async function GET() {
   try {
@@ -21,8 +22,7 @@ export async function GET() {
     );
     const products = result.items;
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const alerts = products.map((product: any) => {
+    const alerts: StockAlert[] = (products as unknown as ProductWithStock[]).map((product) => {
       const totalStock = product.stock.onHand;
       const isOutOfStock = totalStock === 0;
 
@@ -39,15 +39,14 @@ export async function GET() {
           sku: product.sku,
         },
         message: isOutOfStock
-          ? `${product.name} está agotado`
+          ? `${product.name} estÃ¡ agotado`
           : `${product.name} tiene stock bajo (${totalStock} ${product.unitOfMeasure || 'unidades'})`,
         details: {
           currentStock: totalStock,
           minStockLevel: product.minStockLevel,
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          locationBreakdown: product.inventoryLevels.map((lvl: any) => ({
+          locationBreakdown: product.inventoryLevels.map((lvl) => ({
             locationId: lvl.warehouseId,
-            locationName: lvl.warehouse.name,
+            locationName: lvl.warehouse?.name || 'Unknown',
             quantity: lvl.quantityOnHand,
           })),
         },
@@ -56,22 +55,16 @@ export async function GET() {
 
     // Sort by severity (critical first)
     const severityOrder: Record<string, number> = { critical: 0, warning: 1, info: 2 };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    alerts.sort((a: any, b: any) => severityOrder[a.severity] - severityOrder[b.severity]);
+    alerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
     // Calculate summary
     const summary = {
       total: alerts.length,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      critical: alerts.filter((a: any) => a.severity === 'critical').length,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      warning: alerts.filter((a: any) => a.severity === 'warning').length,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      info: alerts.filter((a: any) => a.severity === 'info').length,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      outOfStock: alerts.filter((a: any) => a.type === 'OUT_OF_STOCK').length,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      lowStock: alerts.filter((a: any) => a.type === 'LOW_STOCK').length,
+      critical: alerts.filter((a) => a.severity === 'critical').length,
+      warning: alerts.filter((a) => a.severity === 'warning').length,
+      info: alerts.filter((a) => a.severity === 'info').length,
+      outOfStock: alerts.filter((a) => a.type === 'OUT_OF_STOCK').length,
+      lowStock: alerts.filter((a) => a.type === 'LOW_STOCK').length,
     };
 
     return NextResponse.json({
@@ -90,3 +83,4 @@ export async function GET() {
     );
   }
 }
+

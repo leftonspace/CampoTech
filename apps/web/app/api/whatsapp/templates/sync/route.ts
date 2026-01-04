@@ -3,11 +3,11 @@
  * Syncs templates from Meta Business API via service layer
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { syncTemplates, listTemplates } from '@/src/integrations/whatsapp/whatsapp.service';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
     const session = await getSession();
 

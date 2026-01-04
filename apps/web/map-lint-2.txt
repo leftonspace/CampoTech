@@ -1,7 +1,0 @@
-D:\projects\CampoTech\apps\web\app\dashboard\map\page.tsx: line 5, col 10, Warning - 'useRouter' is defined but never used. (@typescript-eslint/no-unused-vars)
-D:\projects\CampoTech\apps\web\app\dashboard\map\page.tsx: line 419, col 27, Warning - '_setBreadcrumbTrail' is assigned a value but never used. (@typescript-eslint/no-unused-vars)
-D:\projects\CampoTech\apps\web\app\dashboard\map\page.tsx: line 487, col 47, Warning - 'userId' is defined but never used. (@typescript-eslint/no-unused-vars)
-D:\projects\CampoTech\apps\web\app\dashboard\map\page.tsx: line 491, col 48, Warning - '_userId' is defined but never used. (@typescript-eslint/no-unused-vars)
-D:\projects\CampoTech\apps\web\app\dashboard\map\page.tsx: line 495, col 47, Warning - '_update' is defined but never used. (@typescript-eslint/no-unused-vars)
-
-5 problems

@@ -19,47 +19,47 @@ vi.stubEnv('DIALOG360_WEBHOOK_SECRET', 'test_webhook_secret');
 // Mock prisma
 const mockPrisma = {
   organization: {
-    findUnique: jest.fn(),
+    findUnique: vi.fn(),
   },
   subscription: {
-    findFirst: jest.fn(),
+    findFirst: vi.fn(),
   },
   whatsAppBusinessAccount: {
-    findUnique: jest.fn(),
-    findFirst: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
   },
   whatsAppConversation: {
-    findFirst: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
+    findFirst: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
   },
   whatsAppMessage: {
-    create: jest.fn(),
-    updateMany: jest.fn(),
-    findMany: jest.fn(),
+    create: vi.fn(),
+    updateMany: vi.fn(),
+    findMany: vi.fn(),
   },
   customer: {
-    findFirst: jest.fn(),
-    create: jest.fn(),
+    findFirst: vi.fn(),
+    create: vi.fn(),
   },
   aIConfiguration: {
-    findUnique: jest.fn(),
+    findUnique: vi.fn(),
   },
 };
 
-jest.mock('@/lib/prisma', () => ({
+vi.mock('@/lib/prisma', () => ({
   prisma: mockPrisma,
 }));
 
 // Mock fetch
-const mockFetch = jest.fn();
+const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 describe('WhatsApp BSP Integration Flow', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {

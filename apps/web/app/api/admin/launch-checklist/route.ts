@@ -14,7 +14,7 @@
  *   - Blocking issues vs warnings
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES

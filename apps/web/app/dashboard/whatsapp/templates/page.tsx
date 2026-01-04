@@ -7,7 +7,6 @@ import { api } from '@/lib/api-client';
 import { searchMatches } from '@/lib/utils';
 import {
   ArrowLeft,
-  FileText,
   CheckCircle,
   Clock,
   XCircle,
@@ -15,7 +14,6 @@ import {
   RefreshCw,
   Send,
   Search,
-  ChevronRight,
   Eye,
 } from 'lucide-react';
 

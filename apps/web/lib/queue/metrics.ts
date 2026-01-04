@@ -35,7 +35,6 @@ import {
   type QueueTier,
   type JobType,
   QUEUE_TIERS,
-  QUEUE_CONFIG,
   queueKey,
   dlqKey,
 } from './config';
@@ -275,7 +274,7 @@ export async function recordJobCompleted(
 export async function recordJobFailed(
   tier: QueueTier,
   jobType: JobType,
-  error: string
+  _error: string
 ): Promise<void> {
   if (!redis) return;
 
@@ -503,9 +502,9 @@ export async function getQueueMetrics(): Promise<QueueMetrics> {
   const overallSlaCompliance =
     totalJobs > 0
       ? tierMetrics.reduce(
-          (sum, t) => sum + t.slaCompliance * t.processedLastHour,
-          0
-        ) / totalJobs
+        (sum, t) => sum + t.slaCompliance * t.processedLastHour,
+        0
+      ) / totalJobs
       : 100;
 
   // Determine health status

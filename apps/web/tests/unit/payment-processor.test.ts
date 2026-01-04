@@ -9,7 +9,7 @@
  * - Ley 24.240 refund eligibility
  */
 
-// Using Jest globals
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   createMockOrgWithSubscription,
   createMockPayment,
@@ -23,15 +23,15 @@ import {
 
 // Mock prisma
 const mockPrisma = createMockPrisma();
-jest.mock('@/lib/prisma', () => ({
+vi.mock('@/lib/prisma', () => ({
   prisma: mockPrisma,
 }));
 
 // Mock MercadoPago client
-jest.mock('@/lib/integrations/mercadopago/client', () => ({
+vi.mock('@/lib/integrations/mercadopago/client', () => ({
   mercadoPagoClient: {
-    getPayment: jest.fn(),
-    createRefund: jest.fn(),
+    getPayment: vi.fn(),
+    createRefund: vi.fn(),
   },
 }));
 
@@ -42,7 +42,7 @@ describe('PaymentProcessor', () => {
   beforeEach(() => {
     resetAllMocks();
     mockPrisma._clearAll();
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -207,7 +207,7 @@ describe('PaymentProcessor', () => {
 
       // Mock finding multiple failed payments
       mockPrisma.subscriptionPayment.findUnique.mockResolvedValueOnce(payment);
-      mockPrisma.subscriptionPayment.count = jest.fn().mockResolvedValueOnce(3); // 3 failed payments
+      mockPrisma.subscriptionPayment.count = vi.fn().mockResolvedValueOnce(3); // 3 failed payments
       mockPrisma.subscriptionPayment.update.mockResolvedValueOnce({});
       mockPrisma.organization.update.mockResolvedValueOnce({});
       mockPrisma.subscriptionEvent.create.mockResolvedValueOnce({});
@@ -254,7 +254,7 @@ describe('PaymentProcessor', () => {
       });
 
       mockPrisma.subscriptionPayment.findUnique.mockResolvedValueOnce(payment);
-      jest.mocked(mercadoPagoClient.createRefund).mockResolvedValueOnce(
+      vi.mocked(mercadoPagoClient.createRefund).mockResolvedValueOnce(
         mockMercadoPagoResponses.refundSuccess('refund-123', 25000)
       );
       mockPrisma.$transaction.mockImplementation(async (callback) => callback(mockPrisma));
@@ -300,7 +300,7 @@ describe('PaymentProcessor', () => {
       });
 
       mockPrisma.subscriptionPayment.findUnique.mockResolvedValueOnce(payment);
-      jest.mocked(mercadoPagoClient.createRefund).mockResolvedValueOnce(
+      vi.mocked(mercadoPagoClient.createRefund).mockResolvedValueOnce(
         mockMercadoPagoResponses.refundSuccess('refund-123', 25000)
       );
       mockPrisma.$transaction.mockImplementation(async (callback) => callback(mockPrisma));
@@ -330,7 +330,7 @@ describe('PaymentProcessor', () => {
 
       mockPrisma.subscriptionPayment.findUnique.mockResolvedValueOnce(payment);
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
-      jest.mocked(mercadoPagoClient.createRefund).mockResolvedValueOnce(
+      vi.mocked(mercadoPagoClient.createRefund).mockResolvedValueOnce(
         mockMercadoPagoResponses.refundSuccess()
       );
       mockPrisma.$transaction.mockImplementation(async (callback) => callback(mockPrisma));

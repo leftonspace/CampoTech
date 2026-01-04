@@ -30,7 +30,7 @@ const MOCK_SERVICES: ServiceHealth[] = [
 ];
 
 export default function SystemStatusPage() {
-    const [services, setServices] = useState<ServiceHealth[]>(MOCK_SERVICES);
+    const [services] = useState<ServiceHealth[]>(MOCK_SERVICES);
     const [panicMode, setPanicMode] = useState(false);
     const [isConfirmingPanic, setIsConfirmingPanic] = useState(false);
 
@@ -42,13 +42,6 @@ export default function SystemStatusPage() {
         }
     };
 
-    const getStatusIcon = (status: SystemStatus) => {
-        switch (status) {
-            case 'OPERATIONAL': return <CheckCircle className="w-5 h-5" />;
-            case 'DEGRADED': return <AlertTriangle className="w-5 h-5" />;
-            case 'OUTAGE': return <XOctagon className="w-5 h-5" />;
-        }
-    };
 
     const handlePanicToggle = () => {
         if (panicMode) {
@@ -105,8 +98,8 @@ export default function SystemStatusPage() {
                         <button
                             onClick={handlePanicToggle}
                             className={`flex items-center gap-3 px-6 py-3 rounded-lg font-bold transition-all transform hover:scale-105 active:scale-95 ${panicMode
-                                    ? 'bg-gray-800 text-white hover:bg-gray-900'
-                                    : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200'
+                                ? 'bg-gray-800 text-white hover:bg-gray-900'
+                                : 'bg-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-200'
                                 }`}
                         >
                             <Power className="w-5 h-5" />

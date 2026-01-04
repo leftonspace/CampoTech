@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma, TransactionClient } from '@/lib/prisma';
+import { Prisma } from '@prisma/client';
 
 /**
  * POST /api/inventory/stock/count
@@ -63,8 +64,7 @@ export async function POST(request: NextRequest) {
       const countNumber = `CNT-${(countNum + 1).toString().padStart(6, '0')}`;
 
       // Get products for the count
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const productsWhere: any = {
+      const productsWhere: Prisma.ProductWhereInput = {
         organizationId: session.organizationId,
         trackInventory: true,
         isActive: true,
@@ -479,11 +479,11 @@ export async function POST(request: NextRequest) {
       { success: false, error: 'Acción no válida' },
       { status: 400 }
     );
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } catch (error: any) {
+  } catch (error) {
     console.error('Stock count error:', error);
+    const message = error instanceof Error ? error.message : 'Error processing stock count';
     return NextResponse.json(
-      { success: false, error: error.message || 'Error processing stock count' },
+      { success: false, error: message },
       { status: 500 }
     );
   }
@@ -556,8 +556,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build where clause for list
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {
+    const where: Prisma.InventoryCountWhereInput = {
       organizationId: session.organizationId,
     };
 

@@ -13,9 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   MessageSquare,
   Clock,
-  Users,
   Activity,
-  AlertTriangle,
   CheckCircle,
   RefreshCw,
   TrendingUp,

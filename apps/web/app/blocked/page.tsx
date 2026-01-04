@@ -75,30 +75,6 @@ interface AccessStatus {
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const TYPE_CONFIG = {
-  subscription: {
-    icon: CreditCard,
-    label: 'Suscripción',
-    color: 'text-blue-600',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200',
-  },
-  verification: {
-    icon: FileCheck,
-    label: 'Verificación',
-    color: 'text-amber-600',
-    bgColor: 'bg-amber-50',
-    borderColor: 'border-amber-200',
-  },
-  compliance: {
-    icon: Shield,
-    label: 'Cumplimiento',
-    color: 'text-red-600',
-    bgColor: 'bg-red-50',
-    borderColor: 'border-red-200',
-  },
-};
-
 const TIER_NAMES: Record<string, string> = {
   FREE: 'Gratis',
   INICIAL: 'Inicial',

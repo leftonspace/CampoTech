@@ -16,7 +16,7 @@ interface MPSettings {
 export default function MercadoPagoSettingsPage() {
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data } = useQuery({
     queryKey: ['settings-mercadopago'],
     queryFn: () => api.settings.mercadopago.get(),
   });
@@ -59,11 +59,10 @@ export default function MercadoPagoSettingsPage() {
       <div className="card p-6">
         <div className="flex items-center gap-4">
           <div
-            className={`rounded-full p-3 ${
-              settings?.connected
+            className={`rounded-full p-3 ${settings?.connected
                 ? 'bg-success-50 text-success-500'
                 : 'bg-warning-50 text-warning-500'
-            }`}
+              }`}
           >
             {settings?.connected ? (
               <CheckCircle className="h-6 w-6" />

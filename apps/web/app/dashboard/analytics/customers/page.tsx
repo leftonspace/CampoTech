@@ -19,7 +19,6 @@ import {
   Download,
   RefreshCw,
   DollarSign,
-  TrendingUp,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -34,17 +33,6 @@ interface SegmentData {
   label: string;
   value: number;
   color: string;
-}
-
-interface CustomerData {
-  id: string;
-  name: string;
-  segment: string;
-  clv: number;
-  totalSpent: number;
-  jobCount: number;
-  lastJob: string;
-  churnRisk: 'low' | 'medium' | 'high';
 }
 
 interface CustomersData {

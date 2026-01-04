@@ -420,7 +420,7 @@ export default function AIAssistantSettingsPage() {
 
       setTestMessages((prev) => [...prev, assistantMessage]);
       setTestContext(data.context);
-    } catch (_err) {
+    } catch (_) {
       setTestMessages((prev) => [
         ...prev,
         {

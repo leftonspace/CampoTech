@@ -159,8 +159,8 @@ function buildSchedulingPrompt(schedulingData: SchedulingIntelligenceResult): st
 INFORMACIÓN DE AGENDA:
 ⚠️ ${schedulingData.summary}
 ${schedulingData.alternativeSuggestions.length > 0
-  ? `Días alternativos disponibles: ${schedulingData.alternativeSuggestions.join(', ')}`
-  : ''}`;
+        ? `Días alternativos disponibles: ${schedulingData.alternativeSuggestions.join(', ')}`
+        : ''}`;
   }
 
   // Build technician availability summary
@@ -188,8 +188,8 @@ ${schedulingData.alternativeSuggestions.length > 0
   const conflictInfo = schedulingData.hasConflict
     ? `\n⚠️ CONFLICTO DETECTADO: ${schedulingData.conflictReason}
 ${schedulingData.alternativeSuggestions.length > 0
-  ? `Alternativas sugeridas: ${schedulingData.alternativeSuggestions.join(', ')}`
-  : ''}`
+      ? `Alternativas sugeridas: ${schedulingData.alternativeSuggestions.join(', ')}`
+      : ''}`
     : '';
 
   return `
@@ -485,12 +485,12 @@ export class WhatsAppAIResponder {
       return undefined;
     }
 
-    const extractedDate = this.extractDateFromText(text);
+    let extractedDate = this.extractDateFromText(text);
     if (!extractedDate) {
       // Default to tomorrow if booking-related but no date detected
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
-      extractedDate || tomorrow;
+      extractedDate = tomorrow;
     }
 
     const dateStr = (extractedDate || new Date()).toISOString().split('T')[0];
@@ -987,22 +987,22 @@ export async function getConversationContext(
     // Get customer's job history
     const jobCount = conversation.customerId
       ? await prisma.job.count({
-          where: { customerId: conversation.customerId },
-        })
+        where: { customerId: conversation.customerId },
+      })
       : 0;
 
     const lastJob = conversation.customerId
       ? await prisma.job.findFirst({
-          where: { customerId: conversation.customerId },
-          orderBy: { createdAt: 'desc' },
-        })
+        where: { customerId: conversation.customerId },
+        orderBy: { createdAt: 'desc' },
+      })
       : null;
 
     // Get active job if any
     const activeJob = conversation.activeJobId
       ? await prisma.job.findUnique({
-          where: { id: conversation.activeJobId },
-        })
+        where: { id: conversation.activeJobId },
+      })
       : null;
 
     return {
@@ -1015,19 +1015,19 @@ export async function getConversationContext(
         })),
       customer: conversation.customer
         ? {
-            name: conversation.customer.name,
-            phone: conversation.customer.phone,
-            previousJobs: jobCount,
-            lastServiceDate: lastJob?.completedAt || undefined,
-          }
+          name: conversation.customer.name,
+          phone: conversation.customer.phone,
+          previousJobs: jobCount,
+          lastServiceDate: lastJob?.completedAt || undefined,
+        }
         : undefined,
       activeJob: activeJob
         ? {
-            id: activeJob.id,
-            status: activeJob.status,
-            serviceType: activeJob.serviceType || '',
-            scheduledDate: activeJob.scheduledDate || undefined,
-          }
+          id: activeJob.id,
+          status: activeJob.status,
+          serviceType: activeJob.serviceType || '',
+          scheduledDate: activeJob.scheduledDate || undefined,
+        }
         : undefined,
     };
   } catch {

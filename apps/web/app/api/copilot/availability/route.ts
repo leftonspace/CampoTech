@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const dateStr = searchParams.get('date');
-    const _durationHours = parseInt(searchParams.get('duration_hours') || '2', 10);
+    const durationHours = parseInt(searchParams.get('duration_hours') || '2', 10);
 
     const date = dateStr ? new Date(dateStr) : new Date();
     date.setHours(0, 0, 0, 0);
@@ -79,26 +79,26 @@ export async function GET(request: NextRequest) {
       const workStart = 9;
       const workEnd = 18;
 
-      for (let hour = workStart; hour < workEnd; hour += 2) {
+      for (let hour = workStart; hour < workEnd; hour += durationHours) {
         const slotStart = new Date(date);
         slotStart.setHours(hour, 0, 0, 0);
 
         const slotEnd = new Date(date);
-        slotEnd.setHours(hour + 2, 0, 0, 0);
+        slotEnd.setHours(hour + durationHours, 0, 0, 0);
 
         // Check if slot overlaps with any job
         const overlappingJob = jobs.find((job: { id: string; title: string; scheduledDate: Date | null; estimatedDuration: number | null }) => {
           if (!job.scheduledDate) return false;
           const jobStart = new Date(job.scheduledDate);
           const jobEnd = new Date(job.scheduledDate);
-          jobEnd.setHours(jobEnd.getHours() + (job.estimatedDuration || 2));
+          jobEnd.setHours(jobEnd.getHours() + (job.estimatedDuration || durationHours));
 
           return jobStart < slotEnd && jobEnd > slotStart;
         });
 
         timeSlots.push({
           start: `${hour.toString().padStart(2, '0')}:00`,
-          end: `${(hour + 2).toString().padStart(2, '0')}:00`,
+          end: `${(hour + durationHours).toString().padStart(2, '0')}:00`,
           available: !overlappingJob,
           jobId: overlappingJob?.id,
           jobTitle: overlappingJob?.title,

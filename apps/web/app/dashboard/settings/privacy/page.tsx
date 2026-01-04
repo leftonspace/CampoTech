@@ -163,14 +163,12 @@ function Toggle({
       type="button"
       onClick={() => !disabled && onChange(!checked)}
       disabled={disabled}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-        checked ? 'bg-primary-600' : 'bg-gray-200'
-      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-primary-600' : 'bg-gray-200'
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       <span
-        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-          checked ? 'translate-x-6' : 'translate-x-1'
-        }`}
+        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'
+          }`}
       />
     </button>
   );
@@ -231,12 +229,12 @@ export default function PrivacySettingsPage() {
     queryFn: fetchPrivacy,
   });
 
-  const { data: exportData, isLoading: exportLoading } = useQuery({
+  const { data: exportData } = useQuery({
     queryKey: ['export-status'],
     queryFn: fetchExportStatus,
   });
 
-  const { data: deletionData, isLoading: deletionLoading } = useQuery({
+  const { data: deletionData } = useQuery({
     queryKey: ['deletion-status'],
     queryFn: fetchDeletionStatus,
   });

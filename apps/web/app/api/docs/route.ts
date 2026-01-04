@@ -5,7 +5,6 @@
  * Returns OpenAPI specification for the CampoTech API.
  *
  * GET /api/docs - Returns OpenAPI 3.0 spec in JSON format
- * GET /api/docs?format=yaml - Returns OpenAPI spec in YAML format (TODO)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -13,9 +12,6 @@ import { generateOpenAPISpec } from '@/lib/api/openapi';
 import { API_VERSION } from '@/lib/api/versioning';
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const _format = searchParams.get('format') || 'json';
-
   // Get base URL from request
   const protocol = request.headers.get('x-forwarded-proto') || 'https';
   const host = request.headers.get('host') || 'localhost:3000';
