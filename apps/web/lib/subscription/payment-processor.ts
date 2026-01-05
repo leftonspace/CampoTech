@@ -365,7 +365,15 @@ class PaymentProcessor {
     /**
      * Create a new payment record
      */
-    async createPaymentRecord(data: PaymentData): Promise<any> {
+    async createPaymentRecord(data: PaymentData): Promise<{
+        id: string;
+        organizationId: string;
+        subscriptionId: string;
+        amount: number;
+        currency: string;
+        paymentMethod: string;
+        status: string;
+    }> {
         return await prisma.subscriptionPayment.create({
             data: {
                 organizationId: data.organizationId,

@@ -270,8 +270,16 @@ class BlockManager {
      */
     async getBlockedOrganizations(
         blockType?: 'soft_block' | 'hard_block'
-    ): Promise<any[]> {
-        const where: any = {
+    ): Promise<Array<{
+        id: string;
+        name: string;
+        blockType: string | null;
+        blockReason: string | null;
+        blockedAt: Date | null;
+        subscriptionStatus: string;
+        subscriptionTier: string;
+    }>> {
+        const where: { blockType: { not: null } | string } = {
             blockType: {
                 not: null,
             },
