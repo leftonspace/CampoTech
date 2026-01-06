@@ -24,6 +24,7 @@ import {
   isAIAssistantEnabled,
   type IncomingMessage as AIIncomingMessage,
 } from '@/lib/services/whatsapp-ai-responder';
+import { handleButtonClick, type ButtonClickContext } from '@/lib/services/workflows';
 import type {
   WebhookPayload,
   WebhookMessage,
@@ -330,6 +331,38 @@ async function processInboundMessage(
 
     console.log('[Dialog360 Webhook] Message saved:', message.id);
 
+    // Check if this is an interactive response (button click or list selection)
+    if (message.type === 'interactive' && message.interactive) {
+      const isButtonReply = message.interactive.button_reply;
+      const isListReply = message.interactive.list_reply;
+
+      if (isButtonReply || isListReply) {
+        const buttonData = isButtonReply ? message.interactive.button_reply : message.interactive.list_reply;
+
+        const buttonClickCtx: ButtonClickContext = {
+          organizationId,
+          conversationId: conversation.id,
+          customerPhone: senderPhone,
+          customerName: senderName,
+          buttonId: buttonData?.id || '',
+          buttonTitle: buttonData?.title || '',
+          messageId: savedMessage.id,
+        };
+
+        const buttonResult = await handleButtonClick(buttonClickCtx);
+
+        if (buttonResult.handled) {
+          // Button was handled, send the response if any
+          if (buttonResult.response) {
+            await sendAIResponse(organizationId, senderPhone, buttonResult.response, conversation.id);
+          }
+          console.log('[Dialog360 Webhook] Button click handled:', buttonData?.id);
+          return;
+        }
+        // If not handled, fall through to AI processing
+      }
+    }
+
     // Trigger AI response if configured
     await processAIResponse(
       organizationId,
@@ -368,9 +401,9 @@ async function processStatusUpdate(
         status: status.status.toUpperCase(),
         ...(status.status === 'failed' && status.errors?.[0]
           ? {
-              errorCode: String(status.errors[0].code),
-              errorMessage: status.errors[0].message || status.errors[0].title,
-            }
+            errorCode: String(status.errors[0].code),
+            errorMessage: status.errors[0].message || status.errors[0].title,
+          }
           : {}),
       },
     });

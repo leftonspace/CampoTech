@@ -43,6 +43,7 @@ import {
   Plus,
 } from 'lucide-react';
 import { Job, User as UserType, Customer, JobPriority } from '@/types';
+import { JobMaterialUsagePanel } from '@/components/inventory/JobMaterialUsagePanel';
 
 // Form-specific interface for editing jobs
 // Uses separate time fields for UX, converted to scheduledTimeSlot on save
@@ -105,6 +106,8 @@ export default function JobDetailPage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState<JobEditFormData>({});
+  const [showMaterialsPanel, setShowMaterialsPanel] = useState(false);
+  const [materialUsageMessage, setMaterialUsageMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Auto-enable edit mode if ?edit=true is present
   useEffect(() => {
@@ -593,6 +596,70 @@ export default function JobDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Material Usage Panel - Phase 2.2.2 */}
+          {(job.status === 'IN_PROGRESS' || job.status === 'EN_ROUTE') && (
+            <div className="card p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="flex items-center gap-2 font-medium text-gray-900">
+                  <Package className="h-5 w-5" />
+                  Registrar Uso de Materiales
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setShowMaterialsPanel(!showMaterialsPanel)}
+                  className="text-sm text-primary-600 hover:underline"
+                >
+                  {showMaterialsPanel ? 'Ocultar' : 'Expandir'}
+                </button>
+              </div>
+
+              {materialUsageMessage && (
+                <div className={`mb-4 rounded-lg p-3 ${materialUsageMessage.type === 'success'
+                  ? 'bg-green-50 text-green-700 border border-green-200'
+                  : 'bg-red-50 text-red-700 border border-red-200'
+                  }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">{materialUsageMessage.text}</span>
+                    <button
+                      onClick={() => setMaterialUsageMessage(null)}
+                      className="text-current opacity-60 hover:opacity-100"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {showMaterialsPanel ? (
+                <JobMaterialUsagePanel
+                  jobId={job.id}
+                  onSuccess={(summary) => {
+                    setMaterialUsageMessage({ type: 'success', text: summary });
+                    setShowMaterialsPanel(false);
+                    queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+                  }}
+                  onError={(error) => {
+                    setMaterialUsageMessage({ type: 'error', text: error });
+                  }}
+                />
+              ) : (
+                <div className="text-center py-4">
+                  <p className="text-gray-500 text-sm mb-3">
+                    Registrá los materiales utilizados durante el trabajo
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowMaterialsPanel(true)}
+                    className="btn-outline inline-flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Agregar materiales
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Completion info (if completed) */}
           {job.status === 'COMPLETED' && (

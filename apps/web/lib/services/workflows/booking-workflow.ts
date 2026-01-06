@@ -25,6 +25,9 @@ import {
   ExtractedEntities,
 } from './base-workflow';
 import { getSchedulingIntelligenceService } from '../scheduling-intelligence';
+import { getAttributionService } from '../attribution.service';
+import { getInteractiveMessageService } from '../interactive-message.service';
+import { setPendingInteraction } from './button-response-handler';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // WORKFLOW STEPS
@@ -144,7 +147,7 @@ const validateServiceTypeStep: WorkflowStep = {
         success: true,
         data: { serviceType: requestedService, validated: false },
       };
-    } catch (error) {
+    } catch (_error) {
       return {
         success: true, // Non-critical failure
         data: { serviceType: requestedService, validated: false },
@@ -246,18 +249,70 @@ const validateTimeSlotStep: WorkflowStep = {
       };
     }
 
-    // If no specific time requested, find best slot
+    // If no specific time requested, send interactive time slot buttons
     if (!requestedTime) {
-      const bestSlot = scheduling.bestSlot;
-      if (bestSlot) {
-        context.extractedEntities.preferredTime = bestSlot.start;
-        return {
-          success: true,
-          data: {
-            timeSlot: bestSlot,
-            isRecommended: true,
-          },
-        };
+      const availableSlots = scheduling.availableSlots.filter(s => s.availableTechnicians > 0);
+
+      if (availableSlots.length > 0) {
+        // Phase 3.1: Send interactive buttons for time slot selection
+        const interactiveService = getInteractiveMessageService();
+
+        // Convert slots to button format (max 2 slots + custom option)
+        const slotOptions = availableSlots.slice(0, 2).map((slot, idx) => ({
+          id: idx === 0 ? 'morning' : 'afternoon',
+          time: slot.start,
+          label: `${slot.start} - ${slot.end}`,
+        }));
+
+        const result = await interactiveService.sendTimeSlotButtons({
+          organizationId: context.organizationId,
+          phone: context.customerPhone,
+          slots: slotOptions,
+          includeCustomOption: true,
+        });
+
+        if (result.success) {
+          // Store pending interaction for button click handler
+          setPendingInteraction(context.conversationId, {
+            type: 'time_slot_selection',
+            organizationId: context.organizationId,
+            conversationId: context.conversationId,
+            customerPhone: context.customerPhone,
+            data: {
+              slots: slotOptions,
+              preferredDate: context.extractedEntities.preferredDate,
+              serviceType: context.extractedEntities.serviceType,
+              bookingData: {
+                preferredDate: context.extractedEntities.preferredDate,
+                serviceType: context.extractedEntities.serviceType,
+                address: context.extractedEntities.address,
+                customerId: context.customerId,
+              },
+            },
+          });
+
+          return {
+            success: true,
+            data: { waitingForTimeSlot: true },
+            earlyReturn: {
+              response: '', // Interactive message sent
+              action: 'wait_input',
+            },
+          };
+        }
+
+        // Fallback: use best slot if interactive fails
+        const bestSlot = scheduling.bestSlot;
+        if (bestSlot) {
+          context.extractedEntities.preferredTime = bestSlot.start;
+          return {
+            success: true,
+            data: {
+              timeSlot: bestSlot,
+              isRecommended: true,
+            },
+          };
+        }
       }
 
       // No available slots
@@ -391,6 +446,15 @@ const createJobStep: WorkflowStep = {
           scheduledTimeSlot: preferredTime ? { start: preferredTime, end: null } : null,
         },
       });
+
+      // 🎯 Phase 3.2: Attribute job to marketplace click (if any)
+      try {
+        const attributionService = getAttributionService();
+        await attributionService.attributeJobToClick(job.id);
+      } catch (attrError) {
+        console.error('[BookingWorkflow] Attribution failed:', attrError);
+        // Don't fail the job creation if attribution fails
+      }
 
       return {
         success: true,
@@ -532,10 +596,10 @@ export class BookingWorkflow extends BaseWorkflow {
 
     const date = context.extractedEntities.preferredDate
       ? new Date(context.extractedEntities.preferredDate).toLocaleDateString('es-AR', {
-          weekday: 'long',
-          day: 'numeric',
-          month: 'long',
-        })
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      })
       : 'fecha a confirmar';
 
     const time = context.extractedEntities.preferredTime || 'horario a confirmar';

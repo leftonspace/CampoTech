@@ -222,6 +222,100 @@ export const api = {
     list: () => apiRequest<unknown[]>('/pricebook'),
   },
 
+  // Inventory (Phase 2.2 - Cascade deduction)
+  inventory: {
+    // Use materials with automatic cascade (vehicle first, then warehouse)
+    useMaterials: (
+      jobId: string,
+      items: Array<{ productId: string; quantity: number }>
+    ) =>
+      apiRequest<{
+        deductions: Array<{
+          productId: string;
+          productName: string;
+          quantity: number;
+          source: 'vehicle' | 'warehouse';
+          sourceName: string;
+        }>;
+        summary: string;
+      }>('/inventory/job-materials', {
+        method: 'POST',
+        body: {
+          action: 'useCascade',
+          jobId,
+          items,
+        },
+      }),
+
+    // Check availability before deduction
+    checkAvailability: (
+      jobId: string,
+      items: Array<{ productId: string; quantity: number }>
+    ) =>
+      apiRequest<{
+        available: boolean;
+        details: Array<{
+          productId: string;
+          productName: string;
+          required: number;
+          vehicleAvailable: number;
+          warehouseAvailable: number;
+          canFulfill: boolean;
+          suggestedSource: 'vehicle' | 'warehouse' | 'insufficient';
+        }>;
+      }>('/inventory/job-materials', {
+        method: 'POST',
+        body: {
+          action: 'checkAvailability',
+          jobId,
+          items,
+        },
+      }),
+  },
+
+  // Routes (Phase 2.3 - Multi-Stop Navigation)
+  routes: {
+    // Get today's route
+    getToday: () =>
+      apiRequest<{
+        segments: Array<{
+          segmentNumber: number;
+          jobIds: string[];
+          origin: string;
+          destination: string;
+          waypoints: string[];
+          url: string;
+          distanceMeters: number;
+          durationSeconds: number;
+        }>;
+        totalJobs: number;
+        totalDistance: number;
+        totalDuration: number;
+        primaryUrl: string;
+        totalSegments: number;
+      } | null>('/routes'),
+
+    // Generate route for a date
+    generate: (technicianId: string, date?: string) =>
+      apiRequest<{
+        segments: Array<{
+          segmentNumber: number;
+          jobIds: string[];
+          url: string;
+          distanceMeters: number;
+          durationSeconds: number;
+        }>;
+        totalJobs: number;
+        totalDistance: number;
+        totalDuration: number;
+        primaryUrl: string;
+        totalSegments: number;
+      }>('/routes', {
+        method: 'POST',
+        body: { technicianId, date },
+      }),
+  },
+
   // Sync
   sync: {
     pull: (lastSync?: number) => {
@@ -506,6 +600,72 @@ export const api = {
         method: 'POST',
         body: { phone, code },
         auth: false,
+      }),
+  },
+
+  // Phase 4.3: Digital Entry Badge
+  badge: {
+    // Get current user's badge data
+    get: (userId: string) =>
+      apiRequest<{
+        technician: {
+          id: string;
+          name: string;
+          photo: string | null;
+          specialty: string | null;
+          phone: string;
+        };
+        organization: {
+          id: string;
+          name: string;
+          logo: string | null;
+        };
+        verification: {
+          artStatus: 'valid' | 'expiring' | 'expired' | 'missing';
+          artExpiry: string | null;
+          artProvider: string | null;
+          artPolicyNumber: string | null;
+          backgroundCheck: 'pending' | 'approved' | 'rejected' | 'expired';
+          backgroundCheckDate: string | null;
+          backgroundCheckProvider: string | null;
+        };
+        qrPayload: string;
+        generatedAt: string;
+        validUntil: string | null;
+        isValid: boolean;
+      }>(`/users/${userId}/badge`),
+
+    // Refresh badge token
+    refresh: (userId: string) =>
+      apiRequest<{
+        technician: {
+          id: string;
+          name: string;
+          photo: string | null;
+          specialty: string | null;
+          phone: string;
+        };
+        organization: {
+          id: string;
+          name: string;
+          logo: string | null;
+        };
+        verification: {
+          artStatus: 'valid' | 'expiring' | 'expired' | 'missing';
+          artExpiry: string | null;
+          artProvider: string | null;
+          artPolicyNumber: string | null;
+          backgroundCheck: 'pending' | 'approved' | 'rejected' | 'expired';
+          backgroundCheckDate: string | null;
+          backgroundCheckProvider: string | null;
+        };
+        qrPayload: string;
+        generatedAt: string;
+        validUntil: string | null;
+        isValid: boolean;
+        refreshed: boolean;
+      }>(`/users/${userId}/badge/refresh`, {
+        method: 'POST',
       }),
   },
 };

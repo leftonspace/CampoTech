@@ -296,7 +296,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Only OWNER or ADMIN can approve
+      // Only OWNER can approve inventory counts
       if (!['OWNER'].includes(session.role)) {
         return NextResponse.json(
           { success: false, error: 'No tienes permiso para aprobar conteos' },

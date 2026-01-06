@@ -5,7 +5,7 @@
  * Main inventory view for technicians showing vehicle stock.
  */
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -24,6 +24,11 @@ import { database } from '../../../watermelon/database';
 import { VehicleStock } from '../../../watermelon/models';
 import { performSync } from '../../../lib/sync/sync-engine';
 import { useSyncStatus } from '../../../lib/hooks/use-sync-status';
+import {
+  getPendingDeductionCount,
+  getFailedDeductionCount,
+  retryFailedDeductions,
+} from '../../../lib/sync/pending-deductions-sync';
 
 const vehicleStockCollection = database.get<VehicleStock>('vehicle_stock');
 
@@ -31,9 +36,42 @@ function InventoryScreen({ stock }: { stock: VehicleStock[] }) {
   const router = useRouter();
   const { isSyncing } = useSyncStatus();
   const [search, setSearch] = useState('');
+  const [pendingCount, setPendingCount] = useState(0);
+  const [failedCount, setFailedCount] = useState(0);
+
+  // Load pending deduction counts
+  useEffect(() => {
+    const loadCounts = async () => {
+      try {
+        const [pending, failed] = await Promise.all([
+          getPendingDeductionCount(),
+          getFailedDeductionCount(),
+        ]);
+        setPendingCount(pending);
+        setFailedCount(failed);
+      } catch (error) {
+        console.error('Error loading pending counts:', error);
+      }
+    };
+    loadCounts();
+  }, [isSyncing]); // Refresh counts after sync
 
   const handleRefresh = useCallback(async () => {
     await performSync();
+  }, []);
+
+  const handleRetryFailed = useCallback(async () => {
+    try {
+      const retried = await retryFailedDeductions();
+      if (retried > 0) {
+        setFailedCount(0);
+        setPendingCount((prev) => prev + retried);
+        // Trigger sync
+        performSync().catch(console.error);
+      }
+    } catch (error) {
+      console.error('Error retrying failed deductions:', error);
+    }
   }, []);
 
   const filteredStock = useMemo(() => {
@@ -96,6 +134,35 @@ function InventoryScreen({ stock }: { stock: VehicleStock[] }) {
 
   const ListHeader = () => (
     <View>
+      {/* Pending sync indicator */}
+      {(pendingCount > 0 || failedCount > 0) && (
+        <View style={styles.pendingSyncBanner}>
+          <View style={styles.pendingSyncContent}>
+            <Feather
+              name={failedCount > 0 ? 'alert-circle' : 'cloud-off'}
+              size={18}
+              color={failedCount > 0 ? '#ef4444' : '#f59e0b'}
+            />
+            <Text style={styles.pendingSyncText}>
+              {failedCount > 0
+                ? `${failedCount} uso${failedCount > 1 ? 's' : ''} fallido${failedCount > 1 ? 's' : ''}`
+                : `${pendingCount} material${pendingCount > 1 ? 'es' : ''} pendiente${pendingCount > 1 ? 's' : ''} de sincronizar`}
+            </Text>
+          </View>
+          {failedCount > 0 ? (
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={handleRetryFailed}
+            >
+              <Feather name="refresh-cw" size={14} color="#ef4444" />
+              <Text style={styles.retryButtonText}>Reintentar</Text>
+            </TouchableOpacity>
+          ) : (
+            <Feather name="loader" size={16} color="#f59e0b" />
+          )}
+        </View>
+      )}
+
       {/* Stats */}
       <View style={styles.statsContainer}>
         <View style={styles.stat}>
@@ -330,6 +397,44 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     textAlign: 'center',
     marginTop: 8,
+  },
+  pendingSyncBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#fef3c7',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#fcd34d',
+  },
+  pendingSyncContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  pendingSyncText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#92400e',
+    marginLeft: 8,
+    flex: 1,
+  },
+  retryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  retryButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#ef4444',
+    marginLeft: 4,
   },
   fab: {
     position: 'absolute',

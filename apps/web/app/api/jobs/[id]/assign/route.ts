@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { onTechnicianAssigned } from '@/src/modules/whatsapp/notification-triggers.service';
 import { canEmployeeBeAssignedJobs } from '@/lib/services/employee-verification-notifications';
 import { JobService } from '@/src/services/job.service';
+import { jobRouteIntegrationService } from '@/lib/services/job-route-integration.service';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -75,6 +76,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     onTechnicianAssigned(id, userId).catch((err) => {
       console.error('WhatsApp notification error:', err);
     });
+
+    // Phase 2.3.3: Trigger route regeneration on job assignment (non-blocking)
+    if (job.scheduledDate) {
+      jobRouteIntegrationService.onJobChange({
+        jobId: id,
+        technicianId: userId,
+        organizationId: session.organizationId,
+        scheduledDate: job.scheduledDate,
+        previousTechnicianId: existing.technicianId || null,
+        status: job.status,
+      }).catch((err) => {
+        console.error('Route regeneration error:', err);
+      });
+    }
 
     return NextResponse.json({
       success: true,

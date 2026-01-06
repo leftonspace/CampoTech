@@ -165,6 +165,11 @@ function MaterialUsageScreen({
       return;
     }
 
+    // Get job info for the deduction record
+    const selectedJobRecord = activeJobs.find((j) => j.serverId === selectedJob);
+    // Use serverId as jobNumber since local Job model doesn't have jobNumber
+    const jobNumber = selectedJobRecord?.serverId || selectedJob;
+
     // Validate quantities
     for (const item of usageItems) {
       if (item.usedQty <= 0) {
@@ -183,7 +188,11 @@ function MaterialUsageScreen({
     setIsSubmitting(true);
 
     try {
-      // Update local vehicle stock
+      // Phase 2.2.4.4: Offline-first approach
+      // 1. Update local vehicle stock immediately
+      // 2. Try to sync with server -> if fails, queue for later
+
+      // Update local vehicle stock first (optimistic update)
       await database.write(async () => {
         for (const item of usageItems) {
           const stockRecord = await vehicleStockCollection.find(item.stockId);
@@ -194,36 +203,67 @@ function MaterialUsageScreen({
         }
       });
 
-      // Create sync queue entry for server sync
-      // The sync engine will pick this up and send to server
+      // Try to call the cascade API
+      let syncedSuccessfully = false;
+      let syncError: string | null = null;
+
+      try {
+        const { api } = await import('../../../lib/api/client');
+        const response = await api.inventory.useMaterials(
+          selectedJob,
+          usageItems.map((item) => ({
+            productId: item.productId,
+            quantity: item.usedQty,
+          }))
+        );
+
+        if (response.success) {
+          syncedSuccessfully = true;
+        } else {
+          syncError = response.error?.message || 'Error del servidor';
+        }
+      } catch (apiError) {
+        syncError = apiError instanceof Error ? apiError.message : 'Error de conexión';
+        console.log('[Usage] API call failed, will queue for later sync:', syncError);
+      }
+
+      // Create pending deduction record for tracking
+      const pendingDeductionsCollection = database.get('pending_stock_deductions');
       await database.write(async () => {
-        const syncQueue = database.get('sync_queue');
-        await syncQueue.create((entry: any) => {
-          entry.entityType = 'material_usage';
-          entry.entityId = `usage_${Date.now()}`;
-          entry.action = 'create';
-          entry._raw.payload = JSON.stringify({
-            jobId: selectedJob,
-            items: usageItems.map((item) => ({
+        await pendingDeductionsCollection.create((record: any) => {
+          record.jobId = selectedJob;
+          record.jobNumber = jobNumber;
+          record.items = JSON.stringify(
+            usageItems.map((item) => ({
               productId: item.productId,
+              productName: item.productName,
               quantity: item.usedQty,
-              unitCost: item.unitCost,
-            })),
-            notes: notes || undefined,
-            usedAt: new Date().toISOString(),
-          });
-          entry.attempts = 0;
-          entry.isSynced = false;
+            }))
+          );
+          record.notes = notes || null;
+          record.deductionStatus = syncedSuccessfully ? 'synced' : 'pending';
+          record.syncError = syncError;
+          record.retryCount = 0;
+          record.syncedAt = syncedSuccessfully ? Date.now() : null;
         });
       });
 
-      Alert.alert(
-        'Uso registrado',
-        'El consumo de materiales ha sido registrado correctamente',
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+      // Show appropriate message
+      if (syncedSuccessfully) {
+        Alert.alert(
+          'Uso registrado',
+          'El consumo de materiales ha sido registrado correctamente',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      } else {
+        Alert.alert(
+          'Guardado localmente',
+          'El consumo se guardó en tu dispositivo y se sincronizará cuando tengas conexión.',
+          [{ text: 'OK', onPress: () => router.back() }]
+        );
+      }
 
-      // Trigger sync in background
+      // Trigger sync in background to update any other local data
       performSync().catch(console.error);
     } catch (error) {
       console.error('Error recording usage:', error);
@@ -231,7 +271,7 @@ function MaterialUsageScreen({
     } finally {
       setIsSubmitting(false);
     }
-  }, [usageItems, selectedJob, notes, router]);
+  }, [usageItems, selectedJob, notes, router, activeJobs]);
 
   return (
     <KeyboardAvoidingView
@@ -432,7 +472,7 @@ function MaterialUsageScreen({
           style={[
             styles.submitButton,
             (usageItems.length === 0 || !selectedJob || isSubmitting) &&
-              styles.submitButtonDisabled,
+            styles.submitButtonDisabled,
           ]}
           onPress={handleSubmit}
           disabled={usageItems.length === 0 || !selectedJob || isSubmitting}

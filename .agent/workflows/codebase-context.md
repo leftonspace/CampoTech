@@ -41,7 +41,7 @@ The codebase is in a **cleanup phase**:
 
 ## Implementation Plan (Future Work)
 
-**File:** `architecture/implementation-plan.md`
+**File:** `architecture/implementation-plan.md` & `architecture/implementation-plan-addendum.md`
 
 This document defines work to be done AFTER cleanup:
 - Read for context on project direction

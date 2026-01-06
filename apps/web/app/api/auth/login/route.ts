@@ -101,6 +101,8 @@ export async function POST(request: NextRequest) {
         email: user.email,
         role: user.role,
         organizationId: user.organizationId,
+        subscriptionTier: user.organization.subscriptionTier,
+        subscriptionStatus: user.organization.subscriptionStatus,
       },
       userAgent,
       ipAddress

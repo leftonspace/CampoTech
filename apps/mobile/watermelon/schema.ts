@@ -9,7 +9,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 2,
+  version: 3, // Bumped for pending_stock_deductions table
   tables: [
     // Jobs table - core data for technicians
     tableSchema({
@@ -203,6 +203,22 @@ export const schema = appSchema({
         { name: 'created_at', type: 'number', isIndexed: true },
         { name: 'updated_at', type: 'number' },
         { name: 'processed_at', type: 'number', isOptional: true },
+      ],
+    }),
+
+    // Phase 2.2.4.4: Pending stock deductions (offline queue for scanned items)
+    tableSchema({
+      name: 'pending_stock_deductions',
+      columns: [
+        { name: 'job_id', type: 'string', isIndexed: true },
+        { name: 'job_number', type: 'string' },
+        { name: 'items', type: 'string' }, // JSON array of { productId, productName, quantity }
+        { name: 'notes', type: 'string', isOptional: true },
+        { name: 'deduction_status', type: 'string', isIndexed: true }, // 'pending', 'syncing', 'synced', 'failed'
+        { name: 'sync_error', type: 'string', isOptional: true },
+        { name: 'retry_count', type: 'number' },
+        { name: 'created_at', type: 'number', isIndexed: true },
+        { name: 'synced_at', type: 'number', isOptional: true },
       ],
     }),
   ],

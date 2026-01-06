@@ -11,6 +11,9 @@ export { FleetStatus } from './FleetStatus';
 export { TodaySchedule } from './TodaySchedule';
 export { UsageWidget } from './UsageWidget';
 
+// Fiscal Health (Phase 2.4)
+export { FiscalHealthWidget } from './FiscalHealthWidget';
+
 // Alerts
 export { DashboardAlerts, type DashboardAlertsProps } from './DashboardAlerts';
 

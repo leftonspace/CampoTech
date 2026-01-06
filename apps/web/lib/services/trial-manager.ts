@@ -3,12 +3,13 @@
  * =======================
  *
  * Manages free trial periods for organizations.
- * All organizations start with a 14-day trial when they sign up.
+ * All organizations start with a 21-day trial when they sign up.
  *
  * Business Rules:
- * - Trial period: 14 days
+ * - Trial period: 21 days (3 weeks)
  * - Trial allows full access to INICIAL tier features
  * - After trial expires, org needs to choose a paid plan
+ * - 3-day grace period after expiry before hard block
  * - During trial, verification is encouraged but not required
  *
  * Timezone: All calculations use Buenos Aires time (America/Argentina/Buenos_Aires)
@@ -28,7 +29,7 @@ type OrganizationSubscription = Awaited<ReturnType<typeof prisma.organizationSub
 // ═══════════════════════════════════════════════════════════════════════════════
 
 /** Trial period in days */
-export const TRIAL_DAYS = 14;
+export const TRIAL_DAYS = 21;
 
 /** Tier granted during trial (full access to starter features) */
 export const TRIAL_TIER: SubscriptionTier = 'INICIAL';

@@ -13,6 +13,7 @@ import UserSession from './UserSession';
 import Product from './Product';
 import VehicleStock from './VehicleStock';
 import ReplenishmentRequest from './ReplenishmentRequest';
+import PendingStockDeduction from './PendingStockDeduction';
 
 export const modelClasses = [
   Job,
@@ -25,6 +26,7 @@ export const modelClasses = [
   Product,
   VehicleStock,
   ReplenishmentRequest,
+  PendingStockDeduction,
 ];
 
 export {
@@ -38,4 +40,5 @@ export {
   Product,
   VehicleStock,
   ReplenishmentRequest,
+  PendingStockDeduction,
 };

@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Download,
   Activity,
+  MessageCircle,
 } from 'lucide-react';
 
 import KPICard, { KPIGrid } from '../../../../components/analytics/widgets/KPICard';
@@ -275,6 +276,11 @@ export default function AnalyticsOverviewPage() {
                 icon={<DollarSign size={20} />}
                 title="Reporte de Ingresos"
                 href="/dashboard/analytics/revenue"
+              />
+              <QuickActionCard
+                icon={<MessageCircle size={20} />}
+                title="Rendimiento Marketplace"
+                href="/dashboard/analytics/marketplace"
               />
               <QuickActionCard
                 icon={<Briefcase size={20} />}

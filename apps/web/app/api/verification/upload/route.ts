@@ -116,10 +116,10 @@ export async function POST(request: NextRequest): Promise<NextResponse<UploadRes
     const userId = session.id;
     const role = session.role?.toUpperCase();
 
-    // If targeting a different user, must be OWNER or ADMIN
+    // If targeting a different user, must be OWNER or DISPATCHER
     const effectiveUserId = targetUserId || userId;
     if (targetUserId && targetUserId !== userId) {
-      if (role !== 'OWNER' && role !== 'ADMIN') {
+      if (role !== 'OWNER' && role !== 'DISPATCHER') {
         return NextResponse.json(
           {
             success: false,

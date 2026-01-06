@@ -5,10 +5,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowLeft, Save, Building, MapPin, Phone, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Save, Building, MapPin, Phone, AlertTriangle, Receipt } from 'lucide-react';
 import { LockedField, LockedFieldGroup } from '@/components/ui/locked-field';
 import { PermissionField, PermissionSelect } from '@/components/ui/permission-field';
 import { ORGANIZATION_FIELDS, getFieldMetadata, type UserRole } from '@/lib/config/field-permissions';
+import {
+  getMonotributoCategoryOptions,
+  type MonotributoCategoryKey,
+} from '@/lib/constants/monotributo-categories';
 
 interface Organization {
   id: string;
@@ -25,6 +29,10 @@ interface Organization {
   ivaCondition?: string;
   activityStartDate?: string;
   logoUrl?: string;
+  settings?: {
+    monotributoCategory?: MonotributoCategoryKey;
+    [key: string]: unknown;
+  };
 }
 
 const IVA_CONDITIONS = [
@@ -90,6 +98,9 @@ export default function OrganizationSettingsPage() {
     email: '',
     ivaCondition: 'RESPONSABLE_INSCRIPTO',
     activityStartDate: '',
+    settings: {
+      monotributoCategory: 'A',
+    },
   });
 
   const { data, isLoading } = useQuery({
@@ -114,6 +125,9 @@ export default function OrganizationSettingsPage() {
         email: organization.email || '',
         ivaCondition: organization.ivaCondition || 'RESPONSABLE_INSCRIPTO',
         activityStartDate: organization.activityStartDate || '',
+        settings: {
+          monotributoCategory: organization.settings?.monotributoCategory || 'A',
+        },
       });
     }
   }, [organization]);
@@ -146,6 +160,16 @@ export default function OrganizationSettingsPage() {
     setFormData((prev) => ({
       ...prev,
       address: { ...prev.address, [field]: value },
+    }));
+    setHasChanges(true);
+    setError('');
+    setSuccess('');
+  };
+
+  const handleSettingsChange = (field: string, value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      settings: { ...prev.settings, [field]: value },
     }));
     setHasChanges(true);
     setError('');
@@ -235,7 +259,45 @@ export default function OrganizationSettingsPage() {
           </div>
         </LockedFieldGroup>
 
-        {/* Editable commercial name */}
+        {/* Monotributo Settings - only show if IVA condition is Monotributista */}
+        {formData.ivaCondition === 'MONOTRIBUTISTA' && (
+          <div className="card p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-gray-400" />
+                <h2 className="font-medium text-gray-900">Configuración Monotributo</h2>
+              </div>
+              <Link
+                href="/dashboard/analytics/fiscal-health"
+                className="text-sm text-primary-600 hover:underline"
+              >
+                Ver salud fiscal
+              </Link>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Categoría Monotributo
+                </label>
+                <select
+                  value={formData.settings?.monotributoCategory || 'A'}
+                  onChange={(e) => handleSettingsChange('monotributoCategory', e.target.value)}
+                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                >
+                  {getMonotributoCategoryOptions().map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-gray-500">
+                  Seleccioná tu categoría actual para monitorear tu facturación respecto al límite anual.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
         <div className="card p-6">
           <div className="mb-4 flex items-center gap-2">
             <Building className="h-5 w-5 text-gray-400" />

@@ -58,9 +58,9 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-              "style-src 'self' 'unsafe-inline'",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "img-src 'self' data: https: blob:",
-              "font-src 'self' data:",
+              "font-src 'self' data: https://fonts.gstatic.com",
               "connect-src 'self' https://api.mercadopago.com https://api.openai.com https://wswhomo.afip.gov.ar https://wsaa.afip.gov.ar https://servicios1.afip.gov.ar https://*.sentry.io https://*.ingest.sentry.io wss:",
               "frame-ancestors 'none'",
               "form-action 'self'",

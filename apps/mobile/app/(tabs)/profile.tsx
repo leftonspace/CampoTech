@@ -29,7 +29,9 @@ import {
   MapPin,
   Clock,
   Shield,
+  QrCode,
 } from 'lucide-react-native';
+import { router } from 'expo-router';
 import { useAuth } from '../../lib/auth/auth-context';
 import { useSyncStatus, useForceSync } from '../../lib/hooks/use-sync-status';
 
@@ -69,8 +71,7 @@ export default function ProfileScreen() {
       if (result.success) {
         Alert.alert(
           'Sincronizacion completada',
-          `Enviados: ${result.pushed}\nRecibidos: ${result.pulled}${
-            result.conflicts > 0 ? `\nConflictos: ${result.conflicts}` : ''
+          `Enviados: ${result.pushed}\nRecibidos: ${result.pulled}${result.conflicts > 0 ? `\nConflictos: ${result.conflicts}` : ''
           }`
         );
       } else {
@@ -97,6 +98,15 @@ export default function ProfileScreen() {
             <Shield size={14} color="#059669" />
             <Text style={styles.roleText}>Tecnico de Campo</Text>
           </View>
+
+          {/* Digital Badge Button */}
+          <TouchableOpacity
+            style={styles.badgeButton}
+            onPress={() => router.push('/profile/badge')}
+          >
+            <QrCode size={18} color="#fff" />
+            <Text style={styles.badgeButtonText}>Mi Credencial Digital</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Sync Status */}
@@ -129,9 +139,9 @@ export default function ProfileScreen() {
                 <Text style={styles.syncStatValue}>
                   {status.lastSync
                     ? new Date(status.lastSync).toLocaleTimeString('es-AR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
                     : '--:--'}
                 </Text>
                 <Text style={styles.syncStatLabel}>Ultima sync</Text>
@@ -324,6 +334,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: '#059669',
+  },
+  badgeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#059669',
+    borderRadius: 24,
+  },
+  badgeButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
   section: {
     paddingHorizontal: 16,

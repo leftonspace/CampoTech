@@ -7,6 +7,7 @@ import {
   UserRole,
 } from '@/lib/middleware/field-filter';
 import { JobService } from '@/src/services/job.service';
+import { jobRouteIntegrationService } from '@/lib/services/job-route-integration.service';
 
 // Transform scheduledTimeSlot JSON to separate start/end fields for frontend compatibility
 function transformJobTimeSlot<T extends { scheduledTimeSlot?: unknown }>(job: T): T & { scheduledTimeStart: string | null; scheduledTimeEnd: string | null } {
@@ -139,6 +140,24 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     const job = await JobService.updateJob(session.organizationId, id, updateData);
 
+    // Phase 2.3.3: Trigger route regeneration if schedule changed (non-blocking)
+    const scheduleChanged = scheduledDate !== existing.scheduledDate?.toISOString()?.split('T')[0] ||
+      scheduledTimeStart !== (existing as Record<string, unknown>).scheduledTimeStart ||
+      scheduledTimeEnd !== (existing as Record<string, unknown>).scheduledTimeEnd;
+
+    if (scheduleChanged && job.technicianId && job.scheduledDate) {
+      jobRouteIntegrationService.onJobChange({
+        jobId: id,
+        technicianId: job.technicianId,
+        organizationId: session.organizationId,
+        scheduledDate: job.scheduledDate,
+        previousScheduledDate: existing.scheduledDate || null,
+        status: job.status,
+      }).catch((err) => {
+        console.error('Route regeneration error:', err);
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: transformJobTimeSlot(job),
@@ -158,7 +177,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const session = await getSession();
     const { id } = await params;
 
-    if (!session || session.role !== 'OWNER' && session.role !== 'ADMIN') {
+    if (!session || session.role !== 'OWNER' && session.role !== 'DISPATCHER') {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 403 }

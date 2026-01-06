@@ -103,7 +103,8 @@ const STATUS_CONFIG = {
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: 'Propietario',
-  ADMIN: 'Administrador',
+  DISPATCHER: 'Despachador',
+  ADMIN: 'Administrador',  // Legacy - kept for backward compatibility
   TECHNICIAN: 'Técnico',
   RECEPTIONIST: 'Recepcionista',
 };

@@ -1,12 +1,29 @@
 /**
  * MercadoPago Settings API Route
+ * 
+ * Phase 4.1: Enhanced to support OAuth connection status
+ * 
  * GET /api/settings/mercadopago - Get MercadoPago configuration
- * PUT /api/settings/mercadopago - Update MercadoPago configuration
+ * PUT /api/settings/mercadopago - Update MercadoPago configuration (legacy manual)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+
+interface MPSettings {
+  connected?: boolean;
+  connectedAt?: string;
+  accessToken?: string;
+  refreshToken?: string;
+  userId?: number;
+  publicKey?: string;
+  liveMode?: boolean;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  environment?: string;
+}
 
 export async function GET() {
   try {
@@ -35,17 +52,32 @@ export async function GET() {
       ? JSON.parse(organization.settings)
       : organization.settings || {};
 
-    const mpSettings = settings.mercadopago || {};
+    const mpSettings: MPSettings = settings.mercadopago || {};
+
+    // Determine connection status
+    const isConnected = mpSettings.connected === true && !!mpSettings.accessToken;
 
     return NextResponse.json({
       success: true,
       data: {
-        isConfigured: !!mpSettings.accessToken,
+        // Connection status
+        connected: isConnected,
+        isConfigured: isConnected,
+        // User info (from OAuth)
+        userId: mpSettings.userId || null,
+        email: mpSettings.email || null,
+        firstName: mpSettings.firstName || null,
+        lastName: mpSettings.lastName || null,
+        // Public key for client-side SDK
+        publicKey: mpSettings.publicKey || null,
+        // Mode
+        liveMode: mpSettings.liveMode ?? false,
+        environment: mpSettings.liveMode ? 'production' : 'sandbox',
+        // Connection timestamp
+        connectedAt: mpSettings.connectedAt || null,
+        // Legacy flags for backward compatibility
         hasAccessToken: !!mpSettings.accessToken,
         hasPublicKey: !!mpSettings.publicKey,
-        environment: mpSettings.environment || 'sandbox', // 'sandbox' or 'production'
-        webhookConfigured: !!mpSettings.webhookUrl,
-        // Never return the actual tokens, only boolean flags
       },
     });
   } catch (error) {

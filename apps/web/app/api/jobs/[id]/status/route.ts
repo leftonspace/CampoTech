@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { onJobStatusChange } from '@/src/modules/whatsapp/notification-triggers.service';
 import { randomUUID } from 'crypto';
 import { JobService } from '@/src/services/job.service';
+import { jobRouteIntegrationService } from '@/lib/services/job-route-integration.service';
 
 type JobStatus = 'PENDING' | 'SCHEDULED' | 'ASSIGNED' | 'EN_ROUTE' | 'ARRIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
@@ -95,6 +96,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }).catch((err) => {
         console.error('WhatsApp notification error:', err);
       });
+
+      // Phase 2.3: Trigger route regeneration on job completion (non-blocking)
+      if (newStatus === 'COMPLETED') {
+        jobRouteIntegrationService.onJobCompleted(id).catch((err) => {
+          console.error('Route regeneration error:', err);
+        });
+      }
     }
 
     return NextResponse.json({

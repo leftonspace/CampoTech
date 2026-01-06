@@ -53,6 +53,7 @@ model Organization {
   dashboardAlerts      DashboardAlert[]       @relation("OrgDashboardAlerts")
   priceItems           PriceItem[]            @relation("OrgPriceItems")
   serviceTypeConfigs   ServiceTypeConfig[]
+  marketplaceClicks    MarketplaceClick[]     @relation("OrgMarketplaceClicks")
   // WhatsApp Integration
   whatsappPhoneNumberId       String?
   whatsappBusinessAccountId   String?
@@ -85,6 +86,10 @@ model Organization {
   // Employee Scheduling
   employeeSchedules           EmployeeSchedule[]
   scheduleExceptions          ScheduleException[]
+  // Vehicle Scheduling (Phase 2.1)
+  vehicleSchedules            VehicleSchedule[]  @relation("OrgVehicleSchedules")
+  // Technician Routes (Phase 2.3)
+  technicianRoutes            TechnicianRoute[]
   // AI Assistant
   aiConfiguration             AIConfiguration?
   aiConversationLogs          AIConversationLog[]
@@ -108,6 +113,14 @@ model Organization {
   verificationSubmissions     VerificationSubmission[]
   complianceAcknowledgments   ComplianceAcknowledgment[]
   complianceBlocks            ComplianceBlock[]
+
+  // AFIP Credentials (encrypted storage - Phase 1.1 security fix)
+  afipCuit                    String?                     @map("afip_cuit")
+  afipCertificateEncrypted    String?                     @map("afip_certificate_encrypted")    // AES-256-GCM encrypted
+  afipPrivateKeyEncrypted     String?                     @map("afip_private_key_encrypted")    // AES-256-GCM encrypted
+  afipPuntoVenta              String?                     @map("afip_punto_venta")
+  afipEnvironment             String?                     @map("afip_environment")              // 'testing' | 'production'
+  afipConnectedAt             DateTime?                   @map("afip_connected_at")
 
   @@index([subscriptionStatus])
   @@index([subscriptionTier])
@@ -171,6 +184,11 @@ model User {
   // Employee Scheduling
   schedules               EmployeeSchedule[]
   scheduleExceptions      ScheduleException[]
+  // Vehicle Scheduling (Phase 2.1)
+  vehicleSchedules        VehicleSchedule[]      @relation("UserVehicleSchedules")
+  createdVehicleSchedules VehicleSchedule[]      @relation("CreatedVehicleSchedules")
+  // Technician Routes (Phase 2.3)
+  technicianRoutes        TechnicianRoute[]
   // AI Assistant
   aiEscalationConfigs     AIConfiguration[]      @relation("AIEscalationUser")
   // Verification
@@ -184,12 +202,29 @@ model User {
   complianceAcknowledgments   ComplianceAcknowledgment[]
   complianceBlocks            ComplianceBlock[]
 
+  // Phase 4.3: Digital Entry Badge - ART Insurance
+  artCertificateUrl           String?                     @map("art_certificate_url")      // ART insurance certificate file URL
+  artExpiryDate               DateTime?                   @map("art_expiry_date")          // ART expiration date
+  artProvider                 String?                     @map("art_provider")             // Insurance company (e.g., "Galeno ART")
+  artPolicyNumber             String?                     @map("art_policy_number")        // Policy number
+
+  // Phase 4.3: Digital Entry Badge - Background Check
+  backgroundCheckStatus       BackgroundCheckStatus       @default(pending) @map("background_check_status")
+  backgroundCheckDate         DateTime?                   @map("background_check_date")
+  backgroundCheckProvider     String?                     @map("background_check_provider") // e.g., "Veraz", "Nosis"
+
+  // Phase 4.3: Digital Entry Badge - QR Badge Token
+  badgeToken                  String?                     @unique @map("badge_token")      // Secure token for QR validation
+  badgeTokenExpiresAt         DateTime?                   @map("badge_token_expires_at")   // Token rotation (monthly)
+
   @@unique([email, organizationId])
   @@index([organizationId])
   @@index([homeLocationId])
   @@index([verificationStatus])
   @@index([canBeAssignedJobs])
   @@index([identityVerified])
+  @@index([badgeToken])
+  @@index([artExpiryDate])
   // Performance optimization: index for role-based filtering (e.g., ?role=TECHNICIAN)
   @@index([organizationId, role])
   @@map("users")
@@ -197,7 +232,7 @@ model User {
 
 enum UserRole {
   OWNER
-  ADMIN
+  DISPATCHER  // Operations manager: jobs, customers, team (NO billing access)
   TECHNICIAN
 }
 
@@ -247,6 +282,16 @@ enum BillingCycle {
   YEARLY
 
   @@map("billing_cycle")
+}
+
+// Phase 4.3: Digital Entry Badge - Background Check Status
+enum BackgroundCheckStatus {
+  pending   // Not yet verified
+  approved  // Background check passed
+  rejected  // Background check failed
+  expired   // Background check needs renewal
+
+  @@map("background_check_status")
 }
 
 enum SubscriptionPaymentType {
@@ -455,6 +500,7 @@ model Job {
   trackingSessions TrackingSession[] @relation("JobTrackingSessions")
   assignments    JobAssignment[] @relation("JobAssignments")
   visits         JobVisit[]      @relation("JobVisits")
+  attribution    MarketplaceClick? @relation("JobAttribution")
 
   @@index([status])
   @@index([durationType])
@@ -2448,6 +2494,8 @@ model Vehicle {
   maintenanceLogs VehicleMaintenance[]
   inventoryLocations InventoryLocation[] @relation("VehicleInventoryLocations")
   warehouse       Warehouse?         @relation("VehicleWarehouse") // Inventory warehouse for this vehicle
+  // Vehicle Scheduling (Phase 2.1)
+  schedules       VehicleSchedule[]  @relation("VehicleSchedules")
 
   @@unique([organizationId, plateNumber])
   @@index([organizationId])
@@ -2524,6 +2572,59 @@ model VehicleAssignment {
   @@index([userId])
   @@index([assignedFrom, assignedUntil])
   @@map("vehicle_assignments")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// VEHICLE SCHEDULES - Advanced date/time-aware assignments
+// Phase 2.1: Supports permanent, date_range, and recurring schedule types
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model VehicleSchedule {
+  id             String              @id @default(cuid())
+  organizationId String
+  userId         String
+  vehicleId      String
+
+  // Schedule type determines how dates/times are interpreted
+  scheduleType   VehicleScheduleType
+
+  // Date range constraints (for date_range type)
+  startDate      DateTime?           @db.Date
+  endDate        DateTime?           @db.Date
+
+  // Time constraints (optional - for specific hours)
+  timeStart      String?             // HH:mm format
+  timeEnd        String?             // HH:mm format
+
+  // Days of week for recurring schedules (0=Sunday, 1=Monday, ..., 6=Saturday)
+  daysOfWeek     Int[]               @default([])
+
+  // Priority - lower number = higher priority
+  priority       Int                 @default(100)
+
+  // Audit fields
+  createdById    String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  // Relations
+  organization   Organization        @relation("OrgVehicleSchedules", fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User                @relation("UserVehicleSchedules", fields: [userId], references: [id], onDelete: Cascade)
+  vehicle        Vehicle             @relation("VehicleSchedules", fields: [vehicleId], references: [id], onDelete: Cascade)
+  createdBy      User?               @relation("CreatedVehicleSchedules", fields: [createdById], references: [id])
+
+  // Indexes for efficient queries
+  @@index([organizationId])
+  @@index([userId, startDate, endDate])
+  @@index([vehicleId, startDate, endDate])
+  @@index([scheduleType])
+  @@map("vehicle_schedules")
+}
+
+enum VehicleScheduleType {
+  PERMANENT    // Always assigned (unless overridden)
+  DATE_RANGE   // Assigned between startDate and endDate
+  RECURRING    // Assigned on specific days of week
 }
 
 model VehicleMaintenance {
@@ -3466,6 +3567,7 @@ model BusinessPublicProfile {
   id              String   @id @default(cuid())
   organizationId  String   @unique
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  slug            String   @unique
 
   displayName     String
   description     String?  @db.Text
@@ -4121,4 +4223,467 @@ model ComplianceBlock {
   @@index([blockType])
   @@index([organizationId, userId])
   @@map("compliance_blocks")
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// TECHNICIAN ROUTES - Phase 2.3: Multi-Stop Navigation
+// ────────────────────────────────────────────────────────────────────────────────
+
+model TechnicianRoute {
+  id              String   @id @default(cuid())
+  organizationId  String   @map("organization_id")
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  technicianId    String   @map("technician_id")
+  technician      User     @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  date            DateTime @db.Date
+
+  // Route segment info (for >10 jobs split into segments)
+  segmentNumber   Int      @map("segment_number")
+
+  // Route data
+  jobIds          String[] @map("job_ids")
+  origin          String
+  destination     String
+  waypoints       String[]
+  optimizedOrder  Int[]    @map("optimized_order") // Google's optimized order
+
+  // Google Maps data
+  routeUrl        String   @map("route_url")
+  distanceMeters  Int?     @map("distance_meters")
+  durationSeconds Int?     @map("duration_seconds")
+
+  // Status
+  isActive        Boolean  @default(true) @map("is_active")
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([technicianId, date, segmentNumber])
+  @@index([technicianId, date])
+  @@index([organizationId])
+  @@map("technician_routes")
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// MARKETPLACE ATTRIBUTION TRACKING - Phase 3.2: Conversion Tracking
+// ────────────────────────────────────────────────────────────────────────────────
+
+model MarketplaceClick {
+  id                  String   @id @default(cuid())
+  organizationId      String   @map("organization_id")
+  businessSlug        String   @map("business_slug") // Slug at time of click
+  
+  // Consumer Context (Privacy-aware)
+  consumerIp          String?  @map("consumer_ip")
+  consumerFingerprint String?  @map("consumer_fingerprint") // Hash(IP + User Agent)
+  consumerUserAgent   String?  @map("consumer_user_agent")
+  
+  // Attribution Info
+  source              String?  // 'marketplace_web' | 'marketplace_mobile'
+  referrer            String?
+  
+  // Conversion Tracking
+  convertedJobId      String?  @unique @map("converted_job_id")
+  convertedAt         DateTime? @map("converted_at")
+  
+  // Timestamps
+  clickedAt           DateTime @default(now()) @map("clicked_at")
+
+  // Relations
+  organization        Organization @relation("OrgMarketplaceClicks", fields: [organizationId], references: [id], onDelete: Cascade)
+  job                 Job?         @relation("JobAttribution", fields: [convertedJobId], references: [id])
+
+  @@index([organizationId, clickedAt(sort: Desc)])
+  @@index([businessSlug, clickedAt(sort: Desc)])
+  @@index([consumerFingerprint, clickedAt])
+  @@index([organizationId, convertedAt])
+  @@map("marketplace_clicks")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 4.4: GROWTH ENGINE - UNCLAIMED PROFILES
+// ═══════════════════════════════════════════════════════════════════════════════
+// Pre-populated "ghost" profiles from scraped registry data (ERSEP, CACAAV, etc.)
+// Professionals can claim these profiles to instantly activate their business presence.
+
+model UnclaimedProfile {
+  id               String   @id @default(cuid())
+  
+  // Source Information
+  source           UnclaimedProfileSource
+  sourceId         String?  @map("source_id")      // ID in source registry
+  sourceUrl        String?  @map("source_url")     // Link to original registry page
+  scrapedAt        DateTime @default(now()) @map("scraped_at")
+  
+  // Professional Identity
+  fullName         String   @map("full_name")
+  phone            String?                         // Phone for WhatsApp outreach
+  email            String?                         // Email for outreach
+  cuit             String?                         // CUIT if available
+  matricula        String?                         // Professional license number
+  
+  // Location
+  province         String?
+  city             String?
+  address          String?
+  
+  // Professional Details
+  profession       String?                         // GASISTA, ELECTRICISTA, etc.
+  specialty        String?                         // Sub-specialty if available
+  category         String?                         // License category (1ra, 2da, etc.)
+  
+  // Outreach Status
+  outreachStatus   OutreachStatus @default(not_contacted) @map("outreach_status")
+  lastContactedAt  DateTime?      @map("last_contacted_at")
+  contactAttempts  Int            @default(0) @map("contact_attempts")
+  
+  // Email Outreach
+  emailSentAt      DateTime?      @map("email_sent_at")
+  emailDeliveredAt DateTime?      @map("email_delivered_at")
+  emailOpenedAt    DateTime?      @map("email_opened_at")
+  emailClickedAt   DateTime?      @map("email_clicked_at")
+  emailBouncedAt   DateTime?      @map("email_bounced_at")
+  emailUnsubscribedAt DateTime?   @map("email_unsubscribed_at")
+  
+  // WhatsApp Outreach
+  whatsappSentAt   DateTime?      @map("whatsapp_sent_at")
+  whatsappDeliveredAt DateTime?   @map("whatsapp_delivered_at")
+  whatsappReadAt   DateTime?      @map("whatsapp_read_at")
+  whatsappRepliedAt DateTime?     @map("whatsapp_replied_at")
+  whatsappFailedAt DateTime?      @map("whatsapp_failed_at")
+  whatsappFailureReason String?   @map("whatsapp_failure_reason")
+  
+  // Claim Status
+  claimToken       String?  @unique @map("claim_token") // Secure token for claim URL
+  claimTokenExpiry DateTime? @map("claim_token_expiry")
+  claimedAt        DateTime? @map("claimed_at")
+  claimedByUserId  String?  @map("claimed_by_user_id")
+  claimedOrgId     String?  @map("claimed_org_id")
+  
+  // Data Quality
+  dataQuality      DataQuality @default(raw) @map("data_quality")
+  lastVerifiedAt   DateTime?   @map("last_verified_at")
+  isActive         Boolean     @default(true) @map("is_active")
+  
+  // Campaign Tracking
+  campaignId       String?  @map("campaign_id")
+  campaign         OutreachCampaign? @relation(fields: [campaignId], references: [id])
+  
+  // Timestamps
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@unique([source, matricula])
+  @@unique([source, email])
+  @@index([phone])
+  @@index([email])
+  @@index([outreachStatus])
+  @@index([source, province])
+  @@index([profession])
+  @@index([claimToken])
+  @@index([campaignId])
+  @@index([createdAt(sort: Desc)])
+  @@map("unclaimed_profiles")
+}
+
+model OutreachCampaign {
+  id                String   @id @default(cuid())
+  organizationId    String   @map("organization_id") // Which org owns this campaign (CampoTech admin org)
+  name              String                          // "ERSEP Initial Outreach Jan 2026"
+  description       String?
+  
+  // 🔒 LAUNCH GATE - Campaign status
+  status            CampaignStatus @default(draft)
+  approvedAt        DateTime?      @map("approved_at")  // When owner approved
+  approvedBy        String?        @map("approved_by")  // User ID who approved
+  
+  // Channel Configuration
+  channel           OutreachChannel @default(email)
+  
+  // Template (for WhatsApp campaigns)
+  templateName      String?        @map("template_name")     // "profile_claim_product_first"
+  templateStatus    TemplateApprovalStatus @default(not_submitted) @map("template_status")
+  templateContent   String?        @map("template_content")  // Template message content
+  
+  // Email Configuration
+  emailSubject      String?        @map("email_subject")
+  emailFromName     String?        @map("email_from_name")
+  emailReplyTo      String?        @map("email_reply_to")
+  
+  // Targeting
+  source            UnclaimedProfileSource?          // Filter by source
+  targetProvince    String?        @map("target_province")   // Optional province filter
+  targetProfession  String?        @map("target_profession") // Optional profession filter
+  targetCount       Int            @default(0) @map("target_count") // Profiles matching criteria
+  
+  // Progress Metrics
+  sentCount         Int            @default(0) @map("sent_count")
+  deliveredCount    Int            @default(0) @map("delivered_count")
+  openedCount       Int            @default(0) @map("opened_count")
+  clickedCount      Int            @default(0) @map("clicked_count")
+  repliedCount      Int            @default(0) @map("replied_count")
+  claimedCount      Int            @default(0) @map("claimed_count")
+  errorCount        Int            @default(0) @map("error_count")
+  unsubscribedCount Int            @default(0) @map("unsubscribed_count")
+  
+  // Rate Limiting
+  dailyLimit        Int            @default(1000) @map("daily_limit")  // Messages per day
+  batchSize         Int            @default(50) @map("batch_size")     // Messages per batch
+  batchDelayMs      Int            @default(60000) @map("batch_delay_ms") // Delay between batches
+  
+  // Timestamps
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
+  launchedAt        DateTime?      @map("launched_at")    // When campaign actually started
+  pausedAt          DateTime?      @map("paused_at")
+  completedAt       DateTime?      @map("completed_at")   // When all messages sent
+  
+  // Relations
+  profiles          UnclaimedProfile[]
+
+  @@index([status])
+  @@index([channel])
+  @@index([source])
+  @@index([createdAt(sort: Desc)])
+  @@map("outreach_campaigns")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 4.8: WHATSAPP AI CREDITS & BSP RESELLER SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+// Credit-based system for WhatsApp AI features when CampoTech provides BSP service.
+
+model WhatsAppCredits {
+  id                 String   @id @default(cuid())
+  organizationId     String   @unique @map("organization_id")
+  
+  // Credit Balance
+  creditsRemaining   Int      @default(0) @map("credits_remaining")
+  creditsUsedTotal   Int      @default(0) @map("credits_used_total")
+  creditsPurchased   Int      @default(0) @map("credits_purchased")
+  
+  // One-Time Grace Period (anti-abuse)
+  graceCreditsUsed   Int      @default(0) @map("grace_credits_used")   // Max 50
+  graceTriggeredAt   DateTime? @map("grace_triggered_at")
+  graceForfeited     Boolean  @default(false) @map("grace_forfeited") // True if paid before using grace
+  
+  // Alert Tracking
+  alert75SentAt      DateTime? @map("alert_75_sent_at")
+  alert90SentAt      DateTime? @map("alert_90_sent_at")
+  alert100SentAt     DateTime? @map("alert_100_sent_at")
+  graceStartedAlert  DateTime? @map("grace_started_alert_sent_at")
+  graceEndingAlert   DateTime? @map("grace_ending_alert_sent_at")
+  
+  // Service Status
+  serviceStatus      CreditServiceStatus @default(inactive) @map("service_status")
+  degradedAt         DateTime?           @map("degraded_at") // When service was degraded to wa.me
+  
+  // Timestamps
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+  
+  // Relations
+  purchases          CreditPurchase[]
+  usageLogs          CreditUsageLog[]
+
+  @@index([organizationId])
+  @@index([serviceStatus])
+  @@index([creditsRemaining])
+  @@map("whatsapp_credits")
+}
+
+model CreditPurchase {
+  id                 String   @id @default(cuid())
+  whatsappCreditsId  String   @map("whatsapp_credits_id")
+  whatsappCredits    WhatsAppCredits @relation(fields: [whatsappCreditsId], references: [id], onDelete: Cascade)
+  
+  // Purchase Details
+  creditsPurchased   Int      @map("credits_purchased")
+  amountArs          Decimal  @db.Decimal(10, 2) @map("amount_ars")
+  pricePerCredit     Decimal  @db.Decimal(6, 2) @map("price_per_credit")
+  
+  // Package Info (if applicable)
+  packageType        String?  @map("package_type")  // 'small_100', 'medium_500', 'large_1000', 'custom'
+  discountPercent    Decimal? @db.Decimal(5, 2) @map("discount_percent")
+  
+  // Payment
+  paymentStatus      CreditPaymentStatus @default(pending) @map("payment_status")
+  mpPaymentId        String?  @map("mp_payment_id")    // Mercado Pago payment ID
+  mpPreferenceId     String?  @map("mp_preference_id") // Mercado Pago preference ID
+  
+  // Timestamps
+  createdAt          DateTime @default(now()) @map("created_at")
+  completedAt        DateTime? @map("completed_at")
+  failedAt           DateTime? @map("failed_at")
+  failureReason      String?  @map("failure_reason")
+  
+  @@index([whatsappCreditsId])
+  @@index([paymentStatus])
+  @@index([createdAt(sort: Desc)])
+  @@map("credit_purchases")
+}
+
+model CreditUsageLog {
+  id                 String   @id @default(cuid())
+  whatsappCreditsId  String   @map("whatsapp_credits_id")
+  whatsappCredits    WhatsAppCredits @relation(fields: [whatsappCreditsId], references: [id], onDelete: Cascade)
+  
+  // Usage Details
+  creditsUsed        Int      @map("credits_used")
+  usageType          CreditUsageType @map("usage_type")
+  conversationId     String?  @map("conversation_id")  // Reference to WaConversation
+  description        String?
+  
+  // Context
+  isGraceCredit      Boolean  @default(false) @map("is_grace_credit")
+  balanceAfter       Int      @map("balance_after")
+  
+  // Timestamps
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@index([whatsappCreditsId])
+  @@index([createdAt(sort: Desc)])
+  @@map("credit_usage_logs")
+}
+
+model WhatsAppNumberInventory {
+  id                 String   @id @default(cuid())
+  
+  // Phone Number
+  phoneNumber        String   @unique @map("phone_number") // E.164 format
+  displayNumber      String   @map("display_number")       // Formatted for display
+  countryCode        String   @default("AR") @map("country_code")
+  
+  // BSP Provider Info
+  bspProvider        String   @map("bsp_provider")         // 'dialog360', 'twilio', 'meta_direct'
+  bspAccountId       String?  @map("bsp_account_id")
+  bspNumberId        String?  @map("bsp_number_id")
+  
+  // Provisioning Status
+  status             NumberInventoryStatus @default(available)
+  
+  // Assignment
+  assignedOrgId      String?  @map("assigned_org_id")
+  assignedAt         DateTime? @map("assigned_at")
+  
+  // Pricing
+  monthlyCostArs     Decimal  @db.Decimal(10, 2) @map("monthly_cost_ars")
+  setupFeeArs        Decimal? @db.Decimal(10, 2) @map("setup_fee_ars")
+  
+  // Meta Business Verification
+  metaVerified       Boolean  @default(false) @map("meta_verified")
+  displayName        String?  @map("display_name")  // Business display name
+  
+  // Timestamps
+  provisionedAt      DateTime @default(now()) @map("provisioned_at")
+  releasedAt         DateTime? @map("released_at")
+  
+  @@index([status])
+  @@index([assignedOrgId])
+  @@index([bspProvider])
+  @@map("whatsapp_number_inventory")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 4.8 ENUMS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+enum UnclaimedProfileSource {
+  ERSEP       // Ente Regulador de Servicios Públicos (gas installers)
+  CACAAV      // Cámara Argentina de Climatización, Aire, Agua y Vapor (HVAC)
+  GASNOR      // Gas del Norte S.A. (regional gas installer registry)
+  GASNEA      // Gas NEA S.A. (regional gas installer registry)
+  MANUAL      // Manually imported
+
+  @@map("unclaimed_profile_source")
+}
+
+enum OutreachStatus {
+  not_contacted  // Never contacted
+  pending        // Queued for contact
+  sent           // Message/email sent
+  delivered      // Confirmed delivery
+  opened         // Email opened / WhatsApp read
+  clicked        // Link clicked
+  replied        // Customer replied
+  claimed        // Profile was claimed
+  bounced        // Email bounced / WhatsApp failed
+  unsubscribed   // Opted out
+  invalid        // Bad contact info
+
+  @@map("outreach_status")
+}
+
+enum DataQuality {
+  raw         // Freshly scraped, not validated
+  validated   // Basic validation passed
+  enriched    // Additional data added
+  verified    // Confirmed with external source
+
+  @@map("data_quality")
+}
+
+enum CampaignStatus {
+  draft              // Being configured
+  ready              // All config done, awaiting approval
+  approved           // 🔒 Owner approved, ready to launch
+  launching          // Currently sending
+  paused             // Temporarily stopped
+  completed          // All messages sent
+  cancelled          // Cancelled before completion
+
+  @@map("campaign_status")
+}
+
+enum OutreachChannel {
+  email              // Email outreach (lower cost)
+  whatsapp           // WhatsApp BSP outreach (higher cost, higher conversion)
+
+  @@map("outreach_channel")
+}
+
+enum TemplateApprovalStatus {
+  not_submitted      // Template not yet sent to Meta
+  pending_approval   // Waiting for Meta review
+  approved           // Ready to use
+  rejected           // Need to revise
+
+  @@map("template_approval_status")
+}
+
+enum CreditServiceStatus {
+  inactive           // No credits purchased yet
+  active             // Credits available, AI enabled
+  grace_period       // Using grace credits
+  degraded           // Degraded to wa.me links (no AI)
+
+  @@map("credit_service_status")
+}
+
+enum CreditPaymentStatus {
+  pending            // Awaiting payment
+  processing         // Payment in progress
+  completed          // Payment successful, credits added
+  failed             // Payment failed
+  refunded           // Credits removed, payment refunded
+
+  @@map("credit_payment_status")
+}
+
+enum CreditUsageType {
+  ai_conversation    // AI handled a conversation (1 credit)
+  ai_followup        // AI sent follow-up message
+  template_message   // Outbound template message
+
+  @@map("credit_usage_type")
+}
+
+enum NumberInventoryStatus {
+  available          // Ready to be assigned
+  reserved           // Reserved for a specific org (provisioning in progress)
+  assigned           // Assigned to an org
+  suspended          // Temporarily suspended
+  released           // Released from org, being recycled
+
+  @@map("number_inventory_status")
 }

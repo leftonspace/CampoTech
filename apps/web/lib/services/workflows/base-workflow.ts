@@ -112,6 +112,9 @@ export interface WorkflowStep {
 
 export type WorkflowIntent =
   | 'booking'
+  | 'inquiry'
+  | 'faq'
+  | 'greeting'
   | 'status_check'
   | 'reschedule'
   | 'cancel'

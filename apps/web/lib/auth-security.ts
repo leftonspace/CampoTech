@@ -61,6 +61,8 @@ export interface TokenPayload extends JWTPayload {
   email: string | null;
   role: string;
   organizationId: string;
+  subscriptionTier: string;
+  subscriptionStatus: string;
   tokenType: 'access' | 'refresh';
 }
 
@@ -211,6 +213,12 @@ export async function refreshTokens(
         role: true,
         organizationId: true,
         isActive: true,
+        organization: {
+          select: {
+            subscriptionTier: true,
+            subscriptionStatus: true,
+          },
+        },
       },
     });
 
@@ -234,6 +242,8 @@ export async function refreshTokens(
         email: user.email,
         role: user.role,
         organizationId: user.organizationId,
+        subscriptionTier: user.organization.subscriptionTier,
+        subscriptionStatus: user.organization.subscriptionStatus,
       },
       userAgent,
       ipAddress

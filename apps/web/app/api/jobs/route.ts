@@ -6,6 +6,7 @@ import {
   UserRole,
 } from '@/lib/middleware/field-filter';
 import { JobService } from '@/src/services/job.service';
+import { jobRouteIntegrationService } from '@/lib/services/job-route-integration.service';
 
 // Transform scheduledTimeSlot JSON to separate start/end fields for frontend compatibility
 function transformJobTimeSlot<T extends { scheduledTimeSlot?: unknown }>(job: T): T & { scheduledTimeStart: string | null; scheduledTimeEnd: string | null } {
@@ -93,6 +94,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     const job = await JobService.createJob(session.organizationId, session.userId, body);
+
+    // Phase 2.3.3: Trigger route regeneration if job is assigned and scheduled (non-blocking)
+    if (job.technicianId && job.scheduledDate) {
+      jobRouteIntegrationService.onJobChange({
+        jobId: job.id,
+        technicianId: job.technicianId,
+        organizationId: session.organizationId,
+        scheduledDate: job.scheduledDate,
+        status: job.status,
+      }).catch((err) => {
+        console.error('Route regeneration error:', err);
+      });
+    }
 
     return NextResponse.json({
       success: true,

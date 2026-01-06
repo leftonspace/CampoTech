@@ -26,8 +26,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Only OWNER and ADMIN can view payment history
-    const allowedRoles = ['OWNER', 'ADMIN'];
+    // Only OWNER can view payment history (billing access is OWNER only)
+    const allowedRoles = ['OWNER'];
     if (!allowedRoles.includes(session.role?.toUpperCase() || '')) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para ver el historial de pagos' },

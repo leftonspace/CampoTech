@@ -5,9 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowLeft, Search, Calendar, Clock, Users, MapPin, X, Check, Wrench, AlertTriangle, Repeat, Plus } from 'lucide-react';
+import { ArrowLeft, Search, Calendar, Clock, Users, MapPin, X, Check, Wrench, AlertTriangle, Repeat, Plus, Truck } from 'lucide-react';
 import Link from 'next/link';
 import AddressAutocomplete, { ParsedAddress } from '@/components/ui/AddressAutocomplete';
+import { useVehicleSuggestion, getMatchTypeLabel } from '@/hooks/useVehicleSuggestion';
 
 // Customer type with address
 interface CustomerAddress {
@@ -35,6 +36,7 @@ interface JobVisit {
   timePeriodStart: 'AM' | 'PM';
   timePeriodEnd: 'AM' | 'PM';
   technicianIds: string[];
+  vehicleId: string | null; // Vehicle for this visit (Phase 2.1)
   // Recurrence settings per visit
   isRecurring: boolean;
   recurrencePattern: string;
@@ -50,6 +52,7 @@ const createEmptyVisit = (): JobVisit => ({
   timePeriodStart: 'AM',
   timePeriodEnd: 'PM',
   technicianIds: [],
+  vehicleId: null,
   isRecurring: false,
   recurrencePattern: 'MONTHLY',
   recurrenceCount: 6,
@@ -83,6 +86,88 @@ const RECURRENCE_PATTERNS = [
   { value: 'BIANNUAL', label: 'Semestral' },
   { value: 'ANNUAL', label: 'Anual' },
 ];
+
+// Inline Vehicle Suggestion Component - Phase 2.1
+function VehicleSuggestionInline({
+  technicianId,
+  date,
+  time,
+  selectedVehicleId,
+  onVehicleSelect,
+}: {
+  technicianId: string;
+  date: string;
+  time?: string;
+  selectedVehicleId: string | null;
+  onVehicleSelect: (vehicleId: string | null) => void;
+}) {
+  const { data, isLoading } = useVehicleSuggestion({
+    technicianId,
+    date,
+    time: time || null,
+    enabled: !!technicianId && !!date,
+  });
+
+  if (!technicianId || !date) return null;
+
+  if (isLoading) {
+    return (
+      <div className="mt-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+        <div className="flex items-center gap-2 text-gray-500">
+          <Truck className="h-4 w-4 animate-pulse" />
+          <span className="text-sm">Buscando vehículo asignado...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!data?.vehicle) {
+    return (
+      <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3">
+        <div className="flex items-center gap-2 text-amber-700">
+          <Truck className="h-4 w-4" />
+          <span className="text-sm">No hay vehículo asignado para este técnico en esta fecha</span>
+        </div>
+      </div>
+    );
+  }
+
+  const vehicle = data.vehicle;
+  const vehicleName = `${vehicle.make} ${vehicle.model} - ${vehicle.plateNumber}`;
+  const isSelected = selectedVehicleId === vehicle.id;
+
+  return (
+    <div className={`mt-3 rounded-lg border ${isSelected ? 'border-green-300 bg-green-50' : 'border-blue-200 bg-blue-50'} p-3`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Truck className={`h-4 w-4 ${isSelected ? 'text-green-600' : 'text-blue-600'}`} />
+          <div>
+            <span className={`text-sm font-medium ${isSelected ? 'text-green-800' : 'text-blue-800'}`}>
+              {vehicleName}
+            </span>
+            <span className={`ml-2 text-xs ${isSelected ? 'text-green-600' : 'text-blue-600'}`}>
+              ({getMatchTypeLabel(data.matchType)})
+            </span>
+          </div>
+        </div>
+        {!isSelected ? (
+          <button
+            type="button"
+            onClick={() => onVehicleSelect(vehicle.id)}
+            className="rounded-md bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
+          >
+            Asignar
+          </button>
+        ) : (
+          <span className="inline-flex items-center gap-1 rounded-full bg-green-200 px-2 py-0.5 text-xs font-medium text-green-800">
+            <Check className="h-3 w-3" />
+            Asignado
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function NewJobPage() {
   const router = useRouter();
@@ -910,6 +995,17 @@ export default function NewJobPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Vehicle Suggestion - Phase 2.1 */}
+                {visit.technicianIds.length > 0 && visit.date && (
+                  <VehicleSuggestionInline
+                    technicianId={visit.technicianIds[0]} // Use first technician
+                    date={visit.date}
+                    time={convertTo24h(visit.timeStart, visit.timePeriodStart) || undefined}
+                    selectedVehicleId={visit.vehicleId}
+                    onVehicleSelect={(vehicleId) => updateVisit(visit.id, 'vehicleId', vehicleId || '')}
+                  />
+                )}
 
                 {/* Recurrence option per visit */}
                 <div className="mt-4 pt-4 border-t border-gray-200">

@@ -67,8 +67,8 @@ export async function GET() {
       cbu: settings.cbu || '',
       cbuAlias: settings.cbuAlias || '',
       mpAccessToken: settings.mpAccessToken || '',
-      afipCertificate: settings.afipCertificate || '',
-      afipPrivateKey: settings.afipPrivateKey || '',
+      // AFIP credentials are now stored encrypted - use /api/settings/afip instead
+      hasAfipConfigured: !!organization.afipCertificateEncrypted,
     };
 
     // Filter data based on user role

@@ -134,6 +134,8 @@ export async function POST(request: NextRequest) {
       email: user.email,
       role: user.role,
       organizationId: user.organizationId,
+      subscriptionTier: trialResult.success ? 'INICIAL' : 'FREE',
+      subscriptionStatus: trialResult.success ? 'trialing' : 'none',
     });
 
     const refreshToken = accessToken;

@@ -85,6 +85,7 @@ export async function performSync(): Promise<{
   pulled: number;
   pushed: number;
   conflicts: number;
+  pendingDeductionsSynced?: number;
   error?: string;
 }> {
   if (isSyncing) {
@@ -102,10 +103,20 @@ export async function performSync(): Promise<{
     // 1. Push local changes first
     const pushResult = await pushLocalChanges();
 
-    // 2. Pull server changes
+    // 2. Phase 2.2.4.4: Sync pending stock deductions
+    let pendingDeductionsSynced = 0;
+    try {
+      const { syncPendingDeductions } = await import('./pending-deductions-sync');
+      const deductionsResult = await syncPendingDeductions();
+      pendingDeductionsSynced = deductionsResult.synced;
+    } catch (deductionError) {
+      console.error('Error syncing pending deductions:', deductionError);
+    }
+
+    // 3. Pull server changes
     const pullResult = await pullServerChanges();
 
-    // 3. Update last sync time
+    // 4. Update last sync time
     lastSyncTime = Date.now();
     await updateSessionLastSync(lastSyncTime);
 
@@ -114,6 +125,7 @@ export async function performSync(): Promise<{
       pulled: pullResult.count,
       pushed: pushResult.count,
       conflicts: pushResult.conflicts,
+      pendingDeductionsSynced,
     };
   } catch (error) {
     return {

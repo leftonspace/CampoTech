@@ -49,19 +49,33 @@
         "../../src/*"
       ],
       "pusher": [
+        "./node_modules/pusher",
         "../../node_modules/pusher"
       ],
       "ioredis": [
+        "./node_modules/ioredis",
         "../../node_modules/ioredis"
       ],
       "bullmq": [
+        "./node_modules/bullmq",
         "../../node_modules/bullmq"
+      ],
+      "openai": [
+        "./node_modules/openai"
+      ],
+      "openai/*": [
+        "./node_modules/openai/*"
       ]
     },
     "typeRoots": [
       "./types",
       "./node_modules/@types",
       "../../node_modules/@types"
+    ],
+    "types": [
+      "node",
+      "react",
+      "jest"
     ]
   },
   "include": [

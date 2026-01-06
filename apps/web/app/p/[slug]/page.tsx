@@ -103,9 +103,8 @@ export default async function PublicBusinessProfilePage({ params }: PageProps) {
     },
   });
 
-  const whatsappLink = profile.whatsappNumber
-    ? generateBusinessProfileWhatsAppLink(profile.whatsappNumber, profile.displayName)
-    : null;
+  // Phase 3.2: Use tracked redirect link for attribution
+  const whatsappLink = `/wa-redirect/${profile.slug || profile.organizationId}`;
 
   // Parse services from JSON
   const services = (profile.services as { name: string; description?: string; priceRange?: string }[]) || [];
@@ -239,11 +238,10 @@ export default async function PublicBusinessProfilePage({ params }: PageProps) {
                             {[...Array(5)].map((_, i) => (
                               <Star
                                 key={i}
-                                className={`h-4 w-4 ${
-                                  i < (review.rating || 0)
+                                className={`h-4 w-4 ${i < (review.rating || 0)
                                     ? 'fill-yellow-400 text-yellow-400'
                                     : 'text-gray-300'
-                                }`}
+                                  }`}
                               />
                             ))}
                           </div>

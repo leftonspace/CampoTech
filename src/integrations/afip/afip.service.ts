@@ -41,10 +41,27 @@ export class AFIPService {
 
   /**
    * Get AFIP configuration for an organization
+   * 
+   * NOTE: This method supports two credential sources during migration:
+   * 1. New encrypted storage (via AFIPCredentialsService) - preferred
+   * 2. Legacy raw SQL columns (for backward compatibility during migration)
+   * 
+   * After migration is complete, the legacy path should be removed.
    */
   async getConfig(orgId: string): Promise<AFIPConfig | null> {
+    // First, try legacy column-based storage (for backward compatibility)
     const result = await this.pool.query(
-      `SELECT cuit, afip_punto_venta, afip_cert, afip_key, afip_cert_expiry
+      `SELECT 
+         cuit, 
+         afip_punto_venta, 
+         afip_cert, 
+         afip_key, 
+         afip_cert_expiry,
+         afip_cuit,
+         afip_certificate_encrypted,
+         afip_private_key_encrypted,
+         afip_punto_venta as afip_punto_venta_new,
+         afip_environment
        FROM organizations
        WHERE id = $1`,
       [orgId]
@@ -56,6 +73,29 @@ export class AFIPService {
 
     const org = result.rows[0];
 
+    // Check for new encrypted storage first
+    if (org.afip_certificate_encrypted && org.afip_private_key_encrypted) {
+      // Use new AFIPCredentialsService (deferred import to avoid circular deps)
+      try {
+        const { getAFIPCredentialsService } = await import('../../apps/web/lib/services/afip-credentials.service');
+        const credentials = await getAFIPCredentialsService().getCredentials(orgId);
+
+        if (credentials) {
+          return {
+            environment: (credentials.environment === 'production' ? 'production' : 'homologation') as AFIPEnvironment,
+            cuit: credentials.cuit,
+            puntoVenta: credentials.puntoVenta ? parseInt(credentials.puntoVenta, 10) : 1,
+            certificate: credentials.certificate,
+            privateKey: credentials.privateKey,
+            certExpiry: undefined, // TODO: Parse from certificate if needed
+          };
+        }
+      } catch (error) {
+        log.warn('afip', 'Failed to load encrypted credentials, falling back to legacy', { orgId, error });
+      }
+    }
+
+    // Fall back to legacy storage
     if (!org.cuit || !org.afip_cert || !org.afip_key) {
       return null;
     }
@@ -64,8 +104,8 @@ export class AFIPService {
       environment: this.environment,
       cuit: org.cuit,
       puntoVenta: org.afip_punto_venta || 1,
-      certificate: org.afip_cert, // Should be decrypted
-      privateKey: org.afip_key,   // Should be decrypted
+      certificate: org.afip_cert, // Should be decrypted by caller or already plain
+      privateKey: org.afip_key,   // Should be decrypted by caller or already plain
       certExpiry: org.afip_cert_expiry,
     };
   }

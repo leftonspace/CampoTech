@@ -12,20 +12,31 @@ Based on comprehensive codebase audit, 19/27 features (70%) are complete. This r
 
 > **📎 ADDENDUM: Strategic Features (January 2026)**
 > 
-> Four additional strategic features have been defined in a separate addendum document:
+> Additional strategic features are defined in the addendum document:
 > 
-> | Feature | Phase | File Reference |
-> |---------|-------|----------------|
-> | Fiscal Health Dashboard (Monotributo) | Phase 2.4 | See addendum |
-> | Barcode Inventory Scanning | Phase 2.2.4 | See addendum |
-> | Digital Entry Badge (Countries) | Phase 4.3 | See addendum |
-> | Unclaimed Profile Growth Engine | Phase 4.4 | See addendum |
+> | # | Feature | Phase | Status | Effort | Description |
+> |---|---------|-------|--------|--------|-------------|
+> | 1 | Fiscal Health Dashboard | 2.4 | ✅ Service exists | 4 days | Monotributo "traffic light" widget |
+> | 2 | Cost-Safe SaaS Model | 2.5 | ✅ Trial Manager exists | 2 days | 21-day trial system |
+> | 3 | Barcode Inventory Scanning | 2.2.4 | ✅ Component exists | 4 days | Mobile camera scanning |
+> | 4 | Digital Entry Badge | 4.3 | ⏳ Schema ready | 5 days | QR "passport" for gated communities |
+> | 5 | Growth Engine - Data | 4.4 | ⏳ Schema added | 6 days | 61K ghost profiles from registries |
+> | 6 | Growth Engine - Activation | 4.5 | ⏳ Ready | 2.5 days | Launch gate & OTP claiming |
+> | 7 | Email Outreach | 4.6 | ⏳ Ready | 2 days | 29K email campaign |
+> | 8 | WhatsApp BSP Outreach | 4.7 | ⏸️ Deferred | - | Wait for email success |
+> | 9 | WhatsApp AI Credits | 4.8 | ⏳ Schema added | 5 days | Credit-based monetization |
+> | 10 | Advanced BSP Infrastructure | 6 | ⏸️ Future | 8 days | Multi-number inventory |
+> | 11 | Customer Support Infrastructure | 7 | ⏳ Ready | 4 days | Status page, AI bot, FAQ |
 > 
 > **📄 Full specifications:** `architecture/implementation-plan-addendum.md`
 > 
-> These features add **+19 days** to the original timeline (new total: 12-14 weeks).
+> **Current Status:** Phases 1-3 ✅ COMPLETE | Phase 4 ⏳ IN PROGRESS
+> 
+> **Total Estimated Timeline:** 15-18 weeks (76.5 days) + Phase 6 when triggered
 
 ---
+
+
 
 ### Critical Path:
 - **Week 1-2:** Security fixes + RBAC

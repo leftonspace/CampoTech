@@ -22,6 +22,7 @@
 
 import { NextResponse, type NextRequest } from 'next/server';
 import { jwtVerify, type JWTPayload } from 'jose';
+import { subscriptionGuard } from './middleware/subscription-guard';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -281,7 +282,8 @@ interface TokenPayload extends JWTPayload {
   email: string | null;
   role: string;
   organizationId: string;
-  tier?: SubscriptionTier;
+  subscriptionTier?: string;
+  subscriptionStatus?: string;
 }
 
 async function verifyToken(token: string): Promise<TokenPayload | null> {
@@ -420,7 +422,13 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     if (payload) {
       organizationId = payload.organizationId;
       identifier = `org:${organizationId}`;
-      tier = await getTierForOrg(organizationId, payload.tier);
+      tier = (payload.subscriptionTier as SubscriptionTier) || 'FREE';
+
+      // Phase 2.5: Subscription Guard
+      const guardResponse = await subscriptionGuard(request, payload);
+      if (guardResponse) {
+        return guardResponse;
+      }
     }
   }
 

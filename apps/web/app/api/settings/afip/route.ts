@@ -1,12 +1,15 @@
 /**
  * AFIP Settings API Route
- * GET /api/settings/afip - Get AFIP configuration
- * PUT /api/settings/afip - Update AFIP configuration
+ * GET /api/settings/afip - Get AFIP configuration status
+ * PUT /api/settings/afip - Update AFIP configuration (with encrypted storage)
+ *
+ * Phase 1.1 Security Fix: AFIP credentials now stored encrypted with AES-256-GCM
+ * @see apps/web/lib/services/afip-credentials.service.ts
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { getAFIPCredentialsService } from '@/lib/services/afip-credentials.service';
 
 export async function GET() {
   try {
@@ -19,35 +22,19 @@ export async function GET() {
       );
     }
 
-    const organization = await prisma.organization.findUnique({
-      where: { id: session.organizationId },
-    });
-
-    if (!organization) {
-      return NextResponse.json(
-        { success: false, error: 'Organización no encontrada' },
-        { status: 404 }
-      );
-    }
-
-    // Parse settings JSON
-    const settings = typeof organization.settings === 'string'
-      ? JSON.parse(organization.settings)
-      : organization.settings || {};
-
-    const afipSettings = settings.afip || {};
+    const afipService = getAFIPCredentialsService();
+    const status = await afipService.getConfigurationStatus(session.organizationId);
 
     return NextResponse.json({
       success: true,
       data: {
-        isConfigured: !!afipSettings.cuit && !!afipSettings.certificate,
-        cuit: afipSettings.cuit || '',
-        puntoVenta: afipSettings.puntoVenta || '',
-        environment: afipSettings.environment || 'testing', // 'testing' or 'production'
-        hasCertificate: !!afipSettings.certificate,
-        hasPrivateKey: !!afipSettings.privateKey,
-        certificateExpiry: afipSettings.certificateExpiry || null,
-        lastSync: afipSettings.lastSync || null,
+        isConfigured: status.isConfigured,
+        cuit: status.cuit || '',
+        puntoVenta: status.puntoVenta || '',
+        environment: status.environment,
+        hasCertificate: status.hasCertificate,
+        hasPrivateKey: status.hasPrivateKey,
+        connectedAt: status.connectedAt?.toISOString() || null,
       },
     });
   } catch (error) {
@@ -80,54 +67,29 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { cuit, puntoVenta, environment, certificate, privateKey } = body;
 
-    // Get current organization settings
-    const organization = await prisma.organization.findUnique({
-      where: { id: session.organizationId },
+    const afipService = getAFIPCredentialsService();
+
+    // Save credentials with encryption
+    await afipService.saveCredentials(session.organizationId, {
+      cuit,
+      certificate,
+      privateKey,
+      puntoVenta,
+      environment,
     });
 
-    if (!organization) {
-      return NextResponse.json(
-        { success: false, error: 'Organización no encontrada' },
-        { status: 404 }
-      );
-    }
-
-    // Parse existing settings
-    const currentSettings = typeof organization.settings === 'string'
-      ? JSON.parse(organization.settings)
-      : organization.settings || {};
-
-    // Merge AFIP settings
-    const newAfipSettings = {
-      ...currentSettings.afip,
-      ...(cuit !== undefined && { cuit }),
-      ...(puntoVenta !== undefined && { puntoVenta }),
-      ...(environment !== undefined && { environment }),
-      ...(certificate !== undefined && { certificate }),
-      ...(privateKey !== undefined && { privateKey }),
-      updatedAt: new Date().toISOString(),
-    };
-
-    // Update organization settings
-    await prisma.organization.update({
-      where: { id: session.organizationId },
-      data: {
-        settings: {
-          ...currentSettings,
-          afip: newAfipSettings,
-        },
-      },
-    });
+    // Get updated status
+    const status = await afipService.getConfigurationStatus(session.organizationId);
 
     return NextResponse.json({
       success: true,
       data: {
-        isConfigured: !!newAfipSettings.cuit && !!newAfipSettings.certificate,
-        cuit: newAfipSettings.cuit || '',
-        puntoVenta: newAfipSettings.puntoVenta || '',
-        environment: newAfipSettings.environment || 'testing',
-        hasCertificate: !!newAfipSettings.certificate,
-        hasPrivateKey: !!newAfipSettings.privateKey,
+        isConfigured: status.isConfigured,
+        cuit: status.cuit || '',
+        puntoVenta: status.puntoVenta || '',
+        environment: status.environment,
+        hasCertificate: status.hasCertificate,
+        hasPrivateKey: status.hasPrivateKey,
       },
       message: 'Configuración AFIP actualizada correctamente',
     });

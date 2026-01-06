@@ -43,7 +43,7 @@ describe('TrialManager', () => {
   });
 
   describe('createTrial', () => {
-    it('should create a 14-day trial for a new organization', async () => {
+    it('should create a 21-day trial for a new organization', async () => {
       const now = new Date('2024-01-15T10:00:00Z');
       freezeTime(now);
 
@@ -54,9 +54,9 @@ describe('TrialManager', () => {
         organizationId: orgId,
         tier: TRIAL_TIER,
         status: 'trialing',
-        trialEndsAt: new Date('2024-01-29T10:00:00Z'),
+        trialEndsAt: new Date('2024-02-05T10:00:00Z'), // 21 days from Jan 15
         currentPeriodStart: now,
-        currentPeriodEnd: new Date('2024-01-29T10:00:00Z'),
+        currentPeriodEnd: new Date('2024-02-05T10:00:00Z'),
       });
 
       mockPrisma.organization.update.mockResolvedValueOnce({
@@ -75,11 +75,11 @@ describe('TrialManager', () => {
       expect(result.subscription?.status).toBe('trialing');
     });
 
-    it('should set trial end date exactly 14 days from now', async () => {
+    it('should set trial end date exactly 21 days from now', async () => {
       const now = new Date('2024-01-15T10:00:00Z');
       freezeTime(now);
 
-      const expectedEndDate = new Date('2024-01-29T10:00:00Z');
+      const expectedEndDate = new Date('2024-02-05T10:00:00Z'); // 21 days from Jan 15
 
       mockPrisma.organizationSubscription.create.mockImplementation(async ({ data }) => {
         expect(data.trialEndsAt).toEqual(expectedEndDate);
@@ -382,7 +382,7 @@ describe('TrialManager', () => {
 
   describe('constants', () => {
     it('should have correct trial duration', () => {
-      expect(TRIAL_DAYS).toBe(14);
+      expect(TRIAL_DAYS).toBe(21);
     });
 
     it('should grant INICIAL tier during trial', () => {

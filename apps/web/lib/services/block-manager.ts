@@ -71,7 +71,7 @@ export interface AutoBlockResult {
 export const BLOCK_REASON_CODES = {
   // Subscription-related
   TRIAL_EXPIRED: 'trial_expired',
-  TRIAL_EXPIRED_GRACE: 'trial_expired_grace',
+  // Note: No TRIAL_EXPIRED_GRACE - we use immediate block (Netflix model)
   PAYMENT_FAILED: 'payment_failed',
   PAYMENT_PAST_DUE: 'payment_past_due',
   SUBSCRIPTION_CANCELLED: 'subscription_cancelled',
@@ -92,10 +92,14 @@ export const BLOCK_REASON_CODES = {
 
 export type BlockReasonCode = (typeof BLOCK_REASON_CODES)[keyof typeof BLOCK_REASON_CODES];
 
-/** Days after trial expiry to escalate to hard block */
-const TRIAL_GRACE_PERIOD_DAYS = 3;
+/** 
+ * DATA RETENTION PERIOD (Internal Only)
+ * Days to keep data after trial expiry before any cleanup.
+ * NOT communicated to users - silent safety net for returning customers.
+ */
+const DATA_RETENTION_DAYS = 30;
 
-/** Days after payment failure to escalate to hard block */
+/** Days after payment failure to escalate to hard block (payment needs retry window) */
 const PAYMENT_GRACE_PERIOD_DAYS = 7;
 
 /** Days after document rejection to apply soft block */
@@ -380,35 +384,28 @@ class BlockManager {
 
     // ─── CHECK SUBSCRIPTION STATUS ───────────────────────────────────────────
 
-    // Trial expired
+    // Trial expired - IMMEDIATE HARD BLOCK (no visible grace period)
+    // Industry standard: Netflix/Spotify model - pay or locked, no countdown
+    // Data is retained silently for DATA_RETENTION_DAYS for returning customers
     if (org.subscriptionStatus === 'expired' ||
-        (org.subscriptionStatus === 'trialing' && org.trialEndsAt && org.trialEndsAt < now)) {
-      const daysSinceExpiry = org.trialEndsAt
-        ? Math.floor((now.getTime() - org.trialEndsAt.getTime()) / (1000 * 60 * 60 * 24))
-        : 0;
+      (org.subscriptionStatus === 'trialing' && org.trialEndsAt && org.trialEndsAt < now)) {
 
-      if (daysSinceExpiry >= TRIAL_GRACE_PERIOD_DAYS) {
-        // Apply hard block after grace period
-        await this.applySoftBlock(organizationId, 'Tu período de prueba ha expirado', {
-          reasonCode: BLOCK_REASON_CODES.TRIAL_EXPIRED,
-        });
-        // Escalate to hard block
-        await this.applyHardBlock(organizationId, 'Tu período de prueba ha expirado. Elegí un plan para continuar.', {
-          reasonCode: BLOCK_REASON_CODES.TRIAL_EXPIRED,
-        });
-        blocksCreated++;
-      } else {
-        // Apply soft block during grace period
-        await this.applySoftBlock(organizationId, `Tu período de prueba ha expirado. Tenés ${TRIAL_GRACE_PERIOD_DAYS - daysSinceExpiry} días para elegir un plan.`, {
-          reasonCode: BLOCK_REASON_CODES.TRIAL_EXPIRED_GRACE,
-        });
-        blocksCreated++;
-      }
+      // Immediate hard block - no "X days remaining" messaging
+      // This prevents users from gaming the system by waiting for grace period
+      await this.applyHardBlock(
+        organizationId,
+        'Tu período de prueba ha terminado. Elegí un plan para seguir usando CampoTech.',
+        { reasonCode: BLOCK_REASON_CODES.TRIAL_EXPIRED }
+      );
+      blocksCreated++;
+
+      // Note: Data is retained for DATA_RETENTION_DAYS internally,
+      // but this is NOT communicated to users (silent safety net)
+
     } else {
       // Remove trial expired blocks if trial is active
       if (org.subscriptionStatus === 'trialing' && org.trialEndsAt && org.trialEndsAt > now) {
-        let removed = await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.TRIAL_EXPIRED);
-        removed += await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.TRIAL_EXPIRED_GRACE);
+        const removed = await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.TRIAL_EXPIRED);
         blocksRemoved += removed;
       }
     }
@@ -518,7 +515,6 @@ class BlockManager {
    */
   async onPaymentCompleted(organizationId: string): Promise<void> {
     await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.TRIAL_EXPIRED);
-    await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.TRIAL_EXPIRED_GRACE);
     await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.PAYMENT_FAILED);
     await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.PAYMENT_PAST_DUE);
     await this.removeBlocksByReasonCode(organizationId, BLOCK_REASON_CODES.SUBSCRIPTION_EXPIRED);

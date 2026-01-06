@@ -48,6 +48,8 @@ export interface TokenPayload extends JWTPayload {
   email: string | null;
   role: string;
   organizationId: string;
+  subscriptionTier: string;
+  subscriptionStatus: string;
 }
 
 /**

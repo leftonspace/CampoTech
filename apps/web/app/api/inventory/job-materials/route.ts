@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { inventoryCascadeService } from '@/lib/services/inventory-cascade.service';
 
 // interface JobWithRelations {
 //   id: string;
@@ -830,6 +831,124 @@ export async function POST(request: NextRequest) {
         success: true,
         data: { count: result.count },
         message: `${result.count} materiales marcados como facturados`,
+      });
+    }
+
+    // Phase 2.2: Use materials with automatic cascade (vehicle first, then warehouse)
+    if (action === 'useCascade') {
+      const {
+        jobId,
+        items,
+        manualOverride,
+        forceVehicle,
+        forceWarehouse,
+        vehicleId,
+        warehouseId,
+      } = body;
+
+      if (!jobId || !items || !Array.isArray(items) || items.length === 0) {
+        return NextResponse.json(
+          { success: false, error: 'jobId e items son requeridos' },
+          { status: 400 }
+        );
+      }
+
+      // Validate job exists and belongs to organization
+      const job = await prisma.job.findFirst({
+        where: { id: jobId, organizationId: session.organizationId },
+      });
+
+      if (!job) {
+        return NextResponse.json(
+          { success: false, error: 'Trabajo no encontrado' },
+          { status: 404 }
+        );
+      }
+
+      let result;
+
+      if (manualOverride && (forceVehicle || forceWarehouse)) {
+        // Manual mode - user specified source
+        result = await inventoryCascadeService.deductManual(
+          jobId,
+          items,
+          session.userId,
+          session.organizationId,
+          {
+            forceVehicle,
+            forceWarehouse,
+            vehicleId,
+            warehouseId,
+          }
+        );
+      } else {
+        // Automatic cascade mode
+        result = await inventoryCascadeService.deductWithCascade(
+          jobId,
+          items,
+          session.userId,
+          session.organizationId
+        );
+      }
+
+      if (!result.success) {
+        return NextResponse.json(
+          { success: false, error: result.error },
+          { status: 400 }
+        );
+      }
+
+      // Also update JobMaterial records if they exist
+      for (const deduction of result.deductions) {
+        const jobMaterial = await prisma.jobMaterial.findFirst({
+          where: { jobId, productId: deduction.productId },
+        });
+
+        if (jobMaterial) {
+          const newUsedQty = jobMaterial.usedQty + deduction.quantity;
+          await prisma.jobMaterial.update({
+            where: { id: jobMaterial.id },
+            data: {
+              usedQty: newUsedQty,
+              usedAt: new Date(),
+              lineTotal: newUsedQty * Number(jobMaterial.unitPrice) * (1 - Number(jobMaterial.discount) / 100),
+              sourceType: deduction.source === 'vehicle' ? 'VEHICLE' : 'WAREHOUSE',
+              sourceId: deduction.sourceId || null,
+            },
+          });
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          deductions: result.deductions,
+          summary: result.summary,
+        },
+        message: result.summary || 'Materiales utilizados correctamente',
+      });
+    }
+
+    // Phase 2.2: Check availability (preview before deduction)
+    if (action === 'checkAvailability') {
+      const { jobId, items } = body;
+
+      if (!jobId || !items || !Array.isArray(items)) {
+        return NextResponse.json(
+          { success: false, error: 'jobId e items son requeridos' },
+          { status: 400 }
+        );
+      }
+
+      const availability = await inventoryCascadeService.checkAvailability(
+        jobId,
+        items,
+        session.organizationId
+      );
+
+      return NextResponse.json({
+        success: true,
+        data: availability,
       });
     }
 

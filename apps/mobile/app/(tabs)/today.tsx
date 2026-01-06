@@ -9,7 +9,7 @@
  * - OWNER/DISPATCHER: Sees all organization jobs
  */
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,8 @@ import { performSync } from '../../lib/sync/sync-engine';
 import { useSyncStatus } from '../../lib/hooks/use-sync-status';
 import { useAuth } from '../../lib/auth/auth-context';
 import JobCard from '../../components/job/JobCard';
+import RouteButton, { NewRouteBanner } from '../../components/RouteButton';
+import { api } from '../../lib/api/client';
 
 // Get today's date range
 function getTodayRange() {
@@ -42,9 +44,34 @@ function getTodayRange() {
 function TodayScreen({ jobs }: { jobs: Job[] }) {
   const router = useRouter();
   const { isSyncing, pendingOperations } = useSyncStatus();
+  const [route, setRoute] = useState<{
+    segments: Array<{ url: string; jobIds: string[]; segmentNumber: number }>;
+    totalJobs: number;
+    totalDistance: number;
+    totalDuration: number;
+    primaryUrl: string;
+    totalSegments: number;
+  } | null>(null);
+  const [showNewRouteBanner, setShowNewRouteBanner] = useState(false);
+
+  // Fetch today's route
+  useEffect(() => {
+    api.routes.getToday().then((response) => {
+      if (response.success && response.data) {
+        setRoute(response.data);
+      }
+    }).catch((err) => {
+      console.error('Failed to fetch route:', err);
+    });
+  }, []);
 
   const handleRefresh = useCallback(async () => {
     await performSync();
+    // Refresh route too
+    const routeResponse = await api.routes.getToday();
+    if (routeResponse.success && routeResponse.data) {
+      setRoute(routeResponse.data);
+    }
   }, []);
 
   const handleJobPress = useCallback(
@@ -107,24 +134,57 @@ function TodayScreen({ jobs }: { jobs: Job[] }) {
   };
 
   const ListHeader = () => (
-    <View style={styles.headerStats}>
-      <View style={styles.stat}>
-        <Text style={styles.statNumber}>{jobs.length}</Text>
-        <Text style={styles.statLabel}>Total</Text>
+    <>
+      <View style={styles.headerStats}>
+        <View style={styles.stat}>
+          <Text style={styles.statNumber}>{jobs.length}</Text>
+          <Text style={styles.statLabel}>Total</Text>
+        </View>
+        <View style={styles.stat}>
+          <Text style={[styles.statNumber, { color: '#16a34a' }]}>
+            {groupedJobs.completed.length}
+          </Text>
+          <Text style={styles.statLabel}>Completados</Text>
+        </View>
+        <View style={styles.stat}>
+          <Text style={[styles.statNumber, { color: '#f59e0b' }]}>
+            {groupedJobs.upcoming.length}
+          </Text>
+          <Text style={styles.statLabel}>Pendientes</Text>
+        </View>
       </View>
-      <View style={styles.stat}>
-        <Text style={[styles.statNumber, { color: '#16a34a' }]}>
-          {groupedJobs.completed.length}
-        </Text>
-        <Text style={styles.statLabel}>Completados</Text>
-      </View>
-      <View style={styles.stat}>
-        <Text style={[styles.statNumber, { color: '#f59e0b' }]}>
-          {groupedJobs.upcoming.length}
-        </Text>
-        <Text style={styles.statLabel}>Pendientes</Text>
-      </View>
-    </View>
+
+      {/* Route Navigation Button */}
+      {route && route.totalJobs > 0 && (
+        <View style={styles.routeContainer}>
+          <RouteButton
+            url={route.primaryUrl}
+            jobCount={route.totalJobs}
+            segmentNumber={1}
+            totalSegments={route.totalSegments}
+            distanceMeters={route.totalDistance}
+            durationSeconds={route.totalDuration}
+          />
+        </View>
+      )}
+
+      {/* New Route Banner (shown after milestone completion) */}
+      {showNewRouteBanner && route && (
+        <View style={styles.routeContainer}>
+          <NewRouteBanner
+            remainingJobs={groupedJobs.upcoming.length}
+            onPress={() => {
+              setShowNewRouteBanner(false);
+              if (route.primaryUrl) {
+                import('react-native').then(({ Linking }) => {
+                  Linking.openURL(route.primaryUrl);
+                });
+              }
+            }}
+          />
+        </View>
+      )}
+    </>
   );
 
   const ListEmpty = () => (
@@ -307,5 +367,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '500',
+  },
+  routeContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 8,
   },
 });

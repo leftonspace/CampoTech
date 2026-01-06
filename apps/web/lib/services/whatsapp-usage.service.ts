@@ -84,14 +84,8 @@ const TIER_LIMITS: Record<string, TierLimits> = {
     conversationHistory: true,
     multipleResponders: false,
   },
-  EMPRESARIAL: {
-    monthlyMessages: 5000,
-    aiEnabled: true,
-    conversationHistory: true,
-    multipleResponders: true,
-  },
-  ENTERPRISE: {
-    monthlyMessages: -1, // Unlimited
+  EMPRESA: {
+    monthlyMessages: 10000, // Significant limit for enterprise
     aiEnabled: true,
     conversationHistory: true,
     multipleResponders: true,
@@ -480,8 +474,8 @@ export function formatUsageStats(stats: UsageStats): {
     remainingDisplay: isUnlimited
       ? 'Ilimitado'
       : stats.remaining === 0
-      ? 'Sin mensajes disponibles'
-      : `${stats.remaining.toLocaleString('es-AR')} disponibles`,
+        ? 'Sin mensajes disponibles'
+        : `${stats.remaining.toLocaleString('es-AR')} disponibles`,
     percentDisplay: isUnlimited ? '0%' : `${Math.round(stats.percentUsed)}%`,
   };
 }
@@ -502,13 +496,13 @@ export function getUpgradeSuggestion(currentTier: string): {
       };
     case 'PROFESIONAL':
       return {
-        nextTier: 'EMPRESARIAL',
-        benefit: 'Aumentá tu límite a 5,000 mensajes mensuales y agregá múltiples respondedores',
+        nextTier: 'EMPRESA',
+        benefit: 'Aumentá tu límite a 10,000 mensajes mensuales y agregá múltiples respondedores',
       };
-    case 'EMPRESARIAL':
+    case 'EMPRESA':
       return {
-        nextTier: 'ENTERPRISE',
-        benefit: 'Mensajes ilimitados y soporte prioritario',
+        nextTier: null,
+        benefit: 'Ya tenés el plan más completo',
       };
     default:
       return {
