@@ -69,7 +69,16 @@ Core application pages accessible after login.
 | [[New Job Page]] | `/dashboard/jobs/new` | 🟢 | Create work order |
 | [[Verification Flow]] | `/dashboard/verificacion` | 🟡 | Identity verification |
 
+### 🛡️ Platform Admin (Restricted)
+
+> These pages are only accessible to CampoTech platform administrators.
+
+| Page | Route | Status | Description |
+|:---|:---|:---:|:---|
+| [[Growth Engine]] | `/dashboard/admin/growth-engine` | 🟢 | Professional acquisition system |
+
 ---
+
 
 ## 🔄 User Flows
 
@@ -83,6 +92,7 @@ Multi-step processes and journeys.
 | [[Subscription Flow]] | 🔴 | Payment & upgrade |
 | [[Trial Lifecycle]] | 🟡 | Trial period management |
 | [[App Onboarding]] | 🟡 | Feature education |
+| [[Profile Claim Flow]] | 🟢 | Professional claims scraped profile |
 
 ---
 
@@ -148,11 +158,14 @@ architecture/Obsidian Architecture/
 - **Finance:** [[Invoices Page]], [[Payments Page]], [[Analytics Page]]
 - **Team & Fleet:** [[Team Page]], [[Fleet Page]], [[Map View]]
 - **Configuration:** [[Settings Page]], [[Profile Page]]
+- **Platform Admin:** [[Growth Engine]]
 
 ### By User Role
+- **Platform Admin:** [[Growth Engine]] (CampoTech staff only)
 - **Owner:** All pages + [[Subscription Flow]], [[Verification Flow]]
 - **Admin:** Most pages except billing
 - **Technician:** [[Jobs Page]], [[Profile Page]]
+
 
 ---
 

@@ -544,10 +544,10 @@ export function canUseWhatsAppAPI(org: Organization): boolean {
 
 ---
 
-# FEATURE 2: DIGITAL ENTRY BADGE (Gated Community Access)
+# FEATURE 2: DIGITAL ENTRY BADGE (Gated Community Access) ✅ COMPLETE
 **Assigned Phase:** Phase 4 (Onboarding Automation) - Insert after Task 4.1.3
 **Priority:** 🟠 MEDIUM (Differentiation for Countries/gated communities)
-**Estimated Effort:** 5 days
+**Estimated Effort:** 5 days | **Status:** ✅ Implemented January 2026
 
 ## Overview
 A "Passport" feature for technicians entering gated communities (Countries). Dynamic QR code displays identity, ART insurance status, and background check status.
@@ -698,13 +698,24 @@ export class DigitalBadgeService {
 
 **Add section for uploading ART certificate with expiry date picker.**
 
-**Acceptance Criteria (Phase 4.3 Complete):**
-- [ ] User schema extended with ART and background check fields
-- [ ] Badge generation with rotating secure token
-- [ ] QR code displays in mobile app
-- [ ] Public verification page for security guards
-- [ ] ART certificate upload with expiry tracking
-- [ ] Expiry warnings (30 days before)
+✅ **Phase 4.3 STATUS: COMPLETE (January 2026)**
+
+**Acceptance Criteria:**
+- [x] User schema extended with ART and background check fields (`OrganizationMember` model)
+- [x] Badge generation with rotating secure token (`digital-badge.service.ts`)
+- [x] QR code displays in mobile app (`apps/mobile/components/badge/DigitalBadge.tsx`)
+- [x] Public verification page for security guards (`/verify-badge/[token]`)
+- [x] ART certificate upload with expiry tracking (`/api/verification/employee`)
+- [x] Expiry warnings (30 days before) - built into `getUsersWithExpiringART()`
+
+**Implemented Files:**
+| Task | Web | Mobile |
+|------|-----|--------|
+| 4.3.1: Schema | `prisma/schema.prisma` (lines 205-227) | - |
+| 4.3.2: Badge Service | `lib/services/digital-badge.service.ts` | - |
+| 4.3.3: Verification Page | `app/verify-badge/[token]/page.tsx` | - |
+| 4.3.4: Mobile Badge | - | `app/(tabs)/profile/badge.tsx` |
+| 4.3.5: ART Upload | `app/api/verification/employee/route.ts` | - |
 
 ---
 
@@ -820,10 +831,12 @@ export function BarcodeScanner({ onScan }: { onScan: (barcode: string) => void }
 
 ---
 
-# FEATURE 4: THE GROWTH ENGINE (Unclaimed Profile System)
+# FEATURE 4: THE GROWTH ENGINE (Unclaimed Profile System) ✅ COMPLETE
 **Assigned Phase:** Phase 4 (Onboarding) - Insert after Task 4.2.2
 **Priority:** 🟠 MEDIUM (Growth/acquisition strategy)
 **Estimated Effort:** 8 days (includes activation workflow)
+**Status:** ✅ COMPLETE - 2026-01-06
+**Implemented:** Schema, API, landing pages, admin dashboard, all 3 scrapers (ERSEP, CACAAV, PDF parser)
 
 ## Overview
 Pre-populate database with public professional data from validated sources to create "ghost profiles" that technicians can claim via SMS/WhatsApp verification. This is our **"land grab"** strategy to acquire users with zero CAC.
@@ -1103,12 +1116,14 @@ export class ERSEPScraper {
 }
 ```
 
-**Acceptance Criteria:**
-- [ ] Scraper handles pagination correctly
-- [ ] Extracts Name, Phone, Email, Category, Matricula
-- [ ] Respects rate limiting (1 req/sec)
-- [ ] Handles DOM changes gracefully (try/catch)
-- [ ] Logs errors without crashing
+**Acceptance Criteria:** ✅ IMPLEMENTED
+- [x] Scraper handles pagination correctly ✅
+- [x] Extracts Name, Phone, Email, Category, Matricula ✅
+- [x] Respects rate limiting (1.5 req/sec) ✅
+- [x] Handles DOM changes gracefully (try/catch) ✅
+- [x] Logs errors without crashing ✅
+- [x] Admin UI to trigger scraper ✅
+
 
 ### Task 4.4.3: Build CACAAV Scraper (National - HVAC)
 **Source:** `cacaav.com.ar/matriculados/listado`
@@ -1237,12 +1252,13 @@ export class CACAAVScraper {
 }
 ```
 
-**Acceptance Criteria:**
-- [ ] Parses HTML table correctly
-- [ ] Extracts Name, Mobile Phone, City
-- [ ] Handles missing fields gracefully
-- [ ] Generates stable matricula ID if not present
-- [ ] Logs warnings for malformed rows
+**Acceptance Criteria:** ✅ IMPLEMENTED
+- [x] Parses HTML table correctly ✅
+- [x] Extracts Name, Mobile Phone, City ✅
+- [x] Handles missing fields gracefully ✅
+- [x] Generates stable matricula ID if not present ✅
+- [x] Province inference from city ✅
+- [x] Admin UI to trigger scraper ✅
 
 ### Task 4.4.4: Build PDF Pipeline for Gasnor/GasNEA (North - Gas)
 **Source:** Static PDF Lists from distributor websites
@@ -1482,13 +1498,278 @@ export class PDFImportCoordinator {
 }
 ```
 
+**Acceptance Criteria:** ✅ IMPLEMENTED (TypeScript pdf-parse instead of Python pdfplumber)
+- [x] PDF text extraction via pdf-parse library ✅
+- [x] Handles multi-page PDFs ✅
+- [x] Email extraction with regex validation ✅
+- [x] TypeScript implementation (no Python dependency) ✅
+- [x] Imports records to UnclaimedProfile table ✅
+- [x] Admin import UI with file upload ✅
+- [x] Error logging per record ✅
+
+### Task 4.4.4a: Gasnor Website Email Enrichment Scraper 📧
+**Source:** `https://www.naturgynoa.com.ar/instaladores` (Gasnor public registry)
+**Purpose:** Enrich existing Gasnor profiles imported from PDF with email addresses
+**Strategy:** Playwright browser automation to hover over email elements and extract hidden emails
+**Match Key:** Matricula number (since Gasnor doesn't have CUIT in PDF)
+
+**Why This is Needed:**
+The Gasnor PDF contains: MAT | CAT | APELLIDO | NOMBRE | DOMICILIO | LOCALIDAD | PROVINCIA | TELEFONO | CELULAR
+But the **EMAIL column only shows "Email" link** - the actual email is revealed on hover.
+This task enriches the already-imported profiles with their email addresses.
+
+**Files to create:**
+- `apps/web/lib/scrapers/gasnor-email-scraper.ts`
+- `apps/web/app/api/admin/growth-engine/scrapers/gasnor-emails/route.ts`
+
+```typescript
+// apps/web/lib/scrapers/gasnor-email-scraper.ts
+import { chromium, Browser, Page } from 'playwright';
+import { prisma } from '@/lib/prisma';
+
+interface GasnorEmailRecord {
+  matricula: string;
+  email: string | null;
+  name: string;
+}
+
+export class GasnorEmailScraper {
+  private baseUrl = 'https://www.naturgynoa.com.ar/instaladores';
+  
+  /**
+   * Scrape Gasnor website to extract emails hidden behind hover
+   * Then match with existing profiles by matricula number
+   */
+  async scrapeEmails(): Promise<{ extracted: number; enriched: number; errors: number }> {
+    const browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage();
+    
+    let extracted = 0;
+    let enriched = 0;
+    let errors = 0;
+    
+    try {
+      console.log('[GasnorEmailScraper] Starting email extraction...');
+      
+      // Navigate to instaladores page
+      await page.goto(this.baseUrl, { waitUntil: 'networkidle' });
+      
+      // Click "Buscar" button to load results
+      const searchButton = page.locator('button:has-text("Buscar"), input[type="submit"][value*="Buscar"]');
+      if (await searchButton.count() > 0) {
+        await searchButton.click();
+        await page.waitForLoadState('networkidle');
+      }
+      
+      // Wait for results table
+      await page.waitForSelector('table, .results, .instaladores-list', { timeout: 10000 });
+      
+      // Get all rows with email elements
+      const rows = await page.locator('tr, .instalador-row').all();
+      
+      for (const row of rows) {
+        try {
+          // Extract matricula from row (usually first column)
+          const matriculaCell = row.locator('td:first-child, .matricula');
+          const matricula = await matriculaCell.textContent();
+          
+          if (!matricula || !/^\d{1,4}$/.test(matricula.trim())) {
+            continue; // Skip non-data rows
+          }
+          
+          // Find email element (hover trigger)
+          const emailTrigger = row.locator('[class*="email"], a[title*="mail"], td:has-text("Email")');
+          
+          if (await emailTrigger.count() > 0) {
+            // Hover to reveal email
+            await emailTrigger.hover();
+            await page.waitForTimeout(500); // Wait for tooltip/reveal
+            
+            // Try to get email from:
+            // 1. Tooltip that appeared
+            // 2. href="mailto:..." that became visible
+            // 3. Text content that changed on hover
+            
+            let email: string | null = null;
+            
+            // Check for mailto link
+            const mailtoLink = row.locator('a[href^="mailto:"]');
+            if (await mailtoLink.count() > 0) {
+              const href = await mailtoLink.getAttribute('href');
+              email = href?.replace('mailto:', '') || null;
+            }
+            
+            // Check for visible email text
+            if (!email) {
+              const emailText = await row.textContent();
+              const emailMatch = emailText?.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+              email = emailMatch ? emailMatch[0] : null;
+            }
+            
+            // Check tooltip
+            if (!email) {
+              const tooltip = page.locator('[role="tooltip"], .tooltip, [class*="popover"]');
+              if (await tooltip.count() > 0) {
+                const tooltipText = await tooltip.textContent();
+                const emailMatch = tooltipText?.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+                email = emailMatch ? emailMatch[0] : null;
+              }
+            }
+            
+            if (email) {
+              extracted++;
+              console.log(`[GasnorEmailScraper] Found email for matricula ${matricula}: ${email}`);
+              
+              // Enrich existing profile
+              const updated = await this.enrichProfile(matricula.trim(), email.toLowerCase());
+              if (updated) enriched++;
+            }
+          }
+        } catch (rowError) {
+          console.error('[GasnorEmailScraper] Error processing row:', rowError);
+          errors++;
+        }
+        
+        // Rate limiting - be nice to the server
+        await page.waitForTimeout(300);
+      }
+      
+      // Check for pagination
+      const nextPage = page.locator('a:has-text("Siguiente"), .pagination .next, a[rel="next"]');
+      if (await nextPage.count() > 0 && await nextPage.isVisible()) {
+        console.log('[GasnorEmailScraper] Found pagination, continuing to next page...');
+        await nextPage.click();
+        await page.waitForLoadState('networkidle');
+        // Recursive call for next page would go here
+        // For safety, implement iterative pagination with max pages
+      }
+      
+    } catch (error) {
+      console.error('[GasnorEmailScraper] Fatal error:', error);
+      throw error;
+    } finally {
+      await browser.close();
+    }
+    
+    console.log(`[GasnorEmailScraper] Complete: ${extracted} emails extracted, ${enriched} profiles enriched, ${errors} errors`);
+    
+    return { extracted, enriched, errors };
+  }
+  
+  /**
+   * Update existing profile with email, matching by matricula
+   */
+  private async enrichProfile(matricula: string, email: string): Promise<boolean> {
+    try {
+      // Find profiles with this matricula from GASNOR source
+      const profiles = await prisma.unclaimedProfile.findMany({
+        where: {
+          source: 'GASNOR',
+          matricula: matricula,
+          email: null, // Only update if email is missing
+        },
+      });
+      
+      if (profiles.length === 0) {
+        console.log(`[GasnorEmailScraper] No profile found for matricula ${matricula}`);
+        return false;
+      }
+      
+      // Update all matching profiles with email
+      await prisma.unclaimedProfile.updateMany({
+        where: {
+          source: 'GASNOR',
+          matricula: matricula,
+          email: null,
+        },
+        data: {
+          email: email,
+          scrapedAt: new Date(),
+        },
+      });
+      
+      console.log(`[GasnorEmailScraper] Enriched ${profiles.length} profile(s) with email`);
+      return true;
+    } catch (error) {
+      console.error(`[GasnorEmailScraper] Error enriching profile ${matricula}:`, error);
+      return false;
+    }
+  }
+}
+
+// Singleton instance
+let scraperInstance: GasnorEmailScraper | null = null;
+
+export function getGasnorEmailScraper(): GasnorEmailScraper {
+  if (!scraperInstance) {
+    scraperInstance = new GasnorEmailScraper();
+  }
+  return scraperInstance;
+}
+```
+
+**Admin API Endpoint:**
+```typescript
+// apps/web/app/api/admin/growth-engine/scrapers/gasnor-emails/route.ts
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { getGasnorEmailScraper } from '@/lib/scrapers/gasnor-email-scraper';
+
+export async function POST(request: Request) {
+  const session = await getServerSession();
+  
+  if (!session?.user || session.user.role !== 'ADMIN') {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  try {
+    const scraper = getGasnorEmailScraper();
+    const result = await scraper.scrapeEmails();
+    
+    return NextResponse.json({
+      success: true,
+      ...result,
+    });
+  } catch (error) {
+    console.error('[API] GasnorEmailScraper error:', error);
+    return NextResponse.json(
+      { error: 'Scraper failed', details: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
+}
+```
+
+**Package Dependencies:**
+```bash
+pnpm add playwright @playwright/test
+npx playwright install chromium  # Install browser binary
+```
+
+**Workflow:**
+1. **First:** Import Gasnor PDF via existing import UI → Creates profiles with `phone`, `matricula`, no `email`
+2. **Then:** Run email enrichment scraper → Updates profiles with `email` field
+3. **Match:** Uses `matricula` number to link website email with PDF profile
+
+**UI Integration (Admin Dashboard):**
+Add button to Growth Engine profiles page:
+```tsx
+<button onClick={() => fetch('/api/admin/growth-engine/scrapers/gasnor-emails', { method: 'POST' })}>
+  📧 Enrich Gasnor Emails
+</button>
+```
+
 **Acceptance Criteria:**
-- [ ] Python pdfplumber script extracts tables correctly
-- [ ] Handles multi-page PDFs
-- [ ] Email extraction with regex validation
-- [ ] TypeScript coordinator calls Python subprocess
-- [ ] Imports records to UnclaimedProfile table
-- [ ] Logs extraction errors per page
+- [ ] Playwright opens Gasnor instaladores page
+- [ ] Clicks "Buscar" to load results
+- [ ] Hovers over each email element to reveal hidden email
+- [ ] Extracts email using multiple fallback methods (mailto, text, tooltip)
+- [ ] Matches to existing profile by matricula number
+- [ ] Updates profile with email (only if currently null)
+- [ ] Handles pagination for complete extraction
+- [ ] Rate limiting (300ms between rows, 1s between pages)
+- [ ] Admin button in dashboard to trigger enrichment
+- [ ] Logs extraction progress and errors
 
 ### Task 4.4.5: Create Claim Profile API Flow
 **Files to create:**
@@ -1646,19 +1927,20 @@ export class PDFImportCoordinator {
 // Creates new campaign in DRAFT status
 ```
 
-**Acceptance Criteria (Phase 4.4 Complete):**
-- [ ] UnclaimedProfile schema created with source tracking
-- [ ] OutreachCampaign schema with Launch Gate
-- [ ] ERSEP scraper functional (volta.net.ar) - ~33k records
-- [ ] CACAAV scraper functional (cacaav.com.ar) - ~23k records
-- [ ] Gasnor/GasNEA PDF parser functional (pdfplumber) - ~5k records
-- [ ] Search by matricula number
-- [ ] Public landing page for claim flow
-- [ ] **Admin dashboard with profile browser (view all data)**
-- [ ] **Stats by source with phone/email counts**
-- [ ] **Campaign management in DRAFT mode only**
-- [ ] **Warning banner: "Outreach locked pending approval"**
-- [ ] Conversion metrics by source
+**Acceptance Criteria (Phase 4.4 Complete):** ✅ COMPLETE - 2026-01-06
+- [x] UnclaimedProfile schema created with source tracking ✅
+- [x] OutreachCampaign schema with Launch Gate ✅
+- [x] ERSEP scraper functional (volta.net.ar) - ~33k records ✅
+- [x] CACAAV scraper functional (cacaav.com.ar) - ~23k records ✅
+- [x] Gasnor/GasNEA PDF parser functional (pdf-parse) - ~5k records ✅
+- [x] Search by matricula number ✅
+- [x] Public landing page for claim flow ✅
+- [x] **Admin dashboard with profile browser (view all data)** ✅
+- [x] **Stats by source with phone/email counts** ✅
+- [x] **Campaign management in DRAFT mode only** ✅
+- [x] **Warning banner: "Outreach locked pending approval"** ✅
+- [x] Conversion metrics by source ✅
+- [x] Scraper management UI ✅
 
 ---
 

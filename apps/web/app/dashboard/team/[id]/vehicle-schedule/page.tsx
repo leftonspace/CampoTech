@@ -62,7 +62,7 @@ export default function VehicleSchedulePage() {
     const params = useParams();
     const router = useRouter();
     const queryClient = useQueryClient();
-    const userId = params.userId as string;
+    const userId = params.id as string;
 
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [editingSchedule, setEditingSchedule] = useState<VehicleSchedule | null>(null);
@@ -456,8 +456,8 @@ function CreateScheduleModal({
                                     type="button"
                                     onClick={() => setScheduleType(type)}
                                     className={`rounded-lg border-2 p-3 text-center text-sm font-medium transition-colors ${scheduleType === type
-                                            ? 'border-primary-500 bg-primary-50 text-primary-700'
-                                            : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                                        ? 'border-primary-500 bg-primary-50 text-primary-700'
+                                        : 'border-gray-200 text-gray-600 hover:bg-gray-50'
                                         }`}
                                 >
                                     {type === 'PERMANENT' && <Truck className="mx-auto h-5 w-5 mb-1" />}
@@ -531,8 +531,8 @@ function CreateScheduleModal({
                                         type="button"
                                         onClick={() => toggleDay(day.value)}
                                         className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${selectedDays.includes(day.value)
-                                                ? 'bg-primary-600 text-white'
-                                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            ? 'bg-primary-600 text-white'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                             }`}
                                     >
                                         {day.label}

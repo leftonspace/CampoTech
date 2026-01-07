@@ -33,10 +33,19 @@ export async function GET(request: NextRequest) {
 
     if (!user || !user.isActive) {
       return NextResponse.json(
-        { success: false, error: { message: 'User not found' } },
+        { success: false, error: { message: 'User not found or inactive' } },
         { status: 401 }
       );
     }
+
+    // Prepare organization data safely
+    const organization = user.organization ? {
+      id: user.organization.id,
+      name: user.organization.name,
+      subscriptionTier: (user.organization as any).subscriptionTier || 'FREE',
+      subscriptionStatus: (user.organization as any).subscriptionStatus || 'none',
+      verificationStatus: (user.organization as any).verificationStatus || 'pending',
+    } : null;
 
     return NextResponse.json({
       success: true,
@@ -47,17 +56,14 @@ export async function GET(request: NextRequest) {
         phone: user.phone,
         role: user.role,
         organizationId: user.organizationId,
-        organization: {
-          id: user.organization.id,
-          name: user.organization.name,
-          subscriptionTier: user.organization.subscriptionTier || 'FREE',
-          subscriptionStatus: user.organization.subscriptionStatus || 'none',
-          verificationStatus: user.organization.verificationStatus || 'pending',
-        },
+        organization,
       },
     });
   } catch (error) {
-    console.error('Auth me error:', error);
+    console.error('Auth me API Error:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message, error.stack);
+    }
     return NextResponse.json(
       { success: false, error: { message: 'Error getting user' } },
       { status: 500 }

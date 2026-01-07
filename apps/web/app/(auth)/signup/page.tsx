@@ -295,8 +295,8 @@ export default function SignupPage() {
               <div
                 key={s}
                 className={`h-2 w-8 rounded-full ${['info', 'phone', 'otp'].indexOf(step) >= i
-                    ? 'bg-primary-500'
-                    : 'bg-gray-200'
+                  ? 'bg-primary-500'
+                  : 'bg-gray-200'
                   }`}
               />
             ))}
@@ -323,9 +323,11 @@ export default function SignupPage() {
                 {getFieldError('cuit') && (
                   <p className="mt-1 text-sm text-danger-500">{getFieldError('cuit')}</p>
                 )}
-                <p className="mt-1 text-xs text-gray-500">
-                  CUIT de tu empresa (11 dígitos)
-                </p>
+                {!getFieldError('cuit') && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    CUIT de tu empresa (11 dígitos)
+                  </p>
+                )}
               </div>
 
               <div>
@@ -489,9 +491,11 @@ export default function SignupPage() {
                 {getFieldError('phone') && (
                   <p className="mt-1 text-sm text-danger-500">{getFieldError('phone')}</p>
                 )}
-                <p className="mt-1 text-xs text-gray-500">
-                  Te enviaremos un código por SMS para verificar tu número
-                </p>
+                {!getFieldError('phone') && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Te enviaremos un código por SMS para verificar tu número
+                  </p>
+                )}
               </div>
 
               {error && !error.field && (

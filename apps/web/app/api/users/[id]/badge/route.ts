@@ -1,9 +1,10 @@
 /**
- * Badge Token Refresh API
- * =======================
+ * User Badge API
+ * ===============
  * 
  * Phase 4.3 Task 4.3.4: Digital Badge Management
  * 
+ * GET /api/users/[userId]/badge - Get user's badge data
  * POST /api/users/[userId]/badge/refresh - Refresh badge token
  */
 
@@ -12,9 +13,9 @@ import { getSession } from '@/lib/auth';
 import { getDigitalBadgeService } from '@/lib/services/digital-badge.service';
 import { prisma } from '@/lib/prisma';
 
-export async function POST(
+export async function GET(
     request: NextRequest,
-    { params }: { params: Promise<{ userId: string }> }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const session = await getSession();
@@ -25,15 +26,15 @@ export async function POST(
             );
         }
 
-        const { userId } = await params;
+        const { id } = await params;
 
-        // Users can refresh their own badge, or owners can refresh team badges
-        const isOwnBadge = session.userId === userId;
-        const canManageTeamBadges = session.role.toUpperCase() === 'OWNER';
+        // Users can view their own badge, or owners/dispatchers can view team badges
+        const isOwnBadge = session.userId === id;
+        const canViewTeamBadges = ['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase());
 
-        if (!isOwnBadge && !canManageTeamBadges) {
+        if (!isOwnBadge && !canViewTeamBadges) {
             return NextResponse.json(
-                { success: false, error: 'No tienes permiso para renovar esta credencial' },
+                { success: false, error: 'No tienes permiso para ver esta credencial' },
                 { status: 403 }
             );
         }
@@ -41,7 +42,7 @@ export async function POST(
         // Verify user belongs to same organization
         if (!isOwnBadge) {
             const user = await prisma.user.findUnique({
-                where: { id: userId },
+                where: { id },
                 select: { organizationId: true },
             });
 
@@ -54,23 +55,16 @@ export async function POST(
         }
 
         const badgeService = getDigitalBadgeService();
-        const result = await badgeService.refreshBadgeToken(userId);
-
-        // Get updated badge data
-        const badgeData = await badgeService.generateBadgeData(userId);
+        const badgeData = await badgeService.generateBadgeData(id);
 
         return NextResponse.json({
             success: true,
-            data: {
-                ...badgeData,
-                refreshed: true,
-            },
-            message: 'Credencial renovada correctamente',
+            data: badgeData,
         });
     } catch (error) {
-        console.error('[Badge API] Error refreshing badge:', error);
+        console.error('[Badge API] Error getting badge:', error);
         return NextResponse.json(
-            { success: false, error: 'Error renovando credencial' },
+            { success: false, error: 'Error obteniendo credencial' },
             { status: 500 }
         );
     }

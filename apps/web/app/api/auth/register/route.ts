@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingOrg) {
+      console.log(`Registration blocked: CUIT ${cleanCuit} already exists (org ${existingOrg.id})`);
       return NextResponse.json(
         {
           success: false,
@@ -55,17 +56,21 @@ export async function POST(request: NextRequest) {
 
     // Clean and normalize phone
     const cleanPhone = normalizePhone(phone);
+    const last10Digits = cleanPhone.slice(-10);
 
     // Check if user with this phone already exists
+    // We check both exact phone and last 10 digits to be safe across different formatting
     const existingUser = await prisma.user.findFirst({
       where: {
-        phone: {
-          contains: cleanPhone.slice(-10),
-        },
+        OR: [
+          { phone: cleanPhone },
+          { phone: { contains: last10Digits } }
+        ]
       },
     });
 
     if (existingUser) {
+      console.log(`Registration blocked: Phone ${cleanPhone} already exists (matched user ${existingUser.id})`);
       return NextResponse.json(
         {
           success: false,
@@ -123,6 +128,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Register error:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message, error.stack);
+    }
     return NextResponse.json(
       { success: false, error: { message: 'Error al procesar el registro' } },
       { status: 500 }

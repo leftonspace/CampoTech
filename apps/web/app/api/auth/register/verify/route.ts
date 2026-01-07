@@ -175,15 +175,16 @@ export async function POST(request: NextRequest) {
     });
 
     return response;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Register verify error:', error);
 
-    // Handle unique constraint violation (phone already exists)
-    if (error instanceof Error && error.message.includes('Unique constraint')) {
+    // Handle unique constraint violation (phone or email already exists)
+    // Prisma error code for unique constraint violation is P2002
+    if (error.code === 'P2002' || (error instanceof Error && error.message.includes('Unique constraint'))) {
       return NextResponse.json(
         {
           success: false,
-          error: { message: 'Este teléfono ya está registrado. Intentá iniciar sesión.' }
+          error: { message: 'Este teléfono o email ya está registrado. Intentá iniciar sesión.' }
         },
         { status: 409 }
       );
