@@ -8,22 +8,25 @@
  * /dashboard/admin/growth-engine/scrapers
  * 
  * Admin interface for running and monitoring web scrapers.
- * Allows triggering ERSEP and CACAAV scrapers with progress indicators.
+ * Supports async jobs with real-time progress polling.
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
     ArrowLeft,
     Zap,
     Snowflake,
+    Flame,
     Play,
     Loader2,
     CheckCircle2,
     AlertCircle,
     Clock,
     Database,
-    ExternalLink
+    ExternalLink,
+    RefreshCw,
+    Pause
 } from 'lucide-react';
 
 interface ScraperResult {
@@ -44,6 +47,24 @@ interface ScraperResult {
     message: string;
 }
 
+interface JobProgress {
+    id: string;
+    source: string;
+    status: 'pending' | 'running' | 'completed' | 'paused' | 'failed';
+    progress: {
+        completedProvinces: string[];
+        totalProvinces: number;
+        currentProvince: string | null;
+        currentPage: number;
+        totalRecords: number;
+        percent: number;
+    };
+    errors: string[];
+    startedAt: string;
+    updatedAt: string;
+    completedAt: string | null;
+}
+
 interface ScraperConfig {
     id: string;
     name: string;
@@ -52,32 +73,47 @@ interface ScraperConfig {
     profession: string;
     estimatedRecords: number;
     icon: React.ReactNode;
-    color: 'amber' | 'cyan';
+    color: 'amber' | 'cyan' | 'orange';
     description: string;
+    requirements?: string;
+    supportsAsync?: boolean;
 }
 
 const SCRAPERS: ScraperConfig[] = [
     {
         id: 'ersep',
         name: 'ERSEP Córdoba',
-        url: 'https://volta.net.ar/matriculados',
+        url: 'https://ersep.cba.gov.ar/registros-de-electricistas/',
         region: 'Córdoba',
         profession: 'Electricista',
         estimatedRecords: 33000,
         icon: <Zap className="w-6 h-6" />,
         color: 'amber',
         description: 'Registro de electricistas matriculados de Córdoba (ERSEP)',
+        requirements: '⚠️ Requiere VPN de Argentina',
     },
     {
         id: 'cacaav',
         name: 'CACAAV Nacional',
-        url: 'https://cacaav.com.ar/matriculados/listado',
-        region: 'Nacional',
+        url: 'https://www.cacaav.com.ar/matriculados/listado',
+        region: 'Nacional (24 provincias)',
         profession: 'HVAC/Refrigeración',
         estimatedRecords: 23000,
         icon: <Snowflake className="w-6 h-6" />,
         color: 'cyan',
         description: 'Cámara Argentina de Calefacción, Aire y Ventilación',
+        supportsAsync: true,
+    },
+    {
+        id: 'gasnor-web',
+        name: 'Gasnor/Naturgy NOA',
+        url: 'https://www.naturgynoa.com.ar/instaladores',
+        region: 'Norte (Jujuy, Salta, Tucumán, Sgo. del Estero)',
+        profession: 'Gasista',
+        estimatedRecords: 1033,
+        icon: <Flame className="w-6 h-6" />,
+        color: 'orange',
+        description: 'Instaladores de gas de Naturgy NOA (incluye emails)',
     },
 ];
 
@@ -89,6 +125,7 @@ const colorConfig = {
         iconText: 'text-amber-600',
         buttonBg: 'bg-amber-500 hover:bg-amber-600',
         buttonText: 'text-white',
+        progressBg: 'bg-amber-500',
     },
     cyan: {
         bg: 'bg-cyan-50',
@@ -97,6 +134,16 @@ const colorConfig = {
         iconText: 'text-cyan-600',
         buttonBg: 'bg-cyan-500 hover:bg-cyan-600',
         buttonText: 'text-white',
+        progressBg: 'bg-cyan-500',
+    },
+    orange: {
+        bg: 'bg-orange-50',
+        border: 'border-orange-200',
+        iconBg: 'bg-orange-100',
+        iconText: 'text-orange-600',
+        buttonBg: 'bg-orange-500 hover:bg-orange-600',
+        buttonText: 'text-white',
+        progressBg: 'bg-orange-500',
     },
 };
 
@@ -104,8 +151,119 @@ export default function ScrapersPage() {
     const [runningScrapers, setRunningScrapers] = useState<Set<string>>(new Set());
     const [results, setResults] = useState<Record<string, ScraperResult>>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [jobProgress, setJobProgress] = useState<Record<string, JobProgress>>({});
+    const [activeJobIds, setActiveJobIds] = useState<Record<string, string>>({});
 
-    async function runScraper(scraperId: string, maxPages?: number) {
+    // Poll for job progress
+    const pollJobProgress = useCallback(async (scraperId: string, jobId: string) => {
+        try {
+            const response = await fetch(`/api/admin/growth-engine/scraper-jobs/${jobId}`);
+            if (!response.ok) return;
+
+            const data: JobProgress = await response.json();
+            setJobProgress(prev => ({ ...prev, [scraperId]: data }));
+
+            // If job is completed or failed, stop polling
+            if (data.status === 'completed' || data.status === 'failed') {
+                setRunningScrapers(prev => {
+                    const newSet = new Set(prev);
+                    newSet.delete(scraperId);
+                    return newSet;
+                });
+                setActiveJobIds(prev => {
+                    const newIds = { ...prev };
+                    delete newIds[scraperId];
+                    return newIds;
+                });
+
+                if (data.status === 'completed') {
+                    setResults(prev => ({
+                        ...prev,
+                        [scraperId]: {
+                            success: true,
+                            source: data.source,
+                            scrape: {
+                                records: data.progress.totalRecords,
+                                pages: data.progress.completedProvinces.length,
+                                errors: data.errors.length,
+                                errorDetails: data.errors.slice(0, 10),
+                            },
+                            import: null,
+                            message: `✅ Completado: ${data.progress.totalRecords} perfiles de ${data.progress.completedProvinces.length} provincias`,
+                        },
+                    }));
+                }
+            }
+        } catch (error) {
+            console.error('Error polling job progress:', error);
+        }
+    }, []);
+
+    // Effect to poll active jobs
+    useEffect(() => {
+        const intervals: NodeJS.Timeout[] = [];
+
+        Object.entries(activeJobIds).forEach(([scraperId, jobId]) => {
+            const interval = setInterval(() => {
+                pollJobProgress(scraperId, jobId);
+            }, 3000); // Poll every 3 seconds
+            intervals.push(interval);
+        });
+
+        return () => {
+            intervals.forEach(clearInterval);
+        };
+    }, [activeJobIds, pollJobProgress]);
+
+    // Start async scraper (CACAAV)
+    async function startAsyncScraper(scraperId: string) {
+        if (runningScrapers.has(scraperId)) return;
+
+        setRunningScrapers(prev => new Set([...prev, scraperId]));
+        setErrors(prev => ({ ...prev, [scraperId]: '' }));
+        setResults(prev => {
+            const newResults = { ...prev };
+            delete newResults[scraperId];
+            return newResults;
+        });
+
+        try {
+            const response = await fetch(`/api/admin/growth-engine/scrape/${scraperId}/start`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    maxPages: 10,
+                    import: true,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Error starting scraper');
+            }
+
+            // Save job ID and start polling
+            setActiveJobIds(prev => ({ ...prev, [scraperId]: data.jobId }));
+
+            // Immediately poll once
+            await pollJobProgress(scraperId, data.jobId);
+
+        } catch (error) {
+            setErrors(prev => ({
+                ...prev,
+                [scraperId]: error instanceof Error ? error.message : 'Unknown error',
+            }));
+            setRunningScrapers(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(scraperId);
+                return newSet;
+            });
+        }
+    }
+
+    // Run sync scraper (ERSEP, Gasnor)
+    async function runSyncScraper(scraperId: string, maxPages?: number) {
         if (runningScrapers.has(scraperId)) return;
 
         setRunningScrapers(prev => new Set([...prev, scraperId]));
@@ -117,14 +275,14 @@ export default function ScrapersPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     maxPages: maxPages || 10,
-                    import: true
+                    import: true,
                 }),
             });
 
             const data = await response.json();
 
             if (!response.ok) {
-                throw new Error(data.error || 'Error executing scraper');
+                throw new Error(data.error || data.message || 'Error executing scraper');
             }
 
             setResults(prev => ({ ...prev, [scraperId]: data }));
@@ -139,6 +297,14 @@ export default function ScrapersPage() {
                 newSet.delete(scraperId);
                 return newSet;
             });
+        }
+    }
+
+    function runScraper(scraperId: string, supportsAsync?: boolean) {
+        if (supportsAsync) {
+            startAsyncScraper(scraperId);
+        } else {
+            runSyncScraper(scraperId);
         }
     }
 
@@ -177,6 +343,7 @@ export default function ScrapersPage() {
                     const isRunning = runningScrapers.has(scraper.id);
                     const result = results[scraper.id];
                     const error = errors[scraper.id];
+                    const progress = jobProgress[scraper.id];
                     const colors = colorConfig[scraper.color];
 
                     return (
@@ -196,6 +363,9 @@ export default function ScrapersPage() {
                                         <div>
                                             <h2 className="font-semibold text-lg text-gray-900">{scraper.name}</h2>
                                             <p className="text-sm text-gray-600 mt-1">{scraper.description}</p>
+                                            {scraper.requirements && (
+                                                <p className="text-xs text-amber-600 mt-1">{scraper.requirements}</p>
+                                            )}
                                             <div className="flex flex-wrap gap-4 mt-3 text-xs text-gray-500">
                                                 <div className="flex items-center gap-1">
                                                     <Database className="w-3 h-3" />
@@ -219,11 +389,11 @@ export default function ScrapersPage() {
                                     </div>
 
                                     <button
-                                        onClick={() => runScraper(scraper.id)}
+                                        onClick={() => runScraper(scraper.id, scraper.supportsAsync)}
                                         disabled={isRunning}
                                         className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all ${isRunning
-                                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                                : `${colors.buttonBg} ${colors.buttonText}`
+                                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                            : `${colors.buttonBg} ${colors.buttonText}`
                                             }`}
                                     >
                                         {isRunning ? (
@@ -241,8 +411,72 @@ export default function ScrapersPage() {
                                 </div>
                             </div>
 
+                            {/* Live Progress Section */}
+                            {isRunning && progress && (
+                                <div className="border-t border-gray-200 bg-white p-4">
+                                    <div className="space-y-3">
+                                        {/* Progress Bar */}
+                                        <div>
+                                            <div className="flex justify-between text-sm mb-1">
+                                                <span className="font-medium text-gray-700">
+                                                    {progress.progress.currentProvince
+                                                        ? `Scrapeando: ${progress.progress.currentProvince}`
+                                                        : 'Procesando...'}
+                                                </span>
+                                                <span className="text-gray-500">
+                                                    {progress.progress.percent}%
+                                                </span>
+                                            </div>
+                                            <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                                <div
+                                                    className={`${colors.progressBg} h-2.5 rounded-full transition-all duration-500`}
+                                                    style={{ width: `${progress.progress.percent}%` }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Stats */}
+                                        <div className="grid grid-cols-4 gap-4 text-center text-sm">
+                                            <div className="bg-gray-50 rounded-lg p-2">
+                                                <p className="text-lg font-bold text-gray-900">
+                                                    {progress.progress.completedProvinces.length}
+                                                </p>
+                                                <p className="text-xs text-gray-500">
+                                                    / {progress.progress.totalProvinces} provincias
+                                                </p>
+                                            </div>
+                                            <div className="bg-gray-50 rounded-lg p-2">
+                                                <p className="text-lg font-bold text-emerald-600">
+                                                    {progress.progress.totalRecords.toLocaleString()}
+                                                </p>
+                                                <p className="text-xs text-gray-500">registros</p>
+                                            </div>
+                                            <div className="bg-gray-50 rounded-lg p-2">
+                                                <p className="text-lg font-bold text-blue-600">
+                                                    {progress.progress.currentPage}
+                                                </p>
+                                                <p className="text-xs text-gray-500">página actual</p>
+                                            </div>
+                                            <div className="bg-gray-50 rounded-lg p-2">
+                                                <p className="text-lg font-bold text-red-600">
+                                                    {progress.errors.length}
+                                                </p>
+                                                <p className="text-xs text-gray-500">errores</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Completed Provinces */}
+                                        {progress.progress.completedProvinces.length > 0 && (
+                                            <div className="text-xs text-gray-500">
+                                                Completadas: {progress.progress.completedProvinces.join(', ')}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Result Section */}
-                            {(result || error) && (
+                            {(result || error) && !isRunning && (
                                 <div className={`border-t ${error ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50'} p-4`}>
                                     {error ? (
                                         <div className="flex items-start gap-3">
@@ -309,7 +543,7 @@ export default function ScrapersPage() {
                 <div className="flex flex-wrap gap-3">
                     <button
                         onClick={() => {
-                            SCRAPERS.forEach(s => runScraper(s.id));
+                            SCRAPERS.forEach(s => runScraper(s.id, s.supportsAsync));
                         }}
                         disabled={runningScrapers.size > 0}
                         className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300 disabled:text-gray-500 text-white rounded-lg text-sm transition-colors"

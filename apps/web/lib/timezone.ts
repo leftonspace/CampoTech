@@ -2,7 +2,7 @@
  * Timezone utilities for CampoTech
  *
  * All dates/times in the application should be displayed in Buenos Aires timezone
- * regardless of the user's local timezone.
+ * regardless of the user's local timezone (note: this is not the case we need a solution)
  */
 
 // Buenos Aires timezone (Argentina Standard Time, UTC-3)

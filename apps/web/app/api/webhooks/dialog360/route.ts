@@ -25,6 +25,7 @@ import {
   type IncomingMessage as AIIncomingMessage,
 } from '@/lib/services/whatsapp-ai-responder';
 import { handleButtonClick, type ButtonClickContext } from '@/lib/services/workflows';
+import { processVoiceMessageWithAI } from '@/lib/services/voice-ai-service';
 import type {
   WebhookPayload,
   WebhookMessage,
@@ -360,6 +361,58 @@ async function processInboundMessage(
           return;
         }
         // If not handled, fall through to AI processing
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // VOICE AI PROCESSING (for audio messages)
+    // ═══════════════════════════════════════════════════════════════════════════
+    // 
+    // For audio messages, we first try the Python Voice AI service which provides:
+    // - Whisper transcription
+    // - GPT-4 job data extraction
+    // - Confidence-based routing (auto-create, confirm, or human review)
+    //
+    // If Voice AI processes the message successfully, we skip regular AI processing.
+    // If Voice AI is not available or fails, we fall back to regular AI processing.
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    if (mediaType === 'audio' && message.audio?.id) {
+      try {
+        // Get the media URL for the audio
+        const audioUrl = await getMediaUrl(organizationId, message.audio.id);
+
+        if (audioUrl) {
+          console.log('[Dialog360 Webhook] Processing audio with Voice AI service');
+
+          const voiceResult = await processVoiceMessageWithAI(
+            organizationId,
+            conversation.id,
+            savedMessage.id,
+            audioUrl,
+            senderPhone
+          );
+
+          if (voiceResult && voiceResult.success) {
+            console.log('[Dialog360 Webhook] Voice AI processing complete:', {
+              status: voiceResult.status,
+              confidence: voiceResult.confidence,
+              hasTranscription: !!voiceResult.transcription,
+            });
+
+            // If Voice AI handled the message (created job, sent confirmation, or queued for review)
+            // we don't need regular AI processing
+            if (voiceResult.status !== 'failed') {
+              console.log('[Dialog360 Webhook] Voice AI handled message, skipping regular AI');
+              return;
+            }
+          } else {
+            console.log('[Dialog360 Webhook] Voice AI not available or returned null, falling back to regular AI');
+          }
+        }
+      } catch (voiceError) {
+        // Voice AI failed - log and continue with regular AI processing
+        console.error('[Dialog360 Webhook] Voice AI processing failed:', voiceError);
       }
     }
 

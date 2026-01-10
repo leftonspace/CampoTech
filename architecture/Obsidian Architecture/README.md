@@ -131,21 +131,20 @@ Reusable UI components documented.
 
 ## 📁 Directory Structure
 
-```
+```text
 architecture/Obsidian Architecture/
 ├── 📄 README.md (This file)
 ├── 📊 Sitemap.canvas
-├── 📁 Pages/
-│   ├── 🏠 Public (Landing, Login, Signup)
-│   ├── 📊 Dashboard (Core app pages)
-│   ├── ⚙️ Settings (Configuration)
-│   └── 🔄 Flows (Multi-step processes)
-├── 📁 Components/
-│   ├── 🧭 Navigation
-│   ├── 📊 Widgets
-│   └── 🔔 Modals
-└── 📁 assets/
-    └── 🖼️ Screenshots & Mockups
+├── 📁 00_Flows/           # User Journeys (e.g., Signup, Checkout)
+├── 📁 01_Website/         # Public Marketing & Legal Pages
+├── 📁 02_App/             # The Authenticated Web Application
+│   ├── Core/           # General Dashboard Pages
+│   ├── CRM/            # Customer & Lead Management
+│   ├── Operations/     # Jobs, Fleet, Inventory
+│   ├── Admin/          # Admin & Settings
+│   └── Communication/  # WhatsApp, Voice, Support
+├── 📁 03_Auth/            # Authentication Pages
+└── 📁 Components/         # Reusable UI Patterns
 ```
 
 ---

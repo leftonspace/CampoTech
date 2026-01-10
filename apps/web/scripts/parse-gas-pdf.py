@@ -72,8 +72,9 @@ def format_phone_for_whatsapp(phone: str, default_area_code: str = "387") -> str
     if len(cleaned) <= 8 and len(cleaned) >= 6:
         cleaned = default_area_code + cleaned
     
-    # Validate: should be 10-11 digits (area code + number)
-    if len(cleaned) < 10 or len(cleaned) > 12:
+    # Validate: should be 9-12 digits (area code + number)
+    # 9 digits is marginal but can occur (3-digit area + 6-digit local)
+    if len(cleaned) < 9 or len(cleaned) > 12:
         return None
     
     # Format for WhatsApp: +549 + number
@@ -89,53 +90,134 @@ def parse_multiple_phones(phone_str: str, default_area_code: str = "387") -> lis
     - "4351129/15469 9730" → two phones  
     - "0343-4890284 / 0343-15467426" → two phones
     - "+54-388-4275845" → one phone
+    - "3455-6219867" → one phone
     """
-    if not phone_str or phone_str.strip() in ['-', '', 'Email']:
+    if not phone_str or str(phone_str).strip() in ['-', '', 'Email', 'None']:
         return []
+    
+    phone_str = str(phone_str).strip()
+    
+    # Handle newlines and tabs as separators
+    phone_str = phone_str.replace('\n', ' / ').replace('\r', '').replace('\t', ' / ')
     
     phones = []
     seen = set()
     
-    # First, try to extract the area code from the first part if it exists
-    area_code = default_area_code
-    
-    # Check if first part has area code (0XXX or 3XXX pattern)
-    first_part = phone_str.split('/')[0].split()[0] if phone_str else ''
-    cleaned_first = re.sub(r'[^\d]', '', first_part)
-    if len(cleaned_first) >= 10:
-        # Full number, extract area code (first 3-4 digits after removing 0)
-        if cleaned_first.startswith('0'):
-            cleaned_first = cleaned_first[1:]
-        area_code = cleaned_first[:3]
-    elif cleaned_first.startswith('0') and len(cleaned_first) >= 4:
-        area_code = cleaned_first[1:4]  # Remove leading 0
-    elif cleaned_first.startswith('3') and len(cleaned_first) >= 3:
-        area_code = cleaned_first[:3]
-    
-    # Split by / or space (but not space inside +54-9-387 patterns)
-    # First normalize the string
+    # Normalize separators
     normalized = phone_str.replace(' / ', '/').replace('/ ', '/').replace(' /', '/')
     
     # Split by /
     parts = normalized.split('/')
     
+    # Try to determine context area code from the first valid phone found
+    context_area_code = default_area_code
+    
+    # First pass: try to find a full phone number to extract area code
+    for part in parts:
+        part_stripped = part.strip()
+        
+        # Check for hyphenated format first (strong signal)
+        # e.g. 03455-482402 -> 3455 or 0387-4475398 -> 387
+        hyphen_match = re.match(r'^(?:0)?(\d{3,4})-', part_stripped)
+        if hyphen_match:
+            context_area_code = hyphen_match.group(1)
+            break
+        
+        # Check for space-separated: "03455 422973" or "0387 4475398"
+        space_match = re.match(r'^(?:0)?(\d{3,4})\s+(\d{5,})', part_stripped)
+        if space_match:
+            potential_area = space_match.group(1)
+            # Validate: if number portion is 6-7 digits, this could be area code
+            if len(space_match.group(2)) >= 6:
+                context_area_code = potential_area
+                break
+            
+        clean_check = re.sub(r'[^\d]', '', part_stripped)
+        if len(clean_check) >= 10:
+            # Likely has area code
+            if clean_check.startswith('0'):
+                # For 11 digits starting with 0: could be 0+3digit+7digit or 0+4digit+6digit
+                # Try to detect 4-digit area codes (3xxx pattern common in Argentina)
+                if len(clean_check) == 11 and clean_check[1:2] == '3':
+                    # Likely 4-digit area code (like 3455)
+                    context_area_code = clean_check[1:5]
+                else:
+                    context_area_code = clean_check[1:4]
+            elif clean_check.startswith('549'):
+                context_area_code = clean_check[3:6]
+            elif len(clean_check) == 10:
+                context_area_code = clean_check[:3]
+            break
+            
     for part in parts:
         part = part.strip()
         if not part:
             continue
         
+        # Remove noise like (1), (2) annotations
+        part = re.sub(r'\(\d+\)', '', part).strip()
+        
+        # Check for embedded 154 pattern: "4391859-154-046866" or "4391859154046866"
+        # This is landline + mobile in one field
+        embedded_154_match = re.match(r'^(\d{6,8})[- ]?154[- ]?(\d{5,8})$', part)
+        if embedded_154_match:
+            landline_part = embedded_154_match.group(1)
+            mobile_part = embedded_154_match.group(2)
+            
+            # Format landline
+            fmt_landline = format_phone_for_whatsapp(landline_part, context_area_code)
+            if fmt_landline and fmt_landline not in seen:
+                phones.append(fmt_landline)
+                seen.add(fmt_landline)
+            
+            # Format mobile (15 prefix)
+            fmt_mobile = format_phone_for_whatsapp('15' + mobile_part, context_area_code)
+            if fmt_mobile and fmt_mobile not in seen:
+                phones.append(fmt_mobile)
+                seen.add(fmt_mobile)
+            continue
+        
         # Check if this part has spaces that might be multiple numbers
-        # But avoid splitting +54-9... patterns
+        # But avoid splitting +54-9... patterns or standard formatting like "03455 422973"
         if ' ' in part and not part.startswith('+'):
-            # Additional split by space for patterns like "15469 9730"
             subparts = part.split()
-            for subpart in subparts:
-                formatted = format_phone_for_whatsapp(subpart, area_code)
-                if formatted and formatted not in seen:
-                    phones.append(formatted)
-                    seen.add(formatted)
+            
+            # First check: is this "03455 123456" format (area code + number)?
+            if len(subparts) == 2:
+                first_clean = re.sub(r'[^\d]', '', subparts[0])
+                second_clean = re.sub(r'[^\d]', '', subparts[1])
+                
+                # If first part is 4-5 digits (with leading 0) and second is 6-7 digits
+                # This is likely one phone with space separator
+                if (len(first_clean) in [4, 5] and first_clean.startswith('0') and 
+                    len(second_clean) >= 6 and len(second_clean) <= 7):
+                    rejoined = first_clean + second_clean
+                    rejoined_fmt = format_phone_for_whatsapp(rejoined, context_area_code)
+                    if rejoined_fmt and rejoined_fmt not in seen:
+                        phones.append(rejoined_fmt)
+                        seen.add(rejoined_fmt)
+                    continue
+            
+            # Otherwise try rejoining first
+            rejoined = "".join(subparts)
+            rejoined_fmt = format_phone_for_whatsapp(rejoined, context_area_code)
+            
+            if rejoined_fmt:
+                # Rejoined number is valid
+                if rejoined_fmt not in seen:
+                    phones.append(rejoined_fmt)
+                    seen.add(rejoined_fmt)
+            else:
+                # Try treating as separate numbers (e.g., "482082 154112")
+                for subpart in subparts:
+                    clean_sub = re.sub(r'[^\d]', '', subpart)
+                    if len(clean_sub) >= 6:  # At least 6 digits to be a valid local number
+                        formatted = format_phone_for_whatsapp(subpart, context_area_code)
+                        if formatted and formatted not in seen:
+                            phones.append(formatted)
+                            seen.add(formatted)
         else:
-            formatted = format_phone_for_whatsapp(part, area_code)
+            formatted = format_phone_for_whatsapp(part, context_area_code)
             if formatted and formatted not in seen:
                 phones.append(formatted)
                 seen.add(formatted)
@@ -151,17 +233,26 @@ def extract_postal_code(address: str) -> tuple:
     Examples:
     - "GUIRALDES 921 CP:3503" → ("GUIRALDES 921", "3503")
     - "BELGRANO 962 CP.3170" → ("BELGRANO 962", "3170")
+    - "RIVADAVIA 811 PB CP 3240" → ("RIVADAVIA 811 PB", "3240")
     """
     if not address:
         return (address, None)
     
-    # Pattern for CP:XXXX or CP.XXXX or CP XXXX
-    cp_match = re.search(r'\bCP[:\.\s]?\s*(\d{4,5})\b', address, re.IGNORECASE)
+    # Normalize address spaces
+    address = " ".join(address.split())
+    
+    # Pattern for CP:XXXX or CP.XXXX or CP XXXX or COD POSTAL XXXX
+    # Matches: CP: 3503, CP 3240, C.P. 3240, Cod. Postal 3240
+    cp_pattern = r'\b(?:CP|C\.P\.|C\.P|COD\.?\s*POSTAL|CODIGO\s*POSTAL)[:\.\s]*(\d{4})\b'
+    
+    cp_match = re.search(cp_pattern, address, re.IGNORECASE)
     
     if cp_match:
         postal_code = cp_match.group(1)
         # Remove CP part from address
-        clean_address = re.sub(r'\s*CP[:\.\s]?\s*\d{4,5}\b', '', address, flags=re.IGNORECASE).strip()
+        clean_address = re.sub(cp_pattern, '', address, flags=re.IGNORECASE).strip()
+        # Clean up any trailing punctuation left behind (like dashes or commas)
+        clean_address = re.sub(r'[-,\s]+$', '', clean_address).strip()
         return (clean_address, postal_code)
     
     return (address, None)
@@ -235,7 +326,8 @@ def parse_gasnor_row(row: list, default_area_code: str = "387") -> dict:
         return None
     
     # Address
-    address = str(row[4] or '').strip() if len(row) > 4 else None
+    address_raw = str(row[4] or '').strip() if len(row) > 4 else None
+    address, postal_code = extract_postal_code(address_raw)
     
     # Locality
     locality = str(row[5] or '').strip() if len(row) > 5 else None
@@ -282,6 +374,7 @@ def parse_gasnor_row(row: list, default_area_code: str = "387") -> dict:
         'category': category,
         'categoryDesc': category_desc,
         'address': address,
+        'postalCode': postal_code,
         'city': locality,
         'province': province,
         'phone': phones[0] if phones else None,
@@ -346,17 +439,41 @@ def parse_gasnea_row(row: list, default_area_code: str = "379") -> dict:
         else:
             default_area_code = '379'  # Corrientes city default
     
-    # Phone - may have multiple phones with / separator (e.g., "03445-482402/1664199")
-    phones = parse_multiple_phones(
-        str(row[4] or '').strip() if len(row) > 4 else None, 
-        default_area_code
-    )
-    
-    # Email
-    email = None
+    # Clean phone and email strings
+    phone_raw = str(row[4] or '').strip() if len(row) > 4 else None
     email_raw = str(row[5] or '').strip() if len(row) > 5 else None
-    if email_raw and '@' in email_raw:
-        email = email_raw.lower()
+    
+    # Fallback Logic: Check if fields are shifted
+    # Sometimes Phone ends up in Email column (if valid phone) or Email in Phone column
+    
+    # Check if 'phone' looks like an email
+    if phone_raw and '@' in phone_raw and not any(c.isdigit() for c in phone_raw):
+        # Swap logic: This seems to be an email
+        if not email_raw:
+            email_raw = phone_raw
+            phone_raw = None
+            
+    # Check if 'email' looks like a phone (digits, no @)
+    if email_raw and not '@' in email_raw and re.search(r'\d{6,}', email_raw):
+        # This seems to be a phone or spilled phone
+        if not phone_raw:
+            phone_raw = email_raw
+            email_raw = None
+        else:
+            # Append to phone if it's additional phone info
+            phone_raw += " / " + email_raw
+            email_raw = None
+            
+    # Phone parsing
+    phones = parse_multiple_phones(phone_raw, default_area_code)
+    
+    # Email parsing
+    email = None
+    if email_raw:
+        # Simple extraction of email-like string
+        email_match = re.search(r'([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})', email_raw)
+        if email_match:
+            email = email_match.group(1).lower()
     
     # Matricula
     matricula = str(row[6] or '').strip() if len(row) > 6 else None
@@ -368,7 +485,7 @@ def parse_gasnea_row(row: list, default_area_code: str = "379") -> dict:
     
     category_desc = {
         'M1': 'Instalador de 1ra categoría',
-        'M2': 'Instalador de 2da categoría',
+        'M2': 'Instalador de 2da categoría', 
         'M3': 'Instalador de 3ra categoría'
     }.get(category)
     

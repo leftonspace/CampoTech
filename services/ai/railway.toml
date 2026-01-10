@@ -1,0 +1,28 @@
+# Railway deployment configuration for CampoTech Voice AI Service
+# This file configures the Python FastAPI + LangGraph service deployment
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "./Dockerfile"
+
+[deploy]
+numReplicas = 1
+sleepApplication = false
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+
+[service]
+# Internal service name
+name = "voice-ai"
+
+[variables]
+# These environment variables need to be set in Railway dashboard
+# Required:
+# - OPENAI_API_KEY: Your OpenAI API key for Whisper and GPT-4
+# - CAMPOTECH_API_URL: URL of the main CampoTech backend
+# - CAMPOTECH_API_KEY: API key for authenticating with CampoTech backend
+# Optional:
+# - LANGSMITH_API_KEY: For LangSmith tracing (recommended)
+# - REDIS_URL: For workflow state persistence

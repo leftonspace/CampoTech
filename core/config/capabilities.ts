@@ -61,6 +61,24 @@ export const Capabilities = {
     whatsapp_voice_ai: true,
 
     /**
+     * Voice AI V2 (LangGraph + Python Service)
+     * 
+     * Uses the new Python-based LangGraph workflow for voice processing:
+     * - Whisper transcription
+     * - GPT-4 job extraction with confidence scoring
+     * - Automatic job creation (high confidence)
+     * - Confirmation flow (medium confidence)
+     * - Human review queue (low confidence)
+     * 
+     * REQUIREMENTS: Organization must have WhatsApp Business BSP connected
+     * FALLBACK: N/A (V1 code removed - prompt user to send text)
+     * 
+     * V1 Code Removed: January 2026
+     * Now the only voice processing system in CampoTech.
+     */
+    voice_ai_v2_langgraph: true, // Enabled for all orgs with WhatsApp BSP
+
+    /**
      * Mobile Push Notifications (Expo)
      * FALLBACK: In-app notifications only
      */

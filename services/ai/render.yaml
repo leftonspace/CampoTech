@@ -1,0 +1,63 @@
+# Render deployment configuration for CampoTech Voice AI Service
+# This file configures the Python FastAPI + LangGraph service deployment on Render
+
+services:
+  - type: web
+    name: campotech-voice-ai
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    
+    # Health check
+    healthCheckPath: /health
+    
+    # Environment
+    envVars:
+      # Required - Set in Render dashboard
+      - key: OPENAI_API_KEY
+        sync: false  # Set manually in dashboard for security
+      
+      - key: CAMPOTECH_API_URL
+        sync: false  # Set to your main backend URL
+        
+      - key: CAMPOTECH_API_KEY
+        sync: false  # Set manually for security
+      
+      # Optional - For LangSmith tracing
+      - key: LANGSMITH_API_KEY
+        sync: false
+        
+      - key: LANGSMITH_PROJECT
+        value: "campotech-voice-ai"
+        
+      - key: LANGSMITH_TRACING_V2
+        value: "true"
+      
+      # Service configuration
+      - key: LOG_LEVEL
+        value: "INFO"
+        
+      - key: CONFIDENCE_AUTO_CREATE_THRESHOLD
+        value: "0.85"
+        
+      - key: CONFIDENCE_CONFIRM_THRESHOLD
+        value: "0.50"
+    
+    # Scaling
+    scaling:
+      minInstances: 1
+      maxInstances: 3
+      targetMemoryPercent: 80
+      targetCPUPercent: 80
+    
+    # Auto-deploy on push
+    autoDeploy: true
+    
+    # Branch to deploy from
+    branch: main
+    
+    # Disk (optional, for temporary audio files)
+    disk:
+      name: voice-ai-tmp
+      mountPath: /app/tmp
+      sizeGB: 1

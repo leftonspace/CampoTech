@@ -86,6 +86,7 @@ model Organization {
   technicianRoutes           TechnicianRoute[]
   trackingSessions           TrackingSession[]           @relation("OrgTrackingSessions")
   users                      User[]
+  userMemberships            UserOrganization[]          @relation("OrgMemberships")
   vehicleSchedules           VehicleSchedule[]           @relation("OrgVehicleSchedules")
   vehicles                   Vehicle[]                   @relation("OrgVehicles")
   verificationSubmissions    VerificationSubmission[]
@@ -96,6 +97,8 @@ model Organization {
   waWebhookLogs              WaWebhookLog[]
   warehouses                 Warehouse[]
   whatsappBusinessAccount    WhatsAppBusinessAccount?
+  assignedWhatsAppNumber     WhatsAppNumberInventory?    @relation("OrgAssignedNumber")
+  whatsappCredits            WhatsAppCredits?
 
   @@index([subscriptionStatus])
   @@index([subscriptionTier])
@@ -126,6 +129,27 @@ model User {
   canBeAssignedJobs          Boolean                     @default(false) @map("can_be_assigned_jobs")
   identityVerified           Boolean                     @default(false) @map("identity_verified")
   verificationStatus         UserVerificationStatus      @default(pending) @map("verification_status")
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // PHASE 4.3: DIGITAL ENTRY BADGE
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
+  // Badge token for QR code verification (rotates every 30 days)
+  badgeToken                 String?                     @unique @map("badge_token")
+  badgeTokenExpiresAt        DateTime?                   @map("badge_token_expires_at")
+  
+  // ART (Aseguradora de Riesgos del Trabajo) - Required for entry to gated communities
+  artCertificateUrl          String?                     @map("art_certificate_url")
+  artExpiryDate              DateTime?                   @map("art_expiry_date")
+  artProvider                String?                     @map("art_provider")
+  artPolicyNumber            String?                     @map("art_policy_number")
+  
+  // Background check verification
+  backgroundCheckStatus      String                      @default("pending") @map("background_check_status") // 'pending', 'approved', 'rejected', 'expired'
+  backgroundCheckDate        DateTime?                   @map("background_check_date")
+  backgroundCheckProvider    String?                     @map("background_check_provider")
+  
+  // Relations
   aiEscalationConfigs        AIConfiguration[]           @relation("AIEscalationUser")
   complianceAcknowledgments  ComplianceAcknowledgment[]
   complianceBlocks           ComplianceBlock[]
@@ -164,6 +188,7 @@ model User {
   reviewedTranscripts        VoiceTranscript[]           @relation("TranscriptReviewer")
   assignedWaConversations    WaConversation[]            @relation("WaConversationAssignee")
   sentWaMessages             WaMessage[]                 @relation("WaMessageSender")
+  organizationMemberships    UserOrganization[]          @relation("UserMemberships")
 
   @@unique([email, organizationId])
   @@index([organizationId])
@@ -172,6 +197,9 @@ model User {
   @@index([canBeAssignedJobs])
   @@index([identityVerified])
   @@index([organizationId, role])
+  @@index([badgeToken])
+  @@index([artExpiryDate])
+  @@index([backgroundCheckStatus])
   @@map("users")
 }
 
@@ -3502,7 +3530,41 @@ model UnclaimedProfile {
   @@map("unclaimed_profiles")
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// SCRAPER JOB TRACKING
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tracks progress of long-running scraper jobs so they can be paused/resumed
+
+model ScraperJob {
+  id                   String   @id @default(cuid())
+  
+  // Source & Status
+  source               String                    // CACAAV, ERSEP, GASNOR, etc.
+  status               ScraperJobStatus @default(pending)
+  
+  // Progress Tracking
+  totalProvinces       Int      @default(0) @map("total_provinces")
+  completedProvinces   String[] @default([]) @map("completed_provinces")
+  currentProvince      String?  @map("current_province")
+  currentPage          Int      @default(0) @map("current_page")
+  totalRecords         Int      @default(0) @map("total_records")
+  
+  // Errors
+  errors               String[] @default([])
+  
+  // Timestamps
+  startedAt            DateTime @default(now()) @map("started_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+  completedAt          DateTime? @map("completed_at")
+  
+  @@index([source])
+  @@index([status])
+  @@index([startedAt(sort: Desc)])
+  @@map("scraper_jobs")
+}
+
 model OutreachCampaign {
+
   id                String   @id @default(cuid())
   organizationId    String   @map("organization_id") // Which org owns this campaign (CampoTech admin org)
   name              String                          // "ERSEP Initial Outreach Jan 2026"
@@ -3567,6 +3629,7 @@ model OutreachCampaign {
 // PHASE 4.8: WHATSAPP AI CREDITS SYSTEM
 // ═══════════════════════════════════════════════════════════════════════════════
 // Credit-based monetization for WhatsApp AI conversations
+// ⚠️ ONE-TIME GRACE: When balance hits 0, 50 free credits activate ONCE EVER
 
 model WhatsAppCredits {
   id                String   @id @default(cuid())
@@ -3577,27 +3640,41 @@ model WhatsAppCredits {
   lifetimeCredits   Int      @default(0) @map("lifetime_credits")  // Total credits ever purchased
   lifetimeUsed      Int      @default(0) @map("lifetime_used")     // Total credits ever used
   
-  // Grace Period (when balance hits 0)
-  graceCredits      Int      @default(10) @map("grace_credits")    // Emergency credits
+  // ⚠️ ONE-TIME GRACE PERIOD (Anti-abuse)
+  graceCredits      Int      @default(50) @map("grace_credits")    // One-time 50 emergency credits
   graceUsed         Int      @default(0) @map("grace_used")        // How many grace credits used
+  graceActivatedAt  DateTime? @map("grace_activated_at")           // When grace was triggered
+  graceEverActivated Boolean @default(false) @map("grace_ever_activated") // TRUE = never again eligible
+  graceForfeited    Boolean  @default(false) @map("grace_forfeited") // TRUE = paid without using
   
   // Service Status
   status            CreditServiceStatus @default(inactive)
   statusChangedAt   DateTime? @map("status_changed_at")
   
-  // Low Balance Alerts
+  // Alert Tracking (reset each purchase)
   lowBalanceThreshold Int    @default(50) @map("low_balance_threshold")
   lastLowBalanceAlert DateTime? @map("last_low_balance_alert")
+  alert75SentAt     DateTime? @map("alert_75_sent_at")
+  alert90SentAt     DateTime? @map("alert_90_sent_at")
+  alert100SentAt    DateTime? @map("alert_100_sent_at")
+  
+  // BSP Integration
+  bspPhoneNumber    String?  @map("bsp_phone_number")    // Provisioned WhatsApp number
+  bspNumberId       String?  @map("bsp_number_id")       // Meta's phone number ID
+  bspWabaId         String?  @map("bsp_waba_id")         // WhatsApp Business Account ID
+  bspStatus         BSPProvisioningStatus @default(not_provisioned) @map("bsp_status")
   
   // Timestamps
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
   
   // Relations
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   purchases         CreditPurchase[]
   usageLogs         CreditUsageLog[]
   
   @@index([status])
+  @@index([bspStatus])
   @@index([balance])
   @@map("whatsapp_credits")
 }
@@ -3663,47 +3740,22 @@ model CreditUsageLog {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PHASE 6: ADVANCED BSP INFRASTRUCTURE (Future)
+// BSP PROVISIONING ENUM (new for Phase 4.8)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-model WhatsAppNumberInventory {
-  id                String   @id @default(cuid())
+enum BSPProvisioningStatus {
+  not_provisioned // No number assigned
+  pending         // Number requested, awaiting Meta approval
+  active          // Number provisioned and working
+  suspended       // Number suspended (payment issues)
   
-  // Phone Number
-  phoneNumber       String   @unique @map("phone_number")  // +5491155551234
-  displayNumber     String?  @map("display_number")        // (011) 5555-1234
-  
-  // BSP Provider Details
-  bspProvider       String   @map("bsp_provider")          // "360dialog", "twilio"
-  bspNumberId       String?  @map("bsp_number_id")         // Provider's number ID
-  bspAccountId      String?  @map("bsp_account_id")        // Provider's account ID
-  
-  // Status
-  status            NumberInventoryStatus @default(available)
-  
-  // Current Assignment
-  assignedOrgId     String?  @map("assigned_org_id")
-  assignedAt        DateTime? @map("assigned_at")
-  
-  // Meta Verification
-  metaVerified      Boolean  @default(false) @map("meta_verified")
-  metaVerifiedAt    DateTime? @map("meta_verified_at")
-  wabaId            String?  @map("waba_id")               // WhatsApp Business Account ID
-  
-  // Pricing
-  monthlyCostUsd    Decimal  @db.Decimal(8, 2) @map("monthly_cost_usd")
-  
-  // Timestamps
-  acquiredAt        DateTime @default(now()) @map("acquired_at")
-  releasedAt        DateTime? @map("released_at")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
-  
-  @@index([status])
-  @@index([assignedOrgId])
-  @@index([bspProvider])
-  @@map("whatsapp_number_inventory")
+  @@map("bsp_provisioning_status")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 6: ADVANCED BSP INFRASTRUCTURE 
+// Note: WhatsAppNumberInventory model moved to end of file with comprehensive implementation
+// ═══════════════════════════════════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GROWTH ENGINE ENUMS
@@ -3771,7 +3823,18 @@ enum CampaignStatus {
   @@map("campaign_status")
 }
 
+enum ScraperJobStatus {
+  pending            // Job created, not yet started
+  running            // Currently scraping
+  completed          // All done
+  paused             // Paused, can be resumed
+  failed             // Failed with error
+  
+  @@map("scraper_job_status")
+}
+
 enum OutreachChannel {
+
   email              // Email outreach
   whatsapp           // WhatsApp template messages
   sms                // SMS (fallback)
@@ -3791,8 +3854,8 @@ enum TemplateApprovalStatus {
 enum CreditServiceStatus {
   inactive           // No credits purchased yet
   active             // Credits available, AI enabled
-  grace_period       // Using grace credits
-  degraded           // Degraded to wa.me links (no AI)
+  grace              // Out of credits, using ONE-TIME grace credits
+  exhausted          // Grace used OR forfeited, wa.me fallback active
   
   @@map("credit_service_status")
 }
@@ -3815,6 +3878,99 @@ enum CreditUsageType {
   @@map("credit_usage_type")
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 6.1: WHATSAPP NUMBER INVENTORY MANAGEMENT
+// Pre-purchased WhatsApp numbers for instant provisioning to clients
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model WhatsAppNumberInventory {
+  id                    String                @id @default(cuid())
+  phoneNumber           String                @unique @map("phone_number")
+  phoneNumberFormatted  String?               @map("phone_number_formatted") // Display format: +54 351 555-1234
+  countryCode           String                @default("AR") @map("country_code")
+  
+  // BSP/Meta identifiers
+  bspNumberId           String?               @map("bsp_number_id") // Meta/BSP ID from provider
+  bspProvider           String                @default("twilio") @map("bsp_provider") // twilio, dialog360, meta_direct
+  wabaId                String?               @map("waba_id") // WhatsApp Business Account ID
+  
+  // Status and assignment
+  status                NumberInventoryStatus @default(available)
+  assignedToOrgId       String?               @unique @map("assigned_to_org_id")
+  assignedAt            DateTime?             @map("assigned_at")
+  reservedAt            DateTime?             @map("reserved_at") // When reservation started
+  reservationExpiresAt  DateTime?             @map("reservation_expires_at") // Reservation timeout
+  
+  // Activity tracking for auto-release
+  lastActivityAt        DateTime?             @map("last_activity_at")
+  messageCountTotal     Int                   @default(0) @map("message_count_total")
+  messageCountMonth     Int                   @default(0) @map("message_count_month")
+  lastMessageAt         DateTime?             @map("last_message_at")
+  
+  // Cost tracking
+  monthlyRentalCostUsd  Float                 @default(5.0) @map("monthly_rental_cost_usd")
+  purchasedAt           DateTime?             @map("purchased_at")
+  lastBilledAt          DateTime?             @map("last_billed_at")
+  totalCostUsd          Float                 @default(0) @map("total_cost_usd")
+  
+  // Release handling
+  releasedAt            DateTime?             @map("released_at")
+  releaseReason         String?               @map("release_reason") // inactivity, cancellation, suspension, manual
+  previousOrgId         String?               @map("previous_org_id") // Last org that used this number
+  recycleCount          Int                   @default(0) @map("recycle_count") // How many times reassigned
+  cooldownUntil         DateTime?             @map("cooldown_until") // Don't reassign until this date
+  
+  // Notes and metadata
+  notes                 String?
+  metadata              Json                  @default("{}")
+  
+  createdAt             DateTime              @default(now()) @map("created_at")
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+  
+  // Relations
+  assignedOrg           Organization?         @relation("OrgAssignedNumber", fields: [assignedToOrgId], references: [id])
+  activityLogs          NumberActivityLog[]
+  
+  @@index([status])
+  @@index([bspProvider])
+  @@index([countryCode])
+  @@index([lastActivityAt])
+  @@index([status, countryCode])
+  @@map("whatsapp_number_inventory")
+}
+
+model NumberActivityLog {
+  id              String                  @id @default(cuid())
+  numberId        String                  @map("number_id")
+  activityType    NumberActivityType      @map("activity_type")
+  organizationId  String?                 @map("organization_id")
+  details         Json                    @default("{}")
+  createdAt       DateTime                @default(now()) @map("created_at")
+  
+  number          WhatsAppNumberInventory @relation(fields: [numberId], references: [id], onDelete: Cascade)
+  
+  @@index([numberId])
+  @@index([activityType])
+  @@index([organizationId])
+  @@index([createdAt])
+  @@map("number_activity_logs")
+}
+
+enum NumberActivityType {
+  provisioned    // Number added to inventory
+  reserved       // Reserved for an org (pending assignment)
+  assigned       // Assigned to an org
+  message_sent   // Message sent through this number
+  message_received // Message received on this number
+  suspended      // Number suspended
+  unsuspended    // Number unsuspended
+  released       // Released from org
+  recycled       // Reassigned to new org
+  billed         // Monthly billing event
+  
+  @@map("number_activity_type")
+}
+
 enum NumberInventoryStatus {
   available          // Ready to be assigned
   reserved           // Reserved for a specific org (provisioning in progress)
@@ -3824,3 +3980,99 @@ enum NumberInventoryStatus {
   
   @@map("number_inventory_status")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Phase 7.5: Multi-Organization Membership
+// ═══════════════════════════════════════════════════════════════════════════════
+// Enables users to belong to multiple organizations with different roles.
+// Use case: A technician at Company A wants to start their own business.
+
+enum MembershipStatus {
+  INVITED            // Pending invitation acceptance
+  ACTIVE             // Active member
+  SUSPENDED          // Temporarily suspended
+  LEFT               // User left the org
+  
+  @@map("membership_status")
+}
+
+model UserOrganization {
+  id             String           @id @default(cuid())
+  userId         String
+  organizationId String
+  role           UserRole         @default(TECHNICIAN)
+  isDefault      Boolean          @default(false)  // Only one per user should be default
+  joinedAt       DateTime         @default(now())
+  invitedBy      String?
+  status         MembershipStatus @default(ACTIVE)
+  notes          String?                          // Why they joined, admin notes
+  
+  user           User             @relation("UserMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization     @relation("OrgMemberships", fields: [organizationId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([status])
+  @@map("user_organizations")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 7: CUSTOMER SUPPORT INFRASTRUCTURE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Support reports from users (bug reports, suggestions, questions)
+model SupportReport {
+  id             String    @id @default(cuid())
+  type           String    // 'bug', 'suggestion', 'question'
+  description    String
+  status         String    @default("new") // 'new', 'in_progress', 'resolved', 'closed'
+  priority       String    @default("medium") // 'low', 'medium', 'high', 'critical'
+  
+  // Optional user context
+  userId         String?
+  organizationId String?
+  
+  // Metadata (auto-collected context, screenshot URL, etc.)
+  metadata       Json      @default("{}")
+  
+  // Resolution
+  resolution     String?
+  resolvedAt     DateTime?
+  resolvedBy     String?
+  
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  @@index([type])
+  @@index([status])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([createdAt])
+  @@map("support_reports")
+}
+
+/// Status page incidents
+model StatusIncident {
+  id         String    @id @default(cuid())
+  title      String
+  status     String    @default("investigating") // 'investigating', 'identified', 'monitoring', 'resolved'
+  severity   String    @default("minor") // 'minor', 'major', 'critical'
+  services   String[]  // Array of affected service IDs
+  
+  startedAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  
+  // Updates stored as JSON array
+  updates    Json      @default("[]")
+  
+  createdBy  String?
+  
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  
+  @@index([status])
+  @@index([startedAt])
+  @@map("status_incidents")
+}
+

@@ -229,7 +229,23 @@ export function ProfileDetailModal({ profile, onClose }: ProfileDetailProps) {
                                 <div>
                                     {profile.city && <p className="font-medium text-gray-900">{profile.city}</p>}
                                     {profile.province && <p className="text-sm text-gray-600">{profile.province}</p>}
-                                    {profile.address && <p className="text-sm text-gray-500 mt-1">{profile.address}</p>}
+                                    {profile.address && (
+                                        <p className="text-sm text-gray-500 mt-1">
+                                            {profile.address}
+                                            {profile.postalCode && (
+                                                <span className="ml-2 px-1.5 py-0.5 bg-gray-200 rounded text-xs text-gray-600">
+                                                    CP {profile.postalCode}
+                                                </span>
+                                            )}
+                                        </p>
+                                    )}
+                                    {!profile.address && profile.postalCode && (
+                                        <p className="text-sm text-gray-500 mt-1">
+                                            <span className="px-1.5 py-0.5 bg-gray-200 rounded text-xs text-gray-600">
+                                                CP {profile.postalCode}
+                                            </span>
+                                        </p>
+                                    )}
                                     {!profile.city && !profile.province && (
                                         <p className="text-gray-400">No disponible</p>
                                     )}

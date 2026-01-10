@@ -5,13 +5,15 @@
  * Phase 4.4: Growth Engine
  * POST /api/admin/growth-engine/scrape/ersep
  * 
- * Triggers the ERSEP scraper to fetch electricista profiles from volta.net.ar
+ * Triggers the ERSEP scraper to fetch electricista profiles from ersep.cba.gov.ar
  * This is an admin-only endpoint that starts a background scraping job.
+ * 
+ * IMPORTANT: Requires Argentina VPN to access!
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getERSEPScraper } from '@/lib/scrapers/ersep-scraper';
+import { getERSEPPlaywrightScraper } from '@/lib/scrapers/ersep-playwright-scraper';
 
 export async function POST(request: NextRequest) {
     try {
@@ -25,15 +27,25 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json().catch(() => ({}));
-        const maxPages = Math.min(body.maxPages || 10, 100); // Default 10 pages, max 100
         const importData = body.import !== false; // Default to import
 
-        console.log(`[API/ERSEP] Starting scrape with maxPages=${maxPages}, import=${importData}`);
+        console.log(`[API/ERSEP] Starting Playwright scrape, import=${importData}`);
 
-        const scraper = getERSEPScraper();
+        const scraper = getERSEPPlaywrightScraper();
+
+        // Check access first (requires Argentina VPN)
+        const accessCheck = await scraper.checkAccess();
+        if (!accessCheck.accessible) {
+            return NextResponse.json({
+                success: false,
+                source: 'ERSEP',
+                error: accessCheck.message,
+                message: '⚠️ ERSEP requiere VPN de Argentina para acceder. Por favor, conectá un VPN argentino y volvé a intentar.',
+            }, { status: 403 });
+        }
 
         // Scrape the data
-        const scrapeResult = await scraper.scrapeAll(maxPages);
+        const scrapeResult = await scraper.scrapeAll();
 
         // Optionally import to database
         let importResult = null;
@@ -50,7 +62,7 @@ export async function POST(request: NextRequest) {
                 records: scrapeResult.records.length,
                 pages: scrapeResult.pages,
                 errors: scrapeResult.errors.length,
-                errorDetails: scrapeResult.errors.slice(0, 10), // First 10 errors
+                errorDetails: scrapeResult.errors.slice(0, 10),
             },
             import: importResult ? {
                 imported: importResult.imported,
@@ -85,12 +97,13 @@ export async function GET() {
         return NextResponse.json({
             source: 'ERSEP',
             name: 'ERSEP Córdoba (Electricistas)',
-            url: 'https://volta.net.ar/matriculados',
+            url: 'https://ersep.cba.gov.ar/registros-de-electricistas/',
             region: 'Córdoba',
             profession: 'Electricista',
             estimatedRecords: 33000,
-            dataPoints: ['Nombre', 'Teléfono', 'Email', 'Categoría', 'Matrícula'],
+            dataPoints: ['Nombre', 'Teléfono', 'Email', 'CUIL', 'Categoría', 'Matrícula'],
             description: 'Registro público de electricistas matriculados en la provincia de Córdoba',
+            requirements: '⚠️ Requiere VPN de Argentina para acceder',
         });
     } catch (error) {
         return NextResponse.json(
