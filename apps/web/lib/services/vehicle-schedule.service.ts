@@ -22,9 +22,9 @@ export type VehicleScheduleType = 'PERMANENT' | 'DATE_RANGE' | 'RECURRING';
 
 // Inferred types from Prisma queries (use any to avoid stale cache issues)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type VehicleScheduleWithVehicle = any;
+type _VehicleScheduleWithVehicle = any;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-type VehicleWithSchedules = any;
+type _VehicleWithSchedules = any;
 
 export interface ScheduleResult {
     success: boolean;
@@ -76,7 +76,7 @@ class VehicleScheduleService {
         const schedules = await prisma.vehicleSchedule.findMany({
             where: { userId },
             include: { vehicle: true },
-            orderBy: [{ priority: 'asc' }, { scheduleType: 'asc' }],
+            orderBy: [{ priority: 'asc' }, { scheduleType: 'asc' }]
         });
 
         // Check schedules in priority order
@@ -86,7 +86,7 @@ class VehicleScheduleService {
                 return {
                     vehicle: schedule.vehicle,
                     schedule,
-                    matchType: schedule.scheduleType.toLowerCase() as 'permanent' | 'date_range' | 'recurring',
+                    matchType: schedule.scheduleType.toLowerCase() as 'permanent' | 'date_range' | 'recurring'
                 };
             }
         }
@@ -164,9 +164,9 @@ class VehicleScheduleService {
         const schedules = await prisma.vehicleSchedule.findMany({
             where: {
                 vehicleId,
-                ...(excludeUserId ? { userId: { not: excludeUserId } } : {}),
+                ...(excludeUserId ? { userId: { not: excludeUserId } } : {})
             },
-            include: { vehicle: true },
+            include: { vehicle: true }
         });
 
         // Check if any schedule conflicts
@@ -201,8 +201,8 @@ class VehicleScheduleService {
             await prisma.vehicleSchedule.deleteMany({
                 where: {
                     userId,
-                    scheduleType: 'PERMANENT',
-                },
+                    scheduleType: 'PERMANENT'
+                }
             });
 
             // Create new permanent assignment
@@ -213,8 +213,8 @@ class VehicleScheduleService {
                     vehicleId,
                     scheduleType: 'PERMANENT',
                     priority: 1000, // Lowest priority (permanent is fallback)
-                    createdById,
-                },
+                    createdById
+                }
             });
 
             return { success: true, schedule };
@@ -222,7 +222,7 @@ class VehicleScheduleService {
             console.error('[VehicleSchedule] Error setting default vehicle:', error);
             return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
+                error: error instanceof Error ? error.message : 'Unknown error'
             };
         }
     }
@@ -250,8 +250,8 @@ class VehicleScheduleService {
                     timeStart: input.timeStart ?? null,
                     timeEnd: input.timeEnd ?? null,
                     priority: input.priority ?? 10, // Higher priority than permanent
-                    createdById: input.createdById,
-                },
+                    createdById: input.createdById
+                }
             });
 
             return { success: true, schedule };
@@ -259,7 +259,7 @@ class VehicleScheduleService {
             console.error('[VehicleSchedule] Error creating date range schedule:', error);
             return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
+                error: error instanceof Error ? error.message : 'Unknown error'
             };
         }
     }
@@ -294,8 +294,8 @@ class VehicleScheduleService {
                     timeEnd: input.timeEnd ?? null,
                     daysOfWeek: input.daysOfWeek,
                     priority: input.priority ?? 50, // Medium priority
-                    createdById: input.createdById,
-                },
+                    createdById: input.createdById
+                }
             });
 
             return { success: true, schedule };
@@ -303,7 +303,7 @@ class VehicleScheduleService {
             console.error('[VehicleSchedule] Error creating recurring schedule:', error);
             return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
+                error: error instanceof Error ? error.message : 'Unknown error'
             };
         }
     }
@@ -351,8 +351,8 @@ class VehicleScheduleService {
                     ...(updates.timeStart !== undefined && { timeStart: updates.timeStart }),
                     ...(updates.timeEnd !== undefined && { timeEnd: updates.timeEnd }),
                     ...(updates.daysOfWeek !== undefined && { daysOfWeek: updates.daysOfWeek }),
-                    ...(updates.priority !== undefined && { priority: updates.priority }),
-                },
+                    ...(updates.priority !== undefined && { priority: updates.priority })
+                }
             });
 
             return { success: true, schedule };
@@ -360,7 +360,7 @@ class VehicleScheduleService {
             console.error('[VehicleSchedule] Error updating schedule:', error);
             return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
+                error: error instanceof Error ? error.message : 'Unknown error'
             };
         }
     }
@@ -371,14 +371,14 @@ class VehicleScheduleService {
     async deleteSchedule(scheduleId: string): Promise<{ success: boolean; error?: string }> {
         try {
             await prisma.vehicleSchedule.delete({
-                where: { id: scheduleId },
+                where: { id: scheduleId }
             });
             return { success: true };
         } catch (error) {
             console.error('[VehicleSchedule] Error deleting schedule:', error);
             return {
                 success: false,
-                error: error instanceof Error ? error.message : 'Unknown error',
+                error: error instanceof Error ? error.message : 'Unknown error'
             };
         }
     }
@@ -391,7 +391,7 @@ class VehicleScheduleService {
         return prisma.vehicleSchedule.findMany({
             where: { userId },
             include: { vehicle: true },
-            orderBy: [{ priority: 'asc' }, { scheduleType: 'asc' }],
+            orderBy: [{ priority: 'asc' }, { scheduleType: 'asc' }]
         });
     }
 
@@ -404,10 +404,10 @@ class VehicleScheduleService {
             where: { vehicleId },
             include: {
                 user: {
-                    select: { id: true, name: true },
-                },
+                    select: { id: true, name: true }
+                }
             },
-            orderBy: [{ priority: 'asc' }, { scheduleType: 'asc' }],
+            orderBy: [{ priority: 'asc' }, { scheduleType: 'asc' }]
         });
     }
 
@@ -423,15 +423,15 @@ class VehicleScheduleService {
             where: {
                 organizationId,
                 ...(options?.userId && { userId: options.userId }),
-                ...(options?.vehicleId && { vehicleId: options.vehicleId }),
+                ...(options?.vehicleId && { vehicleId: options.vehicleId })
             },
             include: {
                 vehicle: true,
                 user: {
-                    select: { id: true, name: true },
-                },
+                    select: { id: true, name: true }
+                }
             },
-            orderBy: [{ priority: 'asc' }, { scheduleType: 'asc' }],
+            orderBy: [{ priority: 'asc' }, { scheduleType: 'asc' }]
         });
     }
 
@@ -443,9 +443,9 @@ class VehicleScheduleService {
         const schedule = await prisma.vehicleSchedule.findFirst({
             where: {
                 userId,
-                scheduleType: 'PERMANENT',
+                scheduleType: 'PERMANENT'
             },
-            include: { vehicle: true },
+            include: { vehicle: true }
         });
 
         return schedule?.vehicle ?? null;
@@ -461,13 +461,13 @@ class VehicleScheduleService {
         endDate?: Date | null,
         daysOfWeek?: number[],
         excludeScheduleId?: string
-    ): Promise<{ hasConflict: boolean; conflictingSchedules: any[] }> {
+    ): Promise<{ hasConflict: boolean; conflictingSchedules: Awaited<ReturnType<typeof prisma.vehicleSchedule.findMany>> }> {
         // Get all schedules for this vehicle
         const schedules = await prisma.vehicleSchedule.findMany({
             where: {
                 vehicleId,
-                ...(excludeScheduleId && { id: { not: excludeScheduleId } }),
-            },
+                ...(excludeScheduleId && { id: { not: excludeScheduleId } })
+            }
         });
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -511,7 +511,7 @@ class VehicleScheduleService {
 
         return {
             hasConflict: conflictingSchedules.length > 0,
-            conflictingSchedules,
+            conflictingSchedules
         };
     }
 

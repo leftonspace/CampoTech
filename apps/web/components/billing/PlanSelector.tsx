@@ -14,9 +14,9 @@ import { useRouter } from 'next/navigation';
 import { Check, Sparkles, ArrowRight, Loader2, Tag, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export interface PlanData {
   tier: string;
@@ -55,9 +55,9 @@ export interface PlanSelectorProps {
   className?: string;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export function PlanSelector({
   plans,
@@ -65,9 +65,8 @@ export function PlanSelector({
   currentCycle = 'MONTHLY',
   onSelectPlan,
   isLoading = false,
-  className,
-}: PlanSelectorProps) {
-  const router = useRouter();
+  className }: PlanSelectorProps) {
+  const _router = useRouter();
   const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'YEARLY'>(currentCycle);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
@@ -76,7 +75,7 @@ export function PlanSelector({
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
   const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
-  const [couponForTier, setCouponForTier] = useState<string | null>(null);
+  const [_couponForTier, setCouponForTier] = useState<string | null>(null);
 
   // Calculate yearly savings
   const yearlySavings = plans.reduce((max, plan) => {
@@ -91,7 +90,7 @@ export function PlanSelector({
       style: 'currency',
       currency: 'ARS',
       minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      maximumFractionDigits: 0
     }).format(amount);
   };
 
@@ -110,13 +109,13 @@ export function PlanSelector({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : '',
+          Authorization: token ? `Bearer ${token}` : ''
         },
         body: JSON.stringify({
           code: couponCode,
           tier,
-          billingCycle,
-        }),
+          billingCycle
+        })
       });
 
       const data = await response.json();
@@ -162,13 +161,13 @@ export function PlanSelector({
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: token ? `Bearer ${token}` : '',
+            Authorization: token ? `Bearer ${token}` : ''
           },
           body: JSON.stringify({
             tier,
             billingCycle,
-            couponCode: appliedCoupon?.code || undefined,
-          }),
+            couponCode: appliedCoupon?.code || undefined
+          })
         });
 
         const data = await response.json();
@@ -180,7 +179,7 @@ export function PlanSelector({
           alert(data.error || 'Error al crear el checkout');
           setSelectedPlan(null);
         }
-      } catch (_error) {
+      } catch (error) {
         console.error('Checkout error:', error);
         alert('Error al conectar con el servidor');
         setSelectedPlan(null);
@@ -413,8 +412,8 @@ export function PlanSelector({
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // EXPORTS
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export default PlanSelector;

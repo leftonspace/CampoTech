@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import {
     Calendar,
     MapPin,
@@ -11,7 +12,6 @@ import {
     Wrench,
     LogOut,
     Bell,
-    User,
     Star
 } from 'lucide-react';
 
@@ -104,10 +104,12 @@ export default function CustomerPortalDashboard() {
                             </div>
 
                             <div className="flex items-center gap-4 bg-gray-50 p-4 rounded-xl border w-full md:w-auto">
-                                <img
+                                <Image
                                     src={ACTIVE_JOB.technician.image}
                                     alt={ACTIVE_JOB.technician.name}
-                                    className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm"
+                                    width={48}
+                                    height={48}
+                                    className="w-12 h-12 rounded-full object-cover"
                                 />
                                 <div>
                                     <p className="font-semibold text-gray-900">{ACTIVE_JOB.technician.name}</p>

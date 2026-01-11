@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+
 import { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -192,11 +194,10 @@ export function ReassignJobDialog({
           {/* Unassign option */}
           <button
             onClick={() => setSelectedTechnicianId(null)}
-            className={`w-full flex items-center gap-3 p-3 rounded-lg mb-1 transition-colors ${
-              selectedTechnicianId === null
+            className={`w-full flex items-center gap-3 p-3 rounded-lg mb-1 transition-colors ${selectedTechnicianId === null
                 ? 'bg-primary-50 border-2 border-primary-500'
                 : 'hover:bg-gray-50 border-2 border-transparent'
-            }`}
+              }`}
           >
             <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
               <UserCheck className="h-5 w-5 text-gray-500" />
@@ -219,17 +220,18 @@ export function ReassignJobDialog({
               <button
                 key={tech.id}
                 onClick={() => setSelectedTechnicianId(tech.id)}
-                className={`w-full flex items-center gap-3 p-3 rounded-lg mb-1 transition-colors ${
-                  isSelected
+                className={`w-full flex items-center gap-3 p-3 rounded-lg mb-1 transition-colors ${isSelected
                     ? 'bg-primary-50 border-2 border-primary-500'
                     : 'hover:bg-gray-50 border-2 border-transparent'
-                }`}
+                  }`}
               >
                 <div className="relative">
                   {tech.avatarUrl ? (
-                    <img
+                    <Image
                       src={tech.avatarUrl}
                       alt={tech.name}
+                      width={40}
+                      height={40}
                       className="h-10 w-10 rounded-full object-cover"
                     />
                   ) : (
@@ -241,15 +243,14 @@ export function ReassignJobDialog({
                   )}
                   {/* Status indicator */}
                   <div
-                    className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${
-                      tech.status === 'en_linea'
+                    className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${tech.status === 'en_linea'
                         ? 'bg-green-500'
                         : tech.status === 'en_camino'
-                        ? 'bg-blue-500'
-                        : tech.status === 'trabajando'
-                        ? 'bg-amber-500'
-                        : 'bg-gray-400'
-                    }`}
+                          ? 'bg-blue-500'
+                          : tech.status === 'trabajando'
+                            ? 'bg-amber-500'
+                            : 'bg-gray-400'
+                      }`}
                   />
                 </div>
                 <div className="flex-1 text-left min-w-0">

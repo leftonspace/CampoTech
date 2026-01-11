@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { ArrowLeft, Save, User, Phone, Mail, Shield, Calendar } from 'lucide-react';
+import Image from 'next/image';
+import { ArrowLeft, Save, User, Mail, Shield } from 'lucide-react';
 import { PermissionField, FieldMeta } from '@/components/ui/permission-field';
 import { LockedField, LockedFieldGroup } from '@/components/ui/locked-field';
 
@@ -180,9 +181,11 @@ export default function ProfilePage() {
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full bg-primary-100 flex items-center justify-center">
               {profile.avatar ? (
-                <img
+                <Image
                   src={profile.avatar}
                   alt={profile.name}
+                  width={64}
+                  height={64}
                   className="h-16 w-16 rounded-full object-cover"
                 />
               ) : (
@@ -278,9 +281,8 @@ export default function ProfilePage() {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1">
               <label className="text-sm font-medium text-gray-500">Estado</label>
-              <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm ${
-                profile.isActive ? 'bg-success-100 text-success-700' : 'bg-danger-100 text-danger-700'
-              }`}>
+              <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm ${profile.isActive ? 'bg-success-100 text-success-700' : 'bg-danger-100 text-danger-700'
+                }`}>
                 <span className={`h-2 w-2 rounded-full ${profile.isActive ? 'bg-success-500' : 'bg-danger-500'}`} />
                 {profile.isActive ? 'Activo' : 'Inactivo'}
               </div>

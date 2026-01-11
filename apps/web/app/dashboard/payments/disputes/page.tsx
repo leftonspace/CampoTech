@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
 import { cn, formatCurrency, formatDate, formatDateTime } from '@/lib/utils';
@@ -10,7 +10,6 @@ import {
   ArrowLeft,
   AlertTriangle,
   FileText,
-  User,
   Clock,
   CheckCircle,
   XCircle,
@@ -75,7 +74,7 @@ export default function DisputesPage() {
 }
 
 function DisputesContent() {
-  const queryClient = useQueryClient();
+  const _queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
 
@@ -257,11 +256,11 @@ function DisputesContent() {
                     )}
                   </div>
                   <p className="text-sm text-gray-500">
-                    {dispute.reason} • {formatCurrency(dispute.amount)}
+                    {dispute.reason} Í¢â‚¬Â¢ {formatCurrency(dispute.amount)}
                   </p>
                   <p className="text-xs text-gray-400">
                     Creada: {formatDate(dispute.createdAt)}
-                    {dispute.dueDate && ` • Vence: ${formatDate(dispute.dueDate)}`}
+                    {dispute.dueDate && ` Í¢â‚¬Â¢ Vence: ${formatDate(dispute.dueDate)}`}
                   </p>
                 </div>
                 <ChevronRight className="h-5 w-5 text-gray-400" />

@@ -16,7 +16,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { TIMEZONE, LOCALE } from '@/lib/timezone';
+
 import {
   sendDocumentExpiringEmail,
   sendDocumentExpiredEmail,
@@ -28,7 +28,7 @@ import {
   OrganizationEmailData,
   DocumentEmailData,
   EmployeeEmailData,
-  PendingVerificationItem,
+  PendingVerificationItem
 } from '@/lib/email/verification-emails';
 import {
   notifyDocumentExpiring,
@@ -36,12 +36,12 @@ import {
   notifyAccountBlocked,
   notifyEmployeeDocExpiring,
   notifyEmployeeComplianceAlert,
-  notifyAFIPStatusChanged,
+  notifyAFIPStatusChanged
 } from '@/lib/notifications/verification-notifications';
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export interface CronJobResult {
   success: boolean;
@@ -69,9 +69,9 @@ export interface VerificationCronStatus {
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // HELPER FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 function addDays(date: Date, days: number): Date {
   const result = new Date(date);
@@ -90,14 +90,14 @@ function getDayBoundaries(date: Date): { start: Date; end: Date } {
 /**
  * Get user email data from database
  */
-async function getUserEmailData(userId: string): Promise<UserEmailData | null> {
+async function _getUserEmailData(userId: string): Promise<UserEmailData | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       id: true,
       name: true,
-      email: true,
-    },
+      email: true
+    }
   });
 
   if (!user?.email) {
@@ -107,7 +107,7 @@ async function getUserEmailData(userId: string): Promise<UserEmailData | null> {
   return {
     userId: user.id,
     userName: user.name || 'Usuario',
-    userEmail: user.email,
+    userEmail: user.email
   };
 }
 
@@ -119,8 +119,8 @@ async function getOrganizationEmailData(organizationId: string): Promise<Organiz
     where: { id: organizationId },
     select: {
       id: true,
-      name: true,
-    },
+      name: true
+    }
   });
 
   if (!org) {
@@ -129,7 +129,7 @@ async function getOrganizationEmailData(organizationId: string): Promise<Organiz
 
   return {
     organizationId: org.id,
-    organizationName: org.name,
+    organizationName: org.name
   };
 }
 
@@ -144,10 +144,10 @@ async function getOwnerData(organizationId: string): Promise<{ userId: string; e
       owner: {
         select: {
           name: true,
-          email: true,
-        },
-      },
-    },
+          email: true
+        }
+      }
+    }
   });
 
   if (!org?.ownerId || !org.owner?.email) {
@@ -157,7 +157,7 @@ async function getOwnerData(organizationId: string): Promise<{ userId: string; e
   return {
     userId: org.ownerId,
     email: org.owner.email,
-    name: org.owner.name || 'Usuario',
+    name: org.owner.name || 'Usuario'
   };
 }
 
@@ -181,10 +181,10 @@ async function logCronEvent(
           succeeded: result.succeeded,
           failed: result.failed,
           durationMs: result.durationMs,
-          ...details,
+          ...details
         },
-        actorType: 'system',
-      },
+        actorType: 'system'
+      }
     });
   } catch (error) {
     console.error('[VerificationCron] Error logging cron event:', error);
@@ -208,17 +208,17 @@ async function logVerificationReminder(
         recipientUserId,
         reminderType,
         daysUntilExpiry,
-        channel,
-      },
+        channel
+      }
     });
   } catch (error) {
     console.error('[VerificationCron] Error logging reminder:', error);
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // CHECK DOCUMENT EXPIRING (30, 14, 7, 1 days)
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Send document expiring reminder emails
@@ -247,32 +247,32 @@ export async function checkDocumentExpiring(): Promise<CronJobResult> {
           status: 'approved',
           expiresAt: {
             gte: start,
-            lte: end,
-          },
+            lte: end
+          }
         },
         include: {
           requirement: {
             select: {
               name: true,
               code: true,
-              reminderDaysBefore: true,
-            },
+              reminderDaysBefore: true
+            }
           },
           organization: {
             select: {
               id: true,
               name: true,
-              ownerId: true,
-            },
+              ownerId: true
+            }
           },
           user: {
             select: {
               id: true,
               name: true,
-              email: true,
-            },
-          },
-        },
+              email: true
+            }
+          }
+        }
       });
 
       console.log(`[VerificationCron] Found ${expiringDocs.length} documents expiring in ${days} days`);
@@ -294,8 +294,8 @@ export async function checkDocumentExpiring(): Promise<CronJobResult> {
               daysUntilExpiry: days,
               sentAt: {
                 gte: new Date(now.getTime() - 24 * 60 * 60 * 1000), // Last 24 hours
-              },
-            },
+              }
+            }
           });
 
           if (existingReminder) {
@@ -309,13 +309,13 @@ export async function checkDocumentExpiring(): Promise<CronJobResult> {
           const recipientId = submission.userId || submission.organization.ownerId;
           const recipientUser = submission.user || (await prisma.user.findUnique({
             where: { id: submission.organization.ownerId! },
-            select: { id: true, name: true, email: true },
+            select: { id: true, name: true, email: true }
           }));
 
           if (!recipientUser?.email) {
             errors.push({
               id: submission.id,
-              error: 'Could not get recipient email',
+              error: 'Could not get recipient email'
             });
             continue;
           }
@@ -323,19 +323,19 @@ export async function checkDocumentExpiring(): Promise<CronJobResult> {
           const userEmailData: UserEmailData = {
             userId: recipientId!,
             userName: recipientUser.name || 'Usuario',
-            userEmail: recipientUser.email,
+            userEmail: recipientUser.email
           };
 
           const orgEmailData: OrganizationEmailData = {
             organizationId: submission.organization.id,
-            organizationName: submission.organization.name,
+            organizationName: submission.organization.name
           };
 
           const documentEmailData: DocumentEmailData = {
             documentId: submission.id,
             documentName: submission.requirement.name,
             documentType: submission.requirement.code,
-            expiresAt: submission.expiresAt ? new Date(submission.expiresAt) : undefined,
+            expiresAt: submission.expiresAt ? new Date(submission.expiresAt) : undefined
           };
 
           // Send the reminder email
@@ -372,7 +372,7 @@ export async function checkDocumentExpiring(): Promise<CronJobResult> {
           } else {
             errors.push({
               id: submission.id,
-              error: emailResult.error || 'Email sending failed',
+              error: emailResult.error || 'Email sending failed'
             });
           }
         } catch (error) {
@@ -380,7 +380,7 @@ export async function checkDocumentExpiring(): Promise<CronJobResult> {
           console.error(`[VerificationCron] Error processing expiring doc ${submission.id}:`, error);
           errors.push({
             id: submission.id,
-            error: errorMessage,
+            error: errorMessage
           });
         }
       }
@@ -392,7 +392,7 @@ export async function checkDocumentExpiring(): Promise<CronJobResult> {
       succeeded,
       failed: errors.length,
       errors,
-      durationMs: Date.now() - startTime,
+      durationMs: Date.now() - startTime
     };
 
     console.log(
@@ -412,14 +412,14 @@ export async function checkDocumentExpiring(): Promise<CronJobResult> {
       succeeded,
       failed: 1,
       errors: [{ id: 'N/A', error: errorMessage }],
-      durationMs: Date.now() - startTime,
+      durationMs: Date.now() - startTime
     };
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // CHECK DOCUMENT EXPIRED
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Process expired documents and apply blocks if needed
@@ -440,8 +440,8 @@ export async function checkDocumentExpired(): Promise<CronJobResult> {
       where: {
         status: 'approved',
         expiresAt: {
-          lt: now,
-        },
+          lt: now
+        }
       },
       include: {
         requirement: {
@@ -449,24 +449,24 @@ export async function checkDocumentExpired(): Promise<CronJobResult> {
             name: true,
             code: true,
             isRequired: true,
-            gracePeriodDays: true,
-          },
+            gracePeriodDays: true
+          }
         },
         organization: {
           select: {
             id: true,
             name: true,
-            ownerId: true,
-          },
+            ownerId: true
+          }
         },
         user: {
           select: {
             id: true,
             name: true,
-            email: true,
-          },
-        },
-      },
+            email: true
+          }
+        }
+      }
     });
 
     console.log(`[VerificationCron] Found ${expiredDocs.length} expired documents to process`);
@@ -479,7 +479,7 @@ export async function checkDocumentExpired(): Promise<CronJobResult> {
         const recipientId = submission.userId || submission.organization.ownerId;
         const recipientUser = submission.user || (await prisma.user.findUnique({
           where: { id: submission.organization.ownerId! },
-          select: { id: true, name: true, email: true },
+          select: { id: true, name: true, email: true }
         }));
 
         // Update submission status to expired
@@ -487,8 +487,8 @@ export async function checkDocumentExpired(): Promise<CronJobResult> {
           where: { id: submission.id },
           data: {
             status: 'expired',
-            expiryNotifiedAt: now,
-          },
+            expiryNotifiedAt: now
+          }
         });
 
         // Check if we need to apply a block (for required documents)
@@ -504,8 +504,8 @@ export async function checkDocumentExpired(): Promise<CronJobResult> {
                 organizationId: submission.organizationId,
                 userId: submission.userId,
                 relatedSubmissionId: submission.id,
-                unblockedAt: null,
-              },
+                unblockedAt: null
+              }
             });
 
             if (!existingBlock) {
@@ -517,8 +517,8 @@ export async function checkDocumentExpired(): Promise<CronJobResult> {
                   reason: `Documento requerido vencido: ${submission.requirement.name}`,
                   reasonCode: 'DOCUMENT_EXPIRED',
                   relatedSubmissionId: submission.id,
-                  createdBy: 'system',
-                },
+                  createdBy: 'system'
+                }
               });
 
               // Send account blocked notification
@@ -529,11 +529,11 @@ export async function checkDocumentExpired(): Promise<CronJobResult> {
                     {
                       userId: ownerData.userId,
                       userName: ownerData.name,
-                      userEmail: ownerData.email,
+                      userEmail: ownerData.email
                     },
                     {
                       organizationId: submission.organizationId,
-                      organizationName: submission.organization.name,
+                      organizationName: submission.organization.name
                     },
                     `Documento requerido vencido: ${submission.requirement.name}`
                   );
@@ -555,17 +555,17 @@ export async function checkDocumentExpired(): Promise<CronJobResult> {
             {
               userId: recipientId!,
               userName: recipientUser.name || 'Usuario',
-              userEmail: recipientUser.email,
+              userEmail: recipientUser.email
             },
             {
               organizationId: submission.organizationId,
-              organizationName: submission.organization.name,
+              organizationName: submission.organization.name
             },
             {
               documentId: submission.id,
               documentName: submission.requirement.name,
               documentType: submission.requirement.code,
-              expiresAt: submission.expiresAt ? new Date(submission.expiresAt) : undefined,
+              expiresAt: submission.expiresAt ? new Date(submission.expiresAt) : undefined
             }
           );
 
@@ -595,7 +595,7 @@ export async function checkDocumentExpired(): Promise<CronJobResult> {
         console.error(`[VerificationCron] Error processing expired doc ${submission.id}:`, error);
         errors.push({
           id: submission.id,
-          error: errorMessage,
+          error: errorMessage
         });
       }
     }
@@ -606,7 +606,7 @@ export async function checkDocumentExpired(): Promise<CronJobResult> {
       succeeded,
       failed: errors.length,
       errors,
-      durationMs: Date.now() - startTime,
+      durationMs: Date.now() - startTime
     };
 
     console.log(
@@ -626,14 +626,14 @@ export async function checkDocumentExpired(): Promise<CronJobResult> {
       succeeded,
       failed: 1,
       errors: [{ id: 'N/A', error: errorMessage }],
-      durationMs: Date.now() - startTime,
+      durationMs: Date.now() - startTime
     };
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // REVALIDATE AFIP STATUS (Weekly)
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Re-check AFIP status for all organizations
@@ -652,28 +652,28 @@ export async function revalidateAFIP(): Promise<CronJobResult> {
     const afipSubmissions = await prisma.verificationSubmission.findMany({
       where: {
         requirement: {
-          code: { in: ['owner_cuit', 'afip_status'] },
+          code: { in: ['owner_cuit', 'afip_status'] }
         },
         status: 'approved',
         verifiedBy: 'auto',
-        autoVerifyResponse: { not: null },
+        autoVerifyResponse: { not: null }
       },
       include: {
         requirement: {
           select: {
             code: true,
-            name: true,
-          },
+            name: true
+          }
         },
         organization: {
           select: {
             id: true,
             name: true,
-            ownerId: true,
-          },
-        },
+            ownerId: true
+          }
+        }
       },
-      distinct: ['organizationId'],
+      distinct: ['organizationId']
     });
 
     console.log(`[VerificationCron] Found ${afipSubmissions.length} organizations to revalidate AFIP status`);
@@ -707,9 +707,9 @@ export async function revalidateAFIP(): Promise<CronJobResult> {
                 ...previousResponse,
                 isActive: false,
                 lastChecked: new Date().toISOString(),
-                statusChangeDetected: true,
-              },
-            },
+                statusChangeDetected: true
+              }
+            }
           });
 
           // Notify the owner
@@ -730,9 +730,9 @@ export async function revalidateAFIP(): Promise<CronJobResult> {
               autoVerifyCheckedAt: new Date(),
               autoVerifyResponse: {
                 ...previousResponse,
-                lastChecked: new Date().toISOString(),
-              },
-            },
+                lastChecked: new Date().toISOString()
+              }
+            }
           });
         }
 
@@ -742,7 +742,7 @@ export async function revalidateAFIP(): Promise<CronJobResult> {
         console.error(`[VerificationCron] Error revalidating AFIP for org ${submission.organizationId}:`, error);
         errors.push({
           id: submission.organizationId,
-          error: errorMessage,
+          error: errorMessage
         });
       }
     }
@@ -753,7 +753,7 @@ export async function revalidateAFIP(): Promise<CronJobResult> {
       succeeded,
       failed: errors.length,
       errors,
-      durationMs: Date.now() - startTime,
+      durationMs: Date.now() - startTime
     };
 
     console.log(
@@ -773,14 +773,14 @@ export async function revalidateAFIP(): Promise<CronJobResult> {
       succeeded,
       failed: 1,
       errors: [{ id: 'N/A', error: errorMessage }],
-      durationMs: Date.now() - startTime,
+      durationMs: Date.now() - startTime
     };
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // CHECK EMPLOYEE COMPLIANCE
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Check for employees with expiring documents
@@ -811,34 +811,34 @@ export async function checkEmployeeCompliance(): Promise<CronJobResult> {
           userId: { not: null },
           expiresAt: {
             gte: start,
-            lte: end,
+            lte: end
           },
           requirement: {
-            appliesTo: 'employee',
-          },
+            appliesTo: 'employee'
+          }
         },
         include: {
           requirement: {
             select: {
               name: true,
-              code: true,
-            },
+              code: true
+            }
           },
           organization: {
             select: {
               id: true,
               name: true,
-              ownerId: true,
-            },
+              ownerId: true
+            }
           },
           user: {
             select: {
               id: true,
               name: true,
-              email: true,
-            },
-          },
-        },
+              email: true
+            }
+          }
+        }
       });
 
       for (const submission of expiringEmployeeDocs) {
@@ -854,9 +854,9 @@ export async function checkEmployeeCompliance(): Promise<CronJobResult> {
               reminderType: 'expiring_soon',
               daysUntilExpiry: days,
               sentAt: {
-                gte: new Date(now.getTime() - 24 * 60 * 60 * 1000),
-              },
-            },
+                gte: new Date(now.getTime() - 24 * 60 * 60 * 1000)
+              }
+            }
           });
 
           if (existingReminder) {
@@ -866,12 +866,12 @@ export async function checkEmployeeCompliance(): Promise<CronJobResult> {
           const employee: EmployeeEmailData = {
             employeeId: submission.user.id,
             employeeName: submission.user.name || 'Empleado',
-            employeeEmail: submission.user.email || '',
+            employeeEmail: submission.user.email || ''
           };
 
           const org: OrganizationEmailData = {
             organizationId: submission.organization.id,
-            organizationName: submission.organization.name,
+            organizationName: submission.organization.name
           };
 
           // Send reminder to employee
@@ -879,7 +879,7 @@ export async function checkEmployeeCompliance(): Promise<CronJobResult> {
             const pendingItems: PendingVerificationItem[] = [{
               name: submission.requirement.name,
               status: days <= 1 ? 'expiring' : 'pending',
-              daysUntilExpiry: days,
+              daysUntilExpiry: days
             }];
 
             await sendEmployeeReminderEmail(employee, org, pendingItems);
@@ -897,7 +897,7 @@ export async function checkEmployeeCompliance(): Promise<CronJobResult> {
             } else {
               orgIssues.push({
                 name: employee.employeeName,
-                issues: [`${submission.requirement.name} vence en ${days} días`],
+                issues: [`${submission.requirement.name} vence en ${days} días`]
               });
             }
             ownerAlerts.set(submission.organizationId, orgIssues);
@@ -907,7 +907,7 @@ export async function checkEmployeeCompliance(): Promise<CronJobResult> {
               {
                 userId: ownerData.userId,
                 userName: ownerData.name,
-                userEmail: ownerData.email,
+                userEmail: ownerData.email
               },
               org,
               employee,
@@ -915,7 +915,7 @@ export async function checkEmployeeCompliance(): Promise<CronJobResult> {
                 documentId: submission.id,
                 documentName: submission.requirement.name,
                 documentType: submission.requirement.code,
-                expiresAt: submission.expiresAt ? new Date(submission.expiresAt) : undefined,
+                expiresAt: submission.expiresAt ? new Date(submission.expiresAt) : undefined
               },
               days
             );
@@ -945,7 +945,7 @@ export async function checkEmployeeCompliance(): Promise<CronJobResult> {
           console.error(`[VerificationCron] Error processing employee doc ${submission.id}:`, error);
           errors.push({
             id: submission.id,
-            error: errorMessage,
+            error: errorMessage
           });
         }
       }
@@ -963,7 +963,7 @@ export async function checkEmployeeCompliance(): Promise<CronJobResult> {
               {
                 userId: ownerData.userId,
                 userName: ownerData.name,
-                userEmail: ownerData.email,
+                userEmail: ownerData.email
               },
               orgData,
               employees
@@ -983,7 +983,7 @@ export async function checkEmployeeCompliance(): Promise<CronJobResult> {
       succeeded,
       failed: errors.length,
       errors,
-      durationMs: Date.now() - startTime,
+      durationMs: Date.now() - startTime
     };
 
     console.log(
@@ -1003,14 +1003,14 @@ export async function checkEmployeeCompliance(): Promise<CronJobResult> {
       succeeded,
       failed: 1,
       errors: [{ id: 'N/A', error: errorMessage }],
-      durationMs: Date.now() - startTime,
+      durationMs: Date.now() - startTime
     };
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // STATUS AND MONITORING
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Get current status of verification cron jobs
@@ -1026,8 +1026,8 @@ export async function getVerificationCronStatus(): Promise<VerificationCronStatu
       return prisma.verificationSubmission.count({
         where: {
           status: 'approved',
-          expiresAt: { gte: start, lte: end },
-        },
+          expiresAt: { gte: start, lte: end }
+        }
       });
     };
 
@@ -1042,8 +1042,8 @@ export async function getVerificationCronStatus(): Promise<VerificationCronStatu
     const expiredDocuments = await prisma.verificationSubmission.count({
       where: {
         status: 'approved',
-        expiresAt: { lt: now },
-      },
+        expiresAt: { lt: now }
+      }
     });
 
     // Count employees with issues
@@ -1055,10 +1055,10 @@ export async function getVerificationCronStatus(): Promise<VerificationCronStatu
           { status: 'rejected' },
           {
             status: 'approved',
-            expiresAt: { lt: addDays(now, 7) },
+            expiresAt: { lt: addDays(now, 7) }
           },
-        ],
-      },
+        ]
+      }
     });
 
     // Get last run times
@@ -1066,10 +1066,10 @@ export async function getVerificationCronStatus(): Promise<VerificationCronStatu
       const event = await prisma.subscriptionEvent.findFirst({
         where: {
           eventType: `verification_cron_${eventType}`,
-          organizationId: 'system',
+          organizationId: 'system'
         },
         orderBy: { createdAt: 'desc' },
-        select: { createdAt: true },
+        select: { createdAt: true }
       });
       return event?.createdAt || null;
     };
@@ -1086,7 +1086,7 @@ export async function getVerificationCronStatus(): Promise<VerificationCronStatu
         expiring30Days,
         expiring14Days,
         expiring7Days,
-        expiring1Day,
+        expiring1Day
       },
       expiredDocuments,
       employeeIssues,
@@ -1094,8 +1094,8 @@ export async function getVerificationCronStatus(): Promise<VerificationCronStatu
         documentExpiring: lastDocExpiring,
         documentExpired: lastDocExpired,
         afipRevalidation: lastAfip,
-        employeeCompliance: lastEmployee,
-      },
+        employeeCompliance: lastEmployee
+      }
     };
   } catch (error) {
     console.error('[VerificationCron] Error getting status:', error);
@@ -1107,15 +1107,15 @@ export async function getVerificationCronStatus(): Promise<VerificationCronStatu
         documentExpiring: null,
         documentExpired: null,
         afipRevalidation: null,
-        employeeCompliance: null,
-      },
+        employeeCompliance: null
+      }
     };
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // RUN ALL VERIFICATION CRONS
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Run all verification cron jobs
@@ -1137,6 +1137,6 @@ export async function runAllVerificationCrons(): Promise<{
   return {
     documentExpiring,
     documentExpired,
-    employeeCompliance,
+    employeeCompliance
   };
 }

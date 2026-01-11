@@ -16,8 +16,6 @@ import { prisma } from '@/lib/prisma';
 import {
   cached,
   cachedWithSWR,
-  cacheGet,
-  cacheSet,
   cacheDelete,
   cacheDeletePattern,
   CACHE_TTL,

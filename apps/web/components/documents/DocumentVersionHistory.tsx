@@ -5,11 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   FileText,
   Download,
-  Clock,
-  User,
   CheckCircle,
-  AlertTriangle,
-  Calendar,
   ChevronDown,
   ChevronUp,
   History,

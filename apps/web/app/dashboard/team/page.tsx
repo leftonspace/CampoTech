@@ -458,7 +458,7 @@ interface EmployeeListTabProps {
   currentUserId?: string;
 }
 
-function EmployeeListTab({ members, loading, canEdit, onEdit, onDelete, onCardClick, currentUserId }: EmployeeListTabProps) {
+function EmployeeListTab({ members, loading, canEdit, onEdit: _onEdit, onDelete, onCardClick, currentUserId }: EmployeeListTabProps) {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
   if (loading) {
@@ -1078,7 +1078,7 @@ const SPECIALTY_OPTIONS = [
   { value: 'OTRO', label: 'Otro' },
 ];
 
-const SKILL_LEVEL_OPTIONS = [
+const _SKILL_LEVEL_OPTIONS = [
   { value: '', label: 'Sin nivel asignado' },
   { value: 'AYUDANTE', label: 'Ayudante' },
   { value: 'MEDIO_OFICIAL', label: 'Medio Oficial' },

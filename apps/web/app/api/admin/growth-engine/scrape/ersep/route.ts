@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
                 ? `Se importaron ${importResult.imported} perfiles nuevos de ERSEP (${importResult.updated} actualizados)`
                 : `Se encontraron ${scrapeResult.records.length} perfiles de ERSEP`,
         });
-    } catch (_error) {
+    } catch (error) {
         console.error('[API/ERSEP] Error:', error);
         return NextResponse.json(
             { error: 'Error al ejecutar el scraper ERSEP' },

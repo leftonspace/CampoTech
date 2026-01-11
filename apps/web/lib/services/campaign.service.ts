@@ -6,7 +6,7 @@
  * Handles campaign CRUD, targeting, launching, and metrics.
  * 
  * Key Features:
- * - Campaign lifecycle management (draft â†’ approved â†’ launching â†’ completed)
+ * - Campaign lifecycle management (draft ←’ approved ←’ launching ←’ completed)
  * - Launch Gate enforcement (owner approval required)
  * - Targeting with filters (source, province, profession)
  * - Rate limiting and batch processing

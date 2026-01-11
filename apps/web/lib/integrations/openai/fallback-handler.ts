@@ -21,7 +21,7 @@ import {
   EscalationTicket,
   OpenAIServiceStatus,
   OpenAISystemStatus,
-  BudgetStatus,
+  BudgetStatus
 } from './types';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -90,7 +90,7 @@ export class OpenAIFallbackHandler {
     // All checks passed
     return {
       shouldFallback: false,
-      message: 'AI request can proceed',
+      message: 'AI request can proceed'
     };
   }
 
@@ -99,14 +99,14 @@ export class OpenAIFallbackHandler {
    */
   private async checkBudget(organizationId: string): Promise<FallbackDecision> {
     const tracker = getOpenAIUsageTracker();
-    const { allowed, reason, budgetStatus } = await tracker.canProceed(organizationId);
+    const { allowed, reason: _reason, budgetStatus } = await tracker.canProceed(organizationId);
 
     if (!allowed) {
       return {
         shouldFallback: true,
         reason: 'budget_exceeded',
         message: this.getBudgetExceededMessage(budgetStatus),
-        suggestedAction: 'Wait until budget resets or increase limits',
+        suggestedAction: 'Wait until budget resets or increase limits'
       };
     }
 
@@ -114,13 +114,13 @@ export class OpenAIFallbackHandler {
     if (budgetStatus.isApproachingLimit) {
       console.warn(`[OpenAI Fallback] Approaching budget limit for org ${organizationId}:`, {
         dailyUsage: `${budgetStatus.dailyUsagePercent.toFixed(1)}%`,
-        monthlyUsage: `${budgetStatus.monthlyUsagePercent.toFixed(1)}%`,
+        monthlyUsage: `${budgetStatus.monthlyUsagePercent.toFixed(1)}%`
       });
     }
 
     return {
       shouldFallback: false,
-      message: 'Budget check passed',
+      message: 'Budget check passed'
     };
   }
 
@@ -136,7 +136,7 @@ export class OpenAIFallbackHandler {
         reason: 'service_unavailable',
         message: 'OpenAI service is temporarily unavailable',
         suggestedAction: 'Service will be retried automatically',
-        retryAfter: this.config.circuitOpenDuration,
+        retryAfter: this.config.circuitOpenDuration
       };
     }
 
@@ -145,13 +145,13 @@ export class OpenAIFallbackHandler {
         shouldFallback: true,
         reason: 'service_unavailable',
         message: 'OpenAI service is experiencing issues',
-        suggestedAction: 'Monitor service health',
+        suggestedAction: 'Monitor service health'
       };
     }
 
     return {
       shouldFallback: false,
-      message: 'Service check passed',
+      message: 'Service check passed'
     };
   }
 
@@ -182,7 +182,7 @@ export class OpenAIFallbackHandler {
       customerName: params.customerName,
       originalMessage: params.originalMessage,
       context: params.context,
-      createdAt: new Date(),
+      createdAt: new Date()
     };
 
     // Store in database
@@ -199,8 +199,8 @@ export class OpenAIFallbackHandler {
           customerName: ticket.customerName,
           originalMessage: ticket.originalMessage,
           context: ticket.context as object,
-          createdAt: ticket.createdAt,
-        },
+          createdAt: ticket.createdAt
+        }
       });
     } catch (error) {
       console.error('[OpenAI Fallback] Failed to create escalation ticket:', error);
@@ -211,7 +211,7 @@ export class OpenAIFallbackHandler {
       ticketId: ticket.id,
       reason: ticket.reason,
       priority: ticket.priority,
-      source: ticket.source,
+      source: ticket.source
     });
 
     return ticket;
@@ -226,8 +226,8 @@ export class OpenAIFallbackHandler {
         where: { id: ticketId },
         data: {
           status: 'assigned',
-          assignedTo: userId,
-        },
+          assignedTo: userId
+        }
       });
       return true;
     } catch {
@@ -246,8 +246,8 @@ export class OpenAIFallbackHandler {
         data: {
           status: 'resolved',
           resolvedAt: new Date(),
-          resolution,
-        },
+          resolution
+        }
       });
       return true;
     } catch {
@@ -264,9 +264,9 @@ export class OpenAIFallbackHandler {
       const tickets = await prisma.aIEscalationTicket.findMany({
         where: {
           organizationId,
-          status: { in: ['pending', 'assigned'] },
+          status: { in: ['pending', 'assigned'] }
         },
-        orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }],
+        orderBy: [{ priority: 'desc' }, { createdAt: 'asc' }]
       });
 
       return tickets.map((t: {
@@ -298,7 +298,7 @@ export class OpenAIFallbackHandler {
         assignedTo: t.assignedTo || undefined,
         createdAt: t.createdAt,
         resolvedAt: t.resolvedAt || undefined,
-        resolution: t.resolution || undefined,
+        resolution: t.resolution || undefined
       }));
     } catch {
       return [];
@@ -313,8 +313,8 @@ export class OpenAIFallbackHandler {
       return await prisma.aIEscalationTicket.count({
         where: {
           ...(organizationId && { organizationId }),
-          status: { in: ['pending', 'assigned'] },
-        },
+          status: { in: ['pending', 'assigned'] }
+        }
       });
     } catch {
       return 0;
@@ -331,11 +331,11 @@ export class OpenAIFallbackHandler {
       const result = await prisma.aIEscalationTicket.updateMany({
         where: {
           status: 'pending',
-          createdAt: { lt: cutoff },
+          createdAt: { lt: cutoff }
         },
         data: {
-          status: 'expired',
-        },
+          status: 'expired'
+        }
       });
       return result.count;
     } catch {
@@ -381,7 +381,7 @@ export class OpenAIFallbackHandler {
       service: serviceStatus,
       budget: budgetStatus,
       pendingEscalations,
-      updatedAt: new Date(),
+      updatedAt: new Date()
     };
   }
 
@@ -392,8 +392,8 @@ export class OpenAIFallbackHandler {
   /**
    * Determine escalation priority based on reason
    */
-  private determinePriority(reason: FallbackReason): EscalationTicket['priority'] {
-    switch (reason) {
+  private determinePriority(_reason: FallbackReason): EscalationTicket['priority'] {
+    switch (_reason) {
       case 'manual_escalation':
         return 'urgent';
       case 'error':
@@ -431,8 +431,8 @@ export class OpenAIFallbackHandler {
   /**
    * Get default escalation message for customers
    */
-  getEscalationMessage(reason: FallbackReason): string {
-    switch (reason) {
+  getEscalationMessage(_reason: FallbackReason): string {
+    switch (_reason) {
       case 'budget_exceeded':
         return (
           'En este momento nuestro asistente virtual está temporalmente no disponible. ' +
@@ -532,7 +532,7 @@ class ServiceMonitor {
       lastErrorMessage: this.lastErrorMessage,
       successRate,
       avgLatency: Math.round(avgLatency),
-      circuitState: this.circuitState,
+      circuitState: this.circuitState
     };
   }
 

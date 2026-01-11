@@ -79,12 +79,12 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 
 export default function PurchaseOrderDetailPage() {
   const params = useParams();
-  const router = useRouter();
+  const _router = useRouter();
   const queryClient = useQueryClient();
   const poId = params.id as string;
 
   const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState<Partial<PurchaseOrder>>({});
+  const [_editData, _setEditData] = useState<Partial<PurchaseOrder>>({});
   const [showReceiveModal, setShowReceiveModal] = useState(false);
   const [receiveQuantities, setReceiveQuantities] = useState<Record<string, number>>({});
 
@@ -105,7 +105,7 @@ export default function PurchaseOrderDetailPage() {
     enabled: isEditing,
   });
 
-  const updateMutation = useMutation({
+  const _updateMutation = useMutation({
     mutationFn: async (data: Partial<PurchaseOrder>) => {
       const res = await fetch('/api/inventory/purchase-orders', {
         method: 'PUT',
@@ -151,7 +151,7 @@ export default function PurchaseOrderDetailPage() {
   });
 
   const order = data?.data?.order as PurchaseOrder | undefined;
-  const suppliers = suppliersData?.data?.suppliers as Supplier[] | undefined;
+  const _suppliers = suppliersData?.data?.suppliers as Supplier[] | undefined;
 
   const handleStatusChange = (newStatus: string) => {
     if (confirm(`¿Cambiar estado a "${PO_STATUS_LABELS[newStatus]}"?`)) {

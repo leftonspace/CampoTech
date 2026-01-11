@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Search, RefreshCw, Plus, Users } from 'lucide-react';
-import { searchMatchesAny, formatRelativeTime } from '@/lib/utils';
+import { searchMatchesAny } from '@/lib/utils';
 import ConversationItem from './ConversationItem';
 
 export interface Conversation {

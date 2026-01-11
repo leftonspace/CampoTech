@@ -6,10 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import {
   ChevronLeft,
   ChevronRight,
-  Users,
-  Check,
-  X,
-  Filter,
+  Users
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CalendarDayModal from './CalendarDayModal';
@@ -62,7 +59,7 @@ const REASON_TO_STATUS: Record<string, string> = {
   'Día personal': 'dayoff',
   'Feriado': 'dayoff',
   'Capacitación': 'available',
-  'Otro': 'dayoff',
+  'Otro': 'dayoff'
 };
 
 // Day names
@@ -73,7 +70,7 @@ interface TeamCalendarProps {
 }
 
 export default function TeamCalendar({ canEdit }: TeamCalendarProps) {
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
@@ -86,24 +83,26 @@ export default function TeamCalendar({ canEdit }: TeamCalendarProps) {
     queryFn: async () => {
       const params = new URLSearchParams({
         month: String(currentMonth.getMonth() + 1),
-        year: String(currentMonth.getFullYear()),
+        year: String(currentMonth.getFullYear())
       });
       const res = await fetch(`/api/employees/schedule/calendar?${params}`);
       if (!res.ok) throw new Error('Error fetching calendar');
       return res.json();
-    },
+    }
   });
 
-  const employees = calendarData?.data?.employees || [];
   const schedules = calendarData?.data?.schedules || [];
   const exceptions = calendarData?.data?.exceptions || [];
 
   // Initialize selected employees to all when data loads
   useMemo(() => {
+    const employees = calendarData?.data?.employees || [];
     if (employees.length > 0 && selectedEmployees.length === 0) {
       setSelectedEmployees(employees.map(e => e.id));
     }
-  }, [employees, selectedEmployees.length]);
+  }, [calendarData?.data?.employees, selectedEmployees.length]);
+
+  const employees = calendarData?.data?.employees || [];
 
   // Navigate months
   const prevMonth = () => {
@@ -158,7 +157,7 @@ export default function TeamCalendar({ canEdit }: TeamCalendarProps) {
           reason: exception.reason,
           startTime: null,
           endTime: null,
-          isException: true,
+          isException: true
         };
       } else {
         return {
@@ -166,7 +165,7 @@ export default function TeamCalendar({ canEdit }: TeamCalendarProps) {
           reason: exception.reason,
           startTime: exception.startTime,
           endTime: exception.endTime,
-          isException: true,
+          isException: true
         };
       }
     }
@@ -182,7 +181,7 @@ export default function TeamCalendar({ canEdit }: TeamCalendarProps) {
         reason: null,
         startTime: schedule.startTime,
         endTime: schedule.endTime,
-        isException: false,
+        isException: false
       };
     }
 
@@ -191,7 +190,7 @@ export default function TeamCalendar({ canEdit }: TeamCalendarProps) {
       reason: null,
       startTime: null,
       endTime: null,
-      isException: false,
+      isException: false
     };
   };
 
@@ -203,7 +202,7 @@ export default function TeamCalendar({ canEdit }: TeamCalendarProps) {
 
     const statuses = filteredEmployees.map(emp => ({
       employee: emp,
-      ...getEmployeeStatusForDay(emp.id, date),
+      ...getEmployeeStatusForDay(emp.id, date)
     }));
 
     // Apply status filter
@@ -224,8 +223,8 @@ export default function TeamCalendar({ canEdit }: TeamCalendarProps) {
         vacation: vacationCount,
         sick: sickCount,
         dayoff: dayoffCount,
-        total: statuses.length,
-      },
+        total: statuses.length
+      }
     };
   };
 
@@ -307,8 +306,8 @@ export default function TeamCalendar({ canEdit }: TeamCalendarProps) {
                 {selectedEmployees.length === employees.length
                   ? 'Todos los empleados'
                   : selectedEmployees.length === 0
-                  ? 'Ninguno seleccionado'
-                  : `${selectedEmployees.length} seleccionado(s)`}
+                    ? 'Ninguno seleccionado'
+                    : `${selectedEmployees.length} seleccionado(s)`}
               </span>
             </button>
 

@@ -4,9 +4,9 @@
  *
  * Metrics collection system with Little's Law calculations for queue analysis.
  *
- * Little's Law: L = λ × W
+ * Little's Law: L = Î» Í— W
  * - L = average number of items in the system (queue depth)
- * - λ = average arrival rate (jobs per second)
+ * - Î» = average arrival rate (jobs per second)
  * - W = average wait time (seconds)
  *
  * Features:
@@ -39,9 +39,9 @@ import {
   dlqKey,
 } from './config';
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Metrics for a single queue tier
@@ -136,9 +136,9 @@ export interface HistoricalMetrics {
   successRate: MetricDataPoint[];
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // REDIS KEYS
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const METRICS_KEYS = {
   // Counters (sliding window)
@@ -168,9 +168,9 @@ const METRICS_WINDOW = 300;
 // Bucket size for time-series (1 minute)
 const BUCKET_SIZE = 60;
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // METRIC RECORDING
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Record a job being enqueued
@@ -197,7 +197,7 @@ export async function recordJobEnqueued(
     // Clean up old entries (keep only last window)
     await cleanupOldMetrics(tier, now);
   } catch (_error) {
-    console.error('[Metrics] Error recording enqueue:', error);
+    console.error('[Metrics] Error recording enqueue:', _error);
   }
 }
 
@@ -264,7 +264,7 @@ export async function recordJobCompleted(
 
     await Promise.all(operations);
   } catch (_error) {
-    console.error('[Metrics] Error recording completion:', error);
+    console.error('[Metrics] Error recording completion:', _error);
   }
 }
 
@@ -286,13 +286,13 @@ export async function recordJobFailed(
       redis.incr(METRICS_KEYS.jobTypeCount(tier, jobType, 'failed')),
     ]);
   } catch (_err) {
-    console.error('[Metrics] Error recording failure:', err);
+    console.error('[Metrics] Error recording failure:', _err);
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // METRIC RETRIEVAL
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Get current queue depth for a tier
@@ -304,7 +304,7 @@ async function getQueueDepth(tier: QueueTier): Promise<number> {
     const depth = await redis.zcard(queueKey(tier));
     return depth;
   } catch (_error) {
-    console.error('[Metrics] Error getting queue depth:', error);
+    console.error('[Metrics] Error getting queue depth:', _error);
     return 0;
   }
 }
@@ -319,7 +319,7 @@ async function getDlqDepth(tier: QueueTier): Promise<number> {
     const depth = await redis.zcard(dlqKey(tier));
     return depth;
   } catch (_error) {
-    console.error('[Metrics] Error getting DLQ depth:', error);
+    console.error('[Metrics] Error getting DLQ depth:', _error);
     return 0;
   }
 }
@@ -337,7 +337,7 @@ async function getWindowCount(key: string, windowMs: number = METRICS_WINDOW * 1
     const count = await redis.zcount(key, windowStart, now);
     return count;
   } catch (_error) {
-    console.error('[Metrics] Error getting window count:', error);
+    console.error('[Metrics] Error getting window count:', _error);
     return 0;
   }
 }
@@ -366,7 +366,7 @@ async function getAverageTiming(key: string, windowMs: number = METRICS_WINDOW *
     const sum = timings.reduce((a: number, b: number) => a + b, 0);
     return Math.round(sum / timings.length);
   } catch (_error) {
-    console.error('[Metrics] Error getting average timing:', error);
+    console.error('[Metrics] Error getting average timing:', _error);
     return 0;
   }
 }
@@ -414,7 +414,7 @@ async function calculateSuccessRate(tier: QueueTier): Promise<number> {
  * Get metrics for a single tier
  */
 async function getTierMetrics(tier: QueueTier): Promise<TierMetrics> {
-  const tierConfig = QUEUE_TIERS[tier];
+  const _tierConfig = QUEUE_TIERS[tier];
 
   // Fetch all metrics in parallel
   const [
@@ -441,8 +441,8 @@ async function getTierMetrics(tier: QueueTier): Promise<TierMetrics> {
 
   const avgLatency = avgWaitTime + avgProcessingTime;
 
-  // Little's Law: L = λ × W
-  // λ = throughput (jobs/second)
+  // Little's Law: L = Î» Í— W
+  // Î» = throughput (jobs/second)
   // W = average latency (seconds)
   const littleLawDepth = throughput * (avgLatency / 1000);
 
@@ -550,9 +550,9 @@ export async function getQueueMetrics(): Promise<QueueMetrics> {
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // LITTLE'S LAW CALCULATIONS
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Little's Law analysis result
@@ -563,7 +563,7 @@ export interface LittleLawAnalysis {
   /** Current observed queue depth */
   observedDepth: number;
 
-  /** Predicted depth from Little's Law (L = λW) */
+  /** Predicted depth from Little's Law (L = Î»W) */
   predictedDepth: number;
 
   /** Current arrival rate (jobs/second) */
@@ -654,9 +654,9 @@ export async function analyzeLittleLaw(tier: QueueTier): Promise<LittleLawAnalys
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // HISTORICAL METRICS
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Get historical metrics for trending
@@ -709,15 +709,15 @@ export async function getHistoricalMetrics(
       });
     }
   } catch (_error) {
-    console.error('[Metrics] Error getting historical metrics:', error);
+    console.error('[Metrics] Error getting historical metrics:', _error);
   }
 
   return metrics;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // UTILITY FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Get time bucket for a timestamp
@@ -788,14 +788,14 @@ export async function resetMetrics(tier: QueueTier): Promise<void> {
     await redis.del(...keys);
     console.log(`[Metrics] Reset metrics for ${tier}`);
   } catch (_error) {
-    console.error('[Metrics] Error resetting metrics:', error);
+    console.error('[Metrics] Error resetting metrics:', _error);
   }
 }
 
 /**
  * Get job type breakdown for a tier
  */
-export async function getJobTypeBreakdown(tier: QueueTier): Promise<
+export async function getJobTypeBreakdown(_tier: QueueTier): Promise<
   Array<{
     jobType: string;
     enqueued: number;

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
 import { formatCurrency, IVA_CONDITION_LABELS } from '@/lib/utils';
@@ -15,7 +15,7 @@ import {
   Calculator,
   AlertCircle,
 } from 'lucide-react';
-import { Customer, InvoiceLineItem } from '@/types';
+import { Customer } from '@/types';
 
 interface LineItemInput {
   id: string;

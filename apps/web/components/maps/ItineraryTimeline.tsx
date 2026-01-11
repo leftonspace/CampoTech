@@ -7,7 +7,6 @@ import {
   Clock,
   MapPin,
   User,
-  Phone,
   ChevronLeft,
   ChevronRight,
   CheckCircle,
@@ -243,7 +242,7 @@ export function ItineraryTimeline({ technicianId, initialDate }: ItineraryTimeli
             {/* Timeline line */}
             <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gray-200" />
 
-            {itinerary.map((job, index) => {
+            {itinerary.map((job, _index) => {
               const config = statusConfig[job.status] || statusConfig.PENDING;
 
               return (

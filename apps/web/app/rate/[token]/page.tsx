@@ -47,7 +47,7 @@ export default function RatingPage() {
         } else {
           setError(result.error || 'Link no válido');
         }
-      } catch (err) {
+      } catch (_err) {
         setError('Error de conexión');
       } finally {
         setLoading(false);
@@ -84,7 +84,7 @@ export default function RatingPage() {
       } else {
         setError(result.error || 'Error al enviar calificación');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Error de conexión');
     } finally {
       setSubmitting(false);
@@ -144,11 +144,10 @@ export default function RatingPage() {
             {[1, 2, 3, 4, 5].map((star) => (
               <Star
                 key={star}
-                className={`h-8 w-8 ${
-                  star <= selectedRating
+                className={`h-8 w-8 ${star <= selectedRating
                     ? 'text-yellow-400 fill-yellow-400'
                     : 'text-gray-300'
-                }`}
+                  }`}
               />
             ))}
           </div>
@@ -242,11 +241,10 @@ export default function RatingPage() {
                 className="p-1 transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded"
               >
                 <Star
-                  className={`h-10 w-10 transition-colors ${
-                    star <= (hoveredRating || selectedRating)
+                  className={`h-10 w-10 transition-colors ${star <= (hoveredRating || selectedRating)
                       ? 'text-yellow-400 fill-yellow-400'
                       : 'text-gray-300 hover:text-yellow-200'
-                  }`}
+                    }`}
                 />
               </button>
             ))}
@@ -293,13 +291,12 @@ export default function RatingPage() {
         <button
           onClick={handleSubmit}
           disabled={submitting || selectedRating === 0}
-          className={`w-full py-3 px-4 rounded-xl font-medium text-white transition-all ${
-            selectedRating === 0
+          className={`w-full py-3 px-4 rounded-xl font-medium text-white transition-all ${selectedRating === 0
               ? 'bg-gray-300 cursor-not-allowed'
               : submitting
-              ? 'bg-primary-400 cursor-wait'
-              : 'bg-primary-600 hover:bg-primary-700 active:scale-[0.98]'
-          }`}
+                ? 'bg-primary-400 cursor-wait'
+                : 'bg-primary-600 hover:bg-primary-700 active:scale-[0.98]'
+            }`}
         >
           {submitting ? (
             <span className="flex items-center justify-center gap-2">

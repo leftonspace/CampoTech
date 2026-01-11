@@ -5,8 +5,6 @@ import {
   Calendar,
   MapPin,
   Receipt,
-  Link as LinkIcon,
-  Wrench,
 } from 'lucide-react';
 
 interface QuickAction {
@@ -30,15 +28,14 @@ export default function QuickActions({
   onScheduleJob,
   onSendLocation,
   onSendInvoice,
-  customActions = [],
-}: QuickActionsProps) {
+  customActions = [] }: QuickActionsProps) {
   const defaultActions: QuickAction[] = [
     {
       id: 'template',
       label: 'Enviar template',
       icon: FileText,
       action: onSendTemplate,
-      color: 'primary',
+      color: 'primary'
     },
   ];
 
@@ -48,7 +45,7 @@ export default function QuickActions({
       label: 'Programar trabajo',
       icon: Calendar,
       action: onScheduleJob,
-      color: 'success',
+      color: 'success'
     });
   }
 
@@ -58,7 +55,7 @@ export default function QuickActions({
       label: 'Enviar ubicacion',
       icon: MapPin,
       action: onSendLocation,
-      color: 'danger',
+      color: 'danger'
     });
   }
 
@@ -68,7 +65,7 @@ export default function QuickActions({
       label: 'Enviar factura',
       icon: Receipt,
       action: onSendInvoice,
-      color: 'warning',
+      color: 'warning'
     });
   }
 

@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -7,18 +9,18 @@ import { cn } from '@/lib/utils';
 // Country codes for phone input - Top 10 most relevant + Other
 // Using ISO country codes for flag images from flagcdn.com
 export const COUNTRY_CODES = [
-  { code: '+54', country: 'Argentina', iso: 'ar', flag: '🇦🇷', maxDigits: 10, placeholder: '11 1234 5678' },
-  { code: '+56', country: 'Chile', iso: 'cl', flag: '🇨🇱', maxDigits: 9, placeholder: '9 1234 5678' },
-  { code: '+598', country: 'Uruguay', iso: 'uy', flag: '🇺🇾', maxDigits: 8, placeholder: '94 123 456' },
-  { code: '+595', country: 'Paraguay', iso: 'py', flag: '🇵🇾', maxDigits: 9, placeholder: '981 123 456' },
-  { code: '+55', country: 'Brasil', iso: 'br', flag: '🇧🇷', maxDigits: 11, placeholder: '11 91234 5678' },
-  { code: '+591', country: 'Bolivia', iso: 'bo', flag: '🇧🇴', maxDigits: 8, placeholder: '7 123 4567' },
-  { code: '+51', country: 'Perú', iso: 'pe', flag: '🇵🇪', maxDigits: 9, placeholder: '912 345 678' },
-  { code: '+57', country: 'Colombia', iso: 'co', flag: '🇨🇴', maxDigits: 10, placeholder: '310 123 4567' },
-  { code: '+52', country: 'México', iso: 'mx', flag: '🇲🇽', maxDigits: 10, placeholder: '55 1234 5678' },
-  { code: '+1', country: 'USA/Canadá', iso: 'us', flag: '🇺🇸', maxDigits: 10, placeholder: '(555) 123-4567' },
+  { code: '+54', country: 'Argentina', iso: 'ar', flag: 'ðŸ‡¦ðŸ‡·', maxDigits: 10, placeholder: '11 1234 5678' },
+  { code: '+56', country: 'Chile', iso: 'cl', flag: 'ðŸ‡¨ðŸ‡±', maxDigits: 9, placeholder: '9 1234 5678' },
+  { code: '+598', country: 'Uruguay', iso: 'uy', flag: 'ðŸ‡ºðŸ‡¾', maxDigits: 8, placeholder: '94 123 456' },
+  { code: '+595', country: 'Paraguay', iso: 'py', flag: 'ðŸ‡µðŸ‡¾', maxDigits: 9, placeholder: '981 123 456' },
+  { code: '+55', country: 'Brasil', iso: 'br', flag: 'ðŸ‡§ðŸ‡·', maxDigits: 11, placeholder: '11 91234 5678' },
+  { code: '+591', country: 'Bolivia', iso: 'bo', flag: 'ðŸ‡§ðŸ‡´', maxDigits: 8, placeholder: '7 123 4567' },
+  { code: '+51', country: 'Perú', iso: 'pe', flag: 'ðŸ‡µðŸ‡ª', maxDigits: 9, placeholder: '912 345 678' },
+  { code: '+57', country: 'Colombia', iso: 'co', flag: 'ðŸ‡¨ðŸ‡´', maxDigits: 10, placeholder: '310 123 4567' },
+  { code: '+52', country: 'México', iso: 'mx', flag: 'ðŸ‡²ðŸ‡½', maxDigits: 10, placeholder: '55 1234 5678' },
+  { code: '+1', country: 'USA/Canadá', iso: 'us', flag: 'ðŸ‡ºðŸ‡¸', maxDigits: 10, placeholder: '(555) 123-4567' },
   // Other option - allows any custom country code
-  { code: 'OTHER', country: 'Otro', iso: 'un', flag: '🌍', maxDigits: 15, placeholder: '123 456 7890' },
+  { code: 'OTHER', country: 'Otro', iso: 'un', flag: '🌍', maxDigits: 15, placeholder: '123 456 7890' },
 ];
 
 // Format phone number based on country code
@@ -130,20 +132,17 @@ export function FlagImage({ iso, size = 20 }: { iso: string; size?: number }) {
         className="flex items-center justify-center rounded-sm"
         style={{ width: size, height: Math.round(size * 0.75), fontSize: size * 0.8 }}
       >
-        🌍
+        🌍
       </span>
     );
   }
 
   return (
-    <img
-      src={`https://flagcdn.com/w${size * 2}/${iso}.png`}
-      srcSet={`https://flagcdn.com/w${size * 3}/${iso}.png 2x`}
+    <Image
+      src={`https://flagcdn.com/w20/${iso.toLowerCase()}.png`}
+      alt={`${iso} flag`}
       width={size}
       height={Math.round(size * 0.75)}
-      alt={iso.toUpperCase()}
-      className="rounded-sm object-cover"
-      style={{ minWidth: size }}
     />
   );
 }
@@ -210,7 +209,7 @@ export default function PhoneInput({
     if (fullPhone !== value && (phone || countryCode !== '+54')) {
       onChange(fullPhone);
     }
-  }, [countryCode, customCountryCode, phone]);
+  }, [countryCode, customCountryCode, phone, onChange, value]);
 
   // Get the actual country code (from list or custom)
   const getActualCountryCode = () => {

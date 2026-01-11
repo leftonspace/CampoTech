@@ -63,7 +63,7 @@ export async function GET() {
   } catch (error) {
     console.error('Get notification defaults error:', error);
     return NextResponse.json(
-      { success: false, error: 'Error obteniendo configuraciÃ³n por defecto' },
+      { success: false, error: 'Error obteniendo configuración por defecto' },
       { status: 500 }
     );
   }
@@ -95,7 +95,7 @@ export async function PUT() {
   } catch (error) {
     console.error('Update notification defaults error:', error);
     return NextResponse.json(
-      { success: false, error: 'Error actualizando configuraciÃ³n por defecto' },
+      { success: false, error: 'Error actualizando configuración por defecto' },
       { status: 500 }
     );
   }
@@ -127,7 +127,7 @@ export async function POST() {
   } catch (error) {
     console.error('Reset notification defaults error:', error);
     return NextResponse.json(
-      { success: false, error: 'Error restableciendo configuraciÃ³n' },
+      { success: false, error: 'Error restableciendo configuración' },
       { status: 500 }
     );
   }

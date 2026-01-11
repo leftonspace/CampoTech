@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
+import Image from 'next/image';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -15,10 +16,8 @@ import {
   Save,
   Shield,
   Wrench,
-  Eye,
   AlertCircle,
   CheckCircle,
-  RefreshCw,
   MessageCircle,
   ChevronDown,
   Check,
@@ -55,18 +54,18 @@ const SKILL_LEVELS = {
 };
 
 const TRADE_SPECIALTIES = {
-  PLOMERO: { label: 'Plomero', icon: '🔧' },
-  ELECTRICISTA: { label: 'Electricista', icon: '⚡' },
-  GASISTA: { label: 'Gasista', icon: '🔥' },
-  CALEFACCIONISTA: { label: 'Calefaccionista', icon: '🌡️' },
-  REFRIGERACION: { label: 'Refrigeración/HVAC', icon: '❄️' },
-  ALBANIL: { label: 'Albañil', icon: '🧱' },
-  PINTOR: { label: 'Pintor', icon: '🎨' },
-  CARPINTERO: { label: 'Carpintero', icon: '🪚' },
-  TECHISTA: { label: 'Techista', icon: '🏠' },
-  HERRERO: { label: 'Herrero', icon: '🔨' },
-  SOLDADOR: { label: 'Soldador', icon: '🔥' },
-  OTRO: { label: 'Otro', icon: '🛠️' },
+  PLOMERO: { label: 'Plomero', icon: 'ðŸ”§' },
+  ELECTRICISTA: { label: 'Electricista', icon: 'âš¡' },
+  GASISTA: { label: 'Gasista', icon: 'ðŸ”¥' },
+  CALEFACCIONISTA: { label: 'Calefaccionista', icon: '🌍¡ï¸' },
+  REFRIGERACION: { label: 'Refrigeración/HVAC', icon: 'â„ï¸' },
+  ALBANIL: { label: 'Albañil', icon: 'ðŸ§±' },
+  PINTOR: { label: 'Pintor', icon: 'ðŸŽ¨' },
+  CARPINTERO: { label: 'Carpintero', icon: 'ðŸªš' },
+  TECHISTA: { label: 'Techista', icon: 'ðŸ ' },
+  HERRERO: { label: 'Herrero', icon: 'ðŸ”¨' },
+  SOLDADOR: { label: 'Soldador', icon: 'ðŸ”¥' },
+  OTRO: { label: 'Otro', icon: 'ðŸ› ï¸' },
 };
 
 const ROLE_CONFIG = {
@@ -105,7 +104,7 @@ export default function TeamSettingsPage() {
   const members = (data?.data as TeamMember[]) || [];
 
   // Fetch pending verifications
-  const { data: pendingData, isLoading: pendingLoading } = useQuery({
+  const { data: pendingData, isLoading: _pendingLoading } = useQuery({
     queryKey: ['pending-verifications'],
     queryFn: async () => {
       const response = await fetch('/api/users/pending-verifications');
@@ -147,7 +146,7 @@ export default function TeamSettingsPage() {
     },
   });
 
-  const [mutationError, setMutationError] = useState<string | null>(null);
+  const [_mutationError, setMutationError] = useState<string | null>(null);
 
   const createMutation = useMutation({
     mutationFn: async (data: Partial<TeamMember>) => {
@@ -422,11 +421,10 @@ export default function TeamSettingsPage() {
                       </td>
                       <td className="whitespace-nowrap px-4 py-3">
                         <span
-                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
-                            member.isActive !== false
-                              ? 'bg-green-50 text-green-600'
-                              : 'bg-gray-50 text-gray-600'
-                          }`}
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${member.isActive !== false
+                            ? 'bg-green-50 text-green-600'
+                            : 'bg-gray-50 text-gray-600'
+                            }`}
                         >
                           {member.isActive !== false ? 'Activo' : 'Inactivo'}
                         </span>
@@ -524,20 +522,17 @@ function FlagImage({ iso, size = 20 }: { iso: string; size?: number }) {
         className="flex items-center justify-center rounded-sm"
         style={{ width: size, height: Math.round(size * 0.75), fontSize: size * 0.8 }}
       >
-        🌍
+        🌍
       </span>
     );
   }
 
   return (
-    <img
-      src={`https://flagcdn.com/w${size * 2}/${iso}.png`}
-      srcSet={`https://flagcdn.com/w${size * 3}/${iso}.png 2x`}
+    <Image
+      src={`https://flagcdn.com/w20/${iso.toLowerCase()}.png`}
+      alt={`${iso} flag`}
       width={size}
       height={Math.round(size * 0.75)}
-      alt={iso.toUpperCase()}
-      className="rounded-sm object-cover"
-      style={{ minWidth: size }}
     />
   );
 }

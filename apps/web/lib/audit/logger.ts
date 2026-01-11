@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Audit Logging Utility
  * Logs all data changes for compliance with Argentine law (Ley 25.326)
  */
@@ -207,7 +207,7 @@ export function createAuditEntryFromRequest(
  */
 export function withAuditLogging<T>(
   handler: (request: Request, context: T) => Promise<Response>,
-  options: {
+  _options: {
     entityType: string;
     getEntityId: (request: Request, context: T) => Promise<string>;
     action: AuditAction;

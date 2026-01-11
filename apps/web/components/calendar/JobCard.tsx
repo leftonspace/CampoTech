@@ -153,13 +153,13 @@ export function JobCard({ event, onClose }: JobCardProps) {
 
   // Visit type info
   const isRecurring = job.durationType === 'RECURRING';
-  const isMultiVisit = job.durationType === 'MULTIPLE_VISITS' || (job.totalVisits && job.totalVisits > 1);
-  const visitNumber = job.visitNumber || 1;
-  const totalVisits = job.totalVisits || 1;
+  const _isMultiVisit = job.durationType === 'MULTIPLE_VISITS' || (job.totalVisits && job.totalVisits > 1);
+  const _visitNumber = job.visitNumber || 1;
+  const _totalVisits = job.totalVisits || 1;
   const isFirstVisit = job.isFirstVisit;
 
   // Visita config info (for multi-config jobs)
-  const visitConfigIndex = job.visitConfigIndex || 1;
+  const _visitConfigIndex = job.visitConfigIndex || 1;
   const totalConfigs = job.totalConfigs || 1;
   const configTotalDates = job.configTotalDates || 1;
   const visitNumberInConfig = job.visitNumberInConfig || 1;
@@ -321,7 +321,7 @@ export function JobCard({ event, onClose }: JobCardProps) {
                 Viendo información de Visita {selectedConfigIndex}
               </p>
               <p className="text-sm text-primary-600">
-                {displayDateRange} • {displayConfigDates} fecha{displayConfigDates > 1 ? 's' : ''}
+                {displayDateRange} Í¢â‚¬Â¢ {displayConfigDates} fecha{displayConfigDates > 1 ? 's' : ''}
               </p>
               {displayStartTime && (
                 <p className="text-sm text-primary-600">

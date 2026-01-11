@@ -30,13 +30,12 @@ export function VehicleSuggestion({
     selectedVehicleId,
     onVehicleSelect,
     onVehicleOverride,
-    className = '',
-}: VehicleSuggestionProps) {
-    const { data, isLoading, refetch } = useVehicleSuggestion({
+    className = '' }: VehicleSuggestionProps) {
+    const { data, isLoading } = useVehicleSuggestion({
         technicianId,
         date,
         time,
-        enabled: !!technicianId && !!date,
+        enabled: !!technicianId && !!date
     });
 
     // If no technician or date selected, don't show anything
@@ -87,8 +86,8 @@ export function VehicleSuggestion({
     return (
         <div
             className={`rounded-lg border ${isSelected
-                    ? 'border-green-300 bg-green-50'
-                    : 'border-blue-200 bg-blue-50'
+                ? 'border-green-300 bg-green-50'
+                : 'border-blue-200 bg-blue-50'
                 } p-3 ${className}`}
         >
             <div className="flex items-start justify-between gap-2">
@@ -152,17 +151,16 @@ export function VehicleSuggestion({
 export function VehicleSuggestionCompact({
     technicianId,
     date,
-    time,
-}: {
-    technicianId: string | null;
-    date: string | null;
-    time?: string | null;
-}) {
+    time }: {
+        technicianId: string | null;
+        date: string | null;
+        time?: string | null;
+    }) {
     const { data, isLoading } = useVehicleSuggestion({
         technicianId,
         date,
         time,
-        enabled: !!technicianId && !!date,
+        enabled: !!technicianId && !!date
     });
 
     if (isLoading || !data?.vehicle) {

@@ -27,7 +27,7 @@ import {
   RefreshCw,
   Briefcase,
   User,
-  AlertTriangle,
+  AlertTriangle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth-context';
@@ -35,7 +35,7 @@ import { useEmployeeVerification } from '@/hooks/useEmployeeVerification';
 import {
   EmployeeRequirementCard,
   EmployeeVerificationFlow,
-  EmployeeBadgesSection,
+  EmployeeBadgesSection
 } from '@/components/verification';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -45,12 +45,11 @@ import {
 function StatusBanner({
   status,
   canBeAssignedJobs,
-  progress,
-}: {
-  status: string;
-  canBeAssignedJobs: boolean;
-  progress: number;
-}) {
+  progress }: {
+    status: string;
+    canBeAssignedJobs: boolean;
+    progress: number;
+  }) {
   const getStatusConfig = () => {
     if (canBeAssignedJobs) {
       return {
@@ -58,7 +57,7 @@ function StatusBanner({
         iconColor: 'text-success-600',
         bgColor: 'bg-success-50 border-success-200',
         title: 'Podés recibir trabajos',
-        subtitle: 'Tu verificación está completa y activa',
+        subtitle: 'Tu verificación está completa y activa'
       };
     }
 
@@ -69,7 +68,7 @@ function StatusBanner({
           iconColor: 'text-success-600',
           bgColor: 'bg-success-50 border-success-200',
           title: 'Verificación completa',
-          subtitle: 'Tu identidad ha sido verificada',
+          subtitle: 'Tu identidad ha sido verificada'
         };
       case 'in_review':
         return {
@@ -77,7 +76,7 @@ function StatusBanner({
           iconColor: 'text-amber-600',
           bgColor: 'bg-amber-50 border-amber-200',
           title: 'Verificación en revisión',
-          subtitle: 'Estamos revisando tu información',
+          subtitle: 'Estamos revisando tu información'
         };
       case 'pending':
         return {
@@ -85,7 +84,7 @@ function StatusBanner({
           iconColor: 'text-blue-600',
           bgColor: 'bg-blue-50 border-blue-200',
           title: 'Verificación en proceso',
-          subtitle: `${progress}% completado`,
+          subtitle: `${progress}% completado`
         };
       case 'suspended':
         return {
@@ -93,7 +92,7 @@ function StatusBanner({
           iconColor: 'text-danger-600',
           bgColor: 'bg-danger-50 border-danger-200',
           title: 'Verificación suspendida',
-          subtitle: 'Hay documentos que necesitan atención',
+          subtitle: 'Hay documentos que necesitan atención'
         };
       default:
         return {
@@ -101,7 +100,7 @@ function StatusBanner({
           iconColor: 'text-gray-600',
           bgColor: 'bg-gray-50 border-gray-200',
           title: 'Completá tu verificación',
-          subtitle: 'Verificá tu identidad para poder recibir trabajos',
+          subtitle: 'Verificá tu identidad para poder recibir trabajos'
         };
     }
   };
@@ -146,8 +145,8 @@ function StatusBanner({
                 progress >= 75
                   ? 'bg-success-500'
                   : progress >= 50
-                  ? 'bg-primary-500'
-                  : 'bg-amber-500'
+                    ? 'bg-primary-500'
+                    : 'bg-amber-500'
               )}
               style={{ width: `${progress}%` }}
             />
@@ -164,11 +163,10 @@ function StatusBanner({
 
 function VerificationAlerts({
   alerts,
-  onAction,
-}: {
-  alerts: Array<{ code: string; name: string; status: string; reason: string }>;
-  onAction: (code: string) => void;
-}) {
+  onAction }: {
+    alerts: Array<{ code: string; name: string; status: string; reason: string }>;
+    onAction: (code: string) => void;
+  }) {
   if (alerts.length === 0) return null;
 
   return (
@@ -253,11 +251,10 @@ export default function MiVerificacionPage() {
     phoneVerified,
     phoneNumber,
     completedSteps,
-    refetch,
-  } = useEmployeeVerification();
+    refetch } = useEmployeeVerification();
 
   const [showVerificationFlow, setShowVerificationFlow] = useState(false);
-  const [selectedRequirement, setSelectedRequirement] = useState<string | null>(null);
+  const [_selectedRequirement, setSelectedRequirement] = useState<string | null>(null);
 
   // Check if user is owner - redirect to owner verification
   if (user?.role?.toUpperCase() === 'OWNER') {

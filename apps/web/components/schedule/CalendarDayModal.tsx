@@ -5,7 +5,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   X,
   Calendar,
-  Clock,
   User,
   Plus,
   Trash2,

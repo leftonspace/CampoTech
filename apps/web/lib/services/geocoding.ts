@@ -22,17 +22,17 @@ interface GeocodingQueueItem {
   priority?: 'high' | 'normal' | 'low';
 }
 
-type GeocodingQueueStatus = 'pending' | 'processing' | 'completed' | 'failed';
+type _GeocodingQueueStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
 // Cache TTL in milliseconds (7 days)
 const CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // SQL INJECTION PROTECTION
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 // Geocoding queue table name constant (prevents accidental modification)
-const GEOCODING_QUEUE_TABLE = 'GeocodingQueue' as const;
+const _GEOCODING_QUEUE_TABLE = 'GeocodingQueue' as const;
 
 // Rate limiting for Nominatim (1 request per second)
 let lastNominatimRequest = 0;
@@ -93,7 +93,7 @@ async function geocodeWithGoogle(
     const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodedAddress}&key=${apiKey}&region=ar`;
 
     const response = await fetch(url, {
-      headers: { 'Accept': 'application/json' },
+      headers: { 'Accept': 'application/json' }
     });
 
     if (!response.ok) {
@@ -109,13 +109,13 @@ async function geocodeWithGoogle(
         lat: result.geometry.location.lat,
         lng: result.geometry.location.lng,
         formattedAddress: result.formatted_address,
-        source: 'google',
+        source: 'google'
       };
     }
 
     return null;
   } catch (_error) {
-    console.error('Google geocoding error:', error);
+    console.error('Google geocoding error:', _error);
     return null;
   }
 }
@@ -140,8 +140,8 @@ async function geocodeWithNominatim(address: string): Promise<GeocodingResult | 
     const response = await fetch(url, {
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'CampoTech/1.0 (field-service-app)',
-      },
+        'User-Agent': 'CampoTech/1.0 (field-service-app)'
+      }
     });
 
     if (!response.ok) {
@@ -157,13 +157,13 @@ async function geocodeWithNominatim(address: string): Promise<GeocodingResult | 
         lat: parseFloat(result.lat),
         lng: parseFloat(result.lon),
         formattedAddress: result.display_name,
-        source: 'nominatim',
+        source: 'nominatim'
       };
     }
 
     return null;
   } catch (_error) {
-    console.error('Nominatim geocoding error:', error);
+    console.error('Nominatim geocoding error:', _error);
     return null;
   }
 }
@@ -178,15 +178,15 @@ async function getCachedGeocode(address: string): Promise<GeocodingResult | null
     const cached = await prisma.etaCache.findFirst({
       where: {
         source: `geocode:${addressHash}`,
-        expiresAt: { gt: new Date() },
-      },
+        expiresAt: { gt: new Date() }
+      }
     });
 
     if (cached) {
       return {
         lat: Number(cached.originLat),
         lng: Number(cached.originLng),
-        source: 'cache',
+        source: 'cache'
       };
     }
 
@@ -211,11 +211,11 @@ async function cacheGeocode(address: string, result: GeocodingResult): Promise<v
         durationMinutes: 0,
         distanceMeters: 0,
         source: `geocode:${addressHash}`,
-        expiresAt: new Date(Date.now() + CACHE_TTL),
-      },
+        expiresAt: new Date(Date.now() + CACHE_TTL)
+      }
     });
   } catch (_error) {
-    console.error('Failed to cache geocode:', error);
+    console.error('Failed to cache geocode:', _error);
   }
 }
 
@@ -254,13 +254,13 @@ export async function batchGeocodeCustomers(
 ): Promise<{ processed: number; success: number; failed: number }> {
   const customers = await prisma.customer.findMany({
     where: {
-      organizationId,
+      organizationId
     },
     select: {
       id: true,
-      address: true,
+      address: true
     },
-    take: limit,
+    take: limit
   });
 
   let success = 0;
@@ -309,13 +309,13 @@ export async function batchGeocodeCustomers(
         ...addr,
         coordinates: {
           lat: result.lat,
-          lng: result.lng,
-        },
+          lng: result.lng
+        }
       };
 
       await prisma.customer.update({
         where: { id: customer.id },
-        data: { address: updatedAddress },
+        data: { address: updatedAddress }
       });
 
       success++;
@@ -331,13 +331,13 @@ export async function batchGeocodeCustomers(
   return {
     processed: customers.length,
     success,
-    failed,
+    failed
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // GEOCODING QUEUE FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Queue an entity for geocoding
@@ -399,7 +399,7 @@ async function processGeocodingImmediately(item: GeocodingQueueItem): Promise<bo
     }
     return true;
   } catch (_error) {
-    console.error('Failed to update coordinates:', error);
+    console.error('Failed to update coordinates:', _error);
     return false;
   }
 }
@@ -477,7 +477,7 @@ export async function processGeocodingQueue(
               break;
           }
         } catch (_err) {
-          console.error('Failed to update entity coordinates:', err);
+          console.error('Failed to update entity coordinates:', _err);
         }
 
         if (updateSuccess) {
@@ -507,15 +507,15 @@ export async function processGeocodingQueue(
     }
   } catch (_error) {
     // Queue table might not exist
-    console.error('Geocoding queue processing error:', error);
+    console.error('Geocoding queue processing error:', _error);
   }
 
   return { processed, success, failed };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // AUTO-GEOCODING HOOKS
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Auto-geocode a customer address
@@ -543,7 +543,7 @@ export async function autoGeocodeCustomer(
     entityId: customerId,
     address: addressString + ', Argentina',
     organizationId,
-    priority: 'high',
+    priority: 'high'
   });
 }
 
@@ -567,13 +567,13 @@ export async function autoGeocodeJob(
     entityId: jobId,
     address: addressString + ', Argentina',
     organizationId,
-    priority: 'high',
+    priority: 'high'
   });
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // COORDINATE UPDATE FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Update customer with geocoded coordinates
@@ -581,7 +581,7 @@ export async function autoGeocodeJob(
 async function updateCustomerCoordinates(customerId: string, lat: number, lng: number): Promise<void> {
   const customer = await prisma.customer.findUnique({
     where: { id: customerId },
-    select: { address: true },
+    select: { address: true }
   });
 
   if (!customer) return;
@@ -594,9 +594,9 @@ async function updateCustomerCoordinates(customerId: string, lat: number, lng: n
       address: {
         ...currentAddress,
         coordinates: { lat, lng },
-        geocodedAt: new Date().toISOString(),
-      },
-    },
+        geocodedAt: new Date().toISOString()
+      }
+    }
   });
 }
 
@@ -608,7 +608,7 @@ async function updateJobCoordinates(jobId: string, lat: number, lng: number): Pr
   // Jobs get coordinates from their customer - update the customer's address
   const job = await prisma.job.findUnique({
     where: { id: jobId },
-    select: { customerId: true },
+    select: { customerId: true }
   });
 
   if (job?.customerId) {
@@ -623,8 +623,8 @@ async function updateLocationCoordinates(locationId: string, lat: number, lng: n
   await prisma.location.update({
     where: { id: locationId },
     data: {
-      coordinates: { lat, lng },
-    },
+      coordinates: { lat, lng }
+    }
   });
 }
 
@@ -653,7 +653,7 @@ export async function setManualCoordinates(
     }
     return true;
   } catch (_error) {
-    console.error('Failed to set manual coordinates:', error);
+    console.error('Failed to set manual coordinates:', _error);
     return false;
   }
 }
@@ -673,7 +673,7 @@ export async function triggerReGeocode(
       case 'customer': {
         const customer = await prisma.customer.findUnique({
           where: { id: entityId },
-          select: { address: true },
+          select: { address: true }
         });
         address = formatAddress(customer?.address);
         break;
@@ -681,7 +681,7 @@ export async function triggerReGeocode(
       case 'job': {
         const job = await prisma.job.findUnique({
           where: { id: entityId },
-          select: { customer: { select: { address: true } } },
+          select: { customer: { select: { address: true } } }
         });
         address = formatAddress(job?.customer?.address);
         break;
@@ -689,7 +689,7 @@ export async function triggerReGeocode(
       case 'location': {
         const location = await prisma.location.findUnique({
           where: { id: entityId },
-          select: { address: true },
+          select: { address: true }
         });
         address = formatAddress(location?.address);
         break;
@@ -705,19 +705,19 @@ export async function triggerReGeocode(
       entityId,
       address: address + ', Argentina',
       organizationId,
-      priority: 'high',
+      priority: 'high'
     });
 
     return true;
   } catch (_error) {
-    console.error('Failed to trigger re-geocode:', error);
+    console.error('Failed to trigger re-geocode:', _error);
     return false;
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // UTILITY FUNCTIONS
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Parse address JSON and extract coordinates
@@ -732,7 +732,7 @@ export function extractCoordinates(address: unknown): { lat: number; lng: number
   if (addr.coordinates?.lat && addr.coordinates?.lng) {
     return {
       lat: addr.coordinates.lat,
-      lng: addr.coordinates.lng,
+      lng: addr.coordinates.lng
     };
   }
 
@@ -772,9 +772,9 @@ export function formatAddress(address: unknown): string {
   return parts.join(', ');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // LOCATION HISTORY CLEANUP
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 /**
  * Delete old location history records
@@ -788,15 +788,15 @@ export async function cleanupOldLocationHistory(daysToKeep: number = 30): Promis
     const result = await prisma.technicianLocationHistory.deleteMany({
       where: {
         recordedAt: {
-          lt: cutoffDate,
-        },
-      },
+          lt: cutoffDate
+        }
+      }
     });
 
     console.log(`Deleted ${result.count} old location history records`);
     return result.count;
   } catch (_error) {
-    console.error('Failed to cleanup location history:', error);
+    console.error('Failed to cleanup location history:', _error);
     return 0;
   }
 }
@@ -819,7 +819,7 @@ export async function cleanupOldGeocodingQueue(daysToKeep: number = 7): Promise<
     return result as number;
   } catch (_error) {
     // Table might not exist
-    console.error('Failed to cleanup geocoding queue:', error);
+    console.error('Failed to cleanup geocoding queue:', _error);
     return 0;
   }
 }

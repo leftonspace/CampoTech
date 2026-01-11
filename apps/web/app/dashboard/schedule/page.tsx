@@ -8,7 +8,6 @@ import {
   Clock,
   Plus,
   X,
-  Save,
   AlertCircle,
   ChevronLeft,
   ChevronRight,
@@ -348,7 +347,7 @@ export default function SchedulePage() {
   };
 
   // Get exceptions for current month view
-  const getMonthExceptions = () => {
+  const _getMonthExceptions = () => {
     const year = currentMonth.getFullYear();
     const month = currentMonth.getMonth();
     return exceptions.filter((e) => {
@@ -358,7 +357,7 @@ export default function SchedulePage() {
   };
 
   // Format date for display
-  const formatDate = (dateStr: string) => {
+  const _formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
   };

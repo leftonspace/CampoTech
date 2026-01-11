@@ -9,7 +9,6 @@ import {
   Edit3,
   Save,
   X,
-  RefreshCw,
   Info,
 } from 'lucide-react';
 

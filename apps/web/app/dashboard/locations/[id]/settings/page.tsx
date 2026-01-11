@@ -1,10 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, Save, Clock, FileText, DollarSign, Bell } from 'lucide-react';
+import { ArrowLeft, Save, Clock, FileText, DollarSign } from 'lucide-react';
 
 interface LocationSettings {
   operatingHours?: Record<string, { open: string; close: string; closed?: boolean }>;
@@ -174,9 +174,8 @@ export default function LocationSettingsPage() {
 
       {message && (
         <div
-          className={`rounded-lg p-4 ${
-            message.type === 'success' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
-          }`}
+          className={`rounded-lg p-4 ${message.type === 'success' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'
+            }`}
         >
           {message.text}
         </div>
@@ -187,33 +186,30 @@ export default function LocationSettingsPage() {
         <nav className="flex gap-4">
           <button
             onClick={() => setActiveTab('hours')}
-            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'hours'
+            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'hours'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+              }`}
           >
             <Clock className="h-4 w-4" />
             Horarios
           </button>
           <button
             onClick={() => setActiveTab('capacity')}
-            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'capacity'
+            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'capacity'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+              }`}
           >
             <DollarSign className="h-4 w-4" />
             Capacidad y precios
           </button>
           <button
             onClick={() => setActiveTab('afip')}
-            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === 'afip'
+            className={`flex items-center gap-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'afip'
                 ? 'border-primary-600 text-primary-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+              }`}
           >
             <FileText className="h-4 w-4" />
             AFIP

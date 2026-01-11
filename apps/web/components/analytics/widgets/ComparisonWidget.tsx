@@ -8,7 +8,7 @@
  * Displays comparison between two periods or values.
  */
 
-import { ArrowRight, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import TrendIndicator from './TrendIndicator';
 
 interface ComparisonWidgetProps {

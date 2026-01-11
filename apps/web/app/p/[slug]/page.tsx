@@ -1,7 +1,6 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
-import { generateBusinessProfileWhatsAppLink } from '@/lib/whatsapp-links';
 import {
   Star,
   MapPin,
@@ -239,8 +238,8 @@ export default async function PublicBusinessProfilePage({ params }: PageProps) {
                               <Star
                                 key={i}
                                 className={`h-4 w-4 ${i < (review.rating || 0)
-                                    ? 'fill-yellow-400 text-yellow-400'
-                                    : 'text-gray-300'
+                                  ? 'fill-yellow-400 text-yellow-400'
+                                  : 'text-gray-300'
                                   }`}
                               />
                             ))}

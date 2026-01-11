@@ -21,7 +21,6 @@ import {
   Circle,
   Clock,
   AlertTriangle,
-  X,
   ChevronDown,
   ChevronUp,
   Sparkles,
@@ -70,8 +69,8 @@ function ChecklistItem({ step, isNext }: ChecklistItemProps) {
         isComplete
           ? 'text-gray-400'
           : isNext
-          ? 'bg-primary-50 text-primary-900'
-          : 'hover:bg-gray-50 text-gray-700'
+            ? 'bg-primary-50 text-primary-900'
+            : 'hover:bg-gray-50 text-gray-700'
       )}
     >
       {/* Icon */}
@@ -141,10 +140,10 @@ function ProgressBar({ progress, label }: ProgressBarProps) {
             progress === 100
               ? 'bg-success-500'
               : progress >= 70
-              ? 'bg-primary-500'
-              : progress >= 40
-              ? 'bg-amber-500'
-              : 'bg-gray-400'
+                ? 'bg-primary-500'
+                : progress >= 40
+                  ? 'bg-amber-500'
+                  : 'bg-gray-400'
           )}
           style={{ width: `${progress}%` }}
         />

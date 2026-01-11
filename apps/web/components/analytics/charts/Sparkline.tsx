@@ -106,7 +106,7 @@ export function SparklineWithValue({
   ...sparklineProps
 }: SparklineWithValueProps) {
   const displayValue = typeof value === 'number' ? formatValue(value) : value;
-  const trendColor = trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-gray-500';
+  const _trendColor = trend === 'up' ? 'text-green-600' : trend === 'down' ? 'text-red-600' : 'text-gray-500';
 
   return (
     <div className="flex items-center gap-2">

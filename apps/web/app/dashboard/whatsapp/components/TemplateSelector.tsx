@@ -6,9 +6,6 @@ import {
   X,
   Search,
   FileText,
-  CheckCircle,
-  Clock,
-  XCircle,
   ChevronRight,
   Send,
 } from 'lucide-react';
@@ -53,17 +50,16 @@ export default function TemplateSelector({
     enabled: isOpen,
   });
 
-  const templates = (data?.data || []) as Template[];
-
   // Filter templates
   const filteredTemplates = useMemo(() => {
+    const templates = (data?.data || []) as Template[];
     return templates.filter((t) => {
       const matchesSearch = !searchQuery || searchMatches(t.name, searchQuery);
       const matchesStatus = t.status === 'APPROVED';
       const matchesCategory = categoryFilter === 'all' || t.category === categoryFilter;
       return matchesSearch && matchesStatus && matchesCategory;
     });
-  }, [templates, searchQuery, categoryFilter]);
+  }, [data?.data, searchQuery, categoryFilter]);
 
   // Extract variables from template
   const extractVariables = (template: Template): string[] => {
@@ -207,11 +203,10 @@ export default function TemplateSelector({
                   <button
                     key={cat}
                     onClick={() => setCategoryFilter(cat)}
-                    className={`px-3 py-1 text-xs rounded-full ${
-                      categoryFilter === cat
+                    className={`px-3 py-1 text-xs rounded-full ${categoryFilter === cat
                         ? 'bg-primary-100 text-primary-700'
                         : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
+                      }`}
                   >
                     {cat === 'all' && 'Todos'}
                     {cat === 'UTILITY' && 'Utilidad'}

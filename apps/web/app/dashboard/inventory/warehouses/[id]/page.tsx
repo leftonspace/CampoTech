@@ -4,19 +4,17 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { cn, formatCurrency } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import {
   ArrowLeft,
   Edit2,
   Save,
   X,
-  Warehouse,
   MapPin,
   Phone,
   Mail,
   Package,
   AlertTriangle,
-  CheckCircle,
   Trash2,
   BarChart3,
 } from 'lucide-react';

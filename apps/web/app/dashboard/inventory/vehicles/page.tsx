@@ -8,9 +8,7 @@ import {
   Search,
   Truck,
   Package,
-  User,
   AlertTriangle,
-  CheckCircle,
   RefreshCw,
   ChevronRight,
 } from 'lucide-react';

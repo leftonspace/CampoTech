@@ -18,7 +18,7 @@ import {
   Zap,
   UserPlus,
   CalendarPlus,
-  UserCheck,
+  UserCheck
 } from 'lucide-react';
 
 export interface Message {
@@ -69,20 +69,6 @@ function MessageStatus({ status }: { status: string }) {
   }
 }
 
-function InboundMessageStatus({ status }: { status: string }) {
-  switch (status) {
-    case 'sent':
-      return <Check className="h-3.5 w-3.5 text-gray-400" />;
-    case 'delivered':
-      return <CheckCheck className="h-3.5 w-3.5 text-gray-400" />;
-    case 'read':
-      return <CheckCheck className="h-3.5 w-3.5 text-teal-500" />;
-    case 'failed':
-      return <AlertCircle className="h-3.5 w-3.5 text-red-500" />;
-    default:
-      return <Clock className="h-3.5 w-3.5 text-gray-400" />;
-  }
-}
 
 export default function MessageBubble({ message, onImageClick, onMediaDownload }: MessageBubbleProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -93,7 +79,7 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
   const formatTime = (timestamp: string) => {
     return new Date(timestamp).toLocaleTimeString('es-AR', {
       hour: '2-digit',
-      minute: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -212,11 +198,7 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
         return (
           <div className="w-32 h-32">
             {message.mediaUrl ? (
-              <img
-                src={message.mediaUrl}
-                alt="Sticker"
-                className="w-full h-full object-contain"
-              />
+              <img src={message.mediaUrl} alt="Sticker" className="w-full h-full object-contain" />
             ) : (
               <div className="w-full h-full bg-gray-100 rounded-lg flex items-center justify-center text-2xl">
                 <span role="img" aria-label="sticker">{message.content}</span>
@@ -293,10 +275,9 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
                 <Bot className="h-3 w-3" />
                 <span>AI</span>
                 {message.aiConfidence && (
-                  <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] ${
-                    message.aiConfidence >= 80 ? 'bg-green-400/30' :
+                  <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] ${message.aiConfidence >= 80 ? 'bg-green-400/30' :
                     message.aiConfidence >= 50 ? 'bg-yellow-400/30' : 'bg-red-400/30'
-                  }`}>
+                    }`}>
                     {message.aiConfidence}%
                   </span>
                 )}
@@ -317,9 +298,8 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
 
         {/* Template badge */}
         {message.type === 'template' && (
-          <div className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full mb-2 ${
-            isOutbound ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'
-          }`}>
+          <div className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full mb-2 ${isOutbound ? 'bg-white/20 text-white' : 'bg-gray-200 text-gray-600'
+            }`}>
             <FileText className="h-3 w-3" />
             Template
           </div>
@@ -342,9 +322,9 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // AI ACTION MESSAGE COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 interface AIActionMessageProps {
   message: Message;
@@ -365,7 +345,7 @@ const AI_ACTION_CONFIG: Record<string, {
     borderColor: 'border-emerald-200',
     iconBg: 'bg-emerald-100',
     iconColor: 'text-emerald-600',
-    title: 'Cliente Creado',
+    title: 'Cliente Creado'
   },
   job_created: {
     icon: CalendarPlus,
@@ -373,7 +353,7 @@ const AI_ACTION_CONFIG: Record<string, {
     borderColor: 'border-blue-200',
     iconBg: 'bg-blue-100',
     iconColor: 'text-blue-600',
-    title: 'Turno Creado',
+    title: 'Turno Creado'
   },
   technician_assigned: {
     icon: UserCheck,
@@ -381,7 +361,7 @@ const AI_ACTION_CONFIG: Record<string, {
     borderColor: 'border-indigo-200',
     iconBg: 'bg-indigo-100',
     iconColor: 'text-indigo-600',
-    title: 'Técnico Asignado',
+    title: 'Técnico Asignado'
   },
   schedule_confirmed: {
     icon: Check,
@@ -389,7 +369,7 @@ const AI_ACTION_CONFIG: Record<string, {
     borderColor: 'border-green-200',
     iconBg: 'bg-green-100',
     iconColor: 'text-green-600',
-    title: 'Turno Confirmado',
+    title: 'Turno Confirmado'
   },
   suggestion: {
     icon: Sparkles,
@@ -397,7 +377,7 @@ const AI_ACTION_CONFIG: Record<string, {
     borderColor: 'border-purple-200',
     iconBg: 'bg-purple-100',
     iconColor: 'text-purple-600',
-    title: 'Sugerencia de IA',
+    title: 'Sugerencia de IA'
   },
   conflict_detected: {
     icon: AlertCircle,
@@ -405,7 +385,7 @@ const AI_ACTION_CONFIG: Record<string, {
     borderColor: 'border-amber-200',
     iconBg: 'bg-amber-100',
     iconColor: 'text-amber-600',
-    title: 'Conflicto Detectado',
+    title: 'Conflicto Detectado'
   },
   price_quoted: {
     icon: Zap,
@@ -413,8 +393,8 @@ const AI_ACTION_CONFIG: Record<string, {
     borderColor: 'border-teal-200',
     iconBg: 'bg-teal-100',
     iconColor: 'text-teal-600',
-    title: 'Precio Informado',
-  },
+    title: 'Precio Informado'
+  }
 };
 
 function AIActionMessage({ message, formatTime }: AIActionMessageProps) {
@@ -432,7 +412,7 @@ function AIActionMessage({ message, formatTime }: AIActionMessageProps) {
     const dateStr = new Date(metadata.scheduledDate).toLocaleDateString('es-AR', {
       weekday: 'short',
       day: 'numeric',
-      month: 'short',
+      month: 'short'
     });
     details.push(`Fecha: ${dateStr}${metadata.scheduledTime ? ` ${metadata.scheduledTime}` : ''}`);
   }

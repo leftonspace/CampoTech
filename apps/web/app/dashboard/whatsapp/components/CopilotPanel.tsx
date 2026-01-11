@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   X,
   Bot,
@@ -17,13 +17,12 @@ import {
   CheckCircle,
   Sparkles,
   Loader2,
-  ChevronDown,
 } from 'lucide-react';
 import type { Conversation, Message } from './index';
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 interface CopilotMessage {
   id: string;
@@ -51,9 +50,9 @@ interface CopilotPanelProps {
   onSuggestReply?: (text: string) => void;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // QUICK ACTIONS
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const QUICK_ACTIONS = [
   { id: 'create-job', icon: Clipboard, label: 'Crear trabajo' },
@@ -62,9 +61,9 @@ const QUICK_ACTIONS = [
   { id: 'check-schedule', icon: Calendar, label: 'Ver agenda' },
 ];
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // MAIN COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export default function CopilotPanel({
   isOpen,
@@ -97,7 +96,7 @@ export default function CopilotPanel({
       };
       setCopilotMessages([welcomeMessage]);
     }
-  }, [conversation?.id]);
+  }, [conversation, copilotMessages.length]);
 
   // Reset messages when conversation changes
   useEffect(() => {
@@ -232,7 +231,7 @@ export default function CopilotPanel({
           role: 'assistant',
           content: result.success
             ? `✅ ${result.confirmation_message}`
-            : `❌ Error: ${result.error}`,
+            : `âŒ Error: ${result.error}`,
           type: result.success ? 'action_result' : 'warning',
           timestamp: new Date(),
         };
@@ -242,7 +241,7 @@ export default function CopilotPanel({
         const errorMessage: CopilotMessage = {
           id: `error-${Date.now()}`,
           role: 'assistant',
-          content: '❌ Error al crear el trabajo. Por favor intentá de nuevo.',
+          content: 'âŒ Error al crear el trabajo. Por favor intentá de nuevo.',
           type: 'warning',
           timestamp: new Date(),
         };
@@ -411,9 +410,9 @@ export default function CopilotPanel({
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // MESSAGE BUBBLE COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 interface CopilotMessageBubbleProps {
   message: CopilotMessage;
@@ -458,12 +457,11 @@ function CopilotMessageBubble({ message, onActionClick }: CopilotMessageBubblePr
   return (
     <div className={`flex items-start gap-2 ${isUser ? 'flex-row-reverse' : ''}`}>
       {!isUser && (
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-          message.type === 'suggestion' ? 'bg-blue-100' :
-          message.type === 'warning' ? 'bg-amber-100' :
-          message.type === 'action_result' ? 'bg-green-100' :
-          'bg-gray-100'
-        }`}>
+        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${message.type === 'suggestion' ? 'bg-blue-100' :
+            message.type === 'warning' ? 'bg-amber-100' :
+              message.type === 'action_result' ? 'bg-green-100' :
+                'bg-gray-100'
+          }`}>
           {getIcon()}
         </div>
       )}
@@ -478,13 +476,12 @@ function CopilotMessageBubble({ message, onActionClick }: CopilotMessageBubblePr
               <button
                 key={action.id}
                 onClick={() => onActionClick(action)}
-                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
-                  action.variant === 'primary'
+                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${action.variant === 'primary'
                     ? 'bg-teal-500 text-white hover:bg-teal-600'
                     : action.variant === 'secondary'
-                    ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                    : 'text-teal-600 hover:bg-teal-50'
-                }`}
+                      ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                      : 'text-teal-600 hover:bg-teal-50'
+                  }`}
               >
                 {action.label}
               </button>

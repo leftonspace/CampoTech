@@ -29,7 +29,7 @@ import type {
   AccountStatus,
   UsageStats,
   TemplateComponent,
-  Dialog360Config,
+  Dialog360Config
 } from './types';
 
 import {
@@ -37,17 +37,17 @@ import {
   DIALOG360_PARTNER_API_BASE_URL,
   type CreateChannelRequest,
   type CreateChannelResponse,
-  type Channel,
+
   type AvailableNumber,
   type SendMessageRequest,
   type SendMessageResponse,
   type Dialog360Error,
   type WebhookPayload,
   type WebhookMessage,
-  type WebhookStatus,
+
   type PhoneInfo,
   type BusinessProfile,
-  type BusinessProfileResponse,
+  type BusinessProfileResponse
 } from './dialog360.types';
 
 import crypto from 'crypto';
@@ -87,8 +87,8 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${this.config.apiKey}`,
-          'Content-Type': 'application/json',
-        },
+          'Content-Type': 'application/json'
+        }
       });
 
       if (!response.ok) {
@@ -109,7 +109,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
         monthlyCost: num.monthlyCostCents
           ? { amount: num.monthlyCostCents / 100, currency: num.currency || 'USD' }
           : undefined,
-        metadata: { source: '360dialog' },
+        metadata: { source: '360dialog' }
       }));
     } catch (error) {
       console.error('[Dialog360] Error fetching available numbers:', error);
@@ -124,14 +124,14 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
       // Get organization details for the channel name
       const org = await prisma.organization.findUnique({
         where: { id: organizationId },
-        select: { name: true },
+        select: { name: true }
       });
 
       if (!org) {
         return {
           success: false,
           status: 'NOT_STARTED',
-          error: 'Organization not found',
+          error: 'Organization not found'
         };
       }
 
@@ -143,7 +143,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
       const createRequest: CreateChannelRequest = {
         name: org.name,
         phone: phoneNumber,
-        webhookUrl,
+        webhookUrl
       };
 
       const response = await fetch(
@@ -152,9 +152,9 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${this.config.apiKey}`,
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify(createRequest),
+          body: JSON.stringify(createRequest)
         }
       );
 
@@ -164,7 +164,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
         return {
           success: false,
           status: 'NOT_STARTED',
-          error: error.error?.message || 'Failed to provision number',
+          error: error.error?.message || 'Failed to provision number'
         };
       }
 
@@ -180,7 +180,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           accessToken: channel.apiKey, // Channel-specific API key
           bspProvider: 'DIALOG_360',
           bspAccountId: channel.id,
-          provisioningStatus: channel.status === 'active' ? 'ACTIVE' : 'VERIFICATION_PENDING',
+          provisioningStatus: channel.status === 'active' ? 'ACTIVE' : 'VERIFICATION_PENDING'
         },
         update: {
           phoneNumberId: channel.phoneNumberId || channel.id,
@@ -188,16 +188,16 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           accessToken: channel.apiKey,
           bspProvider: 'DIALOG_360',
           bspAccountId: channel.id,
-          provisioningStatus: channel.status === 'active' ? 'ACTIVE' : 'VERIFICATION_PENDING',
-        },
+          provisioningStatus: channel.status === 'active' ? 'ACTIVE' : 'VERIFICATION_PENDING'
+        }
       });
 
       // Update organization's integration type
       await prisma.organization.update({
         where: { id: organizationId },
         data: {
-          whatsappIntegrationType: 'BSP_API',
-        },
+          whatsappIntegrationType: 'BSP_API'
+        }
       });
 
       return {
@@ -209,15 +209,15 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
         nextStep: channel.status === 'pending' ? 'VERIFY_CODE' : undefined,
         providerData: {
           channelId: channel.id,
-          wabaId: channel.wabaId,
-        },
+          wabaId: channel.wabaId
+        }
       };
     } catch (error) {
       console.error('[Dialog360] Error provisioning number:', error);
       return {
         success: false,
         status: 'NOT_STARTED',
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }
@@ -229,7 +229,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
       // Get the WhatsApp business account
       const account = await prisma.whatsAppBusinessAccount.findUnique({
         where: { organizationId },
-        select: { bspAccountId: true },
+        select: { bspAccountId: true }
       });
 
       if (!account?.bspAccountId) {
@@ -243,8 +243,8 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
         {
           method: 'DELETE',
           headers: {
-            'Authorization': `Bearer ${this.config.apiKey}`,
-          },
+            'Authorization': `Bearer ${this.config.apiKey}`
+          }
         }
       );
 
@@ -259,15 +259,15 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
         where: { organizationId },
         data: {
           provisioningStatus: 'RELEASED',
-          bspAccountId: null,
-        },
+          bspAccountId: null
+        }
       });
 
       await prisma.organization.update({
         where: { id: organizationId },
         data: {
-          whatsappIntegrationType: 'NONE',
-        },
+          whatsappIntegrationType: 'NONE'
+        }
       });
     } catch (error) {
       console.error('[Dialog360] Error releasing number:', error);
@@ -289,7 +289,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
       // Get channel info
       const account = await prisma.whatsAppBusinessAccount.findUnique({
         where: { organizationId },
-        select: { bspAccountId: true, accessToken: true },
+        select: { bspAccountId: true, accessToken: true }
       });
 
       if (!account?.bspAccountId) {
@@ -305,12 +305,12 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           method: 'POST',
           headers: {
             'D360-API-KEY': account.accessToken!,
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             code_method: 'SMS',
-            phone_number: ownerPhone,
-          }),
+            phone_number: ownerPhone
+          })
         }
       );
 
@@ -325,8 +325,8 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
         data: {
           verificationCode: null,
           verificationExpiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-          provisioningStatus: 'VERIFICATION_PENDING',
-        },
+          provisioningStatus: 'VERIFICATION_PENDING'
+        }
       });
 
       return { success: true };
@@ -342,7 +342,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
 
       const account = await prisma.whatsAppBusinessAccount.findUnique({
         where: { organizationId },
-        select: { bspAccountId: true, accessToken: true },
+        select: { bspAccountId: true, accessToken: true }
       });
 
       if (!account?.bspAccountId) {
@@ -356,9 +356,9 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           method: 'POST',
           headers: {
             'D360-API-KEY': account.accessToken!,
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ code }),
+          body: JSON.stringify({ code })
         }
       );
 
@@ -368,7 +368,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           success: false,
           status: 'VERIFICATION_PENDING',
           error: error.error?.message || 'Invalid verification code',
-          ready: false,
+          ready: false
         };
       }
 
@@ -379,14 +379,14 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           provisioningStatus: 'VERIFIED',
           verificationCode: null,
           verificationExpiresAt: null,
-          provisionedAt: new Date(),
-        },
+          provisionedAt: new Date()
+        }
       });
 
       return {
         success: true,
         status: 'VERIFIED',
-        ready: true,
+        ready: true
       };
     } catch (error) {
       console.error('[Dialog360] Error verifying code:', error);
@@ -394,7 +394,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
         success: false,
         status: 'VERIFICATION_PENDING',
         error: error instanceof Error ? error.message : 'Unknown error',
-        ready: false,
+        ready: false
       };
     }
   }
@@ -415,13 +415,13 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           success: false,
           error: usageCheck.reason || 'Límite de mensajes alcanzado',
           errorCode: 'LIMIT_REACHED',
-          retryable: false,
+          retryable: false
         };
       }
 
       const account = await prisma.whatsAppBusinessAccount.findUnique({
         where: { organizationId },
-        select: { accessToken: true, provisioningStatus: true },
+        select: { accessToken: true, provisioningStatus: true }
       });
 
       if (!account?.accessToken) {
@@ -439,9 +439,9 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
         method: 'POST',
         headers: {
           'D360-API-KEY': account.accessToken,
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(messageRequest),
+        body: JSON.stringify(messageRequest)
       });
 
       if (!response.ok) {
@@ -451,7 +451,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           success: false,
           error: error.error?.message || 'Failed to send message',
           errorCode: String(error.error?.code),
-          retryable: error.error?.code === 429 || error.error?.code >= 500,
+          retryable: error.error?.code === 429 || error.error?.code >= 500
         };
       }
 
@@ -460,20 +460,20 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
       // Increment message count
       await prisma.whatsAppBusinessAccount.update({
         where: { organizationId },
-        data: { monthlyMessageCount: { increment: 1 } },
+        data: { monthlyMessageCount: { increment: 1 } }
       });
 
       return {
         success: true,
         messageId: result.messages[0]?.id,
-        waMessageId: result.messages[0]?.id,
+        waMessageId: result.messages[0]?.id
       };
     } catch (error) {
       console.error('[Dialog360] Error sending message:', error);
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        retryable: true,
+        retryable: true
       };
     }
   }
@@ -492,15 +492,15 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
         type: 'template',
         name: templateName,
         language,
-        components,
-      },
+        components
+      }
     });
   }
 
   private buildMessageRequest(message: OutboundMessage): SendMessageRequest {
     const baseRequest: SendMessageRequest = {
       to: message.to,
-      type: 'text',
+      type: 'text'
     };
 
     if (message.replyTo) {
@@ -514,8 +514,8 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           type: 'text',
           text: {
             body: message.content.body,
-            preview_url: message.content.previewUrl,
-          },
+            preview_url: message.content.previewUrl
+          }
         };
 
       case 'template':
@@ -527,7 +527,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
             name: message.content.name,
             language: {
               code: message.content.language,
-              policy: 'deterministic',
+              policy: 'deterministic'
             },
             components: message.content.components?.map((c) => ({
               type: c.type,
@@ -540,10 +540,10 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
                 date_time: p.date_time,
                 image: p.image,
                 document: p.document,
-                video: p.video,
-              })),
-            })),
-          },
+                video: p.video
+              }))
+            }))
+          }
         };
 
       case 'interactive':
@@ -554,12 +554,12 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
             type: message.content.interactiveType,
             header: message.content.header
               ? {
-                  type: message.content.header.type,
-                  text: message.content.header.text,
-                  image: message.content.header.image,
-                  video: message.content.header.video,
-                  document: message.content.header.document,
-                }
+                type: message.content.header.type,
+                text: message.content.header.text,
+                image: message.content.header.image,
+                video: message.content.header.video,
+                document: message.content.header.document
+              }
               : undefined,
             body: { text: message.content.body },
             footer: message.content.footer ? { text: message.content.footer } : undefined,
@@ -567,10 +567,10 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
               buttons: message.content.buttons,
               sections: message.content.sections?.map((s) => ({
                 title: s.title,
-                rows: s.rows,
-              })),
-            },
-          },
+                rows: s.rows
+              }))
+            }
+          }
         };
 
       case 'media':
@@ -584,8 +584,8 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
             caption: message.content.caption,
             ...(mediaType === 'document' && message.content.filename
               ? { filename: message.content.filename }
-              : {}),
-          },
+              : {})
+          }
         };
 
       default:
@@ -602,7 +602,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
     return {
       url: `${baseUrl}/api/webhooks/dialog360?orgId=${organizationId}`,
       verifyToken: this.config.webhookSecret || '',
-      secret: this.config.webhookSecret,
+      secret: this.config.webhookSecret
     };
   }
 
@@ -662,8 +662,8 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
               : undefined,
             metadata: {
               phoneNumberId: value.metadata.phone_number_id,
-              displayPhoneNumber: value.metadata.display_phone_number,
-            },
+              displayPhoneNumber: value.metadata.display_phone_number
+            }
           };
         }
       }
@@ -700,11 +700,11 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
             timestamp: new Date(parseInt(status.timestamp) * 1000),
             error: status.errors?.[0]
               ? {
-                  code: String(status.errors[0].code),
-                  title: status.errors[0].title,
-                  message: status.errors[0].message,
-                }
-              : undefined,
+                code: String(status.errors[0].code),
+                title: status.errors[0].title,
+                message: status.errors[0].message
+              }
+              : undefined
           };
         }
       }
@@ -728,7 +728,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
       contacts: 'contacts',
       reaction: 'reaction',
       button: 'button',
-      interactive: 'interactive',
+      interactive: 'interactive'
     };
     return typeMap[type] || 'text';
   }
@@ -744,7 +744,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           id: msg.image!.id,
           mimeType: msg.image!.mime_type,
           sha256: msg.image!.sha256,
-          caption: msg.image!.caption,
+          caption: msg.image!.caption
         };
 
       case 'video':
@@ -753,7 +753,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           id: msg.video!.id,
           mimeType: msg.video!.mime_type,
           sha256: msg.video!.sha256,
-          caption: msg.video!.caption,
+          caption: msg.video!.caption
         };
 
       case 'audio':
@@ -762,7 +762,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           id: msg.audio!.id,
           mimeType: msg.audio!.mime_type,
           sha256: msg.audio!.sha256,
-          voice: msg.audio!.voice,
+          voice: msg.audio!.voice
         };
 
       case 'document':
@@ -772,7 +772,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           mimeType: msg.document!.mime_type,
           sha256: msg.document!.sha256,
           filename: msg.document!.filename,
-          caption: msg.document!.caption,
+          caption: msg.document!.caption
         };
 
       case 'sticker':
@@ -780,7 +780,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           type: 'sticker',
           id: msg.sticker!.id,
           mimeType: msg.sticker!.mime_type,
-          animated: msg.sticker!.animated,
+          animated: msg.sticker!.animated
         };
 
       case 'location':
@@ -789,7 +789,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           latitude: msg.location!.latitude,
           longitude: msg.location!.longitude,
           name: msg.location!.name,
-          address: msg.location!.address,
+          address: msg.location!.address
         };
 
       case 'contacts':
@@ -798,29 +798,29 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           contacts:
             msg.contacts?.map((c) => ({
               name: { formatted_name: c.name.formatted_name },
-              phones: c.phones?.map((p) => ({ phone: p.phone })),
-            })) || [],
+              phones: c.phones?.map((p) => ({ phone: p.phone }))
+            })) || []
         };
 
       case 'reaction':
         return {
           type: 'reaction',
           messageId: msg.reaction!.message_id,
-          emoji: msg.reaction!.emoji,
+          emoji: msg.reaction!.emoji
         };
 
       case 'button':
         return {
           type: 'button',
           payload: msg.button!.payload,
-          text: msg.button!.text,
+          text: msg.button!.text
         };
 
       case 'interactive':
         return {
           type: 'interactive',
           buttonReply: msg.interactive?.button_reply,
-          listReply: msg.interactive?.list_reply,
+          listReply: msg.interactive?.list_reply
         };
 
       default:
@@ -843,14 +843,14 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           displayPhoneNumber: true,
           accessToken: true,
           provisioningStatus: true,
-          bspAccountId: true,
-        },
+          bspAccountId: true
+        }
       });
 
       if (!account) {
         return {
           active: false,
-          provisioningStatus: 'NOT_STARTED',
+          provisioningStatus: 'NOT_STARTED'
         };
       }
 
@@ -862,8 +862,8 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
             `${this.wabaApiUrl}/v1/settings/business/profile`,
             {
               headers: {
-                'D360-API-KEY': account.accessToken,
-              },
+                'D360-API-KEY': account.accessToken
+              }
             }
           );
 
@@ -884,19 +884,19 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
         provisioningStatus: account.provisioningStatus as AccountStatus['provisioningStatus'],
         phoneNumber: account.displayPhoneNumber
           ? {
-              id: account.phoneNumberId!,
-              number: account.displayPhoneNumber,
-              displayNumber: account.displayPhoneNumber,
-            }
+            id: account.phoneNumberId!,
+            number: account.displayPhoneNumber,
+            displayNumber: account.displayPhoneNumber
+          }
           : undefined,
         qualityRating: phoneInfo?.quality_rating,
-        messagingTier: phoneInfo?.messaging_limit_tier,
+        messagingTier: phoneInfo?.messaging_limit_tier
       };
     } catch (error) {
       console.error('[Dialog360] Error getting account status:', error);
       return {
         active: false,
-        provisioningStatus: 'NOT_STARTED',
+        provisioningStatus: 'NOT_STARTED'
       };
     }
   }
@@ -913,11 +913,11 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           organization: {
             select: {
               subscription: {
-                select: { tier: true },
-              },
-            },
-          },
-        },
+                select: { tier: true }
+              }
+            }
+          }
+        }
       });
 
       // Get message counts from database
@@ -931,15 +931,15 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           where: {
             conversation: { organizationId },
             direction: 'OUTBOUND',
-            createdAt: { gte: periodStart },
-          },
+            createdAt: { gte: periodStart }
+          }
         }),
         prisma.whatsAppMessage.count({
           where: {
             conversation: { organizationId },
             direction: 'INBOUND',
-            createdAt: { gte: periodStart },
-          },
+            createdAt: { gte: periodStart }
+          }
         }),
       ]);
 
@@ -959,8 +959,8 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           monthlyMessages: monthlyLimit,
           used,
           remaining: Math.max(0, monthlyLimit - used),
-          percentUsed: monthlyLimit > 0 ? (used / monthlyLimit) * 100 : 0,
-        },
+          percentUsed: monthlyLimit > 0 ? (used / monthlyLimit) * 100 : 0
+        }
       };
     } catch (error) {
       console.error('[Dialog360] Error getting usage stats:', error);
@@ -976,8 +976,8 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           monthlyMessages: 0,
           used: 0,
           remaining: 0,
-          percentUsed: 0,
-        },
+          percentUsed: 0
+        }
       };
     }
   }
@@ -988,7 +988,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
       INICIAL: 0,
       PROFESIONAL: 1000,
       EMPRESARIAL: 5000,
-      ENTERPRISE: 50000,
+      ENTERPRISE: 50000
     };
     return limits[tier] || 0;
   }
@@ -1006,7 +1006,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
 
       const account = await prisma.whatsAppBusinessAccount.findUnique({
         where: { organizationId },
-        select: { accessToken: true, provisioningStatus: true },
+        select: { accessToken: true, provisioningStatus: true }
       });
 
       if (!account?.accessToken) {
@@ -1019,8 +1019,8 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           method: 'GET',
           headers: {
             'D360-API-KEY': account.accessToken,
-            'Content-Type': 'application/json',
-          },
+            'Content-Type': 'application/json'
+          }
         }
       );
 
@@ -1050,7 +1050,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
 
       const account = await prisma.whatsAppBusinessAccount.findUnique({
         where: { organizationId },
-        select: { accessToken: true, provisioningStatus: true },
+        select: { accessToken: true, provisioningStatus: true }
       });
 
       if (!account?.accessToken) {
@@ -1080,7 +1080,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
 
       // Build the update payload - only include fields that are provided
       const updatePayload: Record<string, unknown> = {
-        messaging_product: 'whatsapp',
+        messaging_product: 'whatsapp'
       };
 
       if (profile.about !== undefined) updatePayload.about = profile.about;
@@ -1096,9 +1096,9 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
           method: 'POST',
           headers: {
             'D360-API-KEY': account.accessToken,
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify(updatePayload),
+          body: JSON.stringify(updatePayload)
         }
       );
 
@@ -1107,7 +1107,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
         console.error('[Dialog360] Failed to update business profile:', error);
         return {
           success: false,
-          error: error.error?.message || 'Failed to update business profile',
+          error: error.error?.message || 'Failed to update business profile'
         };
       }
 
@@ -1117,7 +1117,7 @@ export class Dialog360Provider implements WhatsAppBSPProvider {
       console.error('[Dialog360] Error updating business profile:', error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
   }

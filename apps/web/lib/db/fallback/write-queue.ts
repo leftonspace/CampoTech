@@ -29,7 +29,6 @@ import {
   WriteOperationType,
   WriteQueueStats,
   WriteQueueResult,
-  WriteQueueStatus,
   DbHealthStatus,
 } from './types';
 
@@ -164,7 +163,7 @@ export class WriteQueueManager {
     const avgTime =
       this.stats.processingTimes.length > 0
         ? this.stats.processingTimes.reduce((a, b) => a + b, 0) /
-          this.stats.processingTimes.length
+        this.stats.processingTimes.length
         : 1000;
 
     return {
@@ -492,7 +491,7 @@ export class WriteQueueManager {
     const avgTime =
       this.stats.processingTimes.length > 0
         ? this.stats.processingTimes.reduce((a, b) => a + b, 0) /
-          this.stats.processingTimes.length
+        this.stats.processingTimes.length
         : 0;
 
     return {

@@ -6,7 +6,6 @@ import {
   Search,
   X,
   ChevronDown,
-  MapPin,
 } from 'lucide-react';
 
 export interface MapFilters {

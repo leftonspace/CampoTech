@@ -6,11 +6,9 @@ import Link from 'next/link';
 import { cn, formatCurrency } from '@/lib/utils';
 import {
   Plus,
-  Warehouse,
   MapPin,
   Package,
   ChevronRight,
-  Settings,
   X,
   Building2,
   Truck,

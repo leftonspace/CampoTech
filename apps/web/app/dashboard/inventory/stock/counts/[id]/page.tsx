@@ -9,11 +9,8 @@ import {
   ArrowLeft,
   Play,
   CheckCircle,
-  XCircle,
   Save,
   Package,
-  AlertTriangle,
-  Clock,
 } from 'lucide-react';
 
 interface InventoryCount {
@@ -186,7 +183,7 @@ export default function InventoryCountDetailPage() {
   const totalItems = count.items.length;
   const progress = totalItems > 0 ? Math.round((countedItems / totalItems) * 100) : 0;
 
-  const hasVariances = count.items.some(
+  const _hasVariances = count.items.some(
     (i) => countedQuantities[i.id] !== undefined && countedQuantities[i.id] !== i.expectedQty
   );
 

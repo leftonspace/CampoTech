@@ -9,7 +9,7 @@ import { prisma } from '@/lib/prisma';
 import { dispatch } from '@/lib/queue';
 import {
   generateWhatsAppLink,
-  WhatsAppMessageTemplates,
+  WhatsAppMessageTemplates
 } from '@/lib/whatsapp-links';
 import { formatDate } from '@/lib/utils';
 
@@ -23,7 +23,7 @@ interface NotificationOptions {
 /**
  * Get the WhatsApp configuration for an organization
  */
-async function getOrgWhatsAppConfig(organizationId: string) {
+async function _getOrgWhatsAppConfig(organizationId: string) {
   const org = await prisma.organization.findUnique({
     where: { id: organizationId },
     select: {
@@ -31,8 +31,8 @@ async function getOrgWhatsAppConfig(organizationId: string) {
       whatsappPersonalNumber: true,
       whatsappPhoneNumberId: true,
       whatsappAccessToken: true,
-      name: true,
-    },
+      name: true
+    }
   });
 
   if (!org) return null;
@@ -47,7 +47,7 @@ async function getOrgWhatsAppConfig(organizationId: string) {
     hasBspApi,
     hasPersonalNumber,
     canSendMessages: hasBspApi, // Only BSP can send messages programmatically
-    businessName: org.name,
+    businessName: org.name
   };
 }
 
@@ -62,8 +62,8 @@ async function getJobDetails(jobId: string) {
         select: {
           id: true,
           name: true,
-          phone: true,
-        },
+          phone: true
+        }
       },
       organization: {
         select: {
@@ -73,15 +73,15 @@ async function getJobDetails(jobId: string) {
           whatsappIntegrationType: true,
           whatsappPersonalNumber: true,
           whatsappPhoneNumberId: true,
-          whatsappAccessToken: true,
-        },
+          whatsappAccessToken: true
+        }
       },
       technician: {
         select: {
           id: true,
           name: true,
-          phone: true,
-        },
+          phone: true
+        }
       },
       assignments: {
         include: {
@@ -89,12 +89,12 @@ async function getJobDetails(jobId: string) {
             select: {
               id: true,
               name: true,
-              phone: true,
-            },
-          },
-        },
-      },
-    },
+              phone: true
+            }
+          }
+        }
+      }
+    }
   });
 }
 
@@ -173,7 +173,7 @@ export async function onJobStatusChange(
         // Add rating link if available
         const review = await prisma.review.findFirst({
           where: { jobId },
-          select: { token: true },
+          select: { token: true }
         });
 
         if (review?.token) {
@@ -200,7 +200,7 @@ export async function onJobStatusChange(
         {
           to: customerPhone,
           message,
-          organizationId: job.organizationId,
+          organizationId: job.organizationId
         },
         { priority: 1 } // high priority
       );
@@ -251,7 +251,7 @@ export async function onJobAssigned(
         {
           to: technician.phone,
           message,
-          organizationId: job.organizationId,
+          organizationId: job.organizationId
         },
         { priority: 5 } // normal priority
       );

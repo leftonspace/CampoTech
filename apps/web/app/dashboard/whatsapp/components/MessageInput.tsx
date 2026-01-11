@@ -6,7 +6,7 @@ import {
   Paperclip,
   Clock,
   FileText,
-  Image,
+  Image as ImageIcon,
   Mic,
 } from 'lucide-react';
 import { EmojiButton } from './EmojiPicker';
@@ -164,7 +164,7 @@ export default function MessageInput({
                   onClick={() => handleFileSelect('image')}
                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                 >
-                  <Image className="h-4 w-4 text-primary-500" />
+                  <ImageIcon className="h-4 w-4 text-primary-500" />
                   Imagen
                 </button>
                 <button

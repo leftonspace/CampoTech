@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { cn, formatCurrency, formatRelativeTime } from '@/lib/utils';
+import { cn, formatRelativeTime } from '@/lib/utils';
 import {
   Search,
   ArrowUpDown,
@@ -12,11 +12,8 @@ import {
   Filter,
   Package,
   Warehouse,
-  Calendar,
   FileText,
   ArrowLeftRight,
-  Building2,
-  Truck,
 } from 'lucide-react';
 import { QuickTransferModal } from '@/components/inventory/QuickTransferModal';
 
@@ -289,7 +286,7 @@ export default function StockPage() {
 }
 
 function StockLevelsView({ warehouseId }: { warehouseId: string }) {
-  const { data, isLoading } = useQuery({
+  const { data: _data, isLoading } = useQuery({
     queryKey: ['stock-levels', warehouseId],
     queryFn: async () => {
       const params = new URLSearchParams({ view: 'levels' });

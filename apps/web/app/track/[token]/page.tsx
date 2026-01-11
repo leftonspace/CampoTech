@@ -51,7 +51,7 @@ export default function TrackingPage() {
   const [loading, setLoading] = useState(true);
 
   // Fetch tracking data
-  const fetchTrackingData = async () => {
+  const fetchTrackingData = useCallback(async () => {
     try {
       const response = await fetch(`/api/tracking/${token}`);
       const result = await response.json();
@@ -62,12 +62,12 @@ export default function TrackingPage() {
       } else {
         setError(result.error || 'Error al cargar datos');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Error de conexión');
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
 
   useEffect(() => {
     fetchTrackingData();
@@ -75,7 +75,7 @@ export default function TrackingPage() {
     // Poll every 10 seconds for updates
     const interval = setInterval(fetchTrackingData, 10000);
     return () => clearInterval(interval);
-  }, [token]);
+  }, [fetchTrackingData]);
 
   if (loading) {
     return (

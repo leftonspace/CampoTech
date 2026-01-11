@@ -78,7 +78,7 @@ async function fetchChangeRequests(): Promise<ListResponse> {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export default function ChangeRequestListPage() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error: _error } = useQuery({
     queryKey: ['change-requests'],
     queryFn: fetchChangeRequests,
   });

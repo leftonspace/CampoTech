@@ -21,12 +21,10 @@ import {
     Trash2,
     Truck,
     Building2,
-    Package,
-    AlertTriangle,
     Check,
     RefreshCw,
     Info,
-    X,
+    X
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -47,12 +45,7 @@ interface SelectedMaterial {
     quantity: number;
 }
 
-interface Vehicle {
-    id: string;
-    plateNumber: string;
-    make: string;
-    model: string;
-}
+
 
 interface Warehouse {
     id: string;
@@ -84,8 +77,7 @@ export function JobMaterialUsagePanel({
     jobId,
     onSuccess,
     onError,
-    className = '',
-}: JobMaterialUsagePanelProps) {
+    className = '' }: JobMaterialUsagePanelProps) {
     const queryClient = useQueryClient();
 
     // Product search and selection state
@@ -105,7 +97,7 @@ export function JobMaterialUsagePanel({
             const res = await fetch(`/api/inventory/products?search=${encodeURIComponent(searchQuery)}&limit=10`);
             return res.json();
         },
-        enabled: searchQuery.length >= 2,
+        enabled: searchQuery.length >= 2
     });
 
     // Fetch warehouses for manual selection
@@ -115,7 +107,7 @@ export function JobMaterialUsagePanel({
             const res = await fetch('/api/inventory/warehouses');
             return res.json();
         },
-        enabled: useManualSelection && manualSource === 'warehouse',
+        enabled: useManualSelection && manualSource === 'warehouse'
     });
 
     // Submit mutation
@@ -124,7 +116,7 @@ export function JobMaterialUsagePanel({
             const payload: Record<string, unknown> = {
                 action: 'useCascade',
                 jobId,
-                items: selectedMaterials.map((m) => ({ productId: m.productId, quantity: m.quantity })),
+                items: selectedMaterials.map((m) => ({ productId: m.productId, quantity: m.quantity }))
             };
 
             if (useManualSelection) {
@@ -140,7 +132,7 @@ export function JobMaterialUsagePanel({
             const res = await fetch('/api/inventory/job-materials', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
+                body: JSON.stringify(payload)
             });
 
             return res.json();
@@ -156,7 +148,7 @@ export function JobMaterialUsagePanel({
         },
         onError: (error) => {
             onError?.(error instanceof Error ? error.message : 'Error desconocido');
-        },
+        }
     });
 
     const products = (productsData?.data || []) as Product[];

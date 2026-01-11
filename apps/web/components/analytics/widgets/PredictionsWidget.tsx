@@ -11,7 +11,6 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   TrendingUp,
-  TrendingDown,
   AlertTriangle,
   Users,
   DollarSign,

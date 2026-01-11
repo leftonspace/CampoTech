@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+
 /**
  * Selfie Verification Flow Component
  * ===================================
@@ -23,16 +25,16 @@ import {
   Upload,
   Loader2,
   AlertCircle,
-  CheckCircle,
+  CheckCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { DocumentUpload } from './DocumentUpload';
 import { SelfieCapture } from './SelfieCapture';
-import { DocumentViewer } from './DocumentViewer';
 
-// ═══════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 
 export interface SelfieVerificationProps {
   /** User ID for the verification */
@@ -66,66 +68,65 @@ interface StepData {
 
 type Step = 'dni_front' | 'dni_back' | 'selfie' | 'review' | 'submitting' | 'complete';
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 
 const STEP_CONFIG = {
   dni_front: {
     title: 'Foto del DNI (Frente)',
     description: 'Subí una foto clara del frente de tu DNI',
-    icon: CreditCard,
+    icon: CreditCard
   },
   dni_back: {
     title: 'Foto del DNI (Dorso)',
     description: 'Subí una foto clara del dorso de tu DNI',
-    icon: CreditCard,
+    icon: CreditCard
   },
   selfie: {
     title: 'Selfie con DNI',
     description: 'Tomate una selfie sosteniendo tu DNI junto a tu rostro',
-    icon: Camera,
+    icon: Camera
   },
   review: {
     title: 'Revisar y enviar',
     description: 'Verificá que las fotos sean claras y legibles',
-    icon: Check,
+    icon: Check
   },
   submitting: {
     title: 'Enviando...',
     description: 'Subiendo tus documentos para verificación',
-    icon: Upload,
+    icon: Upload
   },
   complete: {
     title: 'Verificación enviada',
     description: 'Tu verificación ha sido enviada correctamente',
-    icon: CheckCircle,
-  },
+    icon: CheckCircle
+  }
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 
 export function SelfieVerification({
   userId,
   onComplete,
   onCancel,
   requireDniBack = false,
-  className,
-}: SelfieVerificationProps) {
+  className }: SelfieVerificationProps) {
   const [currentStep, setCurrentStep] = useState<Step>('dni_front');
   const [stepData, setStepData] = useState<StepData>({
     dniFront: { blob: null, path: null },
     dniBack: { blob: null, path: null },
-    selfie: { blob: null, path: null },
+    selfie: { blob: null, path: null }
   });
   const [error, setError] = useState<string | null>(null);
-  const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  const [_sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).slice(2)}`);
 
-  // ─────────────────────────────────────────────────────────────────────────────
+  // Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬
   // STEP NAVIGATION
-  // ─────────────────────────────────────────────────────────────────────────────
+  // Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬
 
   const steps = useMemo(() => {
     const baseSteps: Step[] = ['dni_front'];
@@ -133,6 +134,12 @@ export function SelfieVerification({
     baseSteps.push('selfie', 'review');
     return baseSteps;
   }, [requireDniBack]);
+
+  // Create blob URL for selfie preview
+  const selfiePreviewUrl = useMemo(() => {
+    if (!stepData.selfie.blob) return null;
+    return URL.createObjectURL(stepData.selfie.blob);
+  }, [stepData.selfie.blob]);
 
   const currentStepIndex = steps.indexOf(currentStep);
 
@@ -150,6 +157,57 @@ export function SelfieVerification({
     setCurrentStep(steps[currentStepIndex - 1]);
   }, [canGoBack, steps, currentStepIndex]);
 
+  // Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬
+  // SUBMISSION
+  // Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬
+
+  const submitVerification = useCallback(async () => {
+    setCurrentStep('submitting');
+    setError(null);
+
+    try {
+      // Upload selfie if we have a blob (not yet uploaded)
+      if (stepData.selfie.blob && !stepData.selfie.path) {
+        const formData = new FormData();
+        formData.append('file', stepData.selfie.blob, 'selfie.jpg');
+        formData.append('requirementCode', 'identity_selfie');
+        if (userId) formData.append('userId', userId);
+
+        const response = await fetch('/api/verification/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          throw new Error(result.error || 'Error al subir selfie');
+        }
+
+        setStepData((prev) => ({
+          ...prev,
+          selfie: { ...prev.selfie, path: result.path }
+        }));
+      }
+
+      // All uploads complete
+      setCurrentStep('complete');
+
+      onComplete?.({
+        success: true,
+        paths: {
+          dniFront: stepData.dniFront.path || undefined,
+          dniBack: stepData.dniBack.path || undefined,
+          selfie: stepData.selfie.path || undefined
+        }
+      });
+    } catch (err) {
+      console.error('Verification submission error:', err);
+      setError(err instanceof Error ? err.message : 'Error al enviar verificación');
+      setCurrentStep('review'); // Go back to review on error
+    }
+  }, [stepData, userId, onComplete]);
+
   const goNext = useCallback(() => {
     if (!canGoNext) return;
     if (currentStep === 'review') {
@@ -157,11 +215,11 @@ export function SelfieVerification({
     } else {
       setCurrentStep(steps[currentStepIndex + 1]);
     }
-  }, [canGoNext, currentStep, steps, currentStepIndex]);
+  }, [canGoNext, currentStep, steps, currentStepIndex, submitVerification]);
 
-  // ─────────────────────────────────────────────────────────────────────────────
+  // â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€
   // DNI UPLOAD HANDLING
-  // ─────────────────────────────────────────────────────────────────────────────
+  // â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€â€ââ€â€â€â€â€â€â€â€â€â€ââ€â€ââ€
 
   const handleDniUpload = useCallback(
     (type: 'dniFront' | 'dniBack') => (result: { submissionId: string; path?: string }) => {
@@ -171,8 +229,8 @@ export function SelfieVerification({
         ...prev,
         [type]: {
           blob: null, // We don't have the blob after server upload
-          path: result.path || null,
-        },
+          path: result.path || null
+        }
       }));
 
       // Auto-advance to next step
@@ -189,75 +247,24 @@ export function SelfieVerification({
     [requireDniBack]
   );
 
-  // ─────────────────────────────────────────────────────────────────────────────
+  // Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬
   // SELFIE HANDLING
-  // ─────────────────────────────────────────────────────────────────────────────
+  // Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬
 
   const handleSelfieCapture = useCallback(async (blob: Blob) => {
     // Store the blob for preview
     setStepData((prev) => ({
       ...prev,
-      selfie: { blob, path: null },
+      selfie: { blob, path: null }
     }));
 
     // Advance to review
     setCurrentStep('review');
   }, []);
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // SUBMISSION
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  const submitVerification = useCallback(async () => {
-    setCurrentStep('submitting');
-    setError(null);
-
-    try {
-      // Upload selfie if we have a blob (not yet uploaded)
-      if (stepData.selfie.blob && !stepData.selfie.path) {
-        const formData = new FormData();
-        formData.append('file', stepData.selfie.blob, 'selfie.jpg');
-        formData.append('requirementCode', 'identity_selfie');
-        if (userId) formData.append('userId', userId);
-
-        const response = await fetch('/api/verification/upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        const result = await response.json();
-
-        if (!response.ok || !result.success) {
-          throw new Error(result.error || 'Error al subir selfie');
-        }
-
-        setStepData((prev) => ({
-          ...prev,
-          selfie: { ...prev.selfie, path: result.path },
-        }));
-      }
-
-      // All uploads complete
-      setCurrentStep('complete');
-
-      onComplete?.({
-        success: true,
-        paths: {
-          dniFront: stepData.dniFront.path || undefined,
-          dniBack: stepData.dniBack.path || undefined,
-          selfie: stepData.selfie.path || undefined,
-        },
-      });
-    } catch (err) {
-      console.error('Verification submission error:', err);
-      setError(err instanceof Error ? err.message : 'Error al enviar verificación');
-      setCurrentStep('review'); // Go back to review on error
-    }
-  }, [stepData, userId, onComplete]);
-
-  // ─────────────────────────────────────────────────────────────────────────────
+  // Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬
   // RENDER HELPERS
-  // ─────────────────────────────────────────────────────────────────────────────
+  // Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬
 
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center gap-2 mb-6">
@@ -269,8 +276,8 @@ export function SelfieVerification({
               index < currentStepIndex
                 ? 'bg-success-500 text-white'
                 : index === currentStepIndex
-                ? 'bg-primary-600 text-white'
-                : 'bg-gray-200 text-gray-500'
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-gray-200 text-gray-500'
             )}
           >
             {index < currentStepIndex ? (
@@ -368,15 +375,17 @@ export function SelfieVerification({
             )}
 
             {/* Selfie preview */}
-            {stepData.selfie.blob && (
+            {selfiePreviewUrl && (
               <div className="border rounded-lg overflow-hidden">
                 <div className="bg-gray-50 px-3 py-2 border-b">
                   <span className="text-sm font-medium text-gray-700">Selfie con DNI</span>
                 </div>
-                <img
-                  src={URL.createObjectURL(stepData.selfie.blob)}
-                  alt="Selfie"
-                  className="w-full h-40 object-cover"
+                <Image
+                  src={selfiePreviewUrl}
+                  alt="Selfie con DNI"
+                  width={400}
+                  height={300}
+                  className="w-full h-auto"
                 />
               </div>
             )}
@@ -407,9 +416,9 @@ export function SelfieVerification({
     );
   };
 
-  // ─────────────────────────────────────────────────────────────────────────────
+  // Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬
   // MAIN RENDER
-  // ─────────────────────────────────────────────────────────────────────────────
+  // Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬Í¢â€â‚¬
 
   return (
     <div className={cn('bg-white rounded-lg shadow-sm p-6', className)}>

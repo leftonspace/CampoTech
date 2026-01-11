@@ -126,14 +126,18 @@ export function BulkEmployeeVerificationView({ className }: { className?: string
     },
   });
 
-  const employees = data?.data || [];
   const summary = data?.summary;
 
   // Get pending employees for bulk action
   const pendingEmployees = useMemo(
-    () => employees.filter((e) => !e.canBeAssignedJobs),
-    [employees]
+    () => {
+      const employees = data?.data || [];
+      return employees.filter((e) => !e.canBeAssignedJobs);
+    },
+    [data?.data]
   );
+
+  const employees = data?.data || [];
 
   // Toggle selection
   const toggleSelection = (id: string) => {
@@ -229,10 +233,10 @@ export function BulkEmployeeVerificationView({ className }: { className?: string
                 filter.key === 'all'
                   ? summary?.total
                   : filter.key === 'verified'
-                  ? summary?.verified
-                  : filter.key === 'pending'
-                  ? summary?.pending
-                  : summary?.blocked;
+                    ? summary?.verified
+                    : filter.key === 'pending'
+                      ? summary?.pending
+                      : summary?.blocked;
 
               return (
                 <button

@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { cn, formatAddress } from '@/lib/utils';
+import { formatAddress } from '@/lib/utils';
 import {
   ArrowLeft,
   Building2,
@@ -13,7 +13,6 @@ import {
   Settings,
   Phone,
   Mail,
-  Edit,
   Trash2,
   CheckCircle,
   XCircle,

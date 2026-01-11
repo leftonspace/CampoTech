@@ -16,8 +16,7 @@
 import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, Truck, Plus, Calendar, Clock, Repeat, Trash2, Edit2, Check, X, AlertTriangle } from 'lucide-react';
-import Link from 'next/link';
+import { ArrowLeft, Truck, Plus, Calendar, Repeat, Trash2, X, AlertTriangle } from 'lucide-react';
 
 // Days of week configuration (0=Sunday, 6=Saturday)
 const DAYS_OF_WEEK = [
@@ -65,7 +64,7 @@ export default function VehicleSchedulePage() {
     const userId = params.id as string;
 
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [editingSchedule, setEditingSchedule] = useState<VehicleSchedule | null>(null);
+    const [_editingSchedule, setEditingSchedule] = useState<VehicleSchedule | null>(null);
     const [error, setError] = useState('');
 
     // Fetch user info
@@ -138,7 +137,7 @@ export default function VehicleSchedulePage() {
     const dateRangeSchedules = schedules.filter(s => s.scheduleType === 'DATE_RANGE');
     const recurringSchedules = schedules.filter(s => s.scheduleType === 'RECURRING');
 
-    const getScheduleTypeLabel = (type: ScheduleType) => {
+    const _getScheduleTypeLabel = (type: ScheduleType) => {
         switch (type) {
             case 'PERMANENT': return 'Predeterminado';
             case 'DATE_RANGE': return 'Por fechas';
@@ -353,7 +352,7 @@ export default function VehicleSchedulePage() {
 // Create Schedule Modal Component
 function CreateScheduleModal({
     vehicles,
-    userId,
+    userId: _userId,
     onClose,
     onSubmit,
     isLoading,

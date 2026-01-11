@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   X,
   Phone,
@@ -13,8 +14,7 @@ import {
   ChevronRight,
   ExternalLink,
   Truck,
-  CheckCircle,
-  AlertCircle,
+  CheckCircle
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 import { TechnicianLocation } from './LiveTechnicianMap';
@@ -36,32 +36,32 @@ const specialtyLabels: Record<string, string> = {
   TECHISTA: 'Techista',
   HERRERO: 'Herrero',
   SOLDADOR: 'Soldador',
-  OTRO: 'Otro',
+  OTRO: 'Otro'
 };
 
 const skillLabels: Record<string, string> = {
   AYUDANTE: 'Ayudante',
   MEDIO_OFICIAL: 'Medio Oficial',
   OFICIAL: 'Oficial',
-  OFICIAL_ESPECIALIZADO: 'Oficial Especializado',
+  OFICIAL_ESPECIALIZADO: 'Oficial Especializado'
 };
 
 const statusColors: Record<string, { bg: string; text: string; icon: React.ReactNode }> = {
   EN_ROUTE: {
     bg: 'bg-blue-100',
     text: 'text-blue-700',
-    icon: <Truck className="h-4 w-4" />,
+    icon: <Truck className="h-4 w-4" />
   },
   IN_PROGRESS: {
     bg: 'bg-amber-100',
     text: 'text-amber-700',
-    icon: <CheckCircle className="h-4 w-4" />,
+    icon: <CheckCircle className="h-4 w-4" />
   },
   ASSIGNED: {
     bg: 'bg-purple-100',
     text: 'text-purple-700',
-    icon: <Briefcase className="h-4 w-4" />,
-  },
+    icon: <Briefcase className="h-4 w-4" />
+  }
 };
 
 function formatAddress(address: unknown): string {
@@ -79,7 +79,7 @@ function formatAddress(address: unknown): string {
 }
 
 export function TechnicianPanel({ technician, onClose }: TechnicianPanelProps) {
-  const [showItinerary, setShowItinerary] = useState(false);
+  const [_showItinerary, setShowItinerary] = useState(false);
 
   const statusInfo = technician.currentJob?.status
     ? statusColors[technician.currentJob.status]
@@ -105,9 +105,11 @@ export function TechnicianPanel({ technician, onClose }: TechnicianPanelProps) {
           <div className="flex items-center gap-3">
             <div className="relative">
               {technician.avatar ? (
-                <img
+                <Image
                   src={technician.avatar}
                   alt={technician.name}
+                  width={56}
+                  height={56}
                   className="h-14 w-14 rounded-full object-cover"
                 />
               ) : (
@@ -117,9 +119,8 @@ export function TechnicianPanel({ technician, onClose }: TechnicianPanelProps) {
               )}
               {/* Online indicator */}
               <div
-                className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-white ${
-                  technician.isOnline ? 'bg-green-500' : 'bg-gray-400'
-                }`}
+                className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full border-2 border-white ${technician.isOnline ? 'bg-green-500' : 'bg-gray-400'
+                  }`}
               />
             </div>
             <div className="flex-1">

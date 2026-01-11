@@ -23,7 +23,7 @@ import {
   FileText,
   X,
   ArrowRight,
-  RefreshCw,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAccessStatus, type BlockReason } from '@/hooks/useAccessStatus';
@@ -64,22 +64,22 @@ const SEVERITY_STYLES = {
     icon: 'text-danger-600',
     title: 'text-danger-900',
     description: 'text-danger-700',
-    button: 'bg-danger-600 hover:bg-danger-700 text-white',
+    button: 'bg-danger-600 hover:bg-danger-700 text-white'
   },
   warning: {
     container: 'bg-amber-50 border-amber-200',
     icon: 'text-amber-600',
     title: 'text-amber-900',
     description: 'text-amber-700',
-    button: 'bg-amber-600 hover:bg-amber-700 text-white',
+    button: 'bg-amber-600 hover:bg-amber-700 text-white'
   },
   info: {
     container: 'bg-blue-50 border-blue-200',
     icon: 'text-blue-600',
     title: 'text-blue-900',
     description: 'text-blue-700',
-    button: 'bg-blue-600 hover:bg-blue-700 text-white',
-  },
+    button: 'bg-blue-600 hover:bg-blue-700 text-white'
+  }
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -138,7 +138,7 @@ function convertBlockReasonToAlert(reason: BlockReason): DashboardAlert {
   const baseAlert: Partial<DashboardAlert> = {
     id: reason.code,
     type: reason.type as 'subscription' | 'verification',
-    actionUrl: reason.actionUrl || '/dashboard/settings/billing',
+    actionUrl: reason.actionUrl || '/dashboard/settings/billing'
   };
 
   // Map specific reason codes to alert details
@@ -154,7 +154,7 @@ function convertBlockReasonToAlert(reason: BlockReason): DashboardAlert {
         actionUrl: '/dashboard/settings/billing',
         icon: Clock,
         dismissible: true,
-        snoozeHours: 24,
+        snoozeHours: 24
       } as DashboardAlert;
 
     case 'TRIAL_EXPIRED':
@@ -167,7 +167,7 @@ function convertBlockReasonToAlert(reason: BlockReason): DashboardAlert {
         actionLabel: 'Elegir plan',
         actionUrl: '/dashboard/settings/billing',
         icon: AlertCircle,
-        dismissible: false,
+        dismissible: false
       } as DashboardAlert;
 
     case 'PAYMENT_FAILED':
@@ -181,7 +181,7 @@ function convertBlockReasonToAlert(reason: BlockReason): DashboardAlert {
         actionLabel: 'Actualizar pago',
         actionUrl: '/dashboard/settings/billing',
         icon: CreditCard,
-        dismissible: false,
+        dismissible: false
       } as DashboardAlert;
 
     case 'SUBSCRIPTION_CANCELLED':
@@ -194,7 +194,7 @@ function convertBlockReasonToAlert(reason: BlockReason): DashboardAlert {
         actionLabel: 'Reactivar',
         actionUrl: '/dashboard/settings/billing',
         icon: XCircle,
-        dismissible: false,
+        dismissible: false
       } as DashboardAlert;
 
     case 'DOCUMENT_EXPIRED':
@@ -207,7 +207,7 @@ function convertBlockReasonToAlert(reason: BlockReason): DashboardAlert {
         actionLabel: 'Actualizar',
         actionUrl: '/dashboard/verificacion',
         icon: FileText,
-        dismissible: false,
+        dismissible: false
       } as DashboardAlert;
 
     case 'DOCUMENT_EXPIRING':
@@ -221,7 +221,7 @@ function convertBlockReasonToAlert(reason: BlockReason): DashboardAlert {
         actionUrl: '/dashboard/verificacion',
         icon: Clock,
         dismissible: true,
-        snoozeHours: 24,
+        snoozeHours: 24
       } as DashboardAlert;
 
     case 'DOCUMENT_REJECTED':
@@ -235,7 +235,7 @@ function convertBlockReasonToAlert(reason: BlockReason): DashboardAlert {
         actionLabel: 'Ver detalles',
         actionUrl: '/dashboard/verificacion',
         icon: XCircle,
-        dismissible: false,
+        dismissible: false
       } as DashboardAlert;
 
     case 'VERIFICATION_PENDING':
@@ -250,7 +250,7 @@ function convertBlockReasonToAlert(reason: BlockReason): DashboardAlert {
         actionUrl: '/dashboard/verificacion',
         icon: RefreshCw,
         dismissible: true,
-        snoozeHours: 24,
+        snoozeHours: 24
       } as DashboardAlert;
 
     default:
@@ -263,7 +263,7 @@ function convertBlockReasonToAlert(reason: BlockReason): DashboardAlert {
         actionLabel: 'Ver detalles',
         actionUrl: reason.actionUrl || '/dashboard/settings',
         icon: AlertTriangle,
-        dismissible: reason.severity === 'warning',
+        dismissible: reason.severity === 'warning'
       } as DashboardAlert;
   }
 }
@@ -350,7 +350,6 @@ export function DashboardAlerts({ className, maxAlerts = 3 }: DashboardAlertsPro
   const { accessStatus, isLoading } = useAccessStatus();
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
   const [snoozedUntil, setSnoozedUntil] = useState<Map<string, number>>(new Map());
-  const [forceUpdate, setForceUpdate] = useState(0);
 
   // Load dismissed and snoozed alerts on mount
   useEffect(() => {
@@ -383,7 +382,7 @@ export function DashboardAlerts({ className, maxAlerts = 3 }: DashboardAlertsPro
     allAlerts.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
     return allAlerts.slice(0, maxAlerts);
-  }, [accessStatus, dismissedIds, snoozedUntil, maxAlerts, forceUpdate]);
+  }, [accessStatus, dismissedIds, snoozedUntil, maxAlerts]);
 
   const handleDismiss = (alertId: string) => {
     dismissAlert(alertId);

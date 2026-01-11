@@ -43,7 +43,7 @@ import {
   lockKey,
   dlqKey,
   calculateBackoff,
-  isQueueConfigured,
+  isQueueConfigured
 } from './config';
 import { getJob, updateJobStatus } from './dispatcher';
 import { recordJobCompleted } from './metrics';
@@ -126,7 +126,7 @@ export function hasHandler(type: JobType): boolean {
 const workerState: Record<QueueTier, WorkerState> = {
   realtime: { isRunning: false, activeJobs: 0, processedJobs: 0, failedJobs: 0 },
   background: { isRunning: false, activeJobs: 0, processedJobs: 0, failedJobs: 0 },
-  batch: { isRunning: false, activeJobs: 0, processedJobs: 0, failedJobs: 0 },
+  batch: { isRunning: false, activeJobs: 0, processedJobs: 0, failedJobs: 0 }
 };
 
 let shutdownRequested = false;
@@ -145,7 +145,7 @@ async function acquireLock(jobId: string): Promise<boolean> {
     // Use SET NX EX for atomic lock acquisition
     const result = await redis.set(lockKey(jobId), Date.now(), {
       nx: true,
-      ex: QUEUE_CONFIG.lockTtl,
+      ex: QUEUE_CONFIG.lockTtl
     });
     return result === 'OK';
   } catch (error) {
@@ -170,7 +170,7 @@ async function releaseLock(jobId: string): Promise<void> {
 /**
  * Extend lock TTL (for long-running jobs)
  */
-async function extendLock(jobId: string): Promise<boolean> {
+async function _extendLock(jobId: string): Promise<boolean> {
   if (!redis) return false;
 
   try {
@@ -198,7 +198,7 @@ async function processJob(job: Job): Promise<JobResult> {
     return {
       success: false,
       jobId: job.id,
-      error: `No handler for job type: ${job.type}`,
+      error: `No handler for job type: ${job.type}`
     };
   }
 
@@ -206,7 +206,7 @@ async function processJob(job: Job): Promise<JobResult> {
     // Update status to processing
     await updateJobStatus(job.id, JOB_STATUS.PROCESSING, {
       startedAt: new Date(),
-      attempts: job.attempts + 1,
+      attempts: job.attempts + 1
     });
 
     // Execute handler with timeout
@@ -222,7 +222,7 @@ async function processJob(job: Job): Promise<JobResult> {
       // Job completed successfully
       await updateJobStatus(job.id, JOB_STATUS.COMPLETED, {
         completedAt: new Date(),
-        result: result.data,
+        result: result.data
       });
 
       // Record metrics (Phase 5B.2)
@@ -238,7 +238,7 @@ async function processJob(job: Job): Promise<JobResult> {
 
     return {
       ...result,
-      duration,
+      duration
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -259,7 +259,7 @@ async function processJob(job: Job): Promise<JobResult> {
 
       await updateJobStatus(job.id, JOB_STATUS.RETRYING, {
         error: errorMessage,
-        attempts: currentAttempt,
+        attempts: currentAttempt
       });
 
       // Re-add to queue with delay
@@ -281,7 +281,7 @@ async function processJob(job: Job): Promise<JobResult> {
       success: false,
       jobId: job.id,
       error: errorMessage,
-      duration,
+      duration
     };
   }
 }
@@ -410,7 +410,7 @@ async function fetchJobs(tier: QueueTier, count: number): Promise<string[]> {
     const jobs = await redis.zrange(queueKey(tier), 0, now, {
       byScore: true,
       offset: 0,
-      count: Math.min(count, QUEUE_CONFIG.batchSize),
+      count: Math.min(count, QUEUE_CONFIG.batchSize)
     }) as string[];
 
     // Remove fetched jobs from queue
@@ -545,7 +545,7 @@ export async function retryDeadLetterQueue(tier: QueueTier): Promise<number> {
         attempts: 0,
         error: undefined,
         startedAt: undefined,
-        completedAt: undefined,
+        completedAt: undefined
       });
 
       await redis.zadd(queueKey(tier), { score: Date.now(), member: jobId });

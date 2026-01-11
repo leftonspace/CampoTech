@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -7,8 +9,6 @@ import {
   Clock,
   Navigation,
   User,
-  Phone,
-  CheckCircle,
   AlertCircle,
   RefreshCw,
   ChevronDown,
@@ -190,23 +190,21 @@ export function NearestTechnicians({
                 <div
                   key={tech.id}
                   onClick={() => onSelect?.(tech)}
-                  className={`flex items-center gap-3 px-4 py-3 border-b last:border-b-0 cursor-pointer transition-colors ${
-                    selectedId === tech.id
+                  className={`flex items-center gap-3 px-4 py-3 border-b last:border-b-0 cursor-pointer transition-colors ${selectedId === tech.id
                       ? 'bg-primary-50'
                       : 'hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   {/* Rank */}
                   <div
-                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
-                      index === 0
+                    className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${index === 0
                         ? 'bg-green-100 text-green-700'
                         : index === 1
                           ? 'bg-blue-100 text-blue-700'
                           : index === 2
                             ? 'bg-amber-100 text-amber-700'
                             : 'bg-gray-100 text-gray-600'
-                    }`}
+                      }`}
                   >
                     {index + 1}
                   </div>
@@ -214,9 +212,11 @@ export function NearestTechnicians({
                   {/* Avatar */}
                   <div className="relative flex-shrink-0">
                     {tech.avatar ? (
-                      <img
+                      <Image
                         src={tech.avatar}
                         alt={tech.name}
+                        width={40}
+                        height={40}
                         className="h-10 w-10 rounded-full object-cover"
                       />
                     ) : (
@@ -225,9 +225,8 @@ export function NearestTechnicians({
                       </div>
                     )}
                     <div
-                      className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${
-                        tech.isOnline ? 'bg-green-500' : 'bg-gray-400'
-                      }`}
+                      className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${tech.isOnline ? 'bg-green-500' : 'bg-gray-400'
+                        }`}
                     />
                   </div>
 

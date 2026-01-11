@@ -97,13 +97,11 @@ export function useFieldPermissions(
     return (user?.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
   }, [user?.role]);
 
-  // Get the field config for this entity type
-  const fieldConfig = ENTITY_FIELDS[entityType] || {};
-
   // Generate all field metadata
   const allFieldMeta = useMemo(() => {
+    const fieldConfig = ENTITY_FIELDS[entityType] || {};
     return getFieldMetadata(fieldConfig, userRole, isSelf);
-  }, [fieldConfig, userRole, isSelf]);
+  }, [entityType, userRole, isSelf]);
 
   // Helper to get metadata for a specific field
   const getFieldMeta = (fieldName: string): FieldMeta => {

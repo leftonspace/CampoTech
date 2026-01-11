@@ -68,7 +68,7 @@ export async function POST() {
   } catch (error) {
     console.error('Pending verification action error:', error);
     return NextResponse.json(
-      { success: false, error: 'Error procesando acciÃ³n' },
+      { success: false, error: 'Error procesando acción' },
       { status: 500 }
     );
   }

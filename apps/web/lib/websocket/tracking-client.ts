@@ -91,68 +91,6 @@ export function useTrackingClient(options: UseTrackingClientOptions = {}) {
   const eventSourceRef = useRef<EventSource | null>(null);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Connect to SSE endpoint
-  const connect = useCallback(() => {
-    if (!enabled || !organizationId) return;
-
-    // Try Server-Sent Events first
-    try {
-      const url = `/api/tracking/subscribe?organizationId=${organizationId}`;
-      const eventSource = new EventSource(url);
-
-      eventSource.onopen = () => {
-        setIsConnected(true);
-        setError(null);
-        console.log('Tracking SSE connected');
-      };
-
-      eventSource.onmessage = (event) => {
-        try {
-          const message: TrackingMessage = JSON.parse(event.data);
-          setLastUpdate(new Date());
-
-          switch (message.type) {
-            case 'location_update':
-              onLocationUpdate?.(message.data as TechnicianLocationUpdate);
-              break;
-            case 'technician_online':
-              onTechnicianOnline?.((message.data as { userId: string }).userId);
-              break;
-            case 'technician_offline':
-              onTechnicianOffline?.((message.data as { userId: string }).userId);
-              break;
-            case 'job_status_changed':
-              onJobStatusChanged?.(message.data as JobStatusChangeUpdate);
-              break;
-            case 'new_job_created':
-              onNewJobCreated?.(message.data as NewJobCreatedUpdate);
-              break;
-          }
-        } catch (_err) {
-          console.error('Error parsing SSE message:', err);
-        }
-      };
-
-      eventSource.onerror = () => {
-        setIsConnected(false);
-        eventSource.close();
-        eventSourceRef.current = null;
-        // Attempt to reconnect after 5 seconds
-        setTimeout(() => {
-          if (enabled && organizationId) {
-            console.log('Attempting SSE reconnect...');
-            connect();
-          }
-        }, 5000);
-      };
-
-      eventSourceRef.current = eventSource;
-    } catch (_err) {
-      console.error('SSE not supported, falling back to polling');
-      startPolling();
-    }
-  }, [enabled, organizationId, onLocationUpdate, onTechnicianOnline, onTechnicianOffline, onJobStatusChanged, onNewJobCreated]);
-
   // Fallback polling
   const startPolling = useCallback(() => {
     if (pollingRef.current) return;
@@ -220,6 +158,68 @@ export function useTrackingClient(options: UseTrackingClientOptions = {}) {
     pollingRef.current = setInterval(poll, pollingInterval);
   }, [pollingInterval, onLocationUpdate]);
 
+  // Connect to SSE endpoint
+  const connect = useCallback(() => {
+    if (!enabled || !organizationId) return;
+
+    // Try Server-Sent Events first
+    try {
+      const url = `/api/tracking/subscribe?organizationId=${organizationId}`;
+      const eventSource = new EventSource(url);
+
+      eventSource.onopen = () => {
+        setIsConnected(true);
+        setError(null);
+        console.log('Tracking SSE connected');
+      };
+
+      eventSource.onmessage = (event) => {
+        try {
+          const message: TrackingMessage = JSON.parse(event.data);
+          setLastUpdate(new Date());
+
+          switch (message.type) {
+            case 'location_update':
+              onLocationUpdate?.(message.data as TechnicianLocationUpdate);
+              break;
+            case 'technician_online':
+              onTechnicianOnline?.((message.data as { userId: string }).userId);
+              break;
+            case 'technician_offline':
+              onTechnicianOffline?.((message.data as { userId: string }).userId);
+              break;
+            case 'job_status_changed':
+              onJobStatusChanged?.(message.data as JobStatusChangeUpdate);
+              break;
+            case 'new_job_created':
+              onNewJobCreated?.(message.data as NewJobCreatedUpdate);
+              break;
+          }
+        } catch (_err) {
+          console.error('Error parsing SSE message:', _err);
+        }
+      };
+
+      eventSource.onerror = () => {
+        setIsConnected(false);
+        eventSource.close();
+        eventSourceRef.current = null;
+        // Attempt to reconnect after 5 seconds
+        setTimeout(() => {
+          if (enabled && organizationId) {
+            console.log('Attempting SSE reconnect...');
+            connect();
+          }
+        }, 5000);
+      };
+
+      eventSourceRef.current = eventSource;
+    } catch (_err) {
+      console.error('SSE not supported, falling back to polling', _err);
+      startPolling();
+    }
+  }, [enabled, organizationId, onLocationUpdate, onTechnicianOnline, onTechnicianOffline, onJobStatusChanged, onNewJobCreated, startPolling]);
+
   // Disconnect
   const disconnect = useCallback(() => {
     if (eventSourceRef.current) {
@@ -253,9 +253,9 @@ export function useTrackingClient(options: UseTrackingClientOptions = {}) {
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TECHNICIAN STATUS TYPES
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export type TechnicianStatus = 'en_linea' | 'en_camino' | 'trabajando' | 'sin_conexion';
 
@@ -265,9 +265,9 @@ export interface StatusUpdatePayload {
   reason?: string;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // LOCATION REPORTER HOOK (for mobile/technician app)
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 interface UseLocationReporterOptions {
   enabled?: boolean;
@@ -328,7 +328,7 @@ export function useLocationReporter(options: UseLocationReporterOptions = {}) {
   }, [includeBatteryLevel]);
 
   // Check if position has changed significantly (>10 meters)
-  const hasPositionChanged = useCallback((lat: number, lng: number): boolean => {
+  const _hasPositionChanged = useCallback((lat: number, lng: number): boolean => {
     if (!lastPositionRef.current) return true;
 
     const R = 6371000; // Earth radius in meters
@@ -377,7 +377,7 @@ export function useLocationReporter(options: UseLocationReporterOptions = {}) {
           setLastReported(new Date());
           lastPositionRef.current = { lat: position.coords.latitude, lng: position.coords.longitude };
         }
-      } catch (_err) {
+      } catch (err) {
         console.error('Error reporting location:', err);
       }
     },
@@ -398,7 +398,7 @@ export function useLocationReporter(options: UseLocationReporterOptions = {}) {
         return true;
       }
       return false;
-    } catch (_err) {
+    } catch (err) {
       console.error('Error updating status:', err);
       return false;
     }

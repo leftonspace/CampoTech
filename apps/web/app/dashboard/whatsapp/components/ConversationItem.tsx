@@ -41,21 +41,17 @@ function getAIConfidenceStyle(confidence: number): { bg: string; text: string; l
 export default function ConversationItem({
   conversation,
   isSelected,
-  onClick,
-}: ConversationItemProps) {
+  onClick }: ConversationItemProps) {
   const {
     customerName,
-    customerPhone,
     lastMessage,
     unreadCount,
     isInWindow,
     aiHandling,
     aiConfidence,
-    aiResolutionStatus,
     isNewLead,
     needsAttention,
-    hasPendingJob,
-  } = conversation;
+    hasPendingJob } = conversation;
 
   const initials = customerName
     .split(' ')
@@ -75,33 +71,33 @@ export default function ConversationItem({
     tags.push({
       label: `IA ${aiConfidence}%`,
       color: `${confidenceStyle?.bg} ${confidenceStyle?.text}`,
-      icon: <Bot className="h-3 w-3" />,
+      icon: <Bot className="h-3 w-3" />
     });
   } else if (aiHandling) {
     tags.push({
       label: 'AI Manejando',
       color: 'bg-teal-100 text-teal-700',
-      icon: <Bot className="h-3 w-3" />,
+      icon: <Bot className="h-3 w-3" />
     });
   }
   if (isNewLead) {
     tags.push({
       label: 'Nuevo Lead',
-      color: 'bg-orange-100 text-orange-700',
+      color: 'bg-orange-100 text-orange-700'
     });
   }
   if (needsAttention) {
     tags.push({
       label: 'Requiere atención',
       color: 'bg-red-100 text-red-700',
-      icon: <AlertTriangle className="h-3 w-3" />,
+      icon: <AlertTriangle className="h-3 w-3" />
     });
   }
   if (hasPendingJob) {
     tags.push({
       label: 'Trabajo pendiente',
       color: 'bg-purple-100 text-purple-700',
-      icon: <Briefcase className="h-3 w-3" />,
+      icon: <Briefcase className="h-3 w-3" />
     });
   }
 
@@ -111,9 +107,8 @@ export default function ConversationItem({
   return (
     <button
       onClick={onClick}
-      className={`w-full p-3 flex items-start gap-3 border-b hover:bg-gray-50 text-left transition-colors ${
-        isSelected ? 'bg-teal-50 border-l-2 border-l-teal-500' : ''
-      }`}
+      className={`w-full p-3 flex items-start gap-3 border-b hover:bg-gray-50 text-left transition-colors ${isSelected ? 'bg-teal-50 border-l-2 border-l-teal-500' : ''
+        }`}
     >
       {/* Avatar */}
       <div className="relative flex-shrink-0">

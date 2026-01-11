@@ -95,10 +95,13 @@ export function LiveTechnicianMap({
     leafletMapRef.current = map;
     setIsLoaded(true);
 
+    // Capture markers ref for cleanup
+    const markers = markersRef.current;
+
     return () => {
       map.remove();
       leafletMapRef.current = null;
-      markersRef.current.clear();
+      markers.clear();
     };
   }, [L]);
 
@@ -181,21 +184,19 @@ export function LiveTechnicianMap({
             <div style="font-size: 12px; color: #6B7280; margin-top: 4px;">
               ${tech.specialty || 'Técnico'}
             </div>
-            ${
-              tech.currentJob
-                ? `<div style="font-size: 12px; margin-top: 8px;">
+            ${tech.currentJob
+            ? `<div style="font-size: 12px; margin-top: 8px;">
                   <strong>${tech.currentJob.jobNumber || 'Trabajo'}</strong><br/>
                   ${tech.currentJob.customerName}
                 </div>`
-                : '<div style="font-size: 12px; color: #10B981; margin-top: 8px;">Disponible</div>'
-            }
-            ${
-              tech.tracking?.etaMinutes
-                ? `<div style="font-size: 12px; color: #3B82F6; margin-top: 4px;">
+            : '<div style="font-size: 12px; color: #10B981; margin-top: 8px;">Disponible</div>'
+          }
+            ${tech.tracking?.etaMinutes
+            ? `<div style="font-size: 12px; color: #3B82F6; margin-top: 4px;">
                   ETA: ${tech.tracking.etaMinutes} min
                 </div>`
-                : ''
-            }
+            : ''
+          }
           </div>
         `;
         marker.bindPopup(popupContent);

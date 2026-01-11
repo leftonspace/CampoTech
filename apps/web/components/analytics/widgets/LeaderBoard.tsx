@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+
 /**
  * LeaderBoard Widget
  * ==================
@@ -111,9 +113,11 @@ export default function LeaderBoard({
 
               {/* Avatar */}
               {item.avatar ? (
-                <img
+                <Image
                   src={item.avatar}
                   alt={item.name}
+                  width={32}
+                  height={32}
                   className="w-8 h-8 rounded-full object-cover flex-shrink-0"
                 />
               ) : (
@@ -146,13 +150,12 @@ export default function LeaderBoard({
                 </span>
                 {item.change !== undefined && (
                   <p
-                    className={`text-xs ${
-                      item.change > 0
+                    className={`text-xs ${item.change > 0
                         ? 'text-green-600'
                         : item.change < 0
-                        ? 'text-red-600'
-                        : 'text-gray-500'
-                    }`}
+                          ? 'text-red-600'
+                          : 'text-gray-500'
+                      }`}
                   >
                     {item.change > 0 ? '+' : ''}
                     {item.change.toFixed(1)}%

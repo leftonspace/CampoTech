@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Phase 4.6: Email Outreach Service
  * ===================================
  * 
@@ -18,9 +18,9 @@ import { getOrCreateEmailProvider } from '@/lib/email';
 import { getLaunchGateService } from '@/lib/services/launch-gate.service';
 import { getCampaignService } from '@/lib/services/campaign.service';
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 interface UnclaimedProfileForEmail {
     id: string;
@@ -62,27 +62,27 @@ interface EmailStats {
     }>;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // CONSTANTS
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 const DAILY_LIMIT = 10000;      // Max emails per day
 const BATCH_SIZE = 100;         // Emails per batch
 const BATCH_DELAY_MS = 1000;    // Delay between batches (1 second)
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://campotech.com.ar';
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // EMAIL OUTREACH SERVICE
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export class EmailOutreachService {
     private emailProvider = getOrCreateEmailProvider();
     private launchGateService = getLaunchGateService();
     private campaignService = getCampaignService();
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // SEND INDIVIDUAL EMAIL
-    // ═══════════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     /**
      * Send a claim profile email to a single unclaimed profile
@@ -145,9 +145,9 @@ export class EmailOutreachService {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // SEND BATCH CAMPAIGN
-    // ═══════════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     /**
      * Send emails for an approved email campaign
@@ -158,7 +158,7 @@ export class EmailOutreachService {
         organizationId: string,
         limit?: number
     ): Promise<BatchResult> {
-        // 🔒 Check Launch Gate
+        // ðŸ”’ Check Launch Gate
         await this.launchGateService.requireLaunched(organizationId);
 
         // Get campaign and verify it's approved
@@ -236,14 +236,14 @@ export class EmailOutreachService {
         };
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // WEBHOOK HANDLERS (for tracking)
-    // ═══════════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     /**
      * Handle email delivered webhook from Resend
      */
-    async handleEmailDelivered(email: string, messageId: string): Promise<void> {
+    async handleEmailDelivered(email: string, _messageId: string): Promise<void> {
         await prisma.unclaimedProfile.updateMany({
             where: { email },
             data: { emailDeliveredAt: new Date() },
@@ -262,7 +262,7 @@ export class EmailOutreachService {
     /**
      * Handle email opened webhook from Resend
      */
-    async handleEmailOpened(email: string, messageId: string): Promise<void> {
+    async handleEmailOpened(email: string, _messageId: string): Promise<void> {
         // Only update if not already opened (first open counts)
         await prisma.unclaimedProfile.updateMany({
             where: {
@@ -284,7 +284,7 @@ export class EmailOutreachService {
     /**
      * Handle email clicked webhook from Resend
      */
-    async handleEmailClicked(email: string, link: string): Promise<void> {
+    async handleEmailClicked(email: string, _link: string): Promise<void> {
         // Only update if not already clicked (first click counts)
         await prisma.unclaimedProfile.updateMany({
             where: {
@@ -306,7 +306,7 @@ export class EmailOutreachService {
     /**
      * Handle email bounced webhook from Resend
      */
-    async handleEmailBounced(email: string, messageId: string): Promise<void> {
+    async handleEmailBounced(email: string, _messageId: string): Promise<void> {
         await prisma.unclaimedProfile.updateMany({
             where: { email },
             data: {
@@ -346,9 +346,9 @@ export class EmailOutreachService {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // STATS
-    // ═══════════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     /**
      * Get email outreach statistics
@@ -430,9 +430,9 @@ export class EmailOutreachService {
         };
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     // PRIVATE HELPERS
-    // ═══════════════════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     /**
      * Get profiles for a campaign that haven't been emailed yet
@@ -562,7 +562,7 @@ export class EmailOutreachService {
                     <tr>
                         <td style="padding: 0 40px;">
                             <h1 style="color: #1f2937; font-size: 24px; font-weight: 700; margin: 0 0 20px;">
-                                👋 Hola ${data.name},
+                                ðŸ‘‹ Hola ${data.name},
                             </h1>
                             
                             <p style="color: #374151; font-size: 16px; line-height: 26px; margin: 0 0 20px;">
@@ -595,7 +595,7 @@ export class EmailOutreachService {
                                     <td align="center" style="padding: 20px 0;">
                                         <a href="${data.claimUrl}" 
                                            style="display: inline-block; background: linear-gradient(135deg, #059669 0%, #047857 100%); color: #ffffff; font-size: 18px; font-weight: 700; text-decoration: none; padding: 16px 48px; border-radius: 8px; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);">
-                                            Reclamar mi perfil →
+                                            Reclamar mi perfil ←’
                                         </a>
                                     </td>
                                 </tr>
@@ -616,7 +616,7 @@ export class EmailOutreachService {
                                 <a href="${BASE_URL}/privacy" style="color: #9ca3af;">Política de Privacidad</a>
                             </p>
                             <p style="color: #9ca3af; font-size: 12px; margin: 16px 0 0;">
-                                © 2026 CampoTech. Todos los derechos reservados.
+                                Â© 2026 CampoTech. Todos los derechos reservados.
                             </p>
                         </td>
                     </tr>
@@ -651,14 +651,14 @@ Tu perfil ya está listo en CampoTech. Solo necesitás reclamarlo para:
 
 Probá GRATIS por 21 días. Sin tarjeta de crédito.
 
-👉 Reclamá tu perfil: ${data.claimUrl}
+ðŸ‘‰ Reclamá tu perfil: ${data.claimUrl}
 
 ¿Preguntas? Respondé este email.
 
 ---
 Para dejar de recibir estos emails: ${data.unsubscribeUrl}
 
-© 2026 CampoTech
+Â© 2026 CampoTech
 `;
     }
 
@@ -670,9 +670,9 @@ Para dejar de recibir estos emails: ${data.unsubscribeUrl}
     }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // SINGLETON EXPORT
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 let emailOutreachServiceInstance: EmailOutreachService | null = null;
 

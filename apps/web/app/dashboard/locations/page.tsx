@@ -11,10 +11,7 @@ import {
   MapPin,
   Users,
   Building2,
-  Phone,
-  Globe,
   CheckCircle,
-  XCircle,
 } from 'lucide-react';
 
 interface Location {

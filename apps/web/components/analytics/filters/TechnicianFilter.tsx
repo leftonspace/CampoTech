@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+
 /**
  * Technician Filter Component
  * ===========================
@@ -147,11 +149,10 @@ export default function TechnicianFilter({
             {/* All option */}
             <button
               onClick={handleSelectAll}
-              className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
-                value === 'all'
+              className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${value === 'all'
                   ? 'bg-green-50 text-green-700 font-medium'
                   : 'text-gray-700 hover:bg-gray-50'
-              }`}
+                }`}
             >
               <div className="w-4 h-4 flex items-center justify-center">
                 {value === 'all' && <Check size={14} />}
@@ -171,17 +172,22 @@ export default function TechnicianFilter({
               <button
                 key={tech.id}
                 onClick={() => handleSelect(tech.id)}
-                className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
-                  isSelected(tech.id)
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${isSelected(tech.id)
                     ? 'bg-green-50 text-green-700 font-medium'
                     : 'text-gray-700 hover:bg-gray-50'
-                }`}
+                  }`}
               >
                 <div className="w-4 h-4 flex items-center justify-center">
                   {isSelected(tech.id) && <Check size={14} />}
                 </div>
                 {tech.avatar ? (
-                  <img src={tech.avatar} alt={tech.name} className="w-6 h-6 rounded-full" />
+                  <Image
+                    src={tech.avatar}
+                    alt={tech.name}
+                    width={24}
+                    height={24}
+                    className="w-6 h-6 rounded-full object-cover"
+                  />
                 ) : (
                   <div className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
                     <span className="text-xs font-medium text-green-700">

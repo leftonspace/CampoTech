@@ -6,7 +6,7 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   images: {
-    domains: ['api.mercadopago.com'],
+    domains: ['api.mercadopago.com', 'flagcdn.com', 'images.unsplash.com'],
     formats: ['image/avif', 'image/webp'],
   },
   experimental: {

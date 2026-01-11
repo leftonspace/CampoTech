@@ -22,7 +22,7 @@ export async function POST() {
     // Only OWNER can sync vehicle storage
     if (!['OWNER'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
-        { success: false, error: 'No tienes permiso para sincronizar almacenes de vehÃ­culos' },
+        { success: false, error: 'No tienes permiso para sincronizar almacenes de vehículos' },
         { status: 403 }
       );
     }
@@ -32,13 +32,13 @@ export async function POST() {
     return NextResponse.json({
       success: true,
       data: result,
-      message: `Se crearon ${result.created} almacenes de vehÃ­culos. ${result.skipped} ya existÃ­an.`,
+      message: `Se crearon ${result.created} almacenes de vehículos. ${result.skipped} ya existían.`,
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error');
     console.error('Sync vehicle storage error:', err.message);
     return NextResponse.json(
-      { success: false, error: 'Error sincronizando almacenes de vehÃ­culos' },
+      { success: false, error: 'Error sincronizando almacenes de vehículos' },
       { status: 500 }
     );
   }

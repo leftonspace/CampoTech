@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import {
   X,
@@ -130,11 +130,10 @@ export default function ContactInfo({
           <p className="text-gray-500">{conversation.customerPhone}</p>
 
           {/* Window status */}
-          <div className={`mt-3 inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${
-            conversation.isInWindow
-              ? 'bg-success-50 text-success-700'
-              : 'bg-warning-50 text-warning-700'
-          }`}>
+          <div className={`mt-3 inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${conversation.isInWindow
+            ? 'bg-success-50 text-success-700'
+            : 'bg-warning-50 text-warning-700'
+            }`}>
             <Clock className="h-4 w-4" />
             {conversation.isInWindow ? 'En ventana 24h' : 'Fuera de ventana'}
           </div>
@@ -144,31 +143,28 @@ export default function ContactInfo({
         <div className="flex border-b">
           <button
             onClick={() => setActiveTab('info')}
-            className={`flex-1 px-3 py-2 text-sm font-medium border-b-2 ${
-              activeTab === 'info'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            className={`flex-1 px-3 py-2 text-sm font-medium border-b-2 ${activeTab === 'info'
+              ? 'border-primary-500 text-primary-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
           >
             Info
           </button>
           <button
             onClick={() => setActiveTab('jobs')}
-            className={`flex-1 px-3 py-2 text-sm font-medium border-b-2 ${
-              activeTab === 'jobs'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            className={`flex-1 px-3 py-2 text-sm font-medium border-b-2 ${activeTab === 'jobs'
+              ? 'border-primary-500 text-primary-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
           >
             Trabajos
           </button>
           <button
             onClick={() => setActiveTab('media')}
-            className={`flex-1 px-3 py-2 text-sm font-medium border-b-2 ${
-              activeTab === 'media'
-                ? 'border-primary-500 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            className={`flex-1 px-3 py-2 text-sm font-medium border-b-2 ${activeTab === 'media'
+              ? 'border-primary-500 text-primary-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
           >
             Media
             {media.length > 0 && (
@@ -280,13 +276,12 @@ export default function ContactInfo({
                               : 'Sin programar'}
                           </p>
                         </div>
-                        <span className={`px-2 py-0.5 text-xs rounded-full ${
-                          job.status === 'COMPLETED'
-                            ? 'bg-success-50 text-success-700'
-                            : job.status === 'IN_PROGRESS'
+                        <span className={`px-2 py-0.5 text-xs rounded-full ${job.status === 'COMPLETED'
+                          ? 'bg-success-50 text-success-700'
+                          : job.status === 'IN_PROGRESS'
                             ? 'bg-primary-50 text-primary-700'
                             : 'bg-gray-100 text-gray-600'
-                        }`}>
+                          }`}>
                           {job.status === 'COMPLETED' && 'Completado'}
                           {job.status === 'IN_PROGRESS' && 'En progreso'}
                           {job.status === 'PENDING' && 'Pendiente'}
@@ -465,7 +460,7 @@ export default function ContactInfo({
           <img
             src={lightboxImage}
             alt=""
-            className="max-w-[90vw] max-h-[90vh] object-contain"
+            className="max-w-full max-h-full object-contain"
             onClick={(e) => e.stopPropagation()}
           />
 

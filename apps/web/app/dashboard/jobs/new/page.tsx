@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import { ArrowLeft, Search, Calendar, Clock, Users, MapPin, X, Check, Wrench, Repeat, Plus, Truck } from 'lucide-react';
@@ -402,7 +402,7 @@ export default function NewJobPage() {
   }
 
   // Get availability status for a team member
-  const getAvailabilityStatus = (memberId: string) => {
+  const _getAvailabilityStatus = (memberId: string) => {
     const avail = availabilityMap.get(memberId);
     if (!avail) return null;
     return {
@@ -748,7 +748,7 @@ export default function NewJobPage() {
               onClick={() => setUseCustomerAddress(true)}
               className="mt-2 text-sm text-primary-600 hover:underline"
             >
-              ← Volver a usar la dirección del cliente
+              Í¢â€ Â Volver a usar la dirección del cliente
             </button>
           )}
         </div>

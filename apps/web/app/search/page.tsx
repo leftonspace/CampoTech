@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { PublicHeader, PublicFooter } from '@/components/layout';
 import {
     Search,
@@ -10,8 +11,7 @@ import {
     Filter,
     ArrowRight,
     ShieldCheck,
-    Zap,
-    Clock
+    Zap
 } from 'lucide-react';
 
 // Mock Data for Search Results
@@ -121,8 +121,8 @@ export default function SearchPage() {
                                 key={cat}
                                 onClick={() => setSelectedCategory(curr => curr === cat ? null : cat)}
                                 className={`px-4 py-1.5 rounded-full text-sm whitespace-nowrap border transition-colors ${selectedCategory === cat
-                                        ? 'bg-primary-50 border-primary-200 text-primary-700'
-                                        : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                                    ? 'bg-primary-50 border-primary-200 text-primary-700'
+                                    : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
                                     }`}
                             >
                                 {cat}
@@ -190,7 +190,13 @@ export default function SearchPage() {
                                 <div key={pro.id} className="bg-white rounded-xl border shadow-sm hover:shadow-md transition-shadow p-4 flex flex-col sm:flex-row gap-4">
                                     {/* Image */}
                                     <div className="w-full sm:w-48 h-32 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                                        <img src={pro.image} alt={pro.name} className="w-full h-full object-cover" />
+                                        <Image
+                                            src={pro.image}
+                                            alt={pro.name}
+                                            width={192}
+                                            height={128}
+                                            className="w-full h-full object-cover"
+                                        />
                                     </div>
 
                                     {/* Content */}

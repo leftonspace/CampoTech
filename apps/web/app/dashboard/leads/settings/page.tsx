@@ -11,7 +11,6 @@ import {
   Bell,
   MapPin,
   Filter,
-  Clock,
   DollarSign,
   Calendar,
   Save,

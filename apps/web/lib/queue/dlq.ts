@@ -39,10 +39,7 @@ import {
   type Job,
   type JobType,
   type QueueTier,
-  QUEUE_TIERS,
-  QUEUE_CONFIG,
   JOB_STATUS,
-  JOB_TYPES,
   dlqKey,
   jobKey,
 } from './config';
@@ -859,7 +856,7 @@ function normalizeErrorMessage(error: string): string {
 /**
  * Get suggested fix for error category
  */
-function getSuggestedFix(category: ErrorCategory, message: string): string {
+function getSuggestedFix(category: ErrorCategory, _message: string): string {
   switch (category) {
     case 'timeout':
       return 'Consider increasing timeout limits or optimizing the job processing logic';

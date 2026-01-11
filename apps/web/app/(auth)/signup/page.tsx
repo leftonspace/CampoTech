@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import { ChevronDown, Check } from 'lucide-react';
@@ -40,20 +41,17 @@ function FlagImage({ iso, size = 20 }: { iso: string; size?: number }) {
         className="flex items-center justify-center rounded-sm"
         style={{ width: size, height: Math.round(size * 0.75), fontSize: size * 0.8 }}
       >
-        🌍
+        🌍
       </span>
     );
   }
 
   return (
-    <img
-      src={`https://flagcdn.com/w${size * 2}/${iso}.png`}
-      srcSet={`https://flagcdn.com/w${size * 3}/${iso}.png 2x`}
+    <Image
+      src={`https://flagcdn.com/w20/${iso.toLowerCase()}.png`}
+      alt={`${iso} flag`}
       width={size}
       height={Math.round(size * 0.75)}
-      alt={iso.toUpperCase()}
-      className="rounded-sm object-cover"
-      style={{ minWidth: size }}
     />
   );
 }

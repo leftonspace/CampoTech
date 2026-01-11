@@ -15,7 +15,6 @@ import {
   SystemHealth,
   SystemHealthStatus,
   Incident,
-  IncidentUpdate,
   DegradationConfig,
   DEFAULT_DEGRADATION_CONFIG,
   SERVICE_METADATA,
@@ -334,9 +333,8 @@ export class DegradationManager {
         .map((s) => SERVICE_METADATA[s].name)
         .join(', ');
       degradedReason = `Servicios afectados: ${serviceNames}`;
-      userMessage = `${metadata.name} temporalmente no disponible. ${
-        metadata.alternativeAction || ''
-      }`;
+      userMessage = `${metadata.name} temporalmente no disponible. ${metadata.alternativeAction || ''
+        }`;
     }
 
     return {
@@ -547,9 +545,8 @@ export class DegradationManager {
             services: [id as ServiceId],
             features: affectedFeatures,
             title: `${state.name} no disponible`,
-            description: `El servicio ${state.name} no está respondiendo. ${
-              state.lastErrorMessage || ''
-            }`,
+            description: `El servicio ${state.name} no está respondiendo. ${state.lastErrorMessage || ''
+              }`,
             severity: 'critical',
           });
         }
@@ -674,9 +671,8 @@ export class DegradationManager {
       case 'operational':
         return 'Todos los sistemas operando normalmente';
       case 'degraded':
-        return `${degradedCount} funcionalidad${
-          degradedCount > 1 ? 'es' : ''
-        } con rendimiento reducido`;
+        return `${degradedCount} funcionalidad${degradedCount > 1 ? 'es' : ''
+          } con rendimiento reducido`;
       case 'partial_outage':
         return 'Algunos servicios no disponibles temporalmente';
       case 'major_outage':

@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   X,
-  MapPin,
   Navigation,
   RefreshCw,
   Loader2,

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * AI Staff Assistant Service
  * ==========================
  *
@@ -25,9 +25,9 @@ import {
 } from './workflows';
 import { ExtractedEntities } from './workflows/base-workflow';
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export type StaffAssistantAction =
   | 'draft_response'    // Generate a response draft for the staff to edit
@@ -98,9 +98,9 @@ export interface PricingInfo {
   description: string;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // PROMPTS
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 function buildStaffAssistantPrompt(
   action: StaffAssistantAction,
@@ -114,7 +114,7 @@ Tu rol es AYUDAR al staff, no reemplazarlo. Todo lo que sugieras será revisado 
 CONTEXTO DE LA EMPRESA:
 ${businessContext}
 
-HISTORIAL DE CONVERSACIÓN CON EL CLIENTE:
+HISTORIAL DE CONVERSACIÍ“N CON EL CLIENTE:
 ${conversationHistory}
 
 ${staffQuery ? `CONSULTA DEL STAFF: "${staffQuery}"` : ''}`;
@@ -211,9 +211,9 @@ INSTRUCCIONES:
 ${actionInstructions[action]}`;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // MAIN SERVICE CLASS
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export class AIStaffAssistant {
   private client: OpenAI;
@@ -403,25 +403,25 @@ export class AIStaffAssistant {
       requestedTime: time,
     });
 
-    let result = `📅 Disponibilidad para ${new Date(date).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}:\n\n`;
+    let result = `ðŸ“… Disponibilidad para ${new Date(date).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}:\n\n`;
 
     if (!availability.isWorkingDay) {
-      result += '⚠️ No es día laborable\n';
+      result += 'âš ï¸ No es día laborable\n';
     } else {
-      result += `⏰ Horario: ${availability.businessHours?.open} - ${availability.businessHours?.close}\n\n`;
+      result += `â° Horario: ${availability.businessHours?.open} - ${availability.businessHours?.close}\n\n`;
 
-      result += '👷 Técnicos:\n';
+      result += 'ðŸ‘· Técnicos:\n';
       for (const tech of availability.technicians) {
         const icon = tech.isAvailable
-          ? { low: '🟢', medium: '🟡', high: '🟠', full: '🔴' }[tech.workloadLevel]
-          : '⚫';
+          ? { low: 'ðŸŸ¢', medium: 'ðŸŸ¡', high: 'ðŸŸ ', full: 'ðŸ”´' }[tech.workloadLevel]
+          : 'âš«';
         result += `${icon} ${tech.name}: ${tech.currentJobCount}/${tech.maxDailyJobs} trabajos`;
         if (tech.specialty) result += ` (${tech.specialty})`;
         result += '\n';
       }
 
       if (availability.bestSlot) {
-        result += `\n✨ Mejor horario: ${availability.bestSlot.start}`;
+        result += `\nâœ¨ Mejor horario: ${availability.bestSlot.start}`;
         if (availability.bestSlot.bestTechnician) {
           result += ` con ${availability.bestSlot.bestTechnician.name}`;
         }
@@ -441,7 +441,7 @@ export class AIStaffAssistant {
    */
   private async createBooking(
     request: StaffAssistantRequest,
-    conversationHistory: string
+    _conversationHistory: string
   ): Promise<StaffAssistantResponse> {
     // Get conversation to extract customer info
     const conversation = await prisma.waConversation.findUnique({
@@ -486,7 +486,7 @@ export class AIStaffAssistant {
       return {
         success: true,
         action: 'create_booking',
-        result: `✅ Reserva creada exitosamente\n\n📋 Número: ${result.jobCreated.jobNumber}\n\n${result.response || ''}`,
+        result: `✅ Reserva creada exitosamente\n\nðŸ“‹ Número: ${result.jobCreated.jobNumber}\n\n${result.response || ''}`,
         data: {
           booking: result.jobCreated,
         },
@@ -495,7 +495,7 @@ export class AIStaffAssistant {
       return {
         success: false,
         action: 'create_booking',
-        result: `❌ No se pudo crear la reserva: ${result.error || 'Error desconocido'}`,
+        result: `âŒ No se pudo crear la reserva: ${result.error || 'Error desconocido'}`,
         warnings: result.failedStep ? [`Falló en: ${result.failedStep}`] : undefined,
       };
     }
@@ -554,24 +554,24 @@ export class AIStaffAssistant {
     };
 
     // Build result text
-    let result = `👤 **${insights.name}**\n📱 ${insights.phone}\n\n`;
+    let result = `ðŸ‘¤ **${insights.name}**\nðŸ“± ${insights.phone}\n\n`;
 
     if (insights.isRepeatCustomer) {
-      result += `⭐ Cliente frecuente (${insights.completedJobs} trabajos completados)\n`;
+      result += `â­ Cliente frecuente (${insights.completedJobs} trabajos completados)\n`;
     } else if (insights.totalJobs === 0) {
-      result += `🆕 Cliente nuevo\n`;
+      result += `ðŸ†• Cliente nuevo\n`;
     }
 
     if (insights.totalSpent > 0) {
-      result += `💰 Total gastado: $${insights.totalSpent.toLocaleString('es-AR')}\n`;
+      result += `ðŸ’° Total gastado: $${insights.totalSpent.toLocaleString('es-AR')}\n`;
     }
 
     if (insights.lastServiceDate) {
-      result += `📅 Último servicio: ${insights.lastServiceDate.toLocaleDateString('es-AR')}\n`;
+      result += `ðŸ“… Íšltimo servicio: ${insights.lastServiceDate.toLocaleDateString('es-AR')}\n`;
     }
 
     if (insights.cancelledJobs > 0) {
-      result += `⚠️ ${insights.cancelledJobs} cancelaciones\n`;
+      result += `âš ï¸ ${insights.cancelledJobs} cancelaciones\n`;
     }
 
     return {
@@ -632,9 +632,9 @@ export class AIStaffAssistant {
       };
     }
 
-    let result = `⚠️ Conflictos detectados:\n\n`;
+    let result = `âš ï¸ Conflictos detectados:\n\n`;
     for (const conflict of conflicts) {
-      result += `• ${conflict.message}\n  → ${conflict.suggestion}\n\n`;
+      result += `• ${conflict.message}\n  ←’ ${conflict.suggestion}\n\n`;
     }
 
     return {
@@ -679,7 +679,7 @@ export class AIStaffAssistant {
         )
       : services;
 
-    let result = '💰 **Precios de Servicios**\n\n';
+    let result = 'ðŸ’° **Precios de Servicios**\n\n';
 
     if (filteredServices.length === 0) {
       result += 'No se encontraron servicios con ese criterio.\n';
@@ -694,7 +694,7 @@ export class AIStaffAssistant {
     }
 
     if (config.pricingInfo) {
-      result += `\n📋 Información general:\n${config.pricingInfo}`;
+      result += `\nðŸ“‹ Información general:\n${config.pricingInfo}`;
     }
 
     return {
@@ -745,9 +745,9 @@ export class AIStaffAssistant {
     };
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // HELPERS
-  // ═══════════════════════════════════════════════════════════════════════════════
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
   /**
    * Get conversation history as formatted text
@@ -810,9 +810,9 @@ Zonas: ${config.serviceAreas || 'Consultar'}`;
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // SINGLETON
-// ═══════════════════════════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 let staffAssistantInstance: AIStaffAssistant | null = null;
 

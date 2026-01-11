@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 /**
  * Alerts Panel Component
@@ -151,7 +151,7 @@ export default function AlertsPanel({ maxAlerts = 5, className = '', showHeader 
   const unreadCount = alerts.filter((a) => !a.read).length;
   const criticalCount = alerts.filter((a) => a.severity === 'critical').length;
 
-  const getAlertIcon = (type: Alert['type'], severity: Alert['severity']) => {
+  const getAlertIcon = (type: Alert['type'], _severity: Alert['severity']) => {
     switch (type) {
       case 'anomaly':
         return <AlertTriangle size={16} />;

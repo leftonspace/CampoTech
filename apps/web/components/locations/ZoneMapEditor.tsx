@@ -3,7 +3,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import {
-  MapPin,
   Plus,
   Trash2,
   Move,
@@ -45,7 +44,7 @@ export function ZoneMapEditor({
   zones,
   center,
   locationRadius = 10,
-  onZoneUpdate,
+  onZoneUpdate: _onZoneUpdate,
   onZoneCreate,
   selectedZoneId,
   onZoneSelect,
@@ -159,7 +158,7 @@ export function ZoneMapEditor({
 
       // Draw points if selected
       if (isSelected && !readOnly) {
-        coords.forEach((c, i) => {
+        coords.forEach((c, _i) => {
           ctx.fillStyle = '#1d4ed8';
           ctx.beginPath();
           ctx.arc(c.x, c.y, 6, 0, Math.PI * 2);

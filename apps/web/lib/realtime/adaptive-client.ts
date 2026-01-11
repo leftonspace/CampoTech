@@ -31,7 +31,6 @@ import {
   RealtimeMessage,
   AdaptiveClientEvent,
   EventCallback,
-  MessagePriority,
 } from './types';
 
 // ═══════════════════════════════════════════════════════════════════════════════

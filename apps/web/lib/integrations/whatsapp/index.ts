@@ -127,13 +127,13 @@ export async function queueTemplateMessage(
   // Build components from parameters
   const components = options.parameters
     ? [
-        {
-          type: 'body' as const,
-          parameters: Object.entries(options.parameters)
-            .sort(([a], [b]) => Number(a) - Number(b))
-            .map(([, value]) => ({ type: 'text' as const, text: value })),
-        },
-      ]
+      {
+        type: 'body' as const,
+        parameters: Object.entries(options.parameters)
+          .sort(([a], [b]) => Number(a) - Number(b))
+          .map(([, value]) => ({ type: 'text' as const, text: value })),
+      },
+    ]
     : undefined;
 
   const message = await queue.enqueueTemplate(
@@ -186,7 +186,7 @@ export function checkRateLimit(organizationId: string): {
  * Get service status
  */
 export async function getWAServiceStatus(
-  organizationId?: string
+  _organizationId?: string
 ): Promise<WAServiceStatus> {
   const circuitBreaker = getWACircuitBreaker();
   const rateLimiter = getWARateLimiter();

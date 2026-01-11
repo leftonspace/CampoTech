@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, Building2, MapPin, Save } from 'lucide-react';
+import { ArrowLeft, Save } from 'lucide-react';
 
 interface LocationFormData {
   code: string;

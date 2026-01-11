@@ -38,7 +38,6 @@ import {
   Copy,
   Printer,
   Package,
-  DollarSign,
   Plus,
 } from 'lucide-react';
 import { Job, User as UserType, Customer, JobPriority } from '@/types';
@@ -110,7 +109,7 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 
 export default function JobDetailPage() {
   const params = useParams();
-  const router = useRouter();
+  const _router = useRouter();
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const jobId = params.id as string;

@@ -18,7 +18,7 @@ import {
   Message,
 } from './components';
 import ContactsPanel from './components/ContactsPanel';
-import { Bot, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 export default function WhatsAppPage() {
   const queryClient = useQueryClient();
@@ -44,10 +44,9 @@ export default function WhatsAppPage() {
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  const conversations = (conversationsData?.data || []) as Conversation[];
-
   // Calculate stats from conversations
   const stats: ConversationStats = useMemo(() => {
+    const conversations = (conversationsData?.data || []) as Conversation[];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -66,7 +65,9 @@ export default function WhatsAppPage() {
         : 0,
       pendingCount: pending,
     };
-  }, [conversations]);
+  }, [conversationsData?.data]);
+
+  const conversations = (conversationsData?.data || []) as Conversation[];
 
   // Fetch messages for selected conversation
   const { data: messagesData, isLoading: loadingMessages } = useQuery({

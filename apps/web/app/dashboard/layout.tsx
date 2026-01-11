@@ -7,7 +7,6 @@ import { cn, getInitials, getRoleLabel } from '@/lib/utils';
 import { MODULE_ACCESS, type UserRole, type ModuleAccess } from '@/lib/config/field-permissions';
 import {
   TIER_GATED_MODULES,
-  FEATURES,
   hasFeatureAccess,
   getMinimumTierForFeature,
   type FeatureId,

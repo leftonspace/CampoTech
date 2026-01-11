@@ -27,7 +27,7 @@ export async function POST() {
   } catch (error) {
     console.error('Resend verification error:', error);
     return NextResponse.json(
-      { success: false, error: 'Error reenviando cÃ³digo' },
+      { success: false, error: 'Error reenviando código' },
       { status: 500 }
     );
   }

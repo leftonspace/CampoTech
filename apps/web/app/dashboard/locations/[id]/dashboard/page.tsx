@@ -10,10 +10,8 @@ import {
   Calendar,
   Users,
   Briefcase,
-  Clock,
   TrendingUp,
   TrendingDown,
-  AlertTriangle,
   CheckCircle,
   Timer,
   DollarSign,
@@ -221,8 +219,8 @@ export default function LocationDashboardPage() {
                   stats.capacity.currentUtilization > 90
                     ? 'bg-red-500'
                     : stats.capacity.currentUtilization > 70
-                    ? 'bg-yellow-500'
-                    : 'bg-green-500'
+                      ? 'bg-yellow-500'
+                      : 'bg-green-500'
                 )}
                 style={{ width: `${stats.capacity.currentUtilization}%` }}
               />
@@ -250,11 +248,10 @@ export default function LocationDashboardPage() {
                     <div
                       className="h-full rounded-full bg-yellow-400"
                       style={{
-                        width: `${
-                          stats.today.totalJobs
+                        width: `${stats.today.totalJobs
                             ? (stats.today.pendingJobs / stats.today.totalJobs) * 100
                             : 0
-                        }%`,
+                          }%`,
                       }}
                     />
                   </div>
@@ -271,11 +268,10 @@ export default function LocationDashboardPage() {
                     <div
                       className="h-full rounded-full bg-blue-500"
                       style={{
-                        width: `${
-                          stats.today.totalJobs
+                        width: `${stats.today.totalJobs
                             ? (stats.today.inProgressJobs / stats.today.totalJobs) * 100
                             : 0
-                        }%`,
+                          }%`,
                       }}
                     />
                   </div>
@@ -292,11 +288,10 @@ export default function LocationDashboardPage() {
                     <div
                       className="h-full rounded-full bg-green-500"
                       style={{
-                        width: `${
-                          stats.today.totalJobs
+                        width: `${stats.today.totalJobs
                             ? (stats.today.completedJobs / stats.today.totalJobs) * 100
                             : 0
-                        }%`,
+                          }%`,
                       }}
                     />
                   </div>
@@ -313,11 +308,10 @@ export default function LocationDashboardPage() {
                     <div
                       className="h-full rounded-full bg-red-500"
                       style={{
-                        width: `${
-                          stats.today.totalJobs
+                        width: `${stats.today.totalJobs
                             ? (stats.today.cancelledJobs / stats.today.totalJobs) * 100
                             : 0
-                        }%`,
+                          }%`,
                       }}
                     />
                   </div>

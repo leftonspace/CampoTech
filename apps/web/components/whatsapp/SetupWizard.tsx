@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import {
   Smartphone,
@@ -30,7 +30,7 @@ interface SetupWizardProps {
 }
 
 export function SetupWizard({
-  subscriptionTier,
+  subscriptionTier: _subscriptionTier,
   canUseBsp,
   currentPersonalNumber,
 }: SetupWizardProps) {
@@ -191,11 +191,10 @@ export function SetupWizard({
 
           {/* Personal Number Option */}
           <div
-            className={`card p-6 cursor-pointer transition-all ${
-              integrationType === 'personal'
-                ? 'ring-2 ring-primary-500 bg-primary-50'
-                : 'hover:border-gray-300'
-            }`}
+            className={`card p-6 cursor-pointer transition-all ${integrationType === 'personal'
+              ? 'ring-2 ring-primary-500 bg-primary-50'
+              : 'hover:border-gray-300'
+              }`}
             onClick={() => handleChooseType('personal')}
           >
             <div className="flex items-start gap-4">
@@ -272,15 +271,13 @@ export function SetupWizard({
 
           {/* BSP Number Option */}
           <div
-            className={`card p-6 transition-all ${
-              canUseBsp
-                ? `cursor-pointer ${
-                    integrationType === 'bsp'
-                      ? 'ring-2 ring-primary-500 bg-primary-50'
-                      : 'hover:border-gray-300'
-                  }`
-                : 'opacity-75'
-            }`}
+            className={`card p-6 transition-all ${canUseBsp
+              ? `cursor-pointer ${integrationType === 'bsp'
+                ? 'ring-2 ring-primary-500 bg-primary-50'
+                : 'hover:border-gray-300'
+              }`
+              : 'opacity-75'
+              }`}
             onClick={() => canUseBsp && handleChooseType('bsp')}
           >
             <div className="flex items-start gap-4">
@@ -380,20 +377,18 @@ function StepIndicator({
   return (
     <div className="flex items-center gap-2">
       <div
-        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-          active
-            ? 'bg-primary-500 text-white'
-            : completed
+        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${active
+          ? 'bg-primary-500 text-white'
+          : completed
             ? 'bg-green-500 text-white'
             : 'bg-gray-200 text-gray-500'
-        }`}
+          }`}
       >
         {completed ? <CheckCircle className="h-5 w-5" /> : step}
       </div>
       <span
-        className={`text-sm ${
-          active ? 'text-gray-900 font-medium' : 'text-gray-500'
-        }`}
+        className={`text-sm ${active ? 'text-gray-900 font-medium' : 'text-gray-500'
+          }`}
       >
         {label}
       </span>

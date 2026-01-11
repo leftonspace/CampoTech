@@ -15,7 +15,6 @@ import { prisma } from '@/lib/prisma';
 import { subDays, format, startOfDay, endOfDay } from 'date-fns';
 import {
   uploadArchive,
-  calculateChecksum,
   ensureBucketExists,
 } from '@/lib/storage/archive-storage';
 

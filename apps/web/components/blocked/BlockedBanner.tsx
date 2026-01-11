@@ -19,7 +19,7 @@ import {
   FileCheck,
   Shield,
   ChevronDown,
-  ChevronUp,
+  ChevronUp
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAccessStatus, type BlockReason } from '@/hooks/useAccessStatus';
@@ -44,13 +44,13 @@ export interface BlockedBannerProps {
 const TYPE_ICONS = {
   subscription: CreditCard,
   verification: FileCheck,
-  compliance: Shield,
+  compliance: Shield
 };
 
 const TYPE_LABELS = {
   subscription: 'Suscripción',
   verification: 'Verificación',
-  compliance: 'Cumplimiento',
+  compliance: 'Cumplimiento'
 };
 
 const DISMISS_KEY = 'blocked-banner-dismissed';
@@ -62,9 +62,8 @@ const DISMISS_KEY = 'blocked-banner-dismissed';
 export function BlockedBanner({
   className,
   allowDismiss = true,
-  onResolveClick,
-}: BlockedBannerProps) {
-  const { accessStatus, isLoading, isSoftBlocked, hasBlockingIssues } = useAccessStatus();
+  onResolveClick }: BlockedBannerProps) {
+  const { accessStatus, isLoading, isSoftBlocked } = useAccessStatus();
   const [isDismissed, setIsDismissed] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 

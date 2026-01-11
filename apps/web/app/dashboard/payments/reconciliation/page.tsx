@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
 import { cn, formatCurrency, formatDate, searchMatches } from '@/lib/utils';
@@ -61,7 +61,7 @@ const SOURCE_LABELS: Record<string, string> = {
 };
 
 export default function ReconciliationPage() {
-  const queryClient = useQueryClient();
+  const _queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [search, setSearch] = useState('');
 

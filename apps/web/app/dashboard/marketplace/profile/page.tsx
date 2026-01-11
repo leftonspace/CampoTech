@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Store,
   MapPin,
-  Image as ImageIcon,
+
   Save,
   Loader2,
   AlertCircle,
@@ -32,11 +32,11 @@ interface MarketplaceProfile {
 }
 
 export default function MarketplaceProfilePage() {
-  const queryClient = useQueryClient();
-  const [isEditing, setIsEditing] = useState(false);
+  const _queryClient = useQueryClient();
+  const [_isEditing, setIsEditing] = useState(false);
 
   // TODO: Replace with real API call
-  // const { data: profile, isLoading } = useQuery({ queryKey: ['marketplace-profile'], queryFn: ... });
+  // const { data: profile, _isLoading} = useQuery({ queryKey: ['marketplace-profile'], queryFn: ... });
 
   const [profile, setProfile] = useState<MarketplaceProfile>({
     isPublic: false,
@@ -50,7 +50,7 @@ export default function MarketplaceProfilePage() {
     contactEmail: ''
   });
 
-  const [isLoading, setIsLoading] = useState(false);
+
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
   const handleSave = async (e: React.FormEvent) => {

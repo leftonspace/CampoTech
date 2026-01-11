@@ -4,7 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { PublicHeader } from '@/components/layout';
-import { Mail, ArrowRight, Loader2, Phone } from 'lucide-react';
+import { Mail, Loader2, Phone } from 'lucide-react';
 
 export default function CustomerLoginPage() {
     const router = useRouter();

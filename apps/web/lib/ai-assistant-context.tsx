@@ -8,7 +8,7 @@
  * Synchronizes AI toggle state between WhatsApp page and AI Settings page.
  */
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './auth-context';
 

@@ -326,11 +326,7 @@ export default function ChatWindow({
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
           onClick={() => setImageModal(null)}
         >
-          <img
-            src={imageModal}
-            alt="Full size"
-            className="max-w-[90vw] max-h-[90vh] object-contain"
-          />
+          <img src={imageModal} alt="Full size" className="max-w-full max-h-full object-contain" />
         </div>
       )}
     </div>

@@ -1,5 +1,7 @@
 'use client';
 
+import Image from 'next/image';
+
 import {
   Truck,
   Users,
@@ -88,7 +90,7 @@ export function VehicleCard({ vehicle, onClick }: VehicleCardProps) {
 
   const insuranceDays = getDaysUntil(vehicle.insuranceExpiry);
   const vtvDays = getDaysUntil(vehicle.vtvExpiry);
-  const registrationDays = getDaysUntil(vehicle.registrationExpiry);
+  const _registrationDays = getDaysUntil(vehicle.registrationExpiry);
 
   return (
     <div
@@ -196,9 +198,11 @@ export function VehicleCard({ vehicle, onClick }: VehicleCardProps) {
           {primaryDriver ? (
             <div className="flex items-center gap-2">
               {primaryDriver.user.avatar ? (
-                <img
+                <Image
                   src={primaryDriver.user.avatar}
                   alt={primaryDriver.user.name}
+                  width={28}
+                  height={28}
                   className="h-7 w-7 rounded-full object-cover"
                 />
               ) : (

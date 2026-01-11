@@ -39,7 +39,7 @@ export async function GET() {
           sku: product.sku,
         },
         message: isOutOfStock
-          ? `${product.name} estÃ¡ agotado`
+          ? `${product.name} está agotado`
           : `${product.name} tiene stock bajo (${totalStock} ${product.unitOfMeasure || 'unidades'})`,
         details: {
           currentStock: totalStock,

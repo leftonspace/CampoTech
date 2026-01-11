@@ -9,7 +9,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { Calendar, ChevronDown, X } from 'lucide-react';
+import { Calendar, ChevronDown } from 'lucide-react';
 
 export type DateRangePreset = 'today' | 'yesterday' | 'week' | 'month' | 'quarter' | 'year' | 'ytd' | 'custom';
 
@@ -28,10 +28,10 @@ interface DateRangePickerProps {
 const PRESET_OPTIONS: { value: DateRangePreset; label: string }[] = [
   { value: 'today', label: 'Hoy' },
   { value: 'yesterday', label: 'Ayer' },
-  { value: 'week', label: 'Última semana' },
-  { value: 'month', label: 'Último mes' },
-  { value: 'quarter', label: 'Último trimestre' },
-  { value: 'year', label: 'Último año' },
+  { value: 'week', label: 'Íšltima semana' },
+  { value: 'month', label: 'Íšltimo mes' },
+  { value: 'quarter', label: 'Íšltimo trimestre' },
+  { value: 'year', label: 'Íšltimo año' },
   { value: 'ytd', label: 'Este año' },
 ];
 

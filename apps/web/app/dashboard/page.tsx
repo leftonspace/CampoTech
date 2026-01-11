@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import Image from 'next/image';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import { formatCurrency, JOB_STATUS_LABELS } from '@/lib/utils';
@@ -18,14 +19,14 @@ import {
   Phone,
   MoreHorizontal,
   TrendingUp,
-  User,
+  User
 } from 'lucide-react';
 import { OnboardingChecklist } from '@/components/dashboard';
 import { useOnboardingStatus } from '@/hooks/useOnboardingStatus';
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 
 interface DashboardStats {
   // Jobs
@@ -65,19 +66,11 @@ interface Job {
   scheduledTimeSlot?: { start?: string; end?: string };
 }
 
-interface Technician {
-  id: string;
-  name: string;
-  avatar?: string;
-  currentJob?: string;
-  currentLocation?: string;
-  phone?: string;
-  status: 'available' | 'busy' | 'offline';
-}
 
-// ═══════════════════════════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // HELPERS
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -110,14 +103,14 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
   REPARACION: 'Reparación',
   MANTENIMIENTO: 'Mantenimiento',
   DIAGNOSTICO: 'Diagnóstico',
-  EMERGENCIA: 'Emergencia',
+  EMERGENCIA: 'Emergencia'
 };
 
 const URGENCY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
   HIGH: { bg: 'bg-red-100', text: 'text-red-700', label: 'Alta' },
   URGENT: { bg: 'bg-red-100', text: 'text-red-700', label: 'Urgente' },
   NORMAL: { bg: 'bg-orange-100', text: 'text-orange-700', label: 'Media' },
-  LOW: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Baja' },
+  LOW: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Baja' }
 };
 
 const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
@@ -126,12 +119,12 @@ const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
   EN_ROUTE: { bg: 'bg-teal-100', text: 'text-teal-700' },
   IN_PROGRESS: { bg: 'bg-green-100', text: 'text-green-700' },
   COMPLETED: { bg: 'bg-green-50 border border-green-500', text: 'text-green-700' },
-  CANCELLED: { bg: 'bg-red-100', text: 'text-red-700' },
+  CANCELLED: { bg: 'bg-red-100', text: 'text-red-700' }
 };
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -139,17 +132,17 @@ export default function DashboardPage() {
 
   const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard-stats'],
-    queryFn: () => api.dashboard.stats(),
+    queryFn: () => api.dashboard.stats()
   });
 
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
     queryKey: ['today-jobs'],
-    queryFn: () => api.jobs.today(),
+    queryFn: () => api.jobs.today()
   });
 
   const { data: techData } = useQuery({
     queryKey: ['technicians-status'],
-    queryFn: () => api.users.list({ role: 'TECHNICIAN' }),
+    queryFn: () => api.users.list({ role: 'TECHNICIAN' })
   });
 
   const stats = statsData?.data as DashboardStats | undefined;
@@ -291,9 +284,9 @@ export default function DashboardPage() {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // STAT CARD COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 
 interface StatCardProps {
   title: string;
@@ -310,7 +303,7 @@ function StatCard({ title, value, icon: Icon, color, trend, loading }: StatCardP
     teal: 'bg-teal-500',
     coral: 'bg-orange-500',
     pink: 'bg-pink-500',
-    green: 'bg-emerald-500',
+    green: 'bg-emerald-500'
   };
 
   const iconBg = colorClasses[color];
@@ -337,9 +330,9 @@ function StatCard({ title, value, icon: Icon, color, trend, loading }: StatCardP
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // JOBS TABLE COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 
 function JobsTable({ jobs, loading }: { jobs: Job[]; loading: boolean }) {
   if (loading) {
@@ -458,9 +451,9 @@ function JobRow({ job }: { job: Job }) {
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // QUICK ACTION BUTTON
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 
 interface QuickActionButtonProps {
   href: string;
@@ -486,9 +479,9 @@ function QuickActionButton({ href, icon: Icon, label, primary }: QuickActionButt
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 // TEAM STATUS COMPONENT
-// ═══════════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
 
 interface TeamStatusProps {
   technicians: Array<{
@@ -521,7 +514,7 @@ function TeamStatus({ technicians, jobs }: TeamStatusProps) {
     <div className="space-y-3">
       {technicians.slice(0, 4).map((tech) => {
         const currentJob = getTechnicianCurrentJob(tech.id);
-        const isAvailable = !currentJob;
+        const _isAvailable = !currentJob;
         const statusLabel = currentJob
           ? JOB_STATUS_LABELS[currentJob.status] || currentJob.status
           : 'Disponible';
@@ -532,9 +525,11 @@ function TeamStatus({ technicians, jobs }: TeamStatusProps) {
         return (
           <div key={tech.id} className="flex items-start gap-3 p-3 rounded-lg border">
             {tech.avatar ? (
-              <img
+              <Image
                 src={tech.avatar}
                 alt={tech.name}
+                width={40}
+                height={40}
                 className="h-10 w-10 rounded-full object-cover"
               />
             ) : (

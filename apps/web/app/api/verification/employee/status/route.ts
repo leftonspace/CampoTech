@@ -86,13 +86,13 @@ const EMPLOYEE_BADGES = [
     code: 'background_check',
     name: 'Antecedentes Verificados',
     description: 'Certificado de antecedentes penales validado',
-    benefit: 'Destaca en el marketplace y accede a mÃ¡s trabajos',
+    benefit: 'Destaca en el marketplace y accede a más trabajos',
     icon: 'shield',
   },
   {
     code: 'professional_cert',
-    name: 'CertificaciÃ³n Profesional',
-    description: 'CertificaciÃ³n tÃ©cnica o profesional validada',
+    name: 'Certificación Profesional',
+    description: 'Certificación técnica o profesional validada',
     benefit: 'Aumenta la confianza de los clientes',
     icon: 'award',
   },
@@ -159,7 +159,7 @@ export async function GET(): Promise<NextResponse<EmployeeStatusResponse | Error
       } else if (r.status === 'expired') {
         reason = 'Documento vencido';
       } else if (r.isExpiringSoon) {
-        reason = `Vence en ${r.daysUntilExpiry} dÃ­as`;
+        reason = `Vence en ${r.daysUntilExpiry} días`;
       } else if (r.requirement.isRequired && r.status === 'not_started') {
         reason = 'Requisito obligatorio pendiente';
       }
@@ -204,7 +204,7 @@ export async function GET(): Promise<NextResponse<EmployeeStatusResponse | Error
     return NextResponse.json(
       {
         success: false,
-        error: error instanceof Error ? error.message : 'Error al obtener estado de verificaciÃ³n',
+        error: error instanceof Error ? error.message : 'Error al obtener estado de verificación',
       },
       { status: 500 }
     );

@@ -21,13 +21,8 @@ import {
   Send,
   XCircle,
   FileText,
-  Building,
-  User,
   Phone,
   Mail,
-  Calendar,
-  CreditCard,
-  QrCode,
   ExternalLink,
   CheckCircle,
   Clock,
@@ -36,12 +31,12 @@ import {
   Share2,
   MessageCircle,
 } from 'lucide-react';
-import { Invoice, Customer } from '@/types';
+import { Invoice } from '@/types';
 import { generateInvoiceWhatsAppLink } from '@/lib/whatsapp-links';
 
 export default function InvoiceDetailPage() {
   const params = useParams();
-  const router = useRouter();
+  const _router = useRouter();
   const queryClient = useQueryClient();
   const invoiceId = params.id as string;
 
