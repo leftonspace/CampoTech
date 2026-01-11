@@ -29,7 +29,7 @@
     "@opentelemetry/instrumentation-redis-4": "^0.49.0",
     "@prisma/client": "^5.22.0",
     "@sendgrid/mail": "^8.1.6",
-    "@sentry/core": "^10.32.1",
+    "@sentry/core": "8.55.0",
     "@sentry/nextjs": "^8.0.0",
     "@supabase/supabase-js": "^2.87.1",
     "@tanstack/react-query": "^5.17.0",
