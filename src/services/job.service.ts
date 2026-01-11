@@ -66,6 +66,9 @@ export class JobService {
                     technician: {
                         select: { id: true, name: true },
                     },
+                    vehicle: { // Phase 2.1: Include vehicle data
+                        select: { id: true, plateNumber: true, make: true, model: true },
+                    },
                     assignments: {
                         include: {
                             technician: { select: { id: true, name: true } },
@@ -108,6 +111,7 @@ export class JobService {
             scheduledTimeSlot,
             customerId,
             technicianIds = [],
+            vehicleId = null, // Phase 2.1: Vehicle for this job
             visits = [],
             durationType: bodyDurationType,
         } = data;
@@ -140,6 +144,7 @@ export class JobService {
                 scheduledTimeSlot: scheduledTimeSlot || null,
                 customerId,
                 technicianId: technicianIds[0] || null,
+                vehicleId: vehicleId || null, // Phase 2.1: Vehicle for this job
                 createdById: userId,
                 organizationId: orgId,
                 durationType: durationType as any,
@@ -166,6 +171,7 @@ export class JobService {
             include: {
                 customer: true,
                 technician: { select: { id: true, name: true } },
+                vehicle: { select: { id: true, plateNumber: true, make: true, model: true } }, // Phase 2.1
                 assignments: {
                     include: { technician: { select: { id: true, name: true } } },
                 },
@@ -186,6 +192,7 @@ export class JobService {
             include: {
                 customer: true,
                 technician: { select: { id: true, name: true } },
+                vehicle: { select: { id: true, plateNumber: true, make: true, model: true } }, // Phase 2.1
                 assignments: { include: { technician: { select: { id: true, name: true } } } },
                 visits: { include: { technician: { select: { id: true, name: true } } } },
             },
@@ -202,6 +209,7 @@ export class JobService {
             include: {
                 customer: true,
                 technician: { select: { id: true, name: true } },
+                vehicle: { select: { id: true, plateNumber: true, make: true, model: true } }, // Phase 2.1
             },
         });
     }

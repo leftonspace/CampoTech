@@ -4,21 +4,18 @@ import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
-import { cn, formatDate, JOB_STATUS_LABELS, JOB_STATUS_COLORS } from '@/lib/utils';
+import { cn, JOB_STATUS_LABELS, JOB_STATUS_COLORS } from '@/lib/utils';
 import { ProtectedRoute } from '@/lib/auth-context';
 import {
   ArrowLeft,
   Calendar,
   Clock,
   User,
-  MapPin,
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  Phone,
   GripVertical,
   UserPlus,
-  Check,
   X,
 } from 'lucide-react';
 import { Job, User as UserType } from '@/types';

@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
                 ? `Se importaron ${importResult.imported} perfiles nuevos de Gasnor Web (${importResult.updated} actualizados)`
                 : `Se encontraron ${scrapeResult.records.length} perfiles de Gasnor Web`,
         });
-    } catch (error) {
+    } catch (_error) {
         console.error('[API/Gasnor-Web] Error:', error);
         return NextResponse.json(
             { error: 'Error al ejecutar el scraper Gasnor Web' },
@@ -95,7 +95,7 @@ export async function GET() {
             description: 'Registro de instaladores de gas de Naturgy NOA (incluye emails)',
             notes: 'Usa Playwright para extraer emails del DOM',
         });
-    } catch (error) {
+    } catch (_error) {
         return NextResponse.json(
             { error: 'Error al obtener información del scraper' },
             { status: 500 }

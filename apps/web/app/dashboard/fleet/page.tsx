@@ -7,15 +7,10 @@ import {
   Truck,
   Plus,
   Search,
-  Filter,
   AlertTriangle,
   CheckCircle,
   Settings,
   RefreshCw,
-  FileText,
-  Users,
-  Calendar,
-  Fuel,
 } from 'lucide-react';
 import { VehicleCard } from '@/components/fleet/VehicleCard';
 import { VehicleDetailModal } from '@/components/fleet/VehicleDetailModal';
@@ -152,9 +147,8 @@ export default function FleetPage() {
         </div>
         <button
           onClick={() => setShowAlerts(!showAlerts)}
-          className={`rounded-lg p-4 shadow-sm text-left transition-colors ${
-            showAlerts ? 'bg-red-50 ring-2 ring-red-500' : 'bg-white'
-          }`}
+          className={`rounded-lg p-4 shadow-sm text-left transition-colors ${showAlerts ? 'bg-red-50 ring-2 ring-red-500' : 'bg-white'
+            }`}
         >
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-red-500" />
@@ -253,8 +247,9 @@ export default function FleetPage() {
         onClose={() => setSelectedVehicleId(null)}
         onEdit={(vehicleId) => {
           setSelectedVehicleId(null);
-          window.location.href = `/dashboard/fleet/${vehicleId}?edit=true`;
+          window.location.href = `/dashboard/fleet/${vehicleId}/edit`;
         }}
+        onRefresh={() => refetch()}
       />
     </div>
   );

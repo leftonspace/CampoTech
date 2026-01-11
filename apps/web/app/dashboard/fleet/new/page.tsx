@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -10,7 +11,9 @@ import {
   Fuel,
   FileText,
   Gauge,
+  Users,
 } from 'lucide-react';
+
 
 const FUEL_TYPES = [
   { value: 'GASOLINE', label: 'Nafta' },
@@ -20,10 +23,29 @@ const FUEL_TYPES = [
   { value: 'HYBRID', label: 'Hibrido' },
 ];
 
+interface TeamMember {
+  id: string;
+  name: string;
+  role: string;
+  avatar?: string;
+  phone: string;
+}
+
 export default function NewVehiclePage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+
+  // Fetch team members for driver selection (all active employees can be drivers)
+  const { data: teamData } = useQuery({
+    queryKey: ['team-members-drivers'],
+    queryFn: async () => {
+      const res = await fetch('/api/users'); // All active users
+      if (!res.ok) throw new Error('Error fetching team');
+      return res.json();
+    },
+  });
+  const teamMembers: TeamMember[] = teamData?.data || [];
 
   const [formData, setFormData] = useState({
     plateNumber: '',
@@ -40,6 +62,7 @@ export default function NewVehiclePage() {
     vtvExpiry: '',
     registrationExpiry: '',
     notes: '',
+    primaryDriverId: '', // NEW: Assign driver during creation
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -61,7 +84,7 @@ export default function NewVehiclePage() {
       } else {
         setError(data.error || 'Error al crear el vehiculo');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Error de conexion');
     }
 
@@ -334,6 +357,35 @@ export default function NewVehiclePage() {
             rows={3}
             className="input"
           />
+        </div>
+
+        {/* Driver Assignment */}
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Asignar Conductor
+          </h2>
+          <div>
+            <label htmlFor="primaryDriverId" className="label mb-1 block">
+              Conductor Principal
+            </label>
+            <select
+              id="primaryDriverId"
+              value={formData.primaryDriverId}
+              onChange={(e) => setFormData({ ...formData, primaryDriverId: e.target.value })}
+              className="input"
+            >
+              <option value="">Sin conductor asignado</option>
+              {teamMembers.map((member) => (
+                <option key={member.id} value={member.id}>
+                  {member.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">
+              Podés asignar un conductor ahora o hacerlo más tarde desde la página del vehículo.
+            </p>
+          </div>
         </div>
 
         {error && <p className="text-sm text-danger-500">{error}</p>}

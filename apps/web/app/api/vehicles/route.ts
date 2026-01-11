@@ -219,6 +219,7 @@ export async function POST(request: NextRequest) {
       vtvExpiry,
       registrationExpiry,
       notes,
+      primaryDriverId, // Optional: Assign primary driver during creation
     } = body;
 
     if (!plateNumber || !make || !model || !year) {
@@ -243,6 +244,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate primary driver if provided
+    if (primaryDriverId) {
+      const driver = await prisma.user.findFirst({
+        where: {
+          id: primaryDriverId,
+          organizationId: session.organizationId,
+          isActive: true,
+        },
+      });
+      if (!driver) {
+        return NextResponse.json(
+          { success: false, error: 'Conductor no encontrado' },
+          { status: 400 }
+        );
+      }
+    }
+
     const vehicle = await prisma.vehicle.create({
       data: {
         organizationId: session.organizationId,
@@ -263,6 +281,18 @@ export async function POST(request: NextRequest) {
         status: 'ACTIVE',
       },
     });
+
+    // Assign primary driver if provided
+    if (primaryDriverId) {
+      await prisma.vehicleAssignment.create({
+        data: {
+          vehicleId: vehicle.id,
+          userId: primaryDriverId,
+          isPrimaryDriver: true,
+          assignedFrom: new Date(),
+        },
+      });
+    }
 
     // Auto-create warehouse storage location for this vehicle
     try {

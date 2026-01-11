@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { cn, formatCurrency } from '@/lib/utils';
@@ -19,7 +19,6 @@ import {
   RefreshCw,
   Trash2,
   MapPin,
-  Filter,
   X,
 } from 'lucide-react';
 import InventoryItemModal from './InventoryItemModal';

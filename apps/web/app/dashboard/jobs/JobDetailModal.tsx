@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -19,18 +19,14 @@ import {
   Wrench,
   CheckCircle,
   XCircle,
-  AlertTriangle,
   Truck,
-  Play,
   ChevronRight,
   ExternalLink,
-  Users,
-  Plus,
   CalendarDays,
   Repeat,
 } from 'lucide-react';
 import { cn, formatCurrency, formatPhone, formatAddress, formatDate, formatDateTime, getInitials, JOB_STATUS_LABELS, JOB_STATUS_COLORS } from '@/lib/utils';
-import { Job, Customer } from '@/types';
+import { Job } from '@/types';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES & CONSTANTS

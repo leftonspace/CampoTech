@@ -9,7 +9,6 @@
 import Link from 'next/link';
 import {
     ChevronDown,
-    ChevronRight,
     MessageSquare,
     CreditCard,
     Smartphone,

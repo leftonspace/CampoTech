@@ -17,7 +17,6 @@ import {
     ArrowLeft,
     CheckCircle2,
     Circle,
-    AlertTriangle,
     Rocket,
     Shield,
     Building2,
@@ -259,8 +258,8 @@ export default function LaunchGatePage() {
                                             key={item.key}
                                             onClick={() => toggleChecklistItem(item.key, !item.checked)}
                                             className={`p-4 flex items-center gap-4 cursor-pointer transition-colors ${item.checked
-                                                    ? 'bg-emerald-50 hover:bg-emerald-100'
-                                                    : 'hover:bg-gray-50'
+                                                ? 'bg-emerald-50 hover:bg-emerald-100'
+                                                : 'hover:bg-gray-50'
                                                 }`}
                                         >
                                             <div className="flex-shrink-0">
@@ -294,8 +293,8 @@ export default function LaunchGatePage() {
                             onClick={handleLaunch}
                             disabled={!status?.canLaunch || launching}
                             className={`inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-semibold text-lg transition-all ${status?.canLaunch
-                                    ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 shadow-lg hover:shadow-xl'
-                                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                ? 'bg-gradient-to-r from-emerald-500 to-emerald-600 text-white hover:from-emerald-600 hover:to-emerald-700 shadow-lg hover:shadow-xl'
+                                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                                 }`}
                         >
                             {launching ? (

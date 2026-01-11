@@ -3,9 +3,7 @@
 import { useState } from 'react';
 import {
     Activity,
-    CheckCircle,
     AlertTriangle,
-    XOctagon,
     ShieldAlert,
     RefreshCw,
     Power

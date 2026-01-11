@@ -36,6 +36,8 @@ export async function GET(
         role: true,
         specialty: true,
         skillLevel: true,
+        specialties: true,
+        certifications: true,
         avatar: true,
         isActive: true,
       },
@@ -147,6 +149,14 @@ export async function PUT(
       );
     }
 
+    // SELF-DEACTIVATION PREVENTION: Cannot deactivate yourself
+    if (isEditingSelf && body.isActive === false) {
+      return NextResponse.json(
+        { success: false, error: 'No podés desactivar tu propia cuenta' },
+        { status: 400 }
+      );
+    }
+
     // Check if email already exists in organization (if changed)
     if (body.email && body.email !== existing.email) {
       const existingEmail = await prisma.user.findFirst({
@@ -172,8 +182,14 @@ export async function PUT(
     if (body.role !== undefined) updateData.role = body.role;
     if (body.specialty !== undefined) updateData.specialty = body.specialty || null;
     if (body.skillLevel !== undefined) updateData.skillLevel = body.skillLevel || null;
+    if (body.specialties !== undefined) updateData.specialties = body.specialties || [];
+    if (body.certifications !== undefined) updateData.certifications = body.certifications || null;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
     if (body.avatar !== undefined) updateData.avatar = body.avatar;
+    // Driver's license fields
+    if (body.driverLicenseNumber !== undefined) updateData.driverLicenseNumber = body.driverLicenseNumber || null;
+    if (body.driverLicenseExpiry !== undefined) updateData.driverLicenseExpiry = body.driverLicenseExpiry ? new Date(body.driverLicenseExpiry) : null;
+    if (body.driverLicenseCategory !== undefined) updateData.driverLicenseCategory = body.driverLicenseCategory || null;
 
     const user = await prisma.user.update({
       where: { id },
@@ -186,14 +202,76 @@ export async function PUT(
         role: true,
         specialty: true,
         skillLevel: true,
+        specialties: true,
+        certifications: true,
         avatar: true,
         isActive: true,
+        driverLicenseNumber: true,
+        driverLicenseExpiry: true,
+        driverLicenseCategory: true,
       },
     });
+
+    // Handle resend notifications if requested
+    const notifications = {
+      emailSent: false,
+      otpSent: false,
+    };
+
+    // Resend email notification if email changed
+    if (body.resendEmailNotification && user.email) {
+      try {
+        // Import Resend dynamically to avoid issues if not configured
+        const { Resend } = await import('resend');
+        const resend = new Resend(process.env.RESEND_API_KEY);
+
+        await resend.emails.send({
+          from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+          to: user.email,
+          subject: 'Tu perfil ha sido actualizado',
+          html: `
+            <h2>Hola ${user.name},</h2>
+            <p>Tu perfil en CampoTech ha sido actualizado.</p>
+            <p>Si tienes alguna pregunta, contacta a tu administrador.</p>
+          `,
+        });
+        notifications.emailSent = true;
+      } catch (emailError) {
+        console.error('Failed to send email notification:', emailError);
+      }
+    }
+
+    // Resend phone OTP if requested
+    if (body.resendPhoneOTP && user.phone) {
+      try {
+        // Generate a new OTP code
+        const crypto = await import('crypto');
+        const otp = crypto.randomInt(100000, 999999).toString();
+        const otpHash = crypto.createHash('sha256').update(otp).digest('hex');
+
+        // Store the OTP in database
+        const { prisma: dbPrisma } = await import('@/lib/prisma');
+        await dbPrisma.otpCode.create({
+          data: {
+            phone: user.phone,
+            codeHash: otpHash,
+            expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+          },
+        });
+
+        // TODO: Send OTP via WhatsApp
+        // For now, log it (in production, integrate with WhatsApp API)
+        console.log(`[RESEND OTP] Phone: ${user.phone}, Code: ${otp}`);
+        notifications.otpSent = true;
+      } catch (otpError) {
+        console.error('Failed to send phone OTP:', otpError);
+      }
+    }
 
     return NextResponse.json({
       success: true,
       data: user,
+      notifications,
     });
   } catch (error) {
     console.error('Update user error:', error);

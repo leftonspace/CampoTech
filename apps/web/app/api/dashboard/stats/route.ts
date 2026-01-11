@@ -57,7 +57,7 @@ export async function GET() {
       todayRevenue,
       lastWeekRevenue,
       activeCustomers,
-      // lastMonthCustomers,
+      _lastMonthCustomers,
       averageRating,
     ] = await Promise.all([
       // Jobs scheduled for today
@@ -119,35 +119,35 @@ export async function GET() {
         }),
         { _sum: { total: null } }
       ),
-      // Today's revenue (paid invoices)
+      // Today's revenue (from paid payments)
       safeQuery(
-        prisma.invoice.aggregate({
+        prisma.payment.aggregate({
           where: {
             organizationId: session.organizationId,
-            status: 'PAID',
+            status: 'COMPLETED',
             paidAt: {
               gte: today,
               lt: tomorrow,
             },
           },
-          _sum: { total: true },
+          _sum: { amount: true },
         }),
-        { _sum: { total: null } }
+        { _sum: { amount: null } }
       ),
       // Last week's revenue (for comparison)
       safeQuery(
-        prisma.invoice.aggregate({
+        prisma.payment.aggregate({
           where: {
             organizationId: session.organizationId,
-            status: 'PAID',
+            status: 'COMPLETED',
             paidAt: {
               gte: startOfLastWeek,
               lte: endOfLastWeek,
             },
           },
-          _sum: { total: true },
+          _sum: { amount: true },
         }),
-        { _sum: { total: null } }
+        { _sum: { amount: null } }
       ),
       // Active customers (with at least one job)
       prisma.customer.count({
@@ -197,9 +197,9 @@ export async function GET() {
       ? `+${newCustomersThisMonth} este mes`
       : null;
 
-    // Calculate revenue
-    const todayRevenueAmount = todayRevenue._sum.total ? Number(todayRevenue._sum.total) : 0;
-    const lastWeekRevenueAmount = lastWeekRevenue._sum.total ? Number(lastWeekRevenue._sum.total) : 0;
+    // Calculate revenue (from Payment.amount, not Invoice.total)
+    const todayRevenueAmount = todayRevenue._sum.amount ? Number(todayRevenue._sum.amount) : 0;
+    const lastWeekRevenueAmount = lastWeekRevenue._sum.amount ? Number(lastWeekRevenue._sum.amount) : 0;
 
     // Calculate week-over-week revenue change
     let revenueTrend: string | null = null;
@@ -244,8 +244,19 @@ export async function GET() {
     });
   } catch (error) {
     console.error('Dashboard stats error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : undefined;
+    console.error('Error details:', { message: errorMessage, stack: errorStack });
     return NextResponse.json(
-      { success: false, error: 'Error fetching dashboard stats' },
+      {
+        success: false,
+        error: 'Error fetching dashboard stats',
+        // Include details in development
+        ...(process.env.NODE_ENV === 'development' && {
+          details: errorMessage,
+          stack: errorStack
+        })
+      },
       { status: 500 }
     );
   }

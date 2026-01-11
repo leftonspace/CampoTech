@@ -183,7 +183,7 @@ export default function NewPurchaseOrderPage() {
       } else {
         setError(data.error || 'Error al crear la orden');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Error de conexión');
     }
 

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { cn, formatCurrency } from '@/lib/utils';
+import { formatCurrency } from '@/lib/utils';
 import {
   ArrowLeft,
   Edit2,
@@ -13,11 +13,9 @@ import {
   Package,
   Tag,
   Barcode,
-  DollarSign,
   Warehouse,
   AlertTriangle,
   CheckCircle,
-  Archive,
   Trash2,
 } from 'lucide-react';
 

@@ -196,7 +196,7 @@ export async function recordJobEnqueued(
 
     // Clean up old entries (keep only last window)
     await cleanupOldMetrics(tier, now);
-  } catch (error) {
+  } catch (_error) {
     console.error('[Metrics] Error recording enqueue:', error);
   }
 }
@@ -263,7 +263,7 @@ export async function recordJobCompleted(
     }
 
     await Promise.all(operations);
-  } catch (error) {
+  } catch (_error) {
     console.error('[Metrics] Error recording completion:', error);
   }
 }
@@ -285,7 +285,7 @@ export async function recordJobFailed(
       redis.zadd(METRICS_KEYS.failed(tier), { score: now, member: `${now}:${Math.random()}` }),
       redis.incr(METRICS_KEYS.jobTypeCount(tier, jobType, 'failed')),
     ]);
-  } catch (err) {
+  } catch (_err) {
     console.error('[Metrics] Error recording failure:', err);
   }
 }
@@ -303,7 +303,7 @@ async function getQueueDepth(tier: QueueTier): Promise<number> {
   try {
     const depth = await redis.zcard(queueKey(tier));
     return depth;
-  } catch (error) {
+  } catch (_error) {
     console.error('[Metrics] Error getting queue depth:', error);
     return 0;
   }
@@ -318,7 +318,7 @@ async function getDlqDepth(tier: QueueTier): Promise<number> {
   try {
     const depth = await redis.zcard(dlqKey(tier));
     return depth;
-  } catch (error) {
+  } catch (_error) {
     console.error('[Metrics] Error getting DLQ depth:', error);
     return 0;
   }
@@ -336,7 +336,7 @@ async function getWindowCount(key: string, windowMs: number = METRICS_WINDOW * 1
   try {
     const count = await redis.zcount(key, windowStart, now);
     return count;
-  } catch (error) {
+  } catch (_error) {
     console.error('[Metrics] Error getting window count:', error);
     return 0;
   }
@@ -365,7 +365,7 @@ async function getAverageTiming(key: string, windowMs: number = METRICS_WINDOW *
 
     const sum = timings.reduce((a: number, b: number) => a + b, 0);
     return Math.round(sum / timings.length);
-  } catch (error) {
+  } catch (_error) {
     console.error('[Metrics] Error getting average timing:', error);
     return 0;
   }
@@ -708,7 +708,7 @@ export async function getHistoricalMetrics(
         value: latencyCount > 0 ? latencySum / latencyCount : 0,
       });
     }
-  } catch (error) {
+  } catch (_error) {
     console.error('[Metrics] Error getting historical metrics:', error);
   }
 
@@ -763,7 +763,7 @@ async function cleanupOldMetrics(tier: QueueTier, now: number): Promise<void> {
       redis.zremrangebyscore(METRICS_KEYS.slaHits(tier), 0, windowStart),
       redis.zremrangebyscore(METRICS_KEYS.slaMisses(tier), 0, windowStart),
     ]);
-  } catch (error) {
+  } catch (_error) {
     // Silent cleanup failure - not critical
   }
 }
@@ -787,7 +787,7 @@ export async function resetMetrics(tier: QueueTier): Promise<void> {
   try {
     await redis.del(...keys);
     console.log(`[Metrics] Reset metrics for ${tier}`);
-  } catch (error) {
+  } catch (_error) {
     console.error('[Metrics] Error resetting metrics:', error);
   }
 }

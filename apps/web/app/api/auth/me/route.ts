@@ -39,12 +39,19 @@ export async function GET(request: NextRequest) {
     }
 
     // Prepare organization data safely
-    const organization = user.organization ? {
-      id: user.organization.id,
-      name: user.organization.name,
-      subscriptionTier: (user.organization as any).subscriptionTier || 'FREE',
-      subscriptionStatus: (user.organization as any).subscriptionStatus || 'none',
-      verificationStatus: (user.organization as any).verificationStatus || 'pending',
+    // Type assertion to access fields that may exist on the organization
+    type OrgWithExtras = typeof user.organization & {
+      subscriptionTier?: string;
+      subscriptionStatus?: string;
+      verificationStatus?: string;
+    };
+    const org = user.organization as OrgWithExtras;
+    const organization = org ? {
+      id: org.id,
+      name: org.name,
+      subscriptionTier: org.subscriptionTier || 'FREE',
+      subscriptionStatus: org.subscriptionStatus || 'none',
+      verificationStatus: org.verificationStatus || 'pending',
     } : null;
 
     return NextResponse.json({

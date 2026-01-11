@@ -4,15 +4,12 @@ import { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { formatCurrency } from '@/lib/utils';
 import {
   ArrowLeft,
   Search,
-  Package,
   Warehouse,
   ArrowUp,
   ArrowDown,
-  FileText,
 } from 'lucide-react';
 
 interface Product {
@@ -145,7 +142,7 @@ export default function StockAdjustPage() {
       } else {
         setError(data.error || 'Error al realizar el ajuste');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Error de conexión');
     }
 
@@ -255,11 +252,10 @@ export default function StockAdjustPage() {
             <button
               type="button"
               onClick={() => setFormData({ ...formData, adjustmentType: 'IN' })}
-              className={`flex items-center justify-center gap-2 rounded-lg border-2 p-4 transition-colors ${
-                formData.adjustmentType === 'IN'
+              className={`flex items-center justify-center gap-2 rounded-lg border-2 p-4 transition-colors ${formData.adjustmentType === 'IN'
                   ? 'border-green-500 bg-green-50 text-green-700'
                   : 'border-gray-200 text-gray-600 hover:border-gray-300'
-              }`}
+                }`}
             >
               <ArrowDown className="h-5 w-5" />
               <span className="font-medium">Entrada (+)</span>
@@ -267,11 +263,10 @@ export default function StockAdjustPage() {
             <button
               type="button"
               onClick={() => setFormData({ ...formData, adjustmentType: 'OUT' })}
-              className={`flex items-center justify-center gap-2 rounded-lg border-2 p-4 transition-colors ${
-                formData.adjustmentType === 'OUT'
+              className={`flex items-center justify-center gap-2 rounded-lg border-2 p-4 transition-colors ${formData.adjustmentType === 'OUT'
                   ? 'border-red-500 bg-red-50 text-red-700'
                   : 'border-gray-200 text-gray-600 hover:border-gray-300'
-              }`}
+                }`}
             >
               <ArrowUp className="h-5 w-5" />
               <span className="font-medium">Salida (-)</span>

@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth, ProtectedRoute } from '@/lib/auth-context';
-import { cn, getInitials } from '@/lib/utils';
+import { cn, getInitials, getRoleLabel } from '@/lib/utils';
 import { MODULE_ACCESS, type UserRole, type ModuleAccess } from '@/lib/config/field-permissions';
 import {
   TIER_GATED_MODULES,
@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import NotificationCenter from '@/components/notifications/NotificationCenter';
+import { HelpWidget } from '@/components/support/HelpWidget';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // NAVIGATION ITEMS
@@ -313,8 +314,8 @@ export default function DashboardLayout({
                       <p className="truncate text-sm font-medium text-sidebar-foreground">
                         {user?.name}
                       </p>
-                      <p className="truncate text-xs text-sidebar-foreground/60 capitalize">
-                        {user?.role}
+                      <p className="truncate text-xs text-sidebar-foreground/60">
+                        {getRoleLabel(user?.role)}
                       </p>
                     </div>
                     <button
@@ -378,7 +379,7 @@ export default function DashboardLayout({
                   </div>
                   <div className="hidden md:block text-left">
                     <p className="text-sm font-medium">{user?.name || 'Usuario'}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{user?.role || 'Usuario'}</p>
+                    <p className="text-xs text-muted-foreground">{getRoleLabel(user?.role)}</p>
                   </div>
                   <ChevronDown className="w-4 h-4 text-muted-foreground hidden md:block" />
                 </button>
@@ -446,6 +447,9 @@ export default function DashboardLayout({
           moduleName={upgradeModal.moduleName}
           currentTier={subscriptionTier}
         />
+
+        {/* Help Widget - Floating support button with AI chat */}
+        <HelpWidget />
       </div>
     </ProtectedRoute>
   );

@@ -27,10 +27,6 @@ import type {
   CUITEntityType,
   AFIPClientConfig,
   AFIPServiceStatus,
-  ActivityCode,
-  CategoriaTributaria,
-  DomicilioFiscal,
-  AFIPEstado,
 } from './types';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -410,12 +406,12 @@ class AFIPClientClass {
       categoriaTributaria: isCompany ? 'Responsable Inscripto' : 'Monotributo',
       monotributo: !isCompany
         ? {
-            categoria: 'F',
-            fechaDesde: '2020-01-15',
-            impuestoIntegrado: true,
-            aporteJubilatorio: true,
-            obraSocial: true,
-          }
+          categoria: 'F',
+          fechaDesde: '2020-01-15',
+          impuestoIntegrado: true,
+          aporteJubilatorio: true,
+          obraSocial: true,
+        }
         : undefined,
       empleador: isCompany,
       impuestosActivos: isCompany ? ['IVA', 'Ganancias'] : ['Monotributo'],

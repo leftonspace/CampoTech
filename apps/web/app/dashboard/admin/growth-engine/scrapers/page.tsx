@@ -25,8 +25,6 @@ import {
     Clock,
     Database,
     ExternalLink,
-    RefreshCw,
-    Pause
 } from 'lucide-react';
 
 interface ScraperResult {

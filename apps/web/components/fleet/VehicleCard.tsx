@@ -7,7 +7,6 @@ import {
   Settings,
   AlertTriangle,
   CheckCircle,
-  Calendar,
   Fuel,
   Gauge,
 } from 'lucide-react';

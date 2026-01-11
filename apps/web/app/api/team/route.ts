@@ -25,15 +25,20 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const role = searchParams.get('role');
     const isActive = searchParams.get('isActive');
+    const includeInactive = searchParams.get('includeInactive') === 'true';
 
     const where: Record<string, unknown> = {
       organizationId: session.organizationId,
+      // GHOST FILTER: By default only show active users
+      // Pass ?includeInactive=true to see all users
+      ...(includeInactive ? {} : { isActive: true }),
     };
 
     if (role) {
       where.role = role.toUpperCase();
     }
 
+    // Override with explicit isActive filter if provided
     if (isActive !== null && isActive !== undefined) {
       where.isActive = isActive === 'true';
     }
@@ -49,6 +54,9 @@ export async function GET(request: NextRequest) {
         role: true,
         isActive: true,
         createdAt: true,
+        driverLicenseNumber: true,
+        driverLicenseExpiry: true,
+        driverLicenseCategory: true,
       },
       orderBy: { name: 'asc' },
     });

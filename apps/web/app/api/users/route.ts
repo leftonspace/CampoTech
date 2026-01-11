@@ -30,9 +30,13 @@ export async function GET(request: NextRequest) {
     const role = searchParams.get('role');
     const limit = parseInt(searchParams.get('limit') || '50');
     const page = parseInt(searchParams.get('page') || '1');
+    const includeInactive = searchParams.get('includeInactive') === 'true';
 
     const where: Record<string, unknown> = {
       organizationId: session.organizationId,
+      // GHOST FILTER: By default only show active users
+      // Pass ?includeInactive=true to see archived users
+      ...(includeInactive ? {} : { isActive: true }),
     };
 
     if (search) {
@@ -58,6 +62,8 @@ export async function GET(request: NextRequest) {
           role: true,
           specialty: true,
           skillLevel: true,
+          specialties: true,
+          certifications: true,
           avatar: true,
           isActive: true,
           createdAt: true,
@@ -154,9 +160,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  console.log('[Users API] POST request received');
   try {
     const session = await getSession();
-
+    console.log('[Users API] Session:', session ? `User ${session.userId}` : 'null');
     if (!session) {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
@@ -179,8 +186,10 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
+    console.log('[Users API] Request body:', { name: body.name, phone: body.phone, email: body.email, role: body.role });
 
     if (!body.name || !body.phone) {
+      console.log('[Users API] Validation failed: Name and phone are required');
       return NextResponse.json(
         { success: false, error: 'Name and phone are required' },
         { status: 400 }
@@ -192,6 +201,7 @@ export async function POST(request: NextRequest) {
     });
 
     if (existingPhone) {
+      console.log('[Users API] Validation failed: Phone number already in use -', body.phone);
       return NextResponse.json(
         { success: false, error: 'Phone number already in use' },
         { status: 400 }
@@ -223,8 +233,12 @@ export async function POST(request: NextRequest) {
         phone: body.phone,
         email: body.email || null,
         role: body.role || 'TECHNICIAN',
+        // Legacy fields (for backwards compatibility)
         specialty: body.specialty || null,
         skillLevel: body.skillLevel || null,
+        // New multi-specialty fields
+        specialties: body.specialties || [],
+        certifications: body.certifications || null,
         isActive: body.isActive ?? true,
         organizationId: session.organizationId,
       },
@@ -236,6 +250,8 @@ export async function POST(request: NextRequest) {
         role: true,
         specialty: true,
         skillLevel: true,
+        specialties: true,
+        certifications: true,
         avatar: true,
         isActive: true,
       },
@@ -252,7 +268,9 @@ export async function POST(request: NextRequest) {
     const organizationName = organization?.name || 'CampoTech';
 
     // Send welcome email if email is provided
+    console.log('[Users API] User created:', user.id, 'Email:', user.email);
     if (user.email) {
+      console.log('[Users API] Attempting to send welcome email to:', user.email);
       try {
         const emailResult = await sendWelcomeEmail(
           user.email,

@@ -258,7 +258,7 @@ export default function SignupPage() {
       } else {
         setError({ message: result.error || 'Código incorrecto' });
       }
-    } catch (err) {
+    } catch (_err) {
       setError({ message: 'Error de conexión. Intentá de nuevo.' });
     } finally {
       setIsLoading(false);

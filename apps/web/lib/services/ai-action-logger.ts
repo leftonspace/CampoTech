@@ -259,10 +259,12 @@ export async function logTransferToHuman(
   });
 }
 
-export default {
+const aiActionLogger = {
   logAIAction,
   logWorkflowActions,
   logConflict,
   logProactiveSuggestion,
   logTransferToHuman,
 };
+
+export default aiActionLogger;

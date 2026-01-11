@@ -18,7 +18,6 @@ import { prisma } from '@/lib/prisma';
 import {
   getSchedulingIntelligenceService,
   SchedulingIntelligenceResult,
-  TechnicianAvailability,
 } from './scheduling-intelligence';
 import {
   getBookingWorkflow,

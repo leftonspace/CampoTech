@@ -35,13 +35,12 @@ export async function POST(request: NextRequest) {
     // Clean phone number for user lookup
     const cleanPhone = phone.replace(/\D/g, '');
 
-    // Find user by phone
+    // Find user by phone (first check if exists at all)
     const user = await prisma.user.findFirst({
       where: {
         phone: {
           contains: cleanPhone.slice(-10), // Match last 10 digits
         },
-        isActive: true,
       },
       include: {
         organization: true,
@@ -52,6 +51,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: { message: 'Usuario no encontrado' } },
         { status: 401 }
+      );
+    }
+
+    // KILL SWITCH: Check if account is deactivated
+    if (!user.isActive) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            message: 'Cuenta desactivada. Contacte al administrador.',
+            code: 'ACCOUNT_DEACTIVATED'
+          }
+        },
+        { status: 403 }
       );
     }
 

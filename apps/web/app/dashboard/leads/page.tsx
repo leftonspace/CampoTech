@@ -11,7 +11,6 @@ import {
   Clock,
   Send,
   CheckCircle,
-  XCircle,
   MapPin,
   Calendar,
   DollarSign,
@@ -20,10 +19,8 @@ import {
   Filter,
   RefreshCw,
   Image as ImageIcon,
-  AlertCircle,
   TrendingUp,
   Eye,
-  MessageSquare,
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════════

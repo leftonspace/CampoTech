@@ -16,7 +16,6 @@ import {
     MousePointerClick,
     Zap,
     Target,
-    Calendar,
     RefreshCw,
     Download,
     TrendingUp,

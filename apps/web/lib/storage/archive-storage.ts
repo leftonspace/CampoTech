@@ -171,7 +171,7 @@ export async function uploadArchive(
 
     console.log(
       `[ArchiveStorage] Uploaded ${path} - ${records.length} records, ` +
-        `${Math.round(compressed.length / 1024)}KB compressed`
+      `${Math.round(compressed.length / 1024)}KB compressed`
     );
 
     return {
@@ -215,7 +215,7 @@ export async function downloadArchive(path: string): Promise<ArchiveFile | null>
     const archiveData: ArchiveFile = JSON.parse(decompressed.toString());
 
     // Verify checksum
-    const calculatedChecksum = calculateChecksum(
+    const _calculatedChecksum = calculateChecksum(
       JSON.stringify({
         ...archiveData,
         metadata: { ...archiveData.metadata, checksum: '' },

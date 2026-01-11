@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body: SyncRequest = await request.json();
-    const { lastSyncAt, operations, deviceId } = body;
+    const { lastSyncAt, operations, deviceId: _deviceId } = body;
 
     const lastSync = lastSyncAt ? new Date(lastSyncAt) : new Date(0);
     const now = new Date();
@@ -143,7 +143,7 @@ type ResolutionType = 'server_wins' | 'client_wins' | 'merged';
 async function processOperation(
   organizationId: string,
   operation: SyncOperation,
-  userId: string
+  _userId: string
 ): Promise<{ conflict?: boolean; resolution?: ResolutionType; serverData?: unknown }> {
   const { table, action, data, timestamp } = operation;
   const clientTimestamp = new Date(timestamp);

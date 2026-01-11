@@ -120,7 +120,7 @@ export async function GET() {
             exists: false,
             message: 'No admin account. POST to this endpoint to create one.',
         });
-    } catch (error) {
+    } catch (_error) {
         return NextResponse.json(
             { error: 'Failed to check admin status' },
             { status: 500 }

@@ -23,7 +23,6 @@ import {
   FileText,
   X,
   ArrowRight,
-  Shield,
   RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';

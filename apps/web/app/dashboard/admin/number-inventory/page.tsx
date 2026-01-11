@@ -8,20 +8,14 @@ import {
     Phone,
     Plus,
     RefreshCcw,
-    Trash2,
-    Play,
-    Pause,
     CheckCircle,
     XCircle,
     Clock,
-    AlertTriangle,
     Building2,
     DollarSign,
     BarChart3,
-    Activity,
     ChevronRight,
     ChevronLeft,
-    Search,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';

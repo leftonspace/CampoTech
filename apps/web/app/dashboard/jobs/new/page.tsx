@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
-import { ArrowLeft, Search, Calendar, Clock, Users, MapPin, X, Check, Wrench, AlertTriangle, Repeat, Plus, Truck } from 'lucide-react';
+import { ArrowLeft, Search, Calendar, Clock, Users, MapPin, X, Check, Wrench, Repeat, Plus, Truck } from 'lucide-react';
 import Link from 'next/link';
 import AddressAutocomplete, { ParsedAddress } from '@/components/ui/AddressAutocomplete';
 import { useVehicleSuggestion, getMatchTypeLabel } from '@/hooks/useVehicleSuggestion';
@@ -280,7 +280,7 @@ export default function NewJobPage() {
       } else {
         setError(data.error || 'Error creando tipo de servicio');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Error creando tipo de servicio');
     } finally {
       setIsCreatingServiceType(false);
@@ -429,11 +429,13 @@ export default function NewJobPage() {
 
     // Convert visits to API format, expanding date ranges and including recurrence
     // Include visitConfigIndex so the backend knows which expanded dates belong to the same "Visita" config
+    // Include vehicleId for vehicle/driver tracking (Phase 2.1)
     const formattedVisits: Array<{
       date: string;
       timeStart: string;
       timeEnd: string;
       technicianIds: string[];
+      vehicleId: string | null;
       visitConfigIndex: number; // Which "Visita" block this came from (1, 2, 3...)
       isRecurring?: boolean;
       recurrencePattern?: string;
@@ -447,6 +449,7 @@ export default function NewJobPage() {
         const timeStart = convertTo24h(v.timeStart, v.timePeriodStart);
         const timeEnd = convertTo24h(v.timeEnd, v.timePeriodEnd);
         const technicianIds = v.technicianIds;
+        const vehicleId = v.vehicleId || null;
         const recurrenceInfo = v.isRecurring ? {
           isRecurring: true,
           recurrencePattern: v.recurrencePattern,
@@ -454,15 +457,15 @@ export default function NewJobPage() {
         } : {};
 
         // If there's an end date, expand to individual visits for each day
-        // All expanded dates share the same visitConfigIndex
+        // All expanded dates share the same visitConfigIndex and vehicleId
         if (v.endDate && v.endDate !== v.date) {
           const dates = expandDateRange(v.date, v.endDate);
           dates.forEach(date => {
-            formattedVisits.push({ date, timeStart, timeEnd, technicianIds, visitConfigIndex, ...recurrenceInfo });
+            formattedVisits.push({ date, timeStart, timeEnd, technicianIds, vehicleId, visitConfigIndex, ...recurrenceInfo });
           });
         } else {
           // Single date visit
-          formattedVisits.push({ date: v.date, timeStart, timeEnd, technicianIds, visitConfigIndex, ...recurrenceInfo });
+          formattedVisits.push({ date: v.date, timeStart, timeEnd, technicianIds, vehicleId, visitConfigIndex, ...recurrenceInfo });
         }
       });
 
@@ -514,7 +517,9 @@ export default function NewJobPage() {
         ? { start: formattedVisits[0].timeStart || '', end: formattedVisits[0].timeEnd || '' }
         : null,
       technicianIds: formattedVisits[0].technicianIds,
-      // All visits for multi-visit jobs (now includes per-visit recurrence)
+      // Vehicle for this job (Phase 2.1)
+      vehicleId: formattedVisits[0].vehicleId,
+      // All visits for multi-visit jobs (now includes per-visit recurrence and vehicleId)
       visits: formattedVisits,
     };
 

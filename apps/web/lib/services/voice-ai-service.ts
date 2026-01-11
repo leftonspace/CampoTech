@@ -12,8 +12,8 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { Capabilities, getCapabilityWithEnvOverride } from '../../../../core/config/capabilities';
-import { createProcessingTimer, type VoiceAIVersion } from '@/lib/analytics/voice-ai-comparison';
+import { getCapabilityWithEnvOverride } from '../../../../core/config/capabilities';
+import type { VoiceAIVersion } from '@/lib/analytics/voice-ai-comparison';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES

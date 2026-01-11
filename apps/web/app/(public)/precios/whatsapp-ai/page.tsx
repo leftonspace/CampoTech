@@ -134,7 +134,7 @@ export default function WhatsAppAIPricingPage() {
                         <div className="bg-gray-50 rounded-lg p-4">
                             <div className="text-sm font-medium text-gray-900 mb-2">📱 Ejemplo:</div>
                             <p className="text-sm text-gray-600">
-                                "Juan envía un mensaje a tu WhatsApp. Vos lo recibís en tu teléfono personal y respondés manualmente cuando podés."
+                                {"\"Juan envía un mensaje a tu WhatsApp. Vos lo recibís en tu teléfono personal y respondés manualmente cuando podés.\""}
                             </p>
                         </div>
                     </div>
@@ -194,7 +194,7 @@ export default function WhatsAppAIPricingPage() {
                         <div className="bg-emerald-50 rounded-lg p-4">
                             <div className="text-sm font-medium text-gray-900 mb-2">🤖 Ejemplo:</div>
                             <p className="text-sm text-gray-600">
-                                "Juan manda mensaje a las 11pm preguntando por un presupuesto. El AI responde: 'Hola Juan, soy el asistente de Pedro. Gracias por escribirnos. ¿Necesitás un presupuesto para reparación de aire acondicionado? Te paso los horarios disponibles de Pedro para esta semana...' Y crea automáticamente un trabajo pendiente para vos."
+                                {`"Juan manda mensaje a las 11pm preguntando por un presupuesto. El AI responde: 'Hola Juan, soy el asistente de Pedro. Gracias por escribirnos. ¿Necesitás un presupuesto para reparación de aire acondicionado? Te paso los horarios disponibles de Pedro para esta semana...' Y crea automáticamente un trabajo pendiente para vos."`}
                             </p>
                         </div>
                     </div>
@@ -245,8 +245,8 @@ export default function WhatsAppAIPricingPage() {
                                     <Link
                                         href="/login"
                                         className={`block w-full py-2 px-4 rounded-lg font-medium text-center transition-colors ${pkg.popular
-                                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                                                : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
+                                            ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                            : 'bg-gray-100 text-gray-900 hover:bg-gray-200'
                                             }`}
                                     >
                                         Comprar

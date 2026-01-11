@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
                 ? `Se importaron ${importResult.imported} perfiles nuevos de CACAAV (${importResult.updated} actualizados)`
                 : `Se encontraron ${scrapeResult.records.length} perfiles de CACAAV`,
         });
-    } catch (error) {
+    } catch (_error) {
         console.error('[API/CACAAV] Error:', error);
         return NextResponse.json(
             { error: 'Error al ejecutar el scraper CACAAV' },
@@ -108,7 +108,7 @@ export async function GET() {
                 provinces: 'Array de provincias a scrapear (default: todas)',
             },
         });
-    } catch (error) {
+    } catch (_error) {
         return NextResponse.json(
             { error: 'Error al obtener información del scraper' },
             { status: 500 }

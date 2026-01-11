@@ -54,7 +54,154 @@ class SupportBotState(TypedDict):
 # FAQ DATA
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# Business Knowledge Base - for public visitors and sales questions
+BUSINESS_KNOWLEDGE = """
+## Sobre CampoTech
+
+CampoTech es una plataforma de gestión para profesionales de servicios técnicos en Argentina.
+Ideal para: técnicos de aire acondicionado, electricistas, plomeros, cerrajeros, gasistas, y más.
+
+## Planes y Precios (ARS)
+
+### Plan Gratis - $0/mes
+- Hasta 3 trabajos activos
+- 1 usuario (técnico)
+- Facturación manual básica
+- Sin integración WhatsApp AI
+- Perfecto para empezar
+
+### Plan Inicial - $25.000/mes (o $250.000/año - 2 meses gratis)
+- Trabajos ilimitados
+- Hasta 5 técnicos
+- Integración AFIP completa (Factura A, B, C)
+- WhatsApp básico (link directo)
+- Agenda y calendario
+- Reportes básicos
+
+### Plan Profesional - $55.000/mes (o $550.000/año - 2 meses gratis)
+- Todo de Inicial +
+- Técnicos ilimitados
+- WhatsApp AI con número propio
+- 100 créditos AI incluidos/mes
+- Procesamiento de audios con IA
+- Inventario y control de stock
+- Gestión de flota de vehículos
+- Reportes avanzados
+
+### Plan Empresa - $120.000/mes (o $1.200.000/año - 2 meses gratis)
+- Todo de Profesional +
+- Múltiples sucursales
+- API personalizada
+- Soporte prioritario
+- Dashboard ejecutivo
+- Integración personalizada
+- Capacitación incluida
+
+## Prueba Gratuita
+
+- **21 días de prueba gratis** en cualquier plan pago
+- Sin tarjeta de crédito
+- Acceso a todas las funciones del plan
+- Tus datos se mantienen si te suscribís
+- Cancelá cuando quieras, sin compromiso
+
+## Características Principales
+
+### Gestión de Trabajos
+- Crear y asignar trabajos
+- Calendario visual
+- Estados: pendiente, en progreso, completado
+- Notas y fotos por trabajo
+- Historial completo
+
+### Facturación con AFIP
+- Factura electrónica automática (A, B, C)
+- Conexión directa con AFIP
+- PDF profesional
+- Envío automático por WhatsApp/email
+- Notas de crédito y débito
+
+### Integración WhatsApp
+- Plan Inicial: Link directo a tu WhatsApp
+- Plan Profesional+: Número propio de WhatsApp Business
+- WhatsApp AI: Los clientes envían audios, la IA transcribe y crea trabajos
+- Notificaciones automáticas (confirmación, recordatorio, factura)
+- Inbox compartido para tu equipo
+
+### Pagos con Mercado Pago
+- Link de pago en cada factura
+- Cobro automático
+- Cuotas sin interés
+- QR de Mercado Pago
+- Conciliación automática
+
+### App Móvil
+- Disponible para iOS y Android
+- Funciona sin internet (sincroniza después)
+- GPS para registro de visitas
+- Cámara para fotos de trabajos
+- Firma del cliente
+
+## Soporte
+
+- Email: soporte@campotech.com.ar
+- Respuesta en 24 horas hábiles (días hábiles)
+- Centro de ayuda: /ayuda
+- Chat con IA 24/7
+
+## Requisitos para AFIP
+
+1. Ser monotributista o responsable inscripto
+2. Tener certificado digital de AFIP (.pfx)
+3. Punto de venta autorizado para facturación electrónica
+4. CUIT activo
+
+## Seguridad
+
+- Datos encriptados
+- Servidores en Argentina
+- Cumplimiento RGPD
+- Backup automático diario
+"""
+
 FAQ_DATABASE: dict[str, list[dict[str, str]]] = {
+    # Sales & Pre-sales Questions (for public visitors)
+    "ventas": [
+        {
+            "q": "¿Cuánto cuesta CampoTech?",
+            "a": "Tenemos 4 planes: Gratis ($0), Inicial ($25.000/mes), Profesional ($55.000/mes) y Empresa ($120.000/mes). Todos los planes pagos tienen 21 días de prueba gratis sin tarjeta."
+        },
+        {
+            "q": "¿Hay prueba gratis?",
+            "a": "¡Sí! Tenés 21 días de prueba gratis en cualquier plan pago, sin necesidad de tarjeta de crédito. Podés probar todas las funciones y cancelar si no te convence."
+        },
+        {
+            "q": "¿Puedo cambiar de plan después?",
+            "a": "Sí, podés subir o bajar de plan cuando quieras. El cambio se prorratea automáticamente."
+        },
+        {
+            "q": "¿Hay descuento por pago anual?",
+            "a": "Sí, el pago anual equivale a 10 meses (2 meses gratis). Por ejemplo, Profesional anual es $550.000 en vez de $660.000."
+        },
+    ],
+    "caracteristicas": [
+        {
+            "q": "¿Qué incluye CampoTech?",
+            "a": "CampoTech incluye: gestión de trabajos/agenda, facturación AFIP, cobros con Mercado Pago, integración WhatsApp, app móvil, reportes, y mucho más. Las funciones disponibles dependen del plan."
+        },
+        {
+            "q": "¿Funciona con AFIP?",
+            "a": "Sí, CampoTech se conecta directamente con AFIP para emitir Facturas A, B y C electrónicas. Necesitás tu certificado digital de AFIP y un punto de venta autorizado."
+        },
+        {
+            "q": "¿Tiene app para celular?",
+            "a": "Sí, tenemos app para iOS y Android. Tus técnicos pueden ver trabajos, navegar con GPS, sacar fotos, y registrar visitas incluso sin internet."
+        },
+        {
+            "q": "¿Cómo funciona el WhatsApp AI?",
+            "a": "Con el plan Profesional o superior, recibís un número de WhatsApp Business propio. Los clientes te escriben o envían audios, y la IA entiende el mensaje y puede crear trabajos automáticamente."
+        },
+    ],
     "facturacion": [
         {
             "q": "¿Cómo cargo mi certificado AFIP?",
@@ -126,6 +273,22 @@ FAQ_DATABASE: dict[str, list[dict[str, str]]] = {
             "q": "¿Cómo elimino mi cuenta?",
             "a": "Podés solicitar eliminación en Configuración > Cuenta > Eliminar cuenta. Te eliminaremos completamente en 30 días máximo."
         },
+        {
+            "q": "¿Por qué no puedo editar el número de teléfono de un empleado?",
+            "a": "El número de teléfono está bloqueado por seguridad y cumplimiento normativo. El sistema usa el número para autenticación y para mantener un historial verificable de trabajos realizados. Esto protege tanto a tu empresa como a tus clientes."
+        },
+        {
+            "q": "¿Qué hago si un empleado cambió de número de teléfono?",
+            "a": "El procedimiento correcto es: 1️⃣ Desactivar el usuario anterior (desmarcar 'Usuario activo' para archivarlo), 2️⃣ Crear un nuevo usuario con el número nuevo. Esto preserva el historial de trabajos del perfil anterior y mantiene la trazabilidad requerida para oficios matriculados."
+        },
+        {
+            "q": "¿Por qué tengo que crear un nuevo usuario en vez de cambiar el número?",
+            "a": "Cada perfil de usuario representa una identidad única vinculada a su historial de trabajos. Para profesionales matriculados (gasistas, electricistas), esto es un requisito legal para mantener la trazabilidad de quién firmó cada trabajo. Archivar y crear nuevo es el proceso seguro."
+        },
+        {
+            "q": "¿Se pierde la información cuando desactivo un usuario?",
+            "a": "No, al desactivar un usuario solo lo 'archivás'. Su historial de trabajos, chats y datos quedan guardados permanentemente. Podés consultarlos cuando necesites."
+        },
     ],
     "app_movil": [
         {
@@ -174,12 +337,18 @@ async def classify_issue(state: SupportBotState) -> dict[str, Any]:
         ("system", """Sos el asistente de soporte de CampoTech, una app para profesionales de servicios técnicos.
         
 Tu tarea es clasificar el mensaje del usuario en UNA de estas categorías:
+- ventas: preguntas sobre precios, planes, prueba gratis, costos, comparación de planes
+- caracteristicas: preguntas sobre qué hace CampoTech, funcionalidades, integraciones, cómo funciona
 - facturacion: problemas con AFIP, facturas, certificados, CBU, punto de venta
-- pagos: problemas de pago, suscripción, Mercado Pago, tarjetas
+- pagos: problemas de pago, suscripción actual, Mercado Pago, tarjetas
 - whatsapp: WhatsApp AI, créditos de mensajes, número de WhatsApp
 - cuenta: login, contraseña, configuración, perfil, equipo
 - app_movil: app móvil, cámara, GPS, fotos, sincronización
 - otro: si no encaja claramente en ninguna de las anteriores
+
+IMPORTANTE: Si alguien pregunta por precios, planes, o "cuánto cuesta" -> ventas
+Si alguien pregunta qué es CampoTech o cómo funciona -> caracteristicas
+Si alguien tiene un PROBLEMA con un servicio existente -> usar la categoría del problema
 
 Respondé SOLO con la palabra de la categoría, sin explicación."""),
         ("user", "{message}")
@@ -203,7 +372,7 @@ Respondé SOLO con la palabra de la categoría, sin explicación."""),
     category = response.content.strip().lower()
     
     # Validate category
-    valid_categories = ["facturacion", "pagos", "whatsapp", "cuenta", "app_movil", "otro"]
+    valid_categories = ["ventas", "caracteristicas", "facturacion", "pagos", "whatsapp", "cuenta", "app_movil", "otro"]
     if category not in valid_categories:
         category = "otro"
     
@@ -216,20 +385,50 @@ async def provide_answer(state: SupportBotState) -> dict[str, Any]:
     category = state.get("issue_category", "otro")
     faqs = get_faqs_for_category(category)
     
+    # For sales/features questions, include the full business knowledge
+    is_sales_question = category in ["ventas", "caracteristicas"]
+    knowledge_base = BUSINESS_KNOWLEDGE if is_sales_question else ""
+    
     prompt = ChatPromptTemplate.from_messages([
-        ("system", """Sos el asistente de soporte de CampoTech, una app para profesionales de servicios técnicos.
+        ("system", """Sos el asistente de CampoTech, una plataforma de gestión para profesionales de servicios técnicos en Argentina.
+
+⚠️ RESTRICCIÓN IMPORTANTE:
+SOLO podés responder preguntas relacionadas con CampoTech, incluyendo:
+- Precios, planes y suscripciones
+- Funcionalidades de la plataforma
+- Facturación electrónica con AFIP
+- Integración WhatsApp
+- App móvil
+- Mercado Pago
+- Soporte técnico de la plataforma
+- Información general sobre gestión de servicios técnicos
+
+Si alguien pregunta algo NO relacionado con CampoTech (recetas, matemáticas, programación general, 
+cualquier otro tema), respondé EXACTAMENTE:
+"¡Hola! Soy el asistente de CampoTech y solo puedo ayudarte con consultas sobre nuestra plataforma 
+de gestión para técnicos. 😊
+
+¿Tenés alguna pregunta sobre nuestros planes, funciones, facturación con AFIP, o cómo funciona CampoTech?"
+
+NO respondas preguntas fuera de CampoTech bajo ninguna circunstancia.
+
+{knowledge_base}
 
 Usá esta información de FAQs para responder al usuario:
 
 {faqs}
 
 Reglas:
-1. Respondé en español argentino, de forma amigable y concisa.
-2. Si la pregunta está cubierta por las FAQs, dá una respuesta útil.
-3. Si la pregunta NO está cubierta o es muy específica, decí claramente que vas a escalar a un humano.
-4. No inventes información que no está en las FAQs.
-5. Si mencionás ir a una página de configuración, usá el formato "Andá a X > Y > Z".
-6. Siempre preguntá si hay algo más en lo que puedas ayudar.
+1. Respondé en español argentino, de forma amigable y profesional.
+2. Si la pregunta es sobre precios/planes/funciones, usá la información del knowledge base.
+3. La prueba gratis es de 21 DÍAS, no 14.
+4. Si la pregunta está cubierta, dá una respuesta completa y útil.
+5. SOLO escalá a humano si realmente no podés responder (problemas técnicos muy específicos).
+6. Para preguntas de ventas/características, NUNCA escales - responde con la información disponible.
+7. Si mencionás ir a una página, usá el formato "Andá a X > Y > Z".
+8. Siempre preguntá si hay algo más en lo que puedas ayudar.
+9. Usá emojis ocasionalmente para ser más amigable.
+10. RECHAZÁ amablemente cualquier pregunta no relacionada con CampoTech.
 
 Historial de la conversación:
 {history}"""),
@@ -260,18 +459,31 @@ Historial de la conversación:
     response = await chain.ainvoke({
         "message": last_message,
         "faqs": faqs,
+        "knowledge_base": knowledge_base,
         "history": history or "(primera pregunta)",
     })
     
     answer = response.content
     
-    # Check if escalation is needed
+    # Check if escalation is needed - only for EXPLICIT escalation phrases
+    # Be careful: words like "técnico" and "soporte" appear in normal answers!
     escalation_phrases = [
-        "escalar", "humano", "soporte", "no puedo resolver",
-        "no tengo información", "caso específico", "técnico",
-        "te contactaremos", "equipo de soporte"
+        "voy a escalar",
+        "necesito escalar",
+        "no puedo resolver",
+        "no tengo esa información",
+        "te contactará un humano",
+        "equipo de soporte te contactará",
+        "un agente te contactará",
+        "no puedo ayudarte con eso específicamente",
     ]
-    escalate = any(phrase in answer.lower() for phrase in escalation_phrases)
+    
+    # For sales/features questions, NEVER escalate unless explicitly asked for human
+    is_sales_question = state.get("issue_category") in ["ventas", "caracteristicas"]
+    if is_sales_question:
+        escalate = False  # Sales questions should never auto-escalate
+    else:
+        escalate = any(phrase in answer.lower() for phrase in escalation_phrases)
     
     # Update messages with the response
     new_messages = state["messages"] + [{"role": "assistant", "content": answer}]

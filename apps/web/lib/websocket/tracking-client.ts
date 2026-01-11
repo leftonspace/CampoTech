@@ -128,7 +128,7 @@ export function useTrackingClient(options: UseTrackingClientOptions = {}) {
               onNewJobCreated?.(message.data as NewJobCreatedUpdate);
               break;
           }
-        } catch (err) {
+        } catch (_err) {
           console.error('Error parsing SSE message:', err);
         }
       };
@@ -147,7 +147,7 @@ export function useTrackingClient(options: UseTrackingClientOptions = {}) {
       };
 
       eventSourceRef.current = eventSource;
-    } catch (err) {
+    } catch (_err) {
       console.error('SSE not supported, falling back to polling');
       startPolling();
     }
@@ -210,7 +210,7 @@ export function useTrackingClient(options: UseTrackingClientOptions = {}) {
         } else {
           setError('Error fetching locations');
         }
-      } catch (err) {
+      } catch (_err) {
         setError('Network error');
         setIsConnected(false);
       }
@@ -377,7 +377,7 @@ export function useLocationReporter(options: UseLocationReporterOptions = {}) {
           setLastReported(new Date());
           lastPositionRef.current = { lat: position.coords.latitude, lng: position.coords.longitude };
         }
-      } catch (err) {
+      } catch (_err) {
         console.error('Error reporting location:', err);
       }
     },
@@ -398,7 +398,7 @@ export function useLocationReporter(options: UseLocationReporterOptions = {}) {
         return true;
       }
       return false;
-    } catch (err) {
+    } catch (_err) {
       console.error('Error updating status:', err);
       return false;
     }

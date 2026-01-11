@@ -10,7 +10,6 @@ import {
   Warehouse,
   Calendar,
   User,
-  Package,
 } from 'lucide-react';
 
 interface WarehouseOption {
@@ -94,7 +93,7 @@ export default function NewInventoryCountPage() {
       } else {
         setError(data.error || 'Error al crear el conteo');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Error de conexión');
     }
 
@@ -150,11 +149,10 @@ export default function NewInventoryCountPage() {
                 key={type.value}
                 type="button"
                 onClick={() => setFormData({ ...formData, countType: type.value })}
-                className={`rounded-lg border-2 p-4 text-left transition-colors ${
-                  formData.countType === type.value
+                className={`rounded-lg border-2 p-4 text-left transition-colors ${formData.countType === type.value
                     ? 'border-primary-500 bg-primary-50'
                     : 'border-gray-200 hover:border-gray-300'
-                }`}
+                  }`}
               >
                 <p className="font-medium text-gray-900">{type.label}</p>
                 <p className="text-sm text-gray-500">{type.description}</p>

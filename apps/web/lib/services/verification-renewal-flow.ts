@@ -18,9 +18,6 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import type {
-  VerificationSubmissionStatus,
-} from '@/lib/types/verification';
 import { verificationManager } from './verification-manager';
 
 // Type for VerificationSubmission from Prisma model
@@ -235,8 +232,8 @@ class VerificationRenewalFlowService {
       // Get the previous submission if this is a renewal
       const previousSubmission = submission.previousSubmissionId
         ? await prisma.verificationSubmission.findUnique({
-            where: { id: submission.previousSubmissionId },
-          })
+          where: { id: submission.previousSubmissionId },
+        })
         : null;
 
       // Approve the new submission
@@ -389,8 +386,8 @@ class VerificationRenewalFlowService {
       let previousStillValid = false;
       const previousSubmission = submission.previousSubmissionId
         ? await prisma.verificationSubmission.findUnique({
-            where: { id: submission.previousSubmissionId },
-          })
+          where: { id: submission.previousSubmissionId },
+        })
         : null;
 
       if (previousSubmission && previousSubmission.status === 'approved') {

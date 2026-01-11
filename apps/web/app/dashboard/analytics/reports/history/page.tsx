@@ -162,7 +162,7 @@ export default function ReportHistoryPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (_id: string) => {
     if (!confirm('¿Está seguro de eliminar este reporte?')) return;
     // Would call delete API
     refetch();

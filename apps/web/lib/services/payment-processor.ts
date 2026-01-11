@@ -17,13 +17,9 @@
 import { prisma } from '@/lib/prisma';
 import type {
   SubscriptionTier,
-  SubscriptionStatus,
-  SubscriptionPaymentStatus,
   BillingCycle,
 } from '@/lib/types/subscription';
 
-// Type alias for Prisma Decimal
-type Decimal = number;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { cn, formatDate } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import {
   ArrowLeft,
   Play,
@@ -324,8 +324,8 @@ export default function InventoryCountDetailPage() {
                           variance === 0
                             ? 'text-green-600'
                             : variance > 0
-                            ? 'text-blue-600'
-                            : 'text-red-600'
+                              ? 'text-blue-600'
+                              : 'text-red-600'
                         )}
                       >
                         {variance > 0 ? '+' : ''}

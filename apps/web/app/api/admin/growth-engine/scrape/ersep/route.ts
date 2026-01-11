@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
                 ? `Se importaron ${importResult.imported} perfiles nuevos de ERSEP (${importResult.updated} actualizados)`
                 : `Se encontraron ${scrapeResult.records.length} perfiles de ERSEP`,
         });
-    } catch (error) {
+    } catch (_error) {
         console.error('[API/ERSEP] Error:', error);
         return NextResponse.json(
             { error: 'Error al ejecutar el scraper ERSEP' },
@@ -105,7 +105,7 @@ export async function GET() {
             description: 'Registro público de electricistas matriculados en la provincia de Córdoba',
             requirements: '⚠️ Requiere VPN de Argentina para acceder',
         });
-    } catch (error) {
+    } catch (_error) {
         return NextResponse.json(
             { error: 'Error al obtener información del scraper' },
             { status: 500 }

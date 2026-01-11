@@ -13,7 +13,6 @@ import {
   Settings,
   Trash2,
   RefreshCw,
-  AlertTriangle,
   Check,
   X,
   Clock,
@@ -23,8 +22,6 @@ import {
   CreditCard,
   FileText,
   MapPin,
-  Truck,
-  BarChart,
   Users,
 } from 'lucide-react';
 

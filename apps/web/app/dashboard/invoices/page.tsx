@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
 import { cn, formatCurrency, formatDate, INVOICE_STATUS_LABELS, INVOICE_STATUS_COLORS } from '@/lib/utils';
-import { Search, ChevronRight, FileText, Download, Send, AlertCircle } from 'lucide-react';
+import { Search, ChevronRight, Download, Send, AlertCircle } from 'lucide-react';
 import { Invoice } from '@/types';
 
 export default function InvoicesPage() {

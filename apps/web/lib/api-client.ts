@@ -136,8 +136,14 @@ export async function apiRequest<T>(
         });
       } else {
         clearTokens();
+        // Only redirect to login if we're on a protected page (dashboard)
+        // Don't redirect on public pages like landing page
         if (typeof window !== 'undefined') {
-          window.location.href = '/login';
+          const isProtectedRoute = window.location.pathname.startsWith('/dashboard') ||
+            window.location.pathname.startsWith('/admin');
+          if (isProtectedRoute) {
+            window.location.href = '/login';
+          }
         }
         return {
           success: false,

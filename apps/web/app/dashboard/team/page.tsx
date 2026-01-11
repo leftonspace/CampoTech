@@ -1,14 +1,13 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
+import { useState, useMemo, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
 import { cn, getInitials } from '@/lib/utils';
 import {
   Users,
   Plus,
-  Edit2,
   Calendar,
   Clock,
   Mail,
@@ -16,20 +15,27 @@ import {
   Star,
   MoreHorizontal,
   Briefcase,
-  TrendingUp,
   X,
   Save,
-  Shield,
+  ShieldCheck,
   Wrench,
   Eye,
-  User,
+  Award,
+  Trash2,
+  AlertTriangle,
+  MessageCircle,
 } from 'lucide-react';
 import TeamCalendar from '@/components/schedule/TeamCalendar';
-import TeamMemberDetailModal from './TeamMemberDetailModal';
+import PhoneInput from '@/components/ui/PhoneInput';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
+
+interface TradeCertification {
+  matricula: string;
+  category: string;
+}
 
 interface TeamMember {
   id: string;
@@ -37,14 +43,23 @@ interface TeamMember {
   phone: string;
   email?: string;
   role: 'OWNER' | 'DISPATCHER' | 'TECHNICIAN';
+  // Legacy single specialty (for backwards compatibility)
   specialty?: string;
+  matricula?: string;
   skillLevel?: string;
+  // New multi-specialty structure
+  specialties?: string[];
+  certifications?: Record<string, TradeCertification>;
   avatar?: string;
   isActive: boolean;
   createdAt?: string;
   jobCount: number;
   avgRating: number | null;
   reviewCount: number;
+  // Driver's license (for vehicle assignment)
+  driverLicenseNumber?: string;
+  driverLicenseExpiry?: string;
+  driverLicenseCategory?: string;
 }
 
 interface TeamStats {
@@ -85,9 +100,27 @@ const STATUS_CONFIG = {
     color: 'bg-green-50 text-green-600 border-green-300',
   },
   REST: {
-    label: 'Descanso',
-    color: 'bg-gray-100 text-gray-600 border-gray-200',
+    label: 'Inactivo',
+    color: 'bg-gray-200 text-gray-600 border-gray-300',
   },
+};
+
+// Trades that require professional licensing (matrícula) in Argentina
+const REGULATED_TRADES = ['GASISTA', 'ELECTRICISTA', 'REFRIGERACION', 'CALEFACCIONISTA'];
+
+// Human-readable labels for specialty codes
+const SPECIALTY_LABELS: Record<string, string> = {
+  GASISTA: 'Gasista',
+  ELECTRICISTA: 'Electricista',
+  PLOMERO: 'Plomero',
+  CALEFACCIONISTA: 'Calefaccionista',
+  REFRIGERACION: 'Refrigeración',
+  ALBANIL: 'Albañil',
+  PINTOR: 'Pintor',
+  CARPINTERO: 'Carpintero',
+  TECHISTA: 'Techista',
+  HERRERO: 'Herrero',
+  SOLDADOR: 'Soldador',
 };
 
 const DAYS_OF_WEEK = [
@@ -110,23 +143,30 @@ export default function TeamPage() {
   const [activeTab, setActiveTab] = useState<TabType>('employees');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [deletingMember, setDeletingMember] = useState<TeamMember | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
 
   const userRole = user?.role?.toUpperCase() || 'TECHNICIAN';
   const isOwnerOrDispatcher = userRole === 'OWNER' || userRole === 'DISPATCHER';
   const isTechnician = userRole === 'TECHNICIAN';
 
-  // Fetch team members
+  // Fetch team members (with includeInactive flag for archive view)
   const { data: teamData, isLoading: teamLoading } = useQuery({
-    queryKey: ['team-members'],
+    queryKey: ['team-members', showInactive],
     queryFn: async () => {
-      const res = await fetch('/api/users');
+      const url = showInactive ? '/api/users?includeInactive=true' : '/api/users';
+      const res = await fetch(url);
       if (!res.ok) throw new Error('Error fetching team');
       return res.json();
     },
   });
 
-  const members = (teamData?.data as TeamMember[]) || [];
+  // Split members into active and inactive for display
+  const allMembers = (teamData?.data as TeamMember[]) || [];
+  const members = showInactive
+    ? allMembers.filter(m => !m.isActive)
+    : allMembers.filter(m => m.isActive !== false);
 
   // Fetch team stats
   const { data: statsData, isLoading: statsLoading } = useQuery({
@@ -175,6 +215,36 @@ export default function TeamPage() {
   const handleEditMember = (member: TeamMember) => {
     setEditingMember(member);
     setShowAddModal(true);
+  };
+
+  const handleDeleteMember = (member: TeamMember) => {
+    setDeletingMember(member);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingMember) return;
+
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/users/${deletingMember.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Error al eliminar');
+      }
+
+      // Refresh the team list
+      queryClient.invalidateQueries({ queryKey: ['team-members'] });
+      queryClient.invalidateQueries({ queryKey: ['team-stats'] });
+      setDeletingMember(null);
+    } catch (error) {
+      console.error('Delete error:', error);
+      // You could add toast notification here
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -248,14 +318,51 @@ export default function TeamPage() {
       {/* Tab Content */}
       <div className="mt-6">
         {activeTab === 'employees' && (
-          <EmployeeListTab
-            members={members}
-            loading={teamLoading}
-            canEdit={isOwnerOrDispatcher}
-            onEdit={handleEditMember}
-            onCardClick={(member) => setSelectedMemberId(member.id)}
-            currentUserId={user?.id}
-          />
+          <>
+            {/* Archive Filter Toggle */}
+            {isOwnerOrDispatcher && (
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowInactive(false)}
+                    className={cn(
+                      "px-3 py-1.5 text-sm font-medium rounded-lg transition-colors",
+                      !showInactive
+                        ? "bg-teal-100 text-teal-700 border border-teal-200"
+                        : "text-gray-500 hover:bg-gray-100"
+                    )}
+                  >
+                    Activos ({allMembers.filter(m => m.isActive !== false).length})
+                  </button>
+                  <button
+                    onClick={() => setShowInactive(true)}
+                    className={cn(
+                      "px-3 py-1.5 text-sm font-medium rounded-lg transition-colors",
+                      showInactive
+                        ? "bg-gray-200 text-gray-700 border border-gray-300"
+                        : "text-gray-500 hover:bg-gray-100"
+                    )}
+                  >
+                    📁 Inactivos ({allMembers.filter(m => !m.isActive).length})
+                  </button>
+                </div>
+                {showInactive && (
+                  <p className="text-xs text-gray-500">
+                    Vista de archivo • Los usuarios inactivos no pueden iniciar sesión
+                  </p>
+                )}
+              </div>
+            )}
+            <EmployeeListTab
+              members={members}
+              loading={teamLoading}
+              canEdit={isOwnerOrDispatcher}
+              onEdit={handleEditMember}
+              onDelete={handleDeleteMember}
+              onCardClick={handleEditMember}
+              currentUserId={user?.id}
+            />
+          </>
         )}
 
         {activeTab === 'schedules' && isOwnerOrDispatcher && (
@@ -271,33 +378,35 @@ export default function TeamPage() {
         )}
       </div>
 
-      {/* Add/Edit Modal */}
+      {/* Unified Member Modal - Create/View/Edit */}
       {showAddModal && (
         <TeamMemberModal
           member={editingMember}
           currentUserId={user?.id}
+          currentUserRole={userRole}
           onClose={() => {
             setShowAddModal(false);
             setEditingMember(null);
           }}
           onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['team-members'] });
+            queryClient.invalidateQueries({ queryKey: ['team-stats'] });
             setShowAddModal(false);
             setEditingMember(null);
           }}
+          onDelete={handleDeleteMember}
         />
       )}
 
-      {/* Team Member Detail Modal */}
-      <TeamMemberDetailModal
-        memberId={selectedMemberId}
-        onClose={() => setSelectedMemberId(null)}
-        onEdit={(memberId) => {
-          setSelectedMemberId(null);
-          const member = members.find(m => m.id === memberId);
-          if (member) handleEditMember(member);
-        }}
-      />
+      {/* Delete Confirmation Modal */}
+      {deletingMember && (
+        <DeleteConfirmationModal
+          member={deletingMember}
+          onConfirm={handleConfirmDelete}
+          onCancel={() => setDeletingMember(null)}
+          isDeleting={isDeleting}
+        />
+      )}
     </div>
   );
 }
@@ -344,11 +453,12 @@ interface EmployeeListTabProps {
   loading: boolean;
   canEdit: boolean;
   onEdit: (member: TeamMember) => void;
+  onDelete: (member: TeamMember) => void;
   onCardClick: (member: TeamMember) => void;
   currentUserId?: string;
 }
 
-function EmployeeListTab({ members, loading, canEdit, onEdit, onCardClick, currentUserId }: EmployeeListTabProps) {
+function EmployeeListTab({ members, loading, canEdit, onEdit, onDelete, onCardClick, currentUserId }: EmployeeListTabProps) {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
 
   if (loading) {
@@ -426,8 +536,8 @@ function EmployeeListTab({ members, loading, canEdit, onEdit, onCardClick, curre
                       <span className="ml-1 text-xs text-gray-400">(vos)</span>
                     )}
                   </h3>
-                  {/* Badges */}
-                  <div className="flex gap-1.5 mt-1">
+                  {/* Role & Status Badges */}
+                  <div className="flex flex-wrap gap-1.5 mt-1">
                     <span className={cn('px-2 py-0.5 text-xs font-medium rounded-full border', roleConfig.color)}>
                       {roleConfig.label}
                     </span>
@@ -435,6 +545,95 @@ function EmployeeListTab({ members, loading, canEdit, onEdit, onCardClick, curre
                       {statusConfig.label}
                     </span>
                   </div>
+                  {/* Specialty Badges with Verification Status */}
+                  {member.specialties && member.specialties.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {member.specialties.map((specialty) => {
+                        const label = SPECIALTY_LABELS[specialty] || specialty;
+                        const isRegulated = REGULATED_TRADES.includes(specialty);
+                        const cert = member.certifications?.[specialty];
+                        const hasMatricula = cert?.matricula && cert.matricula.trim() !== '';
+
+                        // Determine badge style based on verification status
+                        let badgeClass: string;
+                        let badgeText: string;
+                        let tooltip: string;
+
+                        if (hasMatricula) {
+                          // Green: Verified Professional
+                          badgeClass = 'bg-green-100 text-green-800 border-green-200';
+                          badgeText = `${label} ✓`;
+                          tooltip = `Matrícula: ${cert.matricula}${cert.category ? ` • ${cert.category}` : ''}`;
+                        } else if (isRegulated) {
+                          // Yellow: Regulated trade without license
+                          badgeClass = 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                          badgeText = label;
+                          tooltip = 'Sin matrícula habilitante';
+                        } else {
+                          // Grey: Standard trade (license optional)
+                          badgeClass = 'bg-gray-100 text-gray-700 border-gray-200';
+                          badgeText = label;
+                          tooltip = '';
+                        }
+
+                        return (
+                          <span
+                            key={specialty}
+                            className={cn(
+                              'inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border',
+                              badgeClass
+                            )}
+                            title={tooltip}
+                          >
+                            {hasMatricula && <ShieldCheck className="h-3 w-3" />}
+                            {badgeText}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {/* Legacy single specialty support */}
+                  {!member.specialties?.length && member.specialty && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {(() => {
+                        const specialty = member.specialty;
+                        const label = SPECIALTY_LABELS[specialty] || specialty;
+                        const isRegulated = REGULATED_TRADES.includes(specialty);
+                        const hasMatricula = member.matricula && member.matricula.trim() !== '';
+
+                        let badgeClass: string;
+                        let badgeText: string;
+                        let tooltip: string;
+
+                        if (hasMatricula) {
+                          badgeClass = 'bg-green-100 text-green-800 border-green-200';
+                          badgeText = `${label} ✓`;
+                          tooltip = `Matrícula: ${member.matricula}`;
+                        } else if (isRegulated) {
+                          badgeClass = 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                          badgeText = label;
+                          tooltip = 'Sin matrícula habilitante';
+                        } else {
+                          badgeClass = 'bg-gray-100 text-gray-700 border-gray-200';
+                          badgeText = label;
+                          tooltip = '';
+                        }
+
+                        return (
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border',
+                              badgeClass
+                            )}
+                            title={tooltip}
+                          >
+                            {hasMatricula && <ShieldCheck className="h-3 w-3" />}
+                            {badgeText}
+                          </span>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -455,12 +654,12 @@ function EmployeeListTab({ members, loading, canEdit, onEdit, onCardClick, curre
                       <button
                         onClick={() => {
                           setMenuOpen(null);
-                          onEdit(member);
+                          onCardClick(member);
                         }}
                         className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
                       >
-                        <Edit2 className="h-4 w-4" />
-                        Editar
+                        <Eye className="h-4 w-4" />
+                        Ver Detalles
                       </button>
                       <button
                         className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
@@ -468,6 +667,22 @@ function EmployeeListTab({ members, loading, canEdit, onEdit, onCardClick, curre
                         <Calendar className="h-4 w-4" />
                         Ver Horario
                       </button>
+                      {/* Only show delete for non-owners and not the current user */}
+                      {member.role !== 'OWNER' && member.id !== currentUserId && (
+                        <>
+                          <div className="border-t my-1" />
+                          <button
+                            onClick={() => {
+                              setMenuOpen(null);
+                              onDelete(member);
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-red-50 flex items-center gap-2 text-red-600"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Eliminar empleado
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -514,6 +729,114 @@ function EmployeeListTab({ members, loading, canEdit, onEdit, onCardClick, curre
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DELETE CONFIRMATION MODAL (with 3-second safety button)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface DeleteConfirmationModalProps {
+  member: TeamMember;
+  onConfirm: () => void;
+  onCancel: () => void;
+  isDeleting: boolean;
+}
+
+function DeleteConfirmationModal({ member, onConfirm, onCancel, isDeleting }: DeleteConfirmationModalProps) {
+  const [secondsLeft, setSecondsLeft] = useState(3);
+  const [canDelete, setCanDelete] = useState(false);
+
+  // Countdown timer
+  useEffect(() => {
+    if (secondsLeft > 0) {
+      const timer = setTimeout(() => {
+        setSecondsLeft(secondsLeft - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else {
+      setCanDelete(true);
+    }
+  }, [secondsLeft]);
+
+  // Reset on close
+  useEffect(() => {
+    return () => {
+      setSecondsLeft(3);
+      setCanDelete(false);
+    };
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-[100] overflow-hidden">
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/50 backdrop-blur-[1px]"
+        onClick={onCancel}
+        aria-hidden="true"
+      />
+
+      {/* Modal */}
+      <div className="flex h-full items-center justify-center p-4">
+        <div className="relative w-full max-w-md rounded-xl bg-white shadow-xl overflow-hidden">
+          {/* Header with warning icon */}
+          <div className="p-6 text-center">
+            <div className="mx-auto w-12 h-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+              <AlertTriangle className="h-6 w-6 text-red-600" />
+            </div>
+            <h2 className="text-lg font-semibold text-gray-900 mb-2">
+              ¿Estás seguro?
+            </h2>
+            <p className="text-sm text-gray-600">
+              Esta acción eliminará a <strong>{member.name}</strong> permanentemente y no se puede deshacer.
+            </p>
+          </div>
+
+          {/* Footer with buttons */}
+          <div className="px-6 pb-6 flex gap-3">
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={isDeleting}
+              className="flex-1 px-4 py-2.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+
+            {/* Safety Delete Button with animation */}
+            <button
+              type="button"
+              onClick={canDelete ? onConfirm : undefined}
+              disabled={!canDelete || isDeleting}
+              className={cn(
+                "flex-1 relative overflow-hidden px-4 py-2.5 text-sm font-medium rounded-lg transition-all",
+                canDelete
+                  ? "bg-red-600 text-white hover:bg-red-700"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
+              )}
+            >
+              {/* Animated overlay that shrinks from 100% to 0% */}
+              {!canDelete && (
+                <div
+                  className="absolute inset-0 bg-gray-400 transition-all ease-linear"
+                  style={{
+                    width: `${(secondsLeft / 3) * 100}%`,
+                    transitionDuration: '1000ms',
+                  }}
+                />
+              )}
+              <span className="relative z-10">
+                {isDeleting
+                  ? 'Eliminando...'
+                  : canDelete
+                    ? 'Confirmar Eliminación'
+                    : `Espere (${secondsLeft}s)...`}
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -763,6 +1086,286 @@ const SKILL_LEVEL_OPTIONS = [
   { value: 'OFICIAL_ESPECIALIZADO', label: 'Oficial Especializado' },
 ];
 
+// Standard UOCRA categories (used for most manual trades in Argentina - CCT 76/75)
+const UOCRA_CATEGORIES = [
+  { value: 'AYUDANTE', label: 'Ayudante' },
+  { value: 'MEDIO_OFICIAL', label: 'Medio Oficial' },
+  { value: 'OFICIAL', label: 'Oficial' },
+  { value: 'OFICIAL_ESPECIALIZADO', label: 'Oficial Especializado' },
+];
+
+const TRADE_CATEGORY_OPTIONS: Record<string, { value: string; label: string }[]> = {
+  // --- MATRICULATED TRADES (Regulated by Law) ---
+
+  GASISTA: [
+    { value: '1RA', label: '1ra Categoría (Industrial / Edificios - >50.000 Kcal)' },
+    { value: '2DA', label: '2da Categoría (Doméstico / Comercial - <50.000 Kcal)' },
+    { value: '3RA', label: '3ra Categoría (Unifuncional / Domiciliario)' },
+  ],
+
+  ELECTRICISTA: [
+    { value: 'CAT_A', label: 'Categoría A (Profesional / Ingeniero - Potencia Ilimitada)' },
+    { value: 'CAT_B', label: 'Categoría B (Técnico - Hasta 2000 kVA)' },
+    { value: 'CAT_C', label: 'Categoría C (Idóneo - Hasta 10 kW / Domiciliario)' },
+  ],
+
+  // --- NON-MATRICULATED TRADES (Regulated by UOCRA Skills) ---
+
+  PLOMERO: [
+    { value: '', label: 'Sin categoría' },
+    ...UOCRA_CATEGORIES, // Uses Ayudante -> Oficial Especializado
+    { value: 'DESTAPACIONES', label: 'Especialista en Destapaciones (Máquina)' },
+  ],
+
+  CALEFACCIONISTA: [
+    { value: '', label: 'Sin categoría' },
+    { value: 'CALDERISTA', label: 'Calderista (Vapor/Agua Caliente)' },
+    { value: 'RADIADORES', label: 'Instalador de Radiadores/Piso Radiante' },
+    { value: 'ESTUFAS', label: 'Reparador de Estufas/Tiro Balanceado' },
+  ],
+
+  REFRIGERACION: [
+    { value: '', label: 'Sin categoría' },
+    { value: 'MATRICULADO_CACAAV', label: 'Matriculado CACAAV / IRAM' },
+    { value: 'INSTALADOR_SPLIT', label: 'Instalador de Splits (Baja capacidad)' },
+    { value: 'TECNICO_CENTRAL', label: 'Técnico en Sistemas Centrales / VRF' },
+    { value: 'HELADERAS', label: 'Reparador de Heladeras / Línea Blanca' },
+  ],
+
+  // --- CONSTRUCTION TRADES (Strictly UOCRA) ---
+
+  ALBANIL: UOCRA_CATEGORIES,
+
+  PINTOR: [
+    ...UOCRA_CATEGORIES,
+    { value: 'ALTURA', label: 'Pintor de Altura / Siletero' }, // Specialized high-risk role
+  ],
+
+  CARPINTERO: [
+    ...UOCRA_CATEGORIES,
+    { value: 'EBANISTA', label: 'Ebanista (Muebles a medida)' },
+    { value: 'OBRA', label: 'Carpintero de Obra / Encofrador' },
+  ],
+
+  TECHISTA: [
+    ...UOCRA_CATEGORIES,
+    { value: 'ZINGUERO', label: 'Zinguero (Canaletas y Zinguería)' },
+    { value: 'MEMBRANERO', label: 'Colocador de Membranas' },
+  ],
+
+  HERRERO: UOCRA_CATEGORIES,
+
+  // --- HIGHLY SPECIALIZED ---
+
+  SOLDADOR: [
+    { value: '', label: 'Herrero de Obra (Sin calificación)' },
+    { value: 'CALIFICADO_ASME', label: 'Calificado ASME IX (Alta Presión)' },
+    { value: 'CALIFICADO_API', label: 'Calificado API 1104 (Gasoductos)' },
+    { value: 'CALIFICADO_AWS', label: 'Calificado AWS D1.1 (Estructural)' },
+    { value: 'ARGONISTA', label: 'Argonista / TIG (Acero Inoxidable)' },
+  ],
+
+  // Fallback
+  DEFAULT: UOCRA_CATEGORIES,
+};
+
+// Get category options for a specific trade
+function getTradeCategoryOptions(specialty: string) {
+  return TRADE_CATEGORY_OPTIONS[specialty] || TRADE_CATEGORY_OPTIONS.DEFAULT;
+}
+
+// Matrícula configuration per specialty
+// Different trades require different types of professional certifications
+// All are OPTIONAL - helpers and unlicensed workers can still be added
+const SPECIALTY_MATRICULA_CONFIG: Record<string, {
+  label: string;
+  placeholder: string;
+  hint: string;
+  required: boolean;
+  pattern?: RegExp;
+}> = {
+  GASISTA: {
+    label: 'Matrícula Gasista',
+    // Removed CACAAV. Added generic numeric examples common in Metrogas/Naturgy.
+    placeholder: 'Ej: 12345 o MG-12345',
+    hint: 'Número de matrícula habilitante (ej: MetroGas, Camuzzi, Naturgy)',
+    required: false,
+  },
+  ELECTRICISTA: {
+    label: 'Matrícula Electricista',
+    // APSE and COPIME are the two big ones technicians recognize.
+    placeholder: 'Ej: APSE-12345 o COPIME Tº12 Fº34',
+    hint: 'Número de registro en APSE, COPIME o colegio técnico provincial',
+    required: false,
+  },
+  PLOMERO: {
+    label: 'Matrícula Sanitarista', // "Sanitarista" sounds more professional for matriculas
+    placeholder: 'Ej: 12345 (AySA / Obras Sanitarias)',
+    hint: 'Sólo si posee matrícula oficial de instalador sanitario',
+    required: false,
+  },
+  CALEFACCIONISTA: {
+    label: 'Matrícula Calefacción',
+    // Usually implies Gasista, but could be specific hydronic heating
+    placeholder: 'Ej: 12345',
+    hint: 'Si es caldera a gas, por favor ingrese su matrícula de Gasista',
+    required: false,
+  },
+  REFRIGERACION: {
+    label: 'Matrícula / Registro HVAC',
+    // Moved CACAAV here where it belongs
+    placeholder: 'Ej: CACAAV-12345 o AARA-123',
+    hint: 'Número de socio CACAAV o certificado de la Asoc. Arg. del Frío',
+    required: false,
+  },
+  ALBANIL: {
+    label: 'Registro IERIC / Credencial',
+    placeholder: 'Ej: Nº de Inscripción IERIC',
+    hint: 'Número de credencial IERIC (Libreta de Fondo de Desempleo) si posee',
+    required: false,
+  },
+  PINTOR: {
+    label: 'Certificación / Registro',
+    placeholder: 'Ej: Curso Profesional / Capra',
+    hint: 'Mencione si posee certificados de cursos o membresía en cámara de pintores',
+    required: false,
+  },
+  CARPINTERO: {
+    label: 'Registro / Afiliación',
+    placeholder: 'Ej: USIMRA o Certificado FP',
+    hint: 'Número de afiliación gremial o certificado de Formación Profesional',
+    required: false,
+  },
+  TECHISTA: {
+    label: 'Certificación Especialidad',
+    placeholder: 'Ej: Instalador Zinguería / Techos Verdes',
+    hint: 'Especifique si tiene certificación en materiales específicos',
+    required: false,
+  },
+  HERRERO: {
+    label: 'Habilitación Taller',
+    placeholder: 'Ej: Habilitación Municipal',
+    hint: 'Si posee taller habilitado, puede indicarlo aquí',
+    required: false,
+  },
+  SOLDADOR: {
+    label: 'Calificación de Soldadura', // This is the most technical one in this list
+    placeholder: 'Ej: Norma ASME IX / API 1104',
+    hint: 'Código de calificación vigente (WPQ) si realiza trabajos de alta presión',
+    required: false,
+  },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MATRÍCULA VALIDATION - Argentine Skilled Trade License Numbers
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Regex patterns for validating Argentine trade license/matrícula numbers
+ * All patterns are optional (empty string is valid)
+ */
+const MATRICULA_PATTERNS: Record<string, {
+  pattern: RegExp;
+  errorMessage: string;
+}> = {
+  GASISTA: {
+    // Numeric (4-6 digits) OR alphanumeric starting with 'MG-' or 'Naturgy-'
+    // Examples: 12345, 123456, MG-12345, Naturgy-123
+    pattern: /^$|^(\d{4,6}|MG-\d{3,6}|Naturgy-\d{2,6}|Camuzzi-\d{2,6})$/i,
+    errorMessage: 'Formato inválido. Use número (4-6 dígitos) o prefijo MG-/Naturgy-/Camuzzi-',
+  },
+  ELECTRICISTA: {
+    // 'APSE' or 'COPIME' followed by numbers/dashes, OR just a 5-6 digit number
+    // Examples: APSE-12345, COPIME Tº12 Fº34, 12345, 123456
+    pattern: /^$|^(APSE[-\s]?\d{3,6}|COPIME\s*(Tº?\d{1,4}\s*Fº?\d{1,4}|\d{3,6})|\d{5,6})$/i,
+    errorMessage: 'Formato inválido. Use APSE-xxxxx, COPIME Tº12 Fº34, o número de 5-6 dígitos',
+  },
+  PLOMERO: {
+    // Numeric (3-6 digits) - AySA / Obras Sanitarias format
+    // Examples: 1234, 12345, 123456
+    pattern: /^$|^\d{3,6}$/,
+    errorMessage: 'Use número de matrícula de 3-6 dígitos',
+  },
+  CALEFACCIONISTA: {
+    // Numeric (4-6 digits) - same as gasista or general format
+    // Examples: 1234, 12345, 123456
+    pattern: /^$|^\d{4,6}$/,
+    errorMessage: 'Use número de 4-6 dígitos (si es a gas, use su matrícula de gasista)',
+  },
+  REFRIGERACION: {
+    // CACAAV-xxxxx or AARA-xxx format
+    // Examples: CACAAV-12345, AARA-123, 12345
+    pattern: /^$|^(CACAAV[-\s]?\d{3,6}|AARA[-\s]?\d{2,5}|\d{3,6})$/i,
+    errorMessage: 'Use formato CACAAV-xxxxx, AARA-xxx, o número de 3-6 dígitos',
+  },
+  ALBANIL: {
+    // IERIC registration number or free text (credencial number)
+    // Examples: 123456789, IERIC-12345
+    pattern: /^$|^(IERIC[-\s]?\d{4,10}|\d{4,12}|.{1,50})$/i,
+    errorMessage: 'Use número IERIC o número de credencial',
+  },
+  PINTOR: {
+    // Open format - certification names or course completion
+    // Just validate it's not too long
+    pattern: /^$|^.{1,100}$/,
+    errorMessage: 'Ingrese nombre de certificación o curso (máx 100 caracteres)',
+  },
+  CARPINTERO: {
+    // USIMRA or FP certificate format
+    // Examples: USIMRA-12345, FP Carpintería 2020
+    pattern: /^$|^(USIMRA[-\s]?\d{3,8}|FP\s*.{1,50}|.{1,50})$/i,
+    errorMessage: 'Use número USIMRA, certificado FP, o descripción breve',
+  },
+  TECHISTA: {
+    // Open format - specialty certification
+    pattern: /^$|^.{1,100}$/,
+    errorMessage: 'Ingrese tipo de certificación (máx 100 caracteres)',
+  },
+  HERRERO: {
+    // Municipal habilitación or general format
+    // Examples: Hab. Municipal CABA, 12345
+    pattern: /^$|^.{1,100}$/,
+    errorMessage: 'Ingrese habilitación o número de taller (máx 100 caracteres)',
+  },
+  SOLDADOR: {
+    // ASME, API, or AWS certification format
+    // Examples: ASME IX, API 1104, AWS D1.1, WPQ-123
+    pattern: /^$|^(ASME\s*(IX|Section\s*IX|Sec\.?\s*IX)?|API\s*(1104|650)|AWS\s*D\d+(\.\d+)?|WPQ[-\s]?\d{1,6}|.{1,50})$/i,
+    errorMessage: 'Use código ASME/API/AWS (ej: ASME IX, API 1104) o número WPQ',
+  },
+};
+
+/**
+ * Validate a matrícula value based on the specialty
+ * @param specialty - The specialty code (e.g., 'GASISTA', 'ELECTRICISTA')
+ * @param matricula - The matrícula value to validate
+ * @returns { valid: boolean, error?: string }
+ */
+function validateMatricula(specialty: string, matricula: string): { valid: boolean; error?: string } {
+  // Empty is always valid (all matrícula fields are optional)
+  if (!matricula || matricula.trim() === '') {
+    return { valid: true };
+  }
+
+  const trimmed = matricula.trim();
+  const config = MATRICULA_PATTERNS[specialty];
+
+  // If no specific pattern defined, allow any non-empty value up to 100 chars
+  if (!config) {
+    if (trimmed.length > 100) {
+      return { valid: false, error: 'Máximo 100 caracteres' };
+    }
+    return { valid: true };
+  }
+
+  // Test against the pattern
+  if (!config.pattern.test(trimmed)) {
+    return { valid: false, error: config.errorMessage };
+  }
+
+  return { valid: true };
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // TEAM MEMBER MODAL (Add/Edit)
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -770,54 +1373,277 @@ const SKILL_LEVEL_OPTIONS = [
 interface TeamMemberModalProps {
   member: TeamMember | null;
   currentUserId?: string;
+  currentUserRole?: string;
   onClose: () => void;
   onSuccess: () => void;
+  onDelete?: (member: TeamMember) => void;
 }
 
-function TeamMemberModal({ member, currentUserId, onClose, onSuccess }: TeamMemberModalProps) {
+function TeamMemberModal({ member, currentUserId, currentUserRole, onClose, onSuccess, onDelete }: TeamMemberModalProps) {
+  // Initialize certifications from member data (handle legacy single specialty)
+  const initCertifications = (): Record<string, TradeCertification> => {
+    if (member?.certifications) {
+      return member.certifications;
+    }
+    // Legacy: convert single specialty to certifications format
+    if (member?.specialty && member?.specialty !== '') {
+      return {
+        [member.specialty]: {
+          matricula: member.matricula || '',
+          category: member.skillLevel || '',
+        },
+      };
+    }
+    return {};
+  };
+
+  // Initialize specialties from member data
+  const initSpecialties = (): string[] => {
+    if (member?.specialties && member.specialties.length > 0) {
+      return member.specialties;
+    }
+    // Legacy: convert single specialty to array
+    if (member?.specialty && member.specialty !== '') {
+      return [member.specialty];
+    }
+    return [];
+  };
+
   const [formData, setFormData] = useState({
     name: member?.name || '',
-    countryCode: '+54',
-    phone: member?.phone?.replace(/^\+54/, '') || '',
+    phone: member?.phone || '',
     email: member?.email || '',
     role: member?.role || 'TECHNICIAN',
-    specialty: member?.specialty || '',
-    skillLevel: member?.skillLevel || '',
+    // Multi-specialty support
+    specialties: initSpecialties(),
+    certifications: initCertifications(),
     isActive: member?.isActive ?? true,
     sendWelcome: true,
+    // Driver's license (optional)
+    driverLicenseNumber: member?.driverLicenseNumber || '',
+    driverLicenseExpiry: member?.driverLicenseExpiry?.split('T')[0] || '', // Format for date input
+    driverLicenseCategory: member?.driverLicenseCategory || '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [certificationErrors, setCertificationErrors] = useState<Record<string, string>>({});
+  const [showSpecialtyDropdown, setShowSpecialtyDropdown] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const specialtyButtonRef = useRef<HTMLButtonElement>(null);
 
   const isOwner = member?.role === 'OWNER';
   const isEditing = !!member;
+
+  // ACCESS CONTROL: Determine if user can edit or just view
+  const normalizedRole = currentUserRole?.toUpperCase() || 'TECHNICIAN';
+  const isEditingSelf = member?.id === currentUserId;
+  const canEdit = isEditingSelf || ['OWNER', 'DISPATCHER'].includes(normalizedRole);
+  const isViewOnly = isEditing && !canEdit;
+
+  // Resend access states (Edit mode only)
+  const [resendPhoneOTP, setResendPhoneOTP] = useState(false);
+  const originalEmail = member?.email || '';
+  const emailChanged = isEditing && formData.email !== originalEmail && formData.email.trim() !== '';
+
+  // Handle specialty dropdown toggle with position calculation
+  const handleSpecialtyDropdownToggle = () => {
+    if (!showSpecialtyDropdown && specialtyButtonRef.current) {
+      const rect = specialtyButtonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + 4, // 4px gap below button
+        left: rect.left,
+        width: rect.width,
+      });
+    }
+    setShowSpecialtyDropdown(!showSpecialtyDropdown);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        showSpecialtyDropdown &&
+        specialtyButtonRef.current &&
+        !specialtyButtonRef.current.contains(event.target as Node)
+      ) {
+        // Check if click is inside the portal dropdown
+        const portalDropdown = document.getElementById('specialty-dropdown-portal');
+        if (portalDropdown && !portalDropdown.contains(event.target as Node)) {
+          setShowSpecialtyDropdown(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSpecialtyDropdown]);
+
+  // Recalculate dropdown position when specialties change or on resize/scroll
+  useEffect(() => {
+    if (!showSpecialtyDropdown || !specialtyButtonRef.current) return;
+
+    const updatePosition = () => {
+      if (specialtyButtonRef.current) {
+        const rect = specialtyButtonRef.current.getBoundingClientRect();
+        setDropdownPosition({
+          top: rect.bottom + 4,
+          left: rect.left,
+          width: rect.width,
+        });
+      }
+    };
+
+    // 1. Update immediately
+    updatePosition();
+
+    // 2. Watch for resizing (The Modal Animation)
+    const observer = new ResizeObserver(() => {
+      updatePosition();
+    });
+    observer.observe(specialtyButtonRef.current);
+
+    // 3. Watch for scrolling (window resize/scroll)
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, [showSpecialtyDropdown, formData.specialties]); // Re-run if specialties change
+
+  // Toggle a specialty in the multi-select
+  const toggleSpecialty = (specialty: string) => {
+    const currentSpecialties = formData.specialties;
+    const currentCerts = { ...formData.certifications };
+
+    if (currentSpecialties.includes(specialty)) {
+      // Remove specialty
+      const newSpecialties = currentSpecialties.filter((s) => s !== specialty);
+      delete currentCerts[specialty];
+      setFormData({
+        ...formData,
+        specialties: newSpecialties,
+        certifications: currentCerts,
+      });
+      // Clear any error for this specialty
+      const newErrors = { ...certificationErrors };
+      delete newErrors[specialty];
+      setCertificationErrors(newErrors);
+    } else {
+      // Add specialty
+      const newSpecialties = [...currentSpecialties, specialty];
+      currentCerts[specialty] = { matricula: '', category: '' };
+      setFormData({
+        ...formData,
+        specialties: newSpecialties,
+        certifications: currentCerts,
+      });
+    }
+  };
+
+  // Update certification for a specific specialty
+  const updateCertification = (specialty: string, field: 'matricula' | 'category', value: string) => {
+    const currentCerts = { ...formData.certifications };
+    if (!currentCerts[specialty]) {
+      currentCerts[specialty] = { matricula: '', category: '' };
+    }
+    currentCerts[specialty][field] = value;
+    setFormData({ ...formData, certifications: currentCerts });
+
+    // Clear error when typing
+    if (field === 'matricula' && certificationErrors[specialty]) {
+      const newErrors = { ...certificationErrors };
+      delete newErrors[specialty];
+      setCertificationErrors(newErrors);
+    }
+  };
+
+  // Validate matrícula for a specific specialty
+  const validateCertification = (specialty: string) => {
+    const cert = formData.certifications[specialty];
+    if (cert?.matricula) {
+      const result = validateMatricula(specialty, cert.matricula);
+      if (!result.valid) {
+        setCertificationErrors((prev) => ({ ...prev, [specialty]: result.error || 'Formato inválido' }));
+        return false;
+      }
+    }
+    setCertificationErrors((prev) => {
+      const newErrors = { ...prev };
+      delete newErrors[specialty];
+      return newErrors;
+    });
+    return true;
+  };
+
+  // Validate all certifications before submit
+  const validateAllCertifications = (): boolean => {
+    let allValid = true;
+    const newErrors: Record<string, string> = {};
+
+    for (const specialty of formData.specialties) {
+      const cert = formData.certifications[specialty];
+      if (cert?.matricula) {
+        const result = validateMatricula(specialty, cert.matricula);
+        if (!result.valid) {
+          newErrors[specialty] = result.error || 'Formato inválido';
+          allValid = false;
+        }
+      }
+    }
+
+    setCertificationErrors(newErrors);
+    return allValid;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
 
-    try {
-      // Combine country code with phone number
-      const fullPhone = formData.countryCode + formData.phone.replace(/\D/g, '');
+    // Validate all certifications
+    if (!validateAllCertifications()) {
+      setIsSubmitting(false);
+      return;
+    }
 
+    try {
       const url = member ? `/api/users/${member.id}` : '/api/users';
       const method = member ? 'PUT' : 'POST';
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const payload: any = {
         name: formData.name,
-        phone: fullPhone,
+        phone: formData.phone, // Already includes country code from PhoneInput
         email: formData.email,
         role: formData.role,
-        specialty: formData.specialty || null,
-        skillLevel: formData.skillLevel || null,
+        // Multi-specialty data
+        specialties: formData.specialties,
+        certifications: formData.certifications,
+        // Legacy fields for backwards compatibility (use first specialty)
+        specialty: formData.specialties[0] || null,
+        matricula: formData.certifications[formData.specialties[0]]?.matricula || null,
+        skillLevel: formData.certifications[formData.specialties[0]]?.category || null,
         isActive: formData.isActive,
       };
 
       // Only include sendWelcome for new users
       if (!member) {
         payload.sendWelcome = formData.sendWelcome;
+      }
+
+      // For edits: Include resend flags
+      if (member) {
+        // Auto-trigger email notification if email changed
+        if (emailChanged) {
+          payload.resendEmailNotification = true;
+        }
+        // Manual toggle for resending phone OTP
+        if (resendPhoneOTP) {
+          payload.resendPhoneOTP = true;
+        }
       }
 
       const res = await fetch(url, {
@@ -829,210 +1655,518 @@ function TeamMemberModal({ member, currentUserId, onClose, onSuccess }: TeamMemb
       const data = await res.json();
 
       if (!res.ok || !data.success) {
-        throw new Error(data.error?.message || data.error || 'Error al guardar');
+        // Translate common API errors to Spanish
+        const errorMessage = data.error?.message || data.error || 'Error al guardar';
+        const errorTranslations: Record<string, string> = {
+          'Phone number already in use': 'Este número de teléfono ya está registrado',
+          'Name and phone are required': 'El nombre y teléfono son obligatorios',
+          'Cannot create users with OWNER role': 'No se puede crear usuarios con rol de Propietario',
+          'Unauthorized': 'No autorizado',
+          'Forbidden: insufficient permissions': 'No tienes permisos para realizar esta acción',
+        };
+        throw new Error(errorTranslations[errorMessage] || errorMessage);
       }
 
       onSuccess();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       setError(err.message);
+      // Scroll the form to top to show the error
+      const scrollContainer = document.querySelector('[data-form-scroll]');
+      if (scrollContainer) scrollContainer.scrollTop = 0;
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Dynamic width based on whether specialties are selected
+  const hasSpecialties = formData.specialties.length > 0;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 overflow-y-auto">
-      <div className="w-full max-w-md rounded-xl bg-white shadow-xl my-8">
-        <div className="flex items-center justify-between border-b p-4">
-          <h2 className="text-lg font-semibold text-gray-900">
-            {member ? 'Editar Empleado' : 'Nuevo miembro'}
-          </h2>
-          <button onClick={onClose} className="p-1 rounded hover:bg-gray-100">
-            <X className="h-5 w-5 text-gray-400" />
-          </button>
-        </div>
+    <div className="fixed inset-0 z-[100] overflow-hidden">
+      {/* Backdrop overlay - covers entire screen */}
+      <div
+        className="fixed inset-0 bg-black/50 backdrop-blur-[1px]"
+        onClick={onClose}
+        aria-hidden="true"
+      />
 
-        <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {error && (
-            <div className="p-3 bg-red-50 text-red-700 text-sm rounded-lg">
-              {error}
-            </div>
+      {/* Modal content - centered with max height, binary width (no gradual growth) */}
+      <div className="flex h-full items-center justify-center p-4">
+        <div
+          className={cn(
+            "relative flex flex-col rounded-xl bg-white shadow-xl overflow-x-hidden",
+            "transition-all duration-500 ease-in-out",
+            "max-h-[90vh] w-full",
+            // Binary sizing: Compact (max-w-2xl) or Medium-Wide (max-w-3xl)
+            hasSpecialties ? "max-w-3xl" : "max-w-2xl"
           )}
-
-          {/* Name */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre *
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="input w-full"
-              placeholder="Nombre completo"
-              required
-            />
-          </div>
-
-          {/* Phone with country code */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Teléfono *
-            </label>
-            <div className="flex gap-2">
-              <select
-                value={formData.countryCode}
-                onChange={(e) => setFormData({ ...formData, countryCode: e.target.value })}
-                className="input w-24 flex-shrink-0"
-                disabled={isEditing}
-              >
-                <option value="+54">AR +54</option>
-                <option value="+1">US +1</option>
-                <option value="+56">CL +56</option>
-                <option value="+598">UY +598</option>
-                <option value="+55">BR +55</option>
-                <option value="+52">MX +52</option>
-              </select>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className="input flex-1"
-                placeholder="11 1234 5678"
-                required
-                disabled={isEditing}
-              />
-            </div>
-            <p className="mt-1 text-xs text-gray-500">
-              {isEditing ? 'El teléfono no se puede cambiar' : 'Ej: 11 1234 5678 (10-11 dígitos)'}
-            </p>
-          </div>
-
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email *
-            </label>
-            <input
-              type="email"
-              value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="input w-full"
-              placeholder="email@ejemplo.com"
-              required
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Se enviará una notificación al empleado
-            </p>
-          </div>
-
-          {/* Role */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Rol
-            </label>
-            <select
-              value={formData.role}
-              onChange={(e) => setFormData({ ...formData, role: e.target.value as TeamMember['role'] })}
-              className="input w-full"
-              disabled={isOwner}
-            >
-              <option value="TECHNICIAN">Técnico</option>
-              <option value="DISPATCHER">Despachador</option>
-              {isOwner && <option value="OWNER">Dueño</option>}
-            </select>
-          </div>
-
-          {/* Specialty */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Especialidad
-            </label>
-            <select
-              value={formData.specialty}
-              onChange={(e) => setFormData({ ...formData, specialty: e.target.value })}
-              className="input w-full"
-            >
-              {SPECIALTY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-gray-500">
-              Oficio o área de trabajo del empleado
-            </p>
-          </div>
-
-          {/* Skill Level */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nivel de Calificación
-            </label>
-            <select
-              value={formData.skillLevel}
-              onChange={(e) => setFormData({ ...formData, skillLevel: e.target.value })}
-              className="input w-full"
-            >
-              {SKILL_LEVEL_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-            <p className="mt-1 text-xs text-gray-500">
-              Según categorías UOCRA (CCT 76/75)
-            </p>
-          </div>
-
-          {/* Active checkbox */}
-          <div>
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={formData.isActive}
-                onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
-                className="rounded text-primary-600"
-                disabled={member?.id === currentUserId}
-              />
-              <span className="text-sm text-gray-700">Usuario activo</span>
-            </label>
-          </div>
-
-          {/* Send welcome message (only for new members) */}
-          {!isEditing && (
-            <div className="p-3 bg-teal-50 rounded-lg border border-teal-200">
-              <label className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  checked={formData.sendWelcome}
-                  onChange={(e) => setFormData({ ...formData, sendWelcome: e.target.checked })}
-                  className="rounded text-teal-600 mt-0.5"
-                />
-                <div>
-                  <span className="text-sm font-medium text-teal-800">
-                    Enviar bienvenida y código de verificación
-                  </span>
-                  <p className="text-xs text-teal-600 mt-0.5">
-                    Se enviará por WhatsApp un mensaje de bienvenida con código de verificación (6 dígitos)
-                  </p>
+        >
+          {/* Fixed Header */}
+          <div className="flex-shrink-0 flex items-center justify-between border-b p-4">
+            <div className="flex items-center gap-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {!member ? 'Nuevo miembro' : (isViewOnly ? 'Ver Empleado' : 'Editar Empleado')}
+              </h2>
+              {/* Stats (Edit mode only) - inline with title */}
+              {isEditing && member && (
+                <div className="hidden sm:flex items-center gap-4 text-xs text-gray-500">
+                  <div className="flex items-center gap-1">
+                    <Briefcase className="h-3.5 w-3.5" />
+                    <span>{member.jobCount || 0} trabajos</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Star className="h-3.5 w-3.5 text-amber-400" />
+                    <span>{member.avgRating !== null ? member.avgRating.toFixed(1) : '—'}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Calendar className="h-3.5 w-3.5" />
+                    <span>
+                      {member.createdAt
+                        ? new Date(member.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })
+                        : '—'}
+                    </span>
+                  </div>
                 </div>
-              </label>
+              )}
             </div>
-          )}
-
-          {/* Buttons */}
-          <div className="flex gap-3 pt-4">
-            <button type="button" onClick={onClose} className="btn-outline flex-1">
-              Cancelar
-            </button>
-            <button type="submit" disabled={isSubmitting} className="btn-primary flex-1">
-              <Save className="mr-2 h-4 w-4" />
-              {isSubmitting ? 'Guardando...' : 'Guardar'}
+            <button onClick={onClose} className="p-1 rounded hover:bg-gray-100">
+              <X className="h-5 w-5 text-gray-400" />
             </button>
           </div>
-        </form>
+
+          {/* Scrollable Body */}
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+            <div data-form-scroll className="flex-1 overflow-y-auto p-4 space-y-4">
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg flex items-start gap-2">
+                  <svg className="h-5 w-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                  </svg>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* ═══════════════════════════════════════════════════════════════ */}
+              {/* TOP SECTION: Personal Info - 2 Column Grid                       */}
+              {/* ═══════════════════════════════════════════════════════════════ */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Row 1: Name | Phone */}
+                {/* Name */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nombre {!isViewOnly && '*'}
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className={cn("input w-full h-10", isViewOnly && "bg-gray-100 cursor-not-allowed")}
+                    placeholder="Nombre completo"
+                    required={!isViewOnly}
+                    disabled={isViewOnly}
+                  />
+                </div>
+
+                {/* Phone */}
+                <div>
+                  <PhoneInput
+                    id="employee-phone"
+                    value={formData.phone}
+                    onChange={(fullPhone) => setFormData({ ...formData, phone: fullPhone })}
+                    label="Teléfono"
+                    required
+                    disabled={isEditing}
+                    error={isEditing ? '🔒 Bloqueado por seguridad. Si cambió de número, desactive este usuario y cree uno nuevo.' : undefined}
+                  />
+                  {/* Edit mode: Resend OTP link */}
+                  {isEditing && (
+                    <button
+                      type="button"
+                      onClick={() => setResendPhoneOTP(!resendPhoneOTP)}
+                      className={cn(
+                        "mt-1 text-sm underline transition-colors",
+                        resendPhoneOTP ? "text-green-600" : "text-blue-600 hover:text-blue-800"
+                      )}
+                    >
+                      {resendPhoneOTP ? '✓ Se reenviará código de verificación' : '¿Reenviar acceso?'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Row 2: Email | Rol */}
+                {/* Email */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="input w-full h-10"
+                    placeholder="email@ejemplo.com"
+                    required
+                  />
+                  {/* Create mode: Standard message */}
+                  {!isEditing && (
+                    <p className="mt-1 text-xs text-gray-500">
+                      Se enviará una notificación al empleado
+                    </p>
+                  )}
+                  {/* Edit mode: Show if email changed */}
+                  {isEditing && emailChanged && (
+                    <p className="mt-1 text-xs text-green-600">
+                      ✓ Se enviará notificación al nuevo email
+                    </p>
+                  )}
+                  {/* Edit mode: Email not changed - no message needed */}
+                </div>
+
+                {/* Role */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Rol
+                  </label>
+                  <select
+                    value={formData.role}
+                    onChange={(e) => setFormData({ ...formData, role: e.target.value as TeamMember['role'] })}
+                    className="input w-full h-10"
+                    disabled={isOwner}
+                  >
+                    <option value="TECHNICIAN">Técnico</option>
+                    <option value="DISPATCHER">Despachador</option>
+                    {isOwner && <option value="OWNER">Dueño</option>}
+                  </select>
+                  {/* Active checkbox - under Rol for alignment */}
+                  <div className="mt-3">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={formData.isActive}
+                        onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                        className="rounded text-primary-600"
+                        disabled={member?.id === currentUserId}
+                      />
+                      <span className="text-sm text-gray-700">Usuario activo</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              {/* ═══════════════════════════════════════════════════════════════ */}
+              {/* DRIVER'S LICENSE SECTION (Optional)                             */}
+              {/* ═══════════════════════════════════════════════════════════════ */}
+
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  🚗 Licencia de Conducir
+                  <span className="text-xs font-normal text-gray-500">(opcional)</span>
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {/* License Number */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Número de Licencia
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.driverLicenseNumber}
+                      onChange={(e) => setFormData({ ...formData, driverLicenseNumber: e.target.value })}
+                      className={cn("input w-full h-10", isViewOnly && "bg-gray-100 cursor-not-allowed")}
+                      placeholder="Ej: 12345678"
+                      disabled={isViewOnly}
+                    />
+                  </div>
+                  {/* License Expiry */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Vencimiento
+                    </label>
+                    <input
+                      type="date"
+                      value={formData.driverLicenseExpiry}
+                      onChange={(e) => setFormData({ ...formData, driverLicenseExpiry: e.target.value })}
+                      className={cn("input w-full h-10", isViewOnly && "bg-gray-100 cursor-not-allowed")}
+                      disabled={isViewOnly}
+                    />
+                  </div>
+                  {/* License Category */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Categoría
+                    </label>
+                    <select
+                      value={formData.driverLicenseCategory}
+                      onChange={(e) => setFormData({ ...formData, driverLicenseCategory: e.target.value })}
+                      className={cn("input w-full h-10", isViewOnly && "bg-gray-100 cursor-not-allowed")}
+                      disabled={isViewOnly}
+                    >
+                      <option value="">Sin especificar</option>
+                      <option value="B1">B1 - Auto hasta 3500kg</option>
+                      <option value="B2">B2 - Auto + remolque</option>
+                      <option value="C">C - Camión</option>
+                      <option value="D1">D1 - Transporte de pasajeros</option>
+                    </select>
+                  </div>
+                </div>
+                {!formData.driverLicenseNumber && isEditing && !isViewOnly && (
+                  <p className="mt-2 text-xs text-amber-600 flex items-center gap-1">
+                    ⚠️ Sin licencia registrada - recomendamos agregar para asignaciones de vehículos y seguros
+                  </p>
+                )}
+              </div>
+
+              {/* ═══════════════════════════════════════════════════════════════ */}
+              {/* BOTTOM SECTION: Trade Details - Full Width                       */}
+              {/* ═══════════════════════════════════════════════════════════════ */}
+
+
+              {/* Divider with section title */}
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <Wrench className="h-4 w-4 text-teal-600" />
+                  Oficios y Credenciales
+                </h3>
+              </div>
+
+              {/* Multi-Select Specialties */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Especialidades <span className="text-gray-400 text-xs font-normal">(puede seleccionar varias)</span>
+                </label>
+
+                {/* Selected specialties as chips */}
+                {formData.specialties.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {formData.specialties.map((specialty) => {
+                      const opt = SPECIALTY_OPTIONS.find((o) => o.value === specialty);
+                      return (
+                        <span
+                          key={specialty}
+                          className="inline-flex items-center gap-1 px-2 py-1 bg-teal-100 text-teal-800 rounded-full text-sm"
+                        >
+                          {opt?.label || specialty}
+                          <button
+                            type="button"
+                            onClick={() => toggleSpecialty(specialty)}
+                            className="hover:bg-teal-200 rounded-full p-0.5"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Dropdown button */}
+                <div className="relative">
+                  <button
+                    ref={specialtyButtonRef}
+                    type="button"
+                    onClick={handleSpecialtyDropdownToggle}
+                    className="input w-full h-10 text-left flex items-center justify-between"
+                  >
+                    <span className="text-gray-500">
+                      {formData.specialties.length === 0
+                        ? 'Seleccionar especialidades...'
+                        : `${formData.specialties.length} especialidad(es) seleccionada(s)`}
+                    </span>
+                    <Wrench className="h-4 w-4 text-gray-400" />
+                  </button>
+                </div>
+
+                {/* Portal dropdown menu - renders to document.body */}
+                {showSpecialtyDropdown && typeof document !== 'undefined' && createPortal(
+                  <div
+                    id="specialty-dropdown-portal"
+                    className="bg-white border border-gray-200 rounded-lg shadow-xl max-h-60 overflow-y-auto"
+                    style={{
+                      position: 'fixed',
+                      top: dropdownPosition.top,
+                      left: dropdownPosition.left,
+                      width: dropdownPosition.width,
+                      zIndex: 9999,
+                    }}
+                  >
+                    {SPECIALTY_OPTIONS.filter((opt) => opt.value !== '').map((opt) => (
+                      <label
+                        key={opt.value}
+                        className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.specialties.includes(opt.value)}
+                          onChange={() => toggleSpecialty(opt.value)}
+                          className="rounded text-teal-600"
+                        />
+                        <span className="text-sm">{opt.label}</span>
+                      </label>
+                    ))}
+                    <div className="border-t p-2 sticky bottom-0 bg-white">
+                      <button
+                        type="button"
+                        onClick={() => setShowSpecialtyDropdown(false)}
+                        className="w-full text-center text-sm text-teal-600 hover:text-teal-700"
+                      >
+                        Cerrar
+                      </button>
+                    </div>
+                  </div>,
+                  document.body
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Seleccione todos los oficios que el empleado puede realizar
+                </p>
+              </div>
+
+              {/* Dynamic Trade Cards - One for each selected specialty */}
+              {formData.specialties.length > 0 && (
+                <div className="space-y-4">
+                  {formData.specialties.map((specialty) => {
+                    const config = SPECIALTY_MATRICULA_CONFIG[specialty];
+                    const categoryOptions = getTradeCategoryOptions(specialty);
+                    const cert = formData.certifications[specialty] || { matricula: '', category: '' };
+                    const error = certificationErrors[specialty];
+                    const specialtyLabel = SPECIALTY_OPTIONS.find((o) => o.value === specialty)?.label || specialty;
+
+                    return (
+                      <div
+                        key={specialty}
+                        className="p-4 border border-gray-200 rounded-lg bg-gray-50"
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <Award className="h-4 w-4 text-teal-600" />
+                          <h4 className="text-sm font-medium text-gray-900">{specialtyLabel}</h4>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {/* Matrícula for this trade */}
+                          {config && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-1">
+                                {config.label}
+                                <span className="text-gray-400 text-xs font-normal ml-1">(opcional)</span>
+                              </label>
+                              <input
+                                type="text"
+                                value={cert.matricula}
+                                onChange={(e) => updateCertification(specialty, 'matricula', e.target.value)}
+                                onBlur={() => validateCertification(specialty)}
+                                className={cn(
+                                  "input w-full",
+                                  error && "border-red-500 focus:ring-red-500"
+                                )}
+                                placeholder={config.placeholder}
+                              />
+                              {error ? (
+                                <p className="mt-1 text-xs text-red-500">{error}</p>
+                              ) : (
+                                <p className="mt-1 text-xs text-gray-500">{config.hint}</p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Category for this trade */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              Categoría / Nivel
+                            </label>
+                            <select
+                              value={cert.category}
+                              onChange={(e) => updateCertification(specialty, 'category', e.target.value)}
+                              className="input w-full h-10 truncate"
+                              title={categoryOptions.find(o => o.value === cert.category)?.label}
+                            >
+                              {categoryOptions.map((opt) => (
+                                <option key={opt.value} value={opt.value} title={opt.label}>
+                                  {opt.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Send welcome message (only for new members) - LAST ITEM */}
+              {!isEditing && (
+                <div className="p-3 bg-teal-50 rounded-lg border border-teal-200">
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={formData.sendWelcome}
+                      onChange={(e) => setFormData({ ...formData, sendWelcome: e.target.checked })}
+                      className="rounded text-teal-600 mt-0.5"
+                    />
+                    <div>
+                      <span className="text-sm font-medium text-teal-800">
+                        Enviar bienvenida y código de verificación
+                      </span>
+                      <p className="text-xs text-teal-600 mt-0.5">
+                        Se enviará por WhatsApp un mensaje de bienvenida con código de verificación (6 dígitos)
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              )}
+              {/* / Scrollable content ends here */}
+            </div>
+
+            {/* Smart Footer - Different layouts for Create vs Edit vs View mode */}
+            <div className="flex-shrink-0 flex items-center justify-between gap-3 p-4 border-t bg-gray-50 rounded-b-xl">
+              {/* Left Side: Secondary Actions (Edit mode only, not view-only) */}
+              {isEditing && member ? (
+                <div className="flex items-center gap-2">
+                  {/* WhatsApp Button - always visible */}
+                  <a
+                    href={`https://wa.me/${member.phone.replace(/[^0-9]/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-green-700 border border-green-300 rounded-lg hover:bg-green-50 transition-colors"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    <span className="hidden sm:inline">WhatsApp</span>
+                  </a>
+                  {/* Delete Button - hidden in view-only mode */}
+                  {!isViewOnly && member.role !== 'OWNER' && member.id !== currentUserId && onDelete && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onClose();
+                        onDelete(member);
+                      }}
+                      className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      <span className="hidden sm:inline">Eliminar</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div /> /* Empty spacer for create mode */
+              )}
+
+              {/* Right Side: Primary Actions */}
+              <div className="flex items-center gap-3">
+                <button type="button" onClick={onClose} className="btn-outline">
+                  {isViewOnly ? 'Cerrar' : 'Cancelar'}
+                </button>
+                {/* Save button - hidden in view-only mode */}
+                {!isViewOnly && (
+                  <button type="submit" disabled={isSubmitting} className="btn-primary">
+                    <Save className="mr-2 h-4 w-4" />
+                    {isSubmitting ? 'Guardando...' : 'Guardar'}
+                  </button>
+                )}
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

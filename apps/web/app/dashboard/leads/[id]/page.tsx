@@ -13,17 +13,12 @@ import {
   Clock,
   DollarSign,
   User,
-  Phone,
-  MessageSquare,
-  Image,
   Send,
   CheckCircle,
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  Star,
   Briefcase,
-  FileText,
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -298,7 +293,7 @@ export default function LeadDetailPage() {
                       onClick={() =>
                         setSelectedPhotoIndex(
                           (selectedPhotoIndex - 1 + lead.photos.length) %
-                            lead.photos.length
+                          lead.photos.length
                         )
                       }
                       className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 p-2 text-white hover:bg-black/70"

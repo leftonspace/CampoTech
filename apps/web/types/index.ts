@@ -167,6 +167,19 @@ export interface Job {
   actualDuration?: number;
   invoiceId?: string;
   materialsUsed?: MaterialUsed[];
+  // Phase 2: Vehicle & driver audit trail
+  vehicleId?: string | null;
+  vehicle?: {
+    id: string;
+    plateNumber: string;
+    make: string;
+    model: string;
+  };
+  vehiclePlateAtJob?: string;
+  driverNameAtJob?: string;
+  driverLicenseAtJob?: string;
+  vehicleMileageStart?: number;
+  vehicleMileageEnd?: number;
   createdAt: string;
   updatedAt: string;
 }

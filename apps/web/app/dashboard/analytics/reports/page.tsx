@@ -15,7 +15,6 @@ import {
   Plus,
   Save,
   Play,
-  Download,
   Trash2,
   GripVertical,
   BarChart3,
@@ -23,13 +22,8 @@ import {
   TrendingUp,
   Table,
   FileText,
-  Calendar,
-  Filter,
   Settings,
   Eye,
-  Clock,
-  ChevronDown,
-  ChevronUp,
   X,
 } from 'lucide-react';
 import Link from 'next/link';
@@ -48,7 +42,7 @@ interface ReportWidget {
   };
 }
 
-interface ReportTemplate {
+interface _ReportTemplate {
   id: string;
   name: string;
   description: string;
@@ -110,7 +104,7 @@ export default function ReportBuilderPage() {
   const [draggedWidget, setDraggedWidget] = useState<string | null>(null);
 
   // Fetch saved reports
-  const { data: savedReports = [] } = useQuery<SavedReport[]>({
+  const { data: _savedReports = [] } = useQuery<SavedReport[]>({
     queryKey: ['saved-reports'],
     queryFn: async () => {
       const response = await fetch('/api/analytics/reports');
@@ -250,11 +244,10 @@ export default function ReportBuilderPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setShowPreview(!showPreview)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                showPreview
-                  ? 'bg-green-100 text-green-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${showPreview
+                ? 'bg-green-100 text-green-700'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
             >
               <Eye size={18} />
               Vista previa
@@ -305,7 +298,7 @@ export default function ReportBuilderPage() {
             </div>
           ) : (
             <div className="grid grid-cols-4 gap-4 auto-rows-min">
-              {widgets.map((widget, index) => (
+              {widgets.map((widget, _index) => (
                 <div
                   key={widget.id}
                   draggable
@@ -313,11 +306,10 @@ export default function ReportBuilderPage() {
                   onDragOver={(e) => handleDragOver(e, widget.id)}
                   onDragEnd={handleDragEnd}
                   onClick={() => setSelectedWidget(widget.id)}
-                  className={`${getSizeClass(widget.config.size)} bg-white rounded-xl border-2 p-4 cursor-pointer transition-all ${
-                    selectedWidget === widget.id
-                      ? 'border-green-500 shadow-lg'
-                      : 'border-gray-200 hover:border-gray-300'
-                  } ${draggedWidget === widget.id ? 'opacity-50' : ''}`}
+                  className={`${getSizeClass(widget.config.size)} bg-white rounded-xl border-2 p-4 cursor-pointer transition-all ${selectedWidget === widget.id
+                    ? 'border-green-500 shadow-lg'
+                    : 'border-gray-200 hover:border-gray-300'
+                    } ${draggedWidget === widget.id ? 'opacity-50' : ''}`}
                 >
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
@@ -416,11 +408,10 @@ export default function ReportBuilderPage() {
                       <button
                         key={ct.id}
                         onClick={() => updateWidget(selectedWidgetData.id, { chartType: ct.id as 'bar' | 'line' | 'pie' | 'area' })}
-                        className={`px-3 py-2 text-sm rounded-lg border transition-colors ${
-                          selectedWidgetData.config.chartType === ct.id
-                            ? 'border-green-500 bg-green-50 text-green-700'
-                            : 'border-gray-300 hover:bg-gray-50'
-                        }`}
+                        className={`px-3 py-2 text-sm rounded-lg border transition-colors ${selectedWidgetData.config.chartType === ct.id
+                          ? 'border-green-500 bg-green-50 text-green-700'
+                          : 'border-gray-300 hover:bg-gray-50'
+                          }`}
                       >
                         {ct.name}
                       </button>

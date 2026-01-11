@@ -238,15 +238,16 @@ export default function PhoneInput({
   // Simple variant - now uses same flag images as default, just more compact
   if (variant === 'simple') {
     return (
-      <div className={className}>
+      <div>
         {label && (
-          <label htmlFor={id} className="label mb-1 block">
+          <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
             {label} {required && '*'}
           </label>
         )}
         <div className={cn(
-          "flex rounded-md border border-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ring-offset-background",
-          disabled && "opacity-50 cursor-not-allowed"
+          "flex items-center h-10 rounded-md border border-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ring-offset-background",
+          disabled && "opacity-50 cursor-not-allowed",
+          className
         )}>
           {/* Country Selector with Flag */}
           <div className="relative" ref={dropdownRef}>
@@ -335,15 +336,16 @@ export default function PhoneInput({
 
   // Default variant with flag images and custom dropdown
   return (
-    <div className={className}>
+    <div>
       {label && (
-        <label htmlFor={id} className="label mb-1 block">
+        <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
           {label} {required && '*'}
         </label>
       )}
       <div className={cn(
-        "flex rounded-md border border-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ring-offset-background",
-        disabled && "opacity-50 cursor-not-allowed"
+        "flex items-center h-10 rounded-md border border-input focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 ring-offset-background",
+        disabled && "opacity-50 cursor-not-allowed",
+        className
       )}>
         {/* Country Selector with Flag */}
         <div className="relative" ref={dropdownRef}>
@@ -393,13 +395,30 @@ export default function PhoneInput({
             type="text"
             value={customCountryCode}
             onChange={(e) => {
-              // Only allow + and numbers
-              const inputVal = e.target.value.replace(/[^+\d]/g, '');
-              // Ensure + is only at the start
-              const cleaned = inputVal.startsWith('+')
-                ? '+' + inputVal.slice(1).replace(/\+/g, '')
-                : inputVal.replace(/\+/g, '');
-              setCustomCountryCode(cleaned);
+              const raw = e.target.value;
+
+              // Rule D: Allow empty field
+              if (raw === '') {
+                setCustomCountryCode('');
+                return;
+              }
+
+              // Rule A: Strip non-numeric/non-plus characters
+              const cleaned = raw.replace(/[^+\d]/g, '');
+
+              // Rule B & C: Smart plus handling
+              if (cleaned === '+') {
+                // User typed just '+', allow it
+                setCustomCountryCode('+');
+              } else if (cleaned.startsWith('+')) {
+                // Already has '+', remove any extra '+' after first
+                setCustomCountryCode('+' + cleaned.slice(1).replace(/\+/g, ''));
+              } else if (/^\d/.test(cleaned)) {
+                // Starts with digit, auto-prepend '+'
+                setCustomCountryCode('+' + cleaned.replace(/\+/g, ''));
+              } else {
+                setCustomCountryCode(cleaned);
+              }
             }}
             placeholder="+XX"
             className="w-16 h-10 px-2 text-sm text-center border-r border-input bg-transparent placeholder:text-muted-foreground focus:outline-none"
@@ -420,11 +439,6 @@ export default function PhoneInput({
           disabled={disabled}
         />
       </div>
-      {countryCode === 'OTHER' && (
-        <p className="mt-1 text-xs text-muted-foreground">
-          Ingresá el código de país (ej: +34 para España, +49 para Alemania)
-        </p>
-      )}
       {error && <p className="mt-1 text-sm text-danger-500">{error}</p>}
     </div>
   );

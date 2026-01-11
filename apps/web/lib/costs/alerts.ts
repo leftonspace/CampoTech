@@ -311,8 +311,10 @@ export async function getCostSummary(): Promise<CostSummary> {
   };
 }
 
-export default {
+const costAlerts = {
   checkBudgetAlerts,
   sendDailyCostReport,
   getCostSummary,
 };
+
+export default costAlerts;

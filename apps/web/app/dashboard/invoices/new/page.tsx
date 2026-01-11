@@ -368,7 +368,7 @@ export default function NewInvoicePage() {
           </div>
 
           <div className="space-y-4">
-            {lineItems.map((item, index) => (
+            {lineItems.map((item, _index) => (
               <div
                 key={item.id}
                 className="grid gap-4 rounded-lg border p-4 sm:grid-cols-12"

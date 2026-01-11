@@ -33,7 +33,7 @@ import { Redis } from '@upstash/redis';
 // TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface MetricLabels {
+interface _MetricLabels {
   [key: string]: string | number;
 }
 

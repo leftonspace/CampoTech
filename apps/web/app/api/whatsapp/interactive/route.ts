@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
     const {
       type,
       phone,
-      conversationId,
+      conversationId: _conversationId,
       bodyText,
       headerText,
       footerText,

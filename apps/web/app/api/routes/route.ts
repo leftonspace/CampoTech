@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url);
         const technicianId = searchParams.get('technicianId') || session.userId;
-        const dateStr = searchParams.get('date');
+        const _dateStr = searchParams.get('date');
 
         // Get today's route
         const route = await routeGenerationService.getTodayRoute(

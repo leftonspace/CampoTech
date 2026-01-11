@@ -8,7 +8,6 @@ import {
   MapPin,
   User,
   Phone,
-  Briefcase,
   AlertCircle,
   ExternalLink,
   Edit,

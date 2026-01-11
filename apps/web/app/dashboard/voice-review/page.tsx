@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
 import { searchMatchesAny } from '@/lib/utils';
@@ -10,16 +10,10 @@ import {
   Clock,
   AlertCircle,
   CheckCircle,
-  Play,
-  Pause,
-  RefreshCw,
   ChevronRight,
-  Filter,
   Search,
-  User,
   MapPin,
   Wrench,
-  Calendar,
 } from 'lucide-react';
 
 interface VoiceReviewItem {
@@ -52,7 +46,6 @@ interface VoiceReviewItem {
 }
 
 export default function VoiceReviewPage() {
-  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>('awaiting_review');
   const [searchQuery, setSearchQuery] = useState('');
 

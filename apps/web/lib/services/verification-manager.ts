@@ -15,7 +15,6 @@
 
 import { prisma } from '@/lib/prisma';
 import type {
-  VerificationSubmissionStatus,
   OrgVerificationStatus,
   UserVerificationStatus,
 } from '@/lib/types';

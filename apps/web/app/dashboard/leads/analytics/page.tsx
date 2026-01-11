@@ -12,14 +12,9 @@ import {
   Clock,
   DollarSign,
   Target,
-  BarChart3,
   PieChart,
-  Calendar,
   MapPin,
   CheckCircle,
-  XCircle,
-  Eye,
-  Send,
   Award,
 } from 'lucide-react';
 
@@ -424,8 +419,8 @@ export default function LeadAnalyticsPage() {
                         cat.conversionRate >= 20
                           ? 'text-green-600'
                           : cat.conversionRate >= 10
-                          ? 'text-yellow-600'
-                          : 'text-gray-500'
+                            ? 'text-yellow-600'
+                            : 'text-gray-500'
                       )}
                     >
                       {cat.conversionRate.toFixed(0)}%

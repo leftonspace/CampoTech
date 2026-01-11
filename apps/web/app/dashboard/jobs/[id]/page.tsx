@@ -28,7 +28,6 @@ import {
   FileText,
   Camera,
   CheckCircle,
-  AlertCircle,
   Truck,
   Wrench,
   Play,
@@ -44,6 +43,7 @@ import {
 } from 'lucide-react';
 import { Job, User as UserType, Customer, JobPriority } from '@/types';
 import { JobMaterialUsagePanel } from '@/components/inventory/JobMaterialUsagePanel';
+import { CompletionForm } from '@/components/jobs/CompletionForm';
 
 // Form-specific interface for editing jobs
 // Uses separate time fields for UX, converted to scheduledTimeSlot on save
@@ -56,6 +56,7 @@ interface JobEditFormData {
   scheduledDate?: string;
   scheduledTimeStart?: string;
   scheduledTimeEnd?: string;
+  vehicleId?: string | null; // Phase 2.2: Vehicle assignment
 }
 
 // Availability data from API
@@ -71,6 +72,16 @@ interface AvailableEmployee {
     exceptionReason?: string;
   } | null;
   currentJobCount: number;
+}
+
+// Vehicle data for job assignment (Phase 2.2)
+interface Vehicle {
+  id: string;
+  plateNumber: string;
+  make: string;
+  model: string;
+  status: string;
+  currentMileage?: number;
 }
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -108,6 +119,7 @@ export default function JobDetailPage() {
   const [editData, setEditData] = useState<JobEditFormData>({});
   const [showMaterialsPanel, setShowMaterialsPanel] = useState(false);
   const [materialUsageMessage, setMaterialUsageMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [showCompletionForm, setShowCompletionForm] = useState(false); // Phase 3: Completion modal
 
   // Auto-enable edit mode if ?edit=true is present
   useEffect(() => {
@@ -129,6 +141,15 @@ export default function JobDetailPage() {
   const { data: customersData } = useQuery({
     queryKey: ['customers-all'],
     queryFn: () => api.customers.list(),
+  });
+
+  // Fetch vehicles for assignment (Phase 2.2)
+  const { data: vehiclesData } = useQuery({
+    queryKey: ['vehicles-all'],
+    queryFn: async () => {
+      const res = await fetch('/api/vehicles');
+      return res.json();
+    },
   });
 
   // Cast job data for type safety
@@ -182,6 +203,7 @@ export default function JobDetailPage() {
   const job = data?.data as Job | undefined;
   const teamMembers = usersData?.data as UserType[] | undefined;
   const customers = customersData?.data as Customer[] | undefined;
+  const vehicles = vehiclesData?.data as Vehicle[] | undefined; // Phase 2.2
 
   // Build availability map for quick lookup
   const availabilityMap = new Map<string, AvailableEmployee>();
@@ -230,6 +252,7 @@ export default function JobDetailPage() {
         scheduledDate: job.scheduledDate?.split('T')[0] || '',
         scheduledTimeStart: job.scheduledTimeStart || '',
         scheduledTimeEnd: job.scheduledTimeEnd || '',
+        vehicleId: job.vehicleId || null, // Phase 2.2
       });
       setIsEditing(true);
     }
@@ -241,6 +264,12 @@ export default function JobDetailPage() {
   };
 
   const handleStatusChange = (newStatus: string) => {
+    // Phase 3: Open completion form for COMPLETED status
+    if (newStatus === 'COMPLETED') {
+      setShowCompletionForm(true);
+      return;
+    }
+
     if (confirm(`¿Cambiar estado a "${JOB_STATUS_LABELS[newStatus]}"?`)) {
       statusMutation.mutate(newStatus);
     }
@@ -939,6 +968,80 @@ export default function JobDetailPage() {
             )}
           </div>
 
+          {/* Vehicle Assignment - Phase 2.2 */}
+          <div className="card p-6">
+            <h2 className="mb-4 flex items-center gap-2 font-medium text-gray-900">
+              <Truck className="h-5 w-5" />
+              Vehículo asignado
+            </h2>
+            {job.vehicle ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                    <Truck className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">
+                      {job.vehicle.make} {job.vehicle.model}
+                    </p>
+                    <p className="text-sm text-gray-500">{job.vehicle.plateNumber}</p>
+                  </div>
+                </div>
+                {/* Mileage info if started */}
+                {job.vehicleMileageStart && (
+                  <div className="mt-2 rounded-md bg-gray-50 p-3 text-sm">
+                    <p className="text-gray-600">
+                      <span className="font-medium">Km inicio:</span> {job.vehicleMileageStart.toLocaleString()}
+                    </p>
+                    {job.vehicleMileageEnd && (
+                      <>
+                        <p className="text-gray-600">
+                          <span className="font-medium">Km fin:</span> {job.vehicleMileageEnd.toLocaleString()}
+                        </p>
+                        <p className="text-gray-800 font-medium">
+                          Recorrido: {(job.vehicleMileageEnd - job.vehicleMileageStart).toLocaleString()} km
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="text-gray-500">Sin vehículo asignado</p>
+            )}
+
+            {/* Vehicle selector (only if not started/completed) */}
+            {!isEditing && job.status !== 'IN_PROGRESS' && job.status !== 'COMPLETED' && job.status !== 'CANCELLED' && (
+              <div className="mt-4">
+                <label className="label mb-1 block text-sm">Cambiar vehículo:</label>
+                <select
+                  value={job.vehicleId || ''}
+                  onChange={async (e) => {
+                    const newVehicleId = e.target.value || null;
+                    updateMutation.mutate({ vehicleId: newVehicleId } as Partial<Job>);
+                  }}
+                  disabled={updateMutation.isPending}
+                  className="input"
+                >
+                  <option value="">Sin vehículo</option>
+                  {vehicles?.filter(v => v.status === 'ACTIVE').map((vehicle) => (
+                    <option key={vehicle.id} value={vehicle.id}>
+                      {vehicle.plateNumber} - {vehicle.make} {vehicle.model}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Soft lock warning after job starts */}
+            {job.status === 'IN_PROGRESS' && (
+              <div className="mt-3 flex items-center gap-2 rounded-md bg-amber-50 p-2 text-sm text-amber-700">
+                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+                <span>El vehículo no puede cambiarse después de iniciar el trabajo</span>
+              </div>
+            )}
+          </div>
+
           {/* Quick actions */}
           <div className="card p-6">
             <h2 className="mb-4 font-medium text-gray-900">Acciones rápidas</h2>
@@ -1028,8 +1131,22 @@ export default function JobDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Completion Form Modal - Phase 3 */}
+      {showCompletionForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-full max-w-lg rounded-lg bg-white shadow-xl max-h-[90vh] overflow-y-auto">
+            <CompletionForm
+              jobId={jobId}
+              onComplete={() => {
+                setShowCompletionForm(false);
+                queryClient.invalidateQueries({ queryKey: ['job', jobId] });
+              }}
+              onCancel={() => setShowCompletionForm(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-
-

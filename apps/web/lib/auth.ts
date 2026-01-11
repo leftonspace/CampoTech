@@ -91,3 +91,32 @@ export async function requireAuth(): Promise<TokenPayload> {
   }
   return session;
 }
+
+/**
+ * Enhanced auth check that verifies the user is still active in the database.
+ * Use this for sensitive operations where real-time deactivation is critical.
+ * 
+ * @throws Error with message 'Unauthorized' if not logged in
+ * @throws Error with message 'Account deactivated' if user.isActive is false
+ */
+export async function requireActiveUser(): Promise<TokenPayload & { isActive: true }> {
+  const session = await getSession();
+  if (!session) {
+    throw new Error('Unauthorized');
+  }
+
+  // Dynamic import to avoid circular dependency
+  const { prisma } = await import('@/lib/prisma');
+
+  // Check real-time isActive status from database
+  const user = await prisma.user.findUnique({
+    where: { id: session.userId },
+    select: { isActive: true },
+  });
+
+  if (!user || !user.isActive) {
+    throw new Error('Account deactivated');
+  }
+
+  return { ...session, isActive: true };
+}

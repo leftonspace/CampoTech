@@ -46,7 +46,7 @@ import {
   isQueueConfigured,
 } from './config';
 import { getJob, updateJobStatus } from './dispatcher';
-import { recordJobCompleted, recordJobEnqueued } from './metrics';
+import { recordJobCompleted } from './metrics';
 
 // DLQ Handler is imported dynamically to avoid circular dependencies
 let DLQHandler: typeof import('./dlq').DLQHandler | null = null;

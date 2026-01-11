@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
-import { ArrowLeft, Package, Tag, Barcode, DollarSign, Boxes, MapPin, Building2, Truck } from 'lucide-react';
+import { ArrowLeft, Package, Tag, Barcode, Boxes, MapPin } from 'lucide-react';
 
 interface Category {
   id: string;
@@ -162,7 +162,7 @@ export default function NewProductPage() {
       } else {
         setError(data.error || 'Error al crear el producto');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Error de conexion');
     }
 

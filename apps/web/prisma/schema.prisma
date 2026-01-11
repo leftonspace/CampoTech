@@ -111,44 +111,56 @@ model Organization {
 }
 
 model User {
-  id                         String                      @id @default(cuid())
-  email                      String?
-  phone                      String                      @unique
-  name                       String
-  passwordHash               String?
-  role                       UserRole                    @default(TECHNICIAN)
-  specialty                  String?
-  skillLevel                 String?
-  avatar                     String?
-  isActive                   Boolean                     @default(true)
-  organizationId             String
-  homeLocationId             String?
-  createdAt                  DateTime                    @default(now())
-  updatedAt                  DateTime                    @updatedAt
-  verificationCompletedAt    DateTime?                   @map("verification_completed_at")
-  canBeAssignedJobs          Boolean                     @default(false) @map("can_be_assigned_jobs")
-  identityVerified           Boolean                     @default(false) @map("identity_verified")
-  verificationStatus         UserVerificationStatus      @default(pending) @map("verification_status")
-  
+  id                      String                 @id @default(cuid())
+  email                   String?
+  phone                   String                 @unique
+  name                    String
+  passwordHash            String?
+  role                    UserRole               @default(TECHNICIAN)
+  // Legacy single specialty (for backwards compatibility)
+  specialty               String?
+  skillLevel              String?
+  // New multi-specialty support
+  specialties             String[]               @default([])
+  certifications          Json?                  @map("certifications") // { "GASISTA": { "matricula": "MG-1234", "category": "1RA" }, ... }
+  avatar                  String?
+  isActive                Boolean                @default(true)
+  organizationId          String
+  homeLocationId          String?
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  verificationCompletedAt DateTime?              @map("verification_completed_at")
+  canBeAssignedJobs       Boolean                @default(false) @map("can_be_assigned_jobs")
+  identityVerified        Boolean                @default(false) @map("identity_verified")
+  verificationStatus      UserVerificationStatus @default(pending) @map("verification_status")
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // PHASE 4.3: DIGITAL ENTRY BADGE
   // ═══════════════════════════════════════════════════════════════════════════════
-  
+
   // Badge token for QR code verification (rotates every 30 days)
-  badgeToken                 String?                     @unique @map("badge_token")
-  badgeTokenExpiresAt        DateTime?                   @map("badge_token_expires_at")
-  
+  badgeToken          String?   @unique @map("badge_token")
+  badgeTokenExpiresAt DateTime? @map("badge_token_expires_at")
+
   // ART (Aseguradora de Riesgos del Trabajo) - Required for entry to gated communities
-  artCertificateUrl          String?                     @map("art_certificate_url")
-  artExpiryDate              DateTime?                   @map("art_expiry_date")
-  artProvider                String?                     @map("art_provider")
-  artPolicyNumber            String?                     @map("art_policy_number")
-  
+  artCertificateUrl String?   @map("art_certificate_url")
+  artExpiryDate     DateTime? @map("art_expiry_date")
+  artProvider       String?   @map("art_provider")
+  artPolicyNumber   String?   @map("art_policy_number")
+
   // Background check verification
-  backgroundCheckStatus      String                      @default("pending") @map("background_check_status") // 'pending', 'approved', 'rejected', 'expired'
-  backgroundCheckDate        DateTime?                   @map("background_check_date")
-  backgroundCheckProvider    String?                     @map("background_check_provider")
-  
+  backgroundCheckStatus   String    @default("pending") @map("background_check_status") // 'pending', 'approved', 'rejected', 'expired'
+  backgroundCheckDate     DateTime? @map("background_check_date")
+  backgroundCheckProvider String?   @map("background_check_provider")
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // DRIVER'S LICENSE (for vehicle assignment and insurance compliance)
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  driverLicenseNumber   String?   @map("driver_license_number")
+  driverLicenseExpiry   DateTime? @map("driver_license_expiry")
+  driverLicenseCategory String?   @map("driver_license_category") // e.g., "B1", "B2", "C", "D"
+
   // Relations
   aiEscalationConfigs        AIConfiguration[]           @relation("AIEscalationUser")
   complianceAcknowledgments  ComplianceAcknowledgment[]
@@ -268,22 +280,40 @@ model Job {
   recurrencePattern  RecurrencePattern?
   visitCount         Int?
   visitIntervalDays  Int?
-  invoice            Invoice?
-  assignments        JobAssignment[]    @relation("JobAssignments")
-  materials          JobMaterial[]
-  jobPhotos          JobPhoto[]         @relation("JobPhotos")
-  visits             JobVisit[]         @relation("JobVisits")
-  createdBy          User               @relation("CreatorJobs", fields: [createdById], references: [id])
-  customer           Customer           @relation(fields: [customerId], references: [id])
-  location           Location?          @relation("JobLocation", fields: [locationId], references: [id])
-  organization       Organization       @relation(fields: [organizationId], references: [id])
-  technician         User?              @relation("TechnicianJobs", fields: [technicianId], references: [id])
-  zone               Zone?              @relation("JobZone", fields: [zoneId], references: [id])
-  attribution        MarketplaceClick?  @relation("JobAttribution")
-  review             Review?
-  stockMovements     StockMovement[]
-  reservations       StockReservation[]
-  trackingSessions   TrackingSession[]  @relation("JobTrackingSessions")
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // VEHICLE & DRIVER AUDIT TRAIL (for insurance claims and compliance)
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  // Vehicle used for this job (optional relation)
+  vehicleId         String?
+  vehiclePlateAtJob String? @map("vehicle_plate_at_job") // Snapshot: plate number at time of job
+
+  // Driver snapshot (frozen at job completion for audit)
+  driverNameAtJob    String? @map("driver_name_at_job")
+  driverLicenseAtJob String? @map("driver_license_at_job")
+
+  // Mileage tracking (for insurance and expense tracking)
+  vehicleMileageStart Int? @map("vehicle_mileage_start")
+  vehicleMileageEnd   Int? @map("vehicle_mileage_end")
+
+  invoice          Invoice?
+  assignments      JobAssignment[]    @relation("JobAssignments")
+  materials        JobMaterial[]
+  jobPhotos        JobPhoto[]         @relation("JobPhotos")
+  visits           JobVisit[]         @relation("JobVisits")
+  createdBy        User               @relation("CreatorJobs", fields: [createdById], references: [id])
+  customer         Customer           @relation(fields: [customerId], references: [id])
+  location         Location?          @relation("JobLocation", fields: [locationId], references: [id])
+  organization     Organization       @relation(fields: [organizationId], references: [id])
+  technician       User?              @relation("TechnicianJobs", fields: [technicianId], references: [id])
+  vehicle          Vehicle?           @relation("VehicleJobs", fields: [vehicleId], references: [id])
+  zone             Zone?              @relation("JobZone", fields: [zoneId], references: [id])
+  attribution      MarketplaceClick?  @relation("JobAttribution")
+  review           Review?
+  stockMovements   StockMovement[]
+  reservations     StockReservation[]
+  trackingSessions TrackingSession[]  @relation("JobTrackingSessions")
 
   @@index([status])
   @@index([durationType])
@@ -292,6 +322,7 @@ model Job {
   @@index([organizationId])
   @@index([locationId])
   @@index([zoneId])
+  @@index([vehicleId])
   @@index([organizationId, status])
   @@index([organizationId, scheduledDate])
   @@index([technicianId, status])
@@ -1658,6 +1689,7 @@ model Vehicle {
   inventoryLocations    InventoryLocation[]  @relation("VehicleInventoryLocations")
   assignments           VehicleAssignment[]
   documents             VehicleDocument[]
+  jobs                  Job[]                @relation("VehicleJobs")
   maintenanceLogs       VehicleMaintenance[]
   schedules             VehicleSchedule[]    @relation("VehicleSchedules")
   organization          Organization         @relation("OrgVehicles", fields: [organizationId], references: [id], onDelete: Cascade)
@@ -3441,81 +3473,81 @@ enum DiscountType {
 // Professionals can claim these profiles to instantly activate their business presence.
 
 model UnclaimedProfile {
-  id               String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Source Information
-  source           UnclaimedProfileSource
-  sourceId         String?  @map("source_id")      // ID in source registry
-  sourceUrl        String?  @map("source_url")     // Link to original registry page
-  scrapedAt        DateTime @default(now()) @map("scraped_at")
-  
+  source    UnclaimedProfileSource
+  sourceId  String?                @map("source_id") // ID in source registry
+  sourceUrl String?                @map("source_url") // Link to original registry page
+  scrapedAt DateTime               @default(now()) @map("scraped_at")
+
   // Professional Identity
-  fullName         String   @map("full_name")
-  phone            String?                         // Primary phone for WhatsApp outreach
-  phones           String[] @default([])           // All phone numbers (for multiple)
-  email            String?                         // Email for outreach
-  cuit             String?                         // CUIT if available
-  matricula        String?                         // Professional license number
-  
+  fullName  String   @map("full_name")
+  phone     String? // Primary phone for WhatsApp outreach
+  phones    String[] @default([]) // All phone numbers (for multiple)
+  email     String? // Email for outreach
+  cuit      String? // CUIT if available
+  matricula String? // Professional license number
+
   // Location
-  province         String?
-  city             String?
-  address          String?                         // Full address (DOMICILIO)
-  postalCode       String?  @map("postal_code")    // CP (Código Postal)
-  
+  province   String?
+  city       String?
+  address    String? // Full address (DOMICILIO)
+  postalCode String? @map("postal_code") // CP (Código Postal)
+
   // Professional Details
-  profession       String?                         // GASISTA, ELECTRICISTA, etc.
-  specialty        String?                         // Sub-specialty if available
-  category         String?                         // License category: M1, M2, M3
-  categoryDesc     String?  @map("category_desc")  // Description: "1ra Categoría - Industrial"
-  licenseExpiry    DateTime? @map("license_expiry") // VIGENCIA - when license expires
-  
+  profession    String? // GASISTA, ELECTRICISTA, etc.
+  specialty     String? // Sub-specialty if available
+  category      String? // License category: M1, M2, M3
+  categoryDesc  String?   @map("category_desc") // Description: "1ra Categoría - Industrial"
+  licenseExpiry DateTime? @map("license_expiry") // VIGENCIA - when license expires
+
   // Outreach Status
-  outreachStatus   OutreachStatus @default(not_contacted) @map("outreach_status")
-  lastContactedAt  DateTime?      @map("last_contacted_at")
-  contactAttempts  Int            @default(0) @map("contact_attempts")
-  
+  outreachStatus  OutreachStatus @default(not_contacted) @map("outreach_status")
+  lastContactedAt DateTime?      @map("last_contacted_at")
+  contactAttempts Int            @default(0) @map("contact_attempts")
+
   // Email Outreach
-  emailSentAt      DateTime?      @map("email_sent_at")
-  emailDeliveredAt DateTime?      @map("email_delivered_at")
-  emailOpenedAt    DateTime?      @map("email_opened_at")
-  emailClickedAt   DateTime?      @map("email_clicked_at")
-  emailBouncedAt   DateTime?      @map("email_bounced_at")
-  emailUnsubscribedAt DateTime?   @map("email_unsubscribed_at")
-  
+  emailSentAt         DateTime? @map("email_sent_at")
+  emailDeliveredAt    DateTime? @map("email_delivered_at")
+  emailOpenedAt       DateTime? @map("email_opened_at")
+  emailClickedAt      DateTime? @map("email_clicked_at")
+  emailBouncedAt      DateTime? @map("email_bounced_at")
+  emailUnsubscribedAt DateTime? @map("email_unsubscribed_at")
+
   // WhatsApp Outreach
-  whatsappSentAt   DateTime?      @map("whatsapp_sent_at")
-  whatsappDeliveredAt DateTime?   @map("whatsapp_delivered_at")
-  whatsappReadAt   DateTime?      @map("whatsapp_read_at")
-  whatsappRepliedAt DateTime?     @map("whatsapp_replied_at")
-  whatsappFailedAt DateTime?      @map("whatsapp_failed_at")
+  whatsappSentAt        DateTime? @map("whatsapp_sent_at")
+  whatsappDeliveredAt   DateTime? @map("whatsapp_delivered_at")
+  whatsappReadAt        DateTime? @map("whatsapp_read_at")
+  whatsappRepliedAt     DateTime? @map("whatsapp_replied_at")
+  whatsappFailedAt      DateTime? @map("whatsapp_failed_at")
   whatsappFailureReason String?   @map("whatsapp_failure_reason")
-  
+
   // WhatsApp Verification (populated after first contact attempt or API check)
-  whatsappStatus   WhatsAppStatus @default(unknown) @map("whatsapp_status")
-  phoneType        PhoneType?     @map("phone_type")     // mobile, landline, unknown
-  whatsappId       String?        @map("whatsapp_id")    // wa_id returned by WhatsApp API
-  phoneVerifiedAt  DateTime?      @map("phone_verified_at")
-  
+  whatsappStatus  WhatsAppStatus @default(unknown) @map("whatsapp_status")
+  phoneType       PhoneType?     @map("phone_type") // mobile, landline, unknown
+  whatsappId      String?        @map("whatsapp_id") // wa_id returned by WhatsApp API
+  phoneVerifiedAt DateTime?      @map("phone_verified_at")
+
   // Claim Status
-  claimToken       String?  @unique @map("claim_token") // Secure token for claim URL
+  claimToken       String?   @unique @map("claim_token") // Secure token for claim URL
   claimTokenExpiry DateTime? @map("claim_token_expiry")
   claimedAt        DateTime? @map("claimed_at")
-  claimedByUserId  String?  @map("claimed_by_user_id")
-  claimedOrgId     String?  @map("claimed_org_id")
-  
+  claimedByUserId  String?   @map("claimed_by_user_id")
+  claimedOrgId     String?   @map("claimed_org_id")
+
   // Data Quality
-  dataQuality      DataQuality @default(raw) @map("data_quality")
-  lastVerifiedAt   DateTime?   @map("last_verified_at")
-  isActive         Boolean     @default(true) @map("is_active")
-  
+  dataQuality    DataQuality @default(raw) @map("data_quality")
+  lastVerifiedAt DateTime?   @map("last_verified_at")
+  isActive       Boolean     @default(true) @map("is_active")
+
   // Campaign Tracking
-  campaignId       String?  @map("campaign_id")
-  campaign         OutreachCampaign? @relation(fields: [campaignId], references: [id])
-  
+  campaignId String?           @map("campaign_id")
+  campaign   OutreachCampaign? @relation(fields: [campaignId], references: [id])
+
   // Timestamps
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   @@unique([source, matricula])
   @@index([phone])
@@ -3536,27 +3568,27 @@ model UnclaimedProfile {
 // Tracks progress of long-running scraper jobs so they can be paused/resumed
 
 model ScraperJob {
-  id                   String   @id @default(cuid())
-  
+  id String @id @default(cuid())
+
   // Source & Status
-  source               String                    // CACAAV, ERSEP, GASNOR, etc.
-  status               ScraperJobStatus @default(pending)
-  
+  source String // CACAAV, ERSEP, GASNOR, etc.
+  status ScraperJobStatus @default(pending)
+
   // Progress Tracking
-  totalProvinces       Int      @default(0) @map("total_provinces")
-  completedProvinces   String[] @default([]) @map("completed_provinces")
-  currentProvince      String?  @map("current_province")
-  currentPage          Int      @default(0) @map("current_page")
-  totalRecords         Int      @default(0) @map("total_records")
-  
+  totalProvinces     Int      @default(0) @map("total_provinces")
+  completedProvinces String[] @default([]) @map("completed_provinces")
+  currentProvince    String?  @map("current_province")
+  currentPage        Int      @default(0) @map("current_page")
+  totalRecords       Int      @default(0) @map("total_records")
+
   // Errors
-  errors               String[] @default([])
-  
+  errors String[] @default([])
+
   // Timestamps
-  startedAt            DateTime @default(now()) @map("started_at")
-  updatedAt            DateTime @updatedAt @map("updated_at")
-  completedAt          DateTime? @map("completed_at")
-  
+  startedAt   DateTime  @default(now()) @map("started_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  completedAt DateTime? @map("completed_at")
+
   @@index([source])
   @@index([status])
   @@index([startedAt(sort: Desc)])
@@ -3564,60 +3596,59 @@ model ScraperJob {
 }
 
 model OutreachCampaign {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id") // Which org owns this campaign (CampoTech admin org)
+  name           String // "ERSEP Initial Outreach Jan 2026"
+  description    String?
 
-  id                String   @id @default(cuid())
-  organizationId    String   @map("organization_id") // Which org owns this campaign (CampoTech admin org)
-  name              String                          // "ERSEP Initial Outreach Jan 2026"
-  description       String?
-  
   // 🔒 LAUNCH GATE - Campaign status
-  status            CampaignStatus @default(draft)
-  approvedAt        DateTime?      @map("approved_at")  // When owner approved
-  approvedBy        String?        @map("approved_by")  // User ID who approved
-  
+  status     CampaignStatus @default(draft)
+  approvedAt DateTime?      @map("approved_at") // When owner approved
+  approvedBy String?        @map("approved_by") // User ID who approved
+
   // Channel Configuration
-  channel           OutreachChannel @default(email)
-  
+  channel OutreachChannel @default(email)
+
   // Template (for WhatsApp campaigns)
-  templateName      String?        @map("template_name")     // "profile_claim_product_first"
-  templateStatus    TemplateApprovalStatus @default(not_submitted) @map("template_status")
-  templateContent   String?        @map("template_content")  // Template message content
-  
+  templateName    String?                @map("template_name") // "profile_claim_product_first"
+  templateStatus  TemplateApprovalStatus @default(not_submitted) @map("template_status")
+  templateContent String?                @map("template_content") // Template message content
+
   // Email Configuration
-  emailSubject      String?        @map("email_subject")
-  emailFromName     String?        @map("email_from_name")
-  emailReplyTo      String?        @map("email_reply_to")
-  
+  emailSubject  String? @map("email_subject")
+  emailFromName String? @map("email_from_name")
+  emailReplyTo  String? @map("email_reply_to")
+
   // Targeting
-  source            UnclaimedProfileSource?          // Filter by source
-  targetProvince    String?        @map("target_province")   // Optional province filter
-  targetProfession  String?        @map("target_profession") // Optional profession filter
-  targetCount       Int            @default(0) @map("target_count") // Profiles matching criteria
-  
+  source           UnclaimedProfileSource? // Filter by source
+  targetProvince   String?                 @map("target_province") // Optional province filter
+  targetProfession String?                 @map("target_profession") // Optional profession filter
+  targetCount      Int                     @default(0) @map("target_count") // Profiles matching criteria
+
   // Progress Metrics
-  sentCount         Int            @default(0) @map("sent_count")
-  deliveredCount    Int            @default(0) @map("delivered_count")
-  openedCount       Int            @default(0) @map("opened_count")
-  clickedCount      Int            @default(0) @map("clicked_count")
-  repliedCount      Int            @default(0) @map("replied_count")
-  claimedCount      Int            @default(0) @map("claimed_count")
-  errorCount        Int            @default(0) @map("error_count")
-  unsubscribedCount Int            @default(0) @map("unsubscribed_count")
-  
+  sentCount         Int @default(0) @map("sent_count")
+  deliveredCount    Int @default(0) @map("delivered_count")
+  openedCount       Int @default(0) @map("opened_count")
+  clickedCount      Int @default(0) @map("clicked_count")
+  repliedCount      Int @default(0) @map("replied_count")
+  claimedCount      Int @default(0) @map("claimed_count")
+  errorCount        Int @default(0) @map("error_count")
+  unsubscribedCount Int @default(0) @map("unsubscribed_count")
+
   // Rate Limiting
-  dailyLimit        Int            @default(1000) @map("daily_limit")
-  batchSize         Int            @default(50)   @map("batch_size")
-  batchDelayMs      Int            @default(60000) @map("batch_delay_ms")
-  
+  dailyLimit   Int @default(1000) @map("daily_limit")
+  batchSize    Int @default(50) @map("batch_size")
+  batchDelayMs Int @default(60000) @map("batch_delay_ms")
+
   // Timestamps
-  createdAt         DateTime       @default(now()) @map("created_at")
-  updatedAt         DateTime       @updatedAt @map("updated_at")
-  launchedAt        DateTime?      @map("launched_at")
-  completedAt       DateTime?      @map("completed_at")
-  
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  launchedAt  DateTime? @map("launched_at")
+  completedAt DateTime? @map("completed_at")
+
   // Relations
-  profiles          UnclaimedProfile[]
-  
+  profiles UnclaimedProfile[]
+
   @@index([organizationId])
   @@index([status])
   @@index([source])
@@ -3632,47 +3663,47 @@ model OutreachCampaign {
 // ⚠️ ONE-TIME GRACE: When balance hits 0, 50 free credits activate ONCE EVER
 
 model WhatsAppCredits {
-  id                String   @id @default(cuid())
-  organizationId    String   @unique @map("organization_id")
-  
+  id             String @id @default(cuid())
+  organizationId String @unique @map("organization_id")
+
   // Credit Balance
-  balance           Int      @default(0)              // Current credit balance
-  lifetimeCredits   Int      @default(0) @map("lifetime_credits")  // Total credits ever purchased
-  lifetimeUsed      Int      @default(0) @map("lifetime_used")     // Total credits ever used
-  
+  balance         Int @default(0) // Current credit balance
+  lifetimeCredits Int @default(0) @map("lifetime_credits") // Total credits ever purchased
+  lifetimeUsed    Int @default(0) @map("lifetime_used") // Total credits ever used
+
   // ⚠️ ONE-TIME GRACE PERIOD (Anti-abuse)
-  graceCredits      Int      @default(50) @map("grace_credits")    // One-time 50 emergency credits
-  graceUsed         Int      @default(0) @map("grace_used")        // How many grace credits used
-  graceActivatedAt  DateTime? @map("grace_activated_at")           // When grace was triggered
-  graceEverActivated Boolean @default(false) @map("grace_ever_activated") // TRUE = never again eligible
-  graceForfeited    Boolean  @default(false) @map("grace_forfeited") // TRUE = paid without using
-  
+  graceCredits       Int       @default(50) @map("grace_credits") // One-time 50 emergency credits
+  graceUsed          Int       @default(0) @map("grace_used") // How many grace credits used
+  graceActivatedAt   DateTime? @map("grace_activated_at") // When grace was triggered
+  graceEverActivated Boolean   @default(false) @map("grace_ever_activated") // TRUE = never again eligible
+  graceForfeited     Boolean   @default(false) @map("grace_forfeited") // TRUE = paid without using
+
   // Service Status
-  status            CreditServiceStatus @default(inactive)
-  statusChangedAt   DateTime? @map("status_changed_at")
-  
+  status          CreditServiceStatus @default(inactive)
+  statusChangedAt DateTime?           @map("status_changed_at")
+
   // Alert Tracking (reset each purchase)
-  lowBalanceThreshold Int    @default(50) @map("low_balance_threshold")
+  lowBalanceThreshold Int       @default(50) @map("low_balance_threshold")
   lastLowBalanceAlert DateTime? @map("last_low_balance_alert")
-  alert75SentAt     DateTime? @map("alert_75_sent_at")
-  alert90SentAt     DateTime? @map("alert_90_sent_at")
-  alert100SentAt    DateTime? @map("alert_100_sent_at")
-  
+  alert75SentAt       DateTime? @map("alert_75_sent_at")
+  alert90SentAt       DateTime? @map("alert_90_sent_at")
+  alert100SentAt      DateTime? @map("alert_100_sent_at")
+
   // BSP Integration
-  bspPhoneNumber    String?  @map("bsp_phone_number")    // Provisioned WhatsApp number
-  bspNumberId       String?  @map("bsp_number_id")       // Meta's phone number ID
-  bspWabaId         String?  @map("bsp_waba_id")         // WhatsApp Business Account ID
-  bspStatus         BSPProvisioningStatus @default(not_provisioned) @map("bsp_status")
-  
+  bspPhoneNumber String?               @map("bsp_phone_number") // Provisioned WhatsApp number
+  bspNumberId    String?               @map("bsp_number_id") // Meta's phone number ID
+  bspWabaId      String?               @map("bsp_waba_id") // WhatsApp Business Account ID
+  bspStatus      BSPProvisioningStatus @default(not_provisioned) @map("bsp_status")
+
   // Timestamps
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
-  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relations
-  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  purchases         CreditPurchase[]
-  usageLogs         CreditUsageLog[]
-  
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  purchases    CreditPurchase[]
+  usageLogs    CreditUsageLog[]
+
   @@index([status])
   @@index([bspStatus])
   @@index([balance])
@@ -3680,31 +3711,31 @@ model WhatsAppCredits {
 }
 
 model CreditPurchase {
-  id                String   @id @default(cuid())
-  creditsAccountId  String   @map("credits_account_id")
-  creditsAccount    WhatsAppCredits @relation(fields: [creditsAccountId], references: [id], onDelete: Cascade)
-  
+  id               String          @id @default(cuid())
+  creditsAccountId String          @map("credits_account_id")
+  creditsAccount   WhatsAppCredits @relation(fields: [creditsAccountId], references: [id], onDelete: Cascade)
+
   // Purchase Details
-  credits           Int                          // Credits purchased
-  amountPaid        Decimal  @db.Decimal(10, 2) @map("amount_paid")
-  currency          String   @default("USD")
-  pricePerCredit    Decimal  @db.Decimal(6, 4) @map("price_per_credit")
-  
+  credits        Int // Credits purchased
+  amountPaid     Decimal @map("amount_paid") @db.Decimal(10, 2)
+  currency       String  @default("USD")
+  pricePerCredit Decimal @map("price_per_credit") @db.Decimal(6, 4)
+
   // Package Info (if purchased as package)
-  packageName       String?  @map("package_name")        // "Starter", "Pro", "Business"
-  bonusCredits      Int      @default(0) @map("bonus_credits")  // Bonus credits from package
-  
+  packageName  String? @map("package_name") // "Starter", "Pro", "Business"
+  bonusCredits Int     @default(0) @map("bonus_credits") // Bonus credits from package
+
   // Payment Status
-  status            CreditPaymentStatus @default(pending)
-  
+  status CreditPaymentStatus @default(pending)
+
   // MercadoPago Integration
-  mpPaymentId       String?  @map("mp_payment_id")
-  mpPreferenceId    String?  @map("mp_preference_id")
-  
+  mpPaymentId    String? @map("mp_payment_id")
+  mpPreferenceId String? @map("mp_preference_id")
+
   // Timestamps
-  createdAt         DateTime @default(now()) @map("created_at")
-  completedAt       DateTime? @map("completed_at")
-  
+  createdAt   DateTime  @default(now()) @map("created_at")
+  completedAt DateTime? @map("completed_at")
+
   @@index([creditsAccountId])
   @@index([status])
   @@index([createdAt])
@@ -3712,27 +3743,27 @@ model CreditPurchase {
 }
 
 model CreditUsageLog {
-  id                String   @id @default(cuid())
-  creditsAccountId  String   @map("credits_account_id")
-  creditsAccount    WhatsAppCredits @relation(fields: [creditsAccountId], references: [id], onDelete: Cascade)
-  
+  id               String          @id @default(cuid())
+  creditsAccountId String          @map("credits_account_id")
+  creditsAccount   WhatsAppCredits @relation(fields: [creditsAccountId], references: [id], onDelete: Cascade)
+
   // Usage Details
-  creditsUsed       Int      @map("credits_used")
-  usageType         CreditUsageType @map("usage_type")
-  description       String?
-  
+  creditsUsed Int             @map("credits_used")
+  usageType   CreditUsageType @map("usage_type")
+  description String?
+
   // Related Entities
-  conversationId    String?  @map("conversation_id")
-  messageId         String?  @map("message_id")
-  
+  conversationId String? @map("conversation_id")
+  messageId      String? @map("message_id")
+
   // Balance Tracking
-  balanceBefore     Int      @map("balance_before")
-  balanceAfter      Int      @map("balance_after")
-  wasGraceCredit    Boolean  @default(false) @map("was_grace_credit")
-  
+  balanceBefore  Int     @map("balance_before")
+  balanceAfter   Int     @map("balance_after")
+  wasGraceCredit Boolean @default(false) @map("was_grace_credit")
+
   // Timestamp
-  usedAt            DateTime @default(now()) @map("used_at")
-  
+  usedAt DateTime @default(now()) @map("used_at")
+
   @@index([creditsAccountId])
   @@index([usageType])
   @@index([usedAt])
@@ -3745,10 +3776,10 @@ model CreditUsageLog {
 
 enum BSPProvisioningStatus {
   not_provisioned // No number assigned
-  pending         // Number requested, awaiting Meta approval
-  active          // Number provisioned and working
-  suspended       // Number suspended (payment issues)
-  
+  pending // Number requested, awaiting Meta approval
+  active // Number provisioned and working
+  suspended // Number suspended (payment issues)
+
   @@map("bsp_provisioning_status")
 }
 
@@ -3762,119 +3793,118 @@ enum BSPProvisioningStatus {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 enum UnclaimedProfileSource {
-  ERSEP              // Ente Regulador de Servicios Públicos (Córdoba) - Electricistas
-  CACAAV             // Cámara Argentina de Calefacción, Aire y Refrigeración - HVAC
-  GASNOR             // Gas del Norte - Gasistas (Salta, Jujuy, Tucumán)
-  GASNEA             // Gas del NEA - Gasistas (Corrientes, Chaco, Formosa)
-  ENARGAS            // Ente Nacional Regulador del Gas
-  MANUAL             // Manually imported
+  ERSEP // Ente Regulador de Servicios Públicos (Córdoba) - Electricistas
+  CACAAV // Cámara Argentina de Calefacción, Aire y Refrigeración - HVAC
+  GASNOR // Gas del Norte - Gasistas (Salta, Jujuy, Tucumán)
+  GASNEA // Gas del NEA - Gasistas (Corrientes, Chaco, Formosa)
+  ENARGAS // Ente Nacional Regulador del Gas
+  MANUAL // Manually imported
 
   @@map("unclaimed_profile_source")
 }
 
 enum OutreachStatus {
-  not_contacted      // Fresh profile, never contacted
-  verification_sent  // OTP/verification sent, awaiting response
-  contacted          // Message sent
-  engaged            // Replied or clicked
-  claimed            // Successfully claimed profile
-  unsubscribed       // Opted out of communications
-  invalid            // Invalid contact info
-  
+  not_contacted // Fresh profile, never contacted
+  verification_sent // OTP/verification sent, awaiting response
+  contacted // Message sent
+  engaged // Replied or clicked
+  claimed // Successfully claimed profile
+  unsubscribed // Opted out of communications
+  invalid // Invalid contact info
+
   @@map("outreach_status")
 }
 
 enum DataQuality {
-  raw                // Just scraped, unverified
-  cleaned            // Data cleaned/normalized
-  verified           // Contact info verified (email valid, phone reachable)
-  enriched           // Enriched with additional data
-  
+  raw // Just scraped, unverified
+  cleaned // Data cleaned/normalized
+  verified // Contact info verified (email valid, phone reachable)
+  enriched // Enriched with additional data
+
   @@map("data_quality")
 }
 
 enum WhatsAppStatus {
-  unknown            // Not yet checked
-  valid              // Confirmed has WhatsApp (message delivered or API confirmed)
-  invalid            // Confirmed NO WhatsApp (API error or delivery failed)
-  blocked            // User blocked us or reported spam
-  opted_out          // User requested no WhatsApp contact
-  
+  unknown // Not yet checked
+  valid // Confirmed has WhatsApp (message delivered or API confirmed)
+  invalid // Confirmed NO WhatsApp (API error or delivery failed)
+  blocked // User blocked us or reported spam
+  opted_out // User requested no WhatsApp contact
+
   @@map("whatsapp_status")
 }
 
 enum PhoneType {
-  mobile             // Mobile phone (likely has WhatsApp)
-  landline           // Landline (cannot have WhatsApp)
-  unknown            // Cannot determine
-  
+  mobile // Mobile phone (likely has WhatsApp)
+  landline // Landline (cannot have WhatsApp)
+  unknown // Cannot determine
+
   @@map("phone_type")
 }
 
 enum CampaignStatus {
-  draft              // Being configured
-  ready              // All config done, awaiting approval
-  approved           // 🔒 Owner approved, ready to launch
-  launching          // Currently sending
-  paused             // Temporarily stopped
-  completed          // All messages sent
-  cancelled          // Cancelled before completion
-  
+  draft // Being configured
+  ready // All config done, awaiting approval
+  approved // 🔒 Owner approved, ready to launch
+  launching // Currently sending
+  paused // Temporarily stopped
+  completed // All messages sent
+  cancelled // Cancelled before completion
+
   @@map("campaign_status")
 }
 
 enum ScraperJobStatus {
-  pending            // Job created, not yet started
-  running            // Currently scraping
-  completed          // All done
-  paused             // Paused, can be resumed
-  failed             // Failed with error
-  
+  pending // Job created, not yet started
+  running // Currently scraping
+  completed // All done
+  paused // Paused, can be resumed
+  failed // Failed with error
+
   @@map("scraper_job_status")
 }
 
 enum OutreachChannel {
+  email // Email outreach
+  whatsapp // WhatsApp template messages
+  sms // SMS (fallback)
 
-  email              // Email outreach
-  whatsapp           // WhatsApp template messages
-  sms                // SMS (fallback)
-  
   @@map("outreach_channel")
 }
 
 enum TemplateApprovalStatus {
-  not_submitted      // Template not yet sent to Meta
-  pending            // Waiting for Meta review
-  approved           // Ready to use
-  rejected           // Need to revise
-  
+  not_submitted // Template not yet sent to Meta
+  pending // Waiting for Meta review
+  approved // Ready to use
+  rejected // Need to revise
+
   @@map("template_approval_status")
 }
 
 enum CreditServiceStatus {
-  inactive           // No credits purchased yet
-  active             // Credits available, AI enabled
-  grace              // Out of credits, using ONE-TIME grace credits
-  exhausted          // Grace used OR forfeited, wa.me fallback active
-  
+  inactive // No credits purchased yet
+  active // Credits available, AI enabled
+  grace // Out of credits, using ONE-TIME grace credits
+  exhausted // Grace used OR forfeited, wa.me fallback active
+
   @@map("credit_service_status")
 }
 
 enum CreditPaymentStatus {
-  pending            // Awaiting payment
-  processing         // Payment in progress
-  completed          // Payment successful, credits added
-  failed             // Payment failed
-  refunded           // Credits removed, payment refunded
-  
+  pending // Awaiting payment
+  processing // Payment in progress
+  completed // Payment successful, credits added
+  failed // Payment failed
+  refunded // Credits removed, payment refunded
+
   @@map("credit_payment_status")
 }
 
 enum CreditUsageType {
-  ai_conversation    // AI handled a conversation (1 credit)
-  ai_followup        // AI sent follow-up message
-  template_message   // Outbound template message
-  
+  ai_conversation // AI handled a conversation (1 credit)
+  ai_followup // AI sent follow-up message
+  template_message // Outbound template message
+
   @@map("credit_usage_type")
 }
 
@@ -3884,53 +3914,53 @@ enum CreditUsageType {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model WhatsAppNumberInventory {
-  id                    String                @id @default(cuid())
-  phoneNumber           String                @unique @map("phone_number")
-  phoneNumberFormatted  String?               @map("phone_number_formatted") // Display format: +54 351 555-1234
-  countryCode           String                @default("AR") @map("country_code")
-  
+  id                   String  @id @default(cuid())
+  phoneNumber          String  @unique @map("phone_number")
+  phoneNumberFormatted String? @map("phone_number_formatted") // Display format: +54 351 555-1234
+  countryCode          String  @default("AR") @map("country_code")
+
   // BSP/Meta identifiers
-  bspNumberId           String?               @map("bsp_number_id") // Meta/BSP ID from provider
-  bspProvider           String                @default("twilio") @map("bsp_provider") // twilio, dialog360, meta_direct
-  wabaId                String?               @map("waba_id") // WhatsApp Business Account ID
-  
+  bspNumberId String? @map("bsp_number_id") // Meta/BSP ID from provider
+  bspProvider String  @default("twilio") @map("bsp_provider") // twilio, dialog360, meta_direct
+  wabaId      String? @map("waba_id") // WhatsApp Business Account ID
+
   // Status and assignment
-  status                NumberInventoryStatus @default(available)
-  assignedToOrgId       String?               @unique @map("assigned_to_org_id")
-  assignedAt            DateTime?             @map("assigned_at")
-  reservedAt            DateTime?             @map("reserved_at") // When reservation started
-  reservationExpiresAt  DateTime?             @map("reservation_expires_at") // Reservation timeout
-  
+  status               NumberInventoryStatus @default(available)
+  assignedToOrgId      String?               @unique @map("assigned_to_org_id")
+  assignedAt           DateTime?             @map("assigned_at")
+  reservedAt           DateTime?             @map("reserved_at") // When reservation started
+  reservationExpiresAt DateTime?             @map("reservation_expires_at") // Reservation timeout
+
   // Activity tracking for auto-release
-  lastActivityAt        DateTime?             @map("last_activity_at")
-  messageCountTotal     Int                   @default(0) @map("message_count_total")
-  messageCountMonth     Int                   @default(0) @map("message_count_month")
-  lastMessageAt         DateTime?             @map("last_message_at")
-  
+  lastActivityAt    DateTime? @map("last_activity_at")
+  messageCountTotal Int       @default(0) @map("message_count_total")
+  messageCountMonth Int       @default(0) @map("message_count_month")
+  lastMessageAt     DateTime? @map("last_message_at")
+
   // Cost tracking
-  monthlyRentalCostUsd  Float                 @default(5.0) @map("monthly_rental_cost_usd")
-  purchasedAt           DateTime?             @map("purchased_at")
-  lastBilledAt          DateTime?             @map("last_billed_at")
-  totalCostUsd          Float                 @default(0) @map("total_cost_usd")
-  
+  monthlyRentalCostUsd Float     @default(5.0) @map("monthly_rental_cost_usd")
+  purchasedAt          DateTime? @map("purchased_at")
+  lastBilledAt         DateTime? @map("last_billed_at")
+  totalCostUsd         Float     @default(0) @map("total_cost_usd")
+
   // Release handling
-  releasedAt            DateTime?             @map("released_at")
-  releaseReason         String?               @map("release_reason") // inactivity, cancellation, suspension, manual
-  previousOrgId         String?               @map("previous_org_id") // Last org that used this number
-  recycleCount          Int                   @default(0) @map("recycle_count") // How many times reassigned
-  cooldownUntil         DateTime?             @map("cooldown_until") // Don't reassign until this date
-  
+  releasedAt    DateTime? @map("released_at")
+  releaseReason String?   @map("release_reason") // inactivity, cancellation, suspension, manual
+  previousOrgId String?   @map("previous_org_id") // Last org that used this number
+  recycleCount  Int       @default(0) @map("recycle_count") // How many times reassigned
+  cooldownUntil DateTime? @map("cooldown_until") // Don't reassign until this date
+
   // Notes and metadata
-  notes                 String?
-  metadata              Json                  @default("{}")
-  
-  createdAt             DateTime              @default(now()) @map("created_at")
-  updatedAt             DateTime              @updatedAt @map("updated_at")
-  
+  notes    String?
+  metadata Json    @default("{}")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relations
-  assignedOrg           Organization?         @relation("OrgAssignedNumber", fields: [assignedToOrgId], references: [id])
-  activityLogs          NumberActivityLog[]
-  
+  assignedOrg  Organization?       @relation("OrgAssignedNumber", fields: [assignedToOrgId], references: [id])
+  activityLogs NumberActivityLog[]
+
   @@index([status])
   @@index([bspProvider])
   @@index([countryCode])
@@ -3940,15 +3970,15 @@ model WhatsAppNumberInventory {
 }
 
 model NumberActivityLog {
-  id              String                  @id @default(cuid())
-  numberId        String                  @map("number_id")
-  activityType    NumberActivityType      @map("activity_type")
-  organizationId  String?                 @map("organization_id")
-  details         Json                    @default("{}")
-  createdAt       DateTime                @default(now()) @map("created_at")
-  
-  number          WhatsAppNumberInventory @relation(fields: [numberId], references: [id], onDelete: Cascade)
-  
+  id             String             @id @default(cuid())
+  numberId       String             @map("number_id")
+  activityType   NumberActivityType @map("activity_type")
+  organizationId String?            @map("organization_id")
+  details        Json               @default("{}")
+  createdAt      DateTime           @default(now()) @map("created_at")
+
+  number WhatsAppNumberInventory @relation(fields: [numberId], references: [id], onDelete: Cascade)
+
   @@index([numberId])
   @@index([activityType])
   @@index([organizationId])
@@ -3957,27 +3987,27 @@ model NumberActivityLog {
 }
 
 enum NumberActivityType {
-  provisioned    // Number added to inventory
-  reserved       // Reserved for an org (pending assignment)
-  assigned       // Assigned to an org
-  message_sent   // Message sent through this number
+  provisioned // Number added to inventory
+  reserved // Reserved for an org (pending assignment)
+  assigned // Assigned to an org
+  message_sent // Message sent through this number
   message_received // Message received on this number
-  suspended      // Number suspended
-  unsuspended    // Number unsuspended
-  released       // Released from org
-  recycled       // Reassigned to new org
-  billed         // Monthly billing event
-  
+  suspended // Number suspended
+  unsuspended // Number unsuspended
+  released // Released from org
+  recycled // Reassigned to new org
+  billed // Monthly billing event
+
   @@map("number_activity_type")
 }
 
 enum NumberInventoryStatus {
-  available          // Ready to be assigned
-  reserved           // Reserved for a specific org (provisioning in progress)
-  assigned           // Assigned to an org
-  suspended          // Temporarily suspended
-  released           // Released from org, being recycled
-  
+  available // Ready to be assigned
+  reserved // Reserved for a specific org (provisioning in progress)
+  assigned // Assigned to an org
+  suspended // Temporarily suspended
+  released // Released from org, being recycled
+
   @@map("number_inventory_status")
 }
 
@@ -3988,11 +4018,11 @@ enum NumberInventoryStatus {
 // Use case: A technician at Company A wants to start their own business.
 
 enum MembershipStatus {
-  INVITED            // Pending invitation acceptance
-  ACTIVE             // Active member
-  SUSPENDED          // Temporarily suspended
-  LEFT               // User left the org
-  
+  INVITED // Pending invitation acceptance
+  ACTIVE // Active member
+  SUSPENDED // Temporarily suspended
+  LEFT // User left the org
+
   @@map("membership_status")
 }
 
@@ -4001,15 +4031,15 @@ model UserOrganization {
   userId         String
   organizationId String
   role           UserRole         @default(TECHNICIAN)
-  isDefault      Boolean          @default(false)  // Only one per user should be default
+  isDefault      Boolean          @default(false) // Only one per user should be default
   joinedAt       DateTime         @default(now())
   invitedBy      String?
   status         MembershipStatus @default(ACTIVE)
-  notes          String?                          // Why they joined, admin notes
-  
-  user           User             @relation("UserMemberships", fields: [userId], references: [id], onDelete: Cascade)
-  organization   Organization     @relation("OrgMemberships", fields: [organizationId], references: [id], onDelete: Cascade)
-  
+  notes          String? // Why they joined, admin notes
+
+  user         User         @relation("UserMemberships", fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation("OrgMemberships", fields: [organizationId], references: [id], onDelete: Cascade)
+
   @@unique([userId, organizationId])
   @@index([userId])
   @@index([organizationId])
@@ -4023,27 +4053,27 @@ model UserOrganization {
 
 /// Support reports from users (bug reports, suggestions, questions)
 model SupportReport {
-  id             String    @id @default(cuid())
-  type           String    // 'bug', 'suggestion', 'question'
-  description    String
-  status         String    @default("new") // 'new', 'in_progress', 'resolved', 'closed'
-  priority       String    @default("medium") // 'low', 'medium', 'high', 'critical'
-  
+  id          String @id @default(cuid())
+  type        String // 'bug', 'suggestion', 'question'
+  description String
+  status      String @default("new") // 'new', 'in_progress', 'resolved', 'closed'
+  priority    String @default("medium") // 'low', 'medium', 'high', 'critical'
+
   // Optional user context
   userId         String?
   organizationId String?
-  
+
   // Metadata (auto-collected context, screenshot URL, etc.)
-  metadata       Json      @default("{}")
-  
+  metadata Json @default("{}")
+
   // Resolution
-  resolution     String?
-  resolvedAt     DateTime?
-  resolvedBy     String?
-  
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  
+  resolution String?
+  resolvedAt DateTime?
+  resolvedBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([type])
   @@index([status])
   @@index([userId])
@@ -4054,25 +4084,24 @@ model SupportReport {
 
 /// Status page incidents
 model StatusIncident {
-  id         String    @id @default(cuid())
-  title      String
-  status     String    @default("investigating") // 'investigating', 'identified', 'monitoring', 'resolved'
-  severity   String    @default("minor") // 'minor', 'major', 'critical'
-  services   String[]  // Array of affected service IDs
-  
+  id       String   @id @default(cuid())
+  title    String
+  status   String   @default("investigating") // 'investigating', 'identified', 'monitoring', 'resolved'
+  severity String   @default("minor") // 'minor', 'major', 'critical'
+  services String[] // Array of affected service IDs
+
   startedAt  DateTime  @default(now())
   resolvedAt DateTime?
-  
+
   // Updates stored as JSON array
-  updates    Json      @default("[]")
-  
-  createdBy  String?
-  
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  
+  updates Json @default("[]")
+
+  createdBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([status])
   @@index([startedAt])
   @@map("status_incidents")
 }
-

@@ -130,7 +130,7 @@ export function PlanSelector({
         setAppliedCoupon(null);
         setCouponForTier(null);
       }
-    } catch (error) {
+    } catch (_error) {
       setCouponError('Error al validar el cupón');
       setAppliedCoupon(null);
       setCouponForTier(null);
@@ -180,7 +180,7 @@ export function PlanSelector({
           alert(data.error || 'Error al crear el checkout');
           setSelectedPlan(null);
         }
-      } catch (error) {
+      } catch (_error) {
         console.error('Checkout error:', error);
         alert('Error al conectar con el servidor');
         setSelectedPlan(null);

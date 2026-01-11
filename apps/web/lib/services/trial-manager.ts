@@ -18,7 +18,6 @@
 import { prisma } from '@/lib/prisma';
 import type {
   SubscriptionTier,
-  SubscriptionStatus,
 } from '@/lib/types/subscription';
 
 // Type for OrganizationSubscription from Prisma model
@@ -440,7 +439,7 @@ class TrialManager {
   ): Promise<Array<{ organizationId: string; daysRemaining: number; email: string | null }>> {
     try {
       const now = getBuenosAiresNow();
-      const targetDate = addDays(now, daysBeforeExpiry);
+      const _targetDate = addDays(now, daysBeforeExpiry);
 
       // Find orgs with trials expiring around the target date
       const orgs = await prisma.organization.findMany({

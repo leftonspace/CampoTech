@@ -54,7 +54,7 @@ export async function POST(
         }
 
         const badgeService = getDigitalBadgeService();
-        const result = await badgeService.refreshBadgeToken(id);
+        const _result = await badgeService.refreshBadgeToken(id);
 
         // Get updated badge data
         const badgeData = await badgeService.generateBadgeData(id);

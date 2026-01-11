@@ -267,6 +267,31 @@ export const IVA_CONDITION_LABELS: Record<string, string> = {
 };
 
 /**
+ * User role labels in Spanish
+ * Supports both uppercase (database enum) and lowercase keys
+ */
+export const USER_ROLE_LABELS: Record<string, string> = {
+  // Database enum values (uppercase)
+  OWNER: 'Propietario',
+  DISPATCHER: 'Administrador',
+  TECHNICIAN: 'Técnico',
+  // Lowercase keys for backwards compatibility
+  owner: 'Propietario',
+  dispatcher: 'Administrador',
+  technician: 'Técnico',
+};
+
+/**
+ * Get the Spanish label for a user role
+ * @param role - The role from the database (e.g., 'OWNER', 'TECHNICIAN')
+ * @returns The Spanish label or the original role if not found
+ */
+export function getRoleLabel(role: string | null | undefined): string {
+  if (!role) return 'Usuario';
+  return USER_ROLE_LABELS[role] || USER_ROLE_LABELS[role.toUpperCase()] || role;
+}
+
+/**
  * Normalize text for accent-insensitive search
  * Removes diacritical marks (accents) and converts to lowercase
  * e.g., "María" -> "maria", "José" -> "jose"

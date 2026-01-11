@@ -62,7 +62,7 @@ export default function NewLocationPage() {
       } else {
         setError(result.error || 'Error al crear la zona');
       }
-    } catch (err) {
+    } catch (_err) {
       setError('Error de conexión');
     } finally {
       setIsSubmitting(false);

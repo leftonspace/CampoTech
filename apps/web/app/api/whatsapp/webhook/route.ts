@@ -12,9 +12,6 @@ import crypto from 'crypto';
 import { prisma } from '@/lib/prisma';
 import {
   parseWebhookPayload,
-  processWebhookEvents,
-  validateWebhookSignature,
-  verifyWebhook,
   wasMessageProcessed,
   markMessageProcessed,
 } from '@/src/integrations/whatsapp/webhook/webhook.handler';
@@ -161,7 +158,7 @@ async function processWebhookAsync(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   payload: any,
   organizationId: string | null | undefined,
-  phoneNumberId: string | null
+  _phoneNumberId: string | null
 ) {
   try {
     // Parse events

@@ -175,12 +175,13 @@ export async function POST(request: NextRequest) {
     });
 
     return response;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Register verify error:', error);
 
     // Handle unique constraint violation (phone or email already exists)
     // Prisma error code for unique constraint violation is P2002
-    if (error.code === 'P2002' || (error instanceof Error && error.message.includes('Unique constraint'))) {
+    const isPrismaError = error && typeof error === 'object' && 'code' in error;
+    if ((isPrismaError && (error as { code: string }).code === 'P2002') || (error instanceof Error && error.message.includes('Unique constraint'))) {
       return NextResponse.json(
         {
           success: false,

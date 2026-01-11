@@ -11,29 +11,21 @@
  * - Tabbed interface: Mi Negocio, Empleados, Historial, Configuración
  */
 
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Shield,
   AlertTriangle,
   CheckCircle,
   XCircle,
   Clock,
-  Eye,
   Building2,
   Users,
   History,
   Settings,
-  FileText,
-  Calendar,
-  Search,
   RefreshCw,
   Bell,
   Mail,
-  ChevronDown,
-  ChevronUp,
-  ExternalLink,
   AlertCircle,
   Store,
 } from 'lucide-react';
@@ -231,7 +223,7 @@ async function fetchEmployeeVerifications(): Promise<{ data: EmployeeVerificatio
   return { data: employees };
 }
 
-async function fetchAuditLog(filters: {
+async function fetchAuditLog(_filters: {
   startDate?: string;
   endDate?: string;
   entityType?: string;
@@ -831,7 +823,7 @@ export default function VerificacionPage() {
     window.location.href = `/dashboard/team/${userId}/verificacion`;
   };
 
-  const handleSendReminder = async (userId: string) => {
+  const handleSendReminder = async (_userId: string) => {
     // In a real implementation, send reminder via API
     alert('Recordatorio enviado');
   };

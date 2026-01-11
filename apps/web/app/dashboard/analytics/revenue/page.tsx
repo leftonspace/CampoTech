@@ -26,9 +26,8 @@ import KPICard, { KPIGrid } from '../../../../components/analytics/widgets/KPICa
 import AreaChart from '../../../../components/analytics/charts/AreaChart';
 import BarChart from '../../../../components/analytics/charts/BarChart';
 import PieChart from '../../../../components/analytics/charts/PieChart';
-import LineChart from '../../../../components/analytics/charts/LineChart';
 import { CompactLeaderBoard } from '../../../../components/analytics/widgets/LeaderBoard';
-import ComparisonWidget, { MultiPeriodComparison } from '../../../../components/analytics/widgets/ComparisonWidget';
+import ComparisonWidget from '../../../../components/analytics/widgets/ComparisonWidget';
 import DateRangePicker, { DateRangePreset } from '../../../../components/analytics/filters/DateRangePicker';
 import ServiceTypeFilter from '../../../../components/analytics/filters/ServiceTypeFilter';
 

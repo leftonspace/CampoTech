@@ -7,21 +7,11 @@ import Link from 'next/link';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import {
   ArrowLeft,
-  Edit2,
-  Save,
   X,
-  ShoppingCart,
-  Truck,
   Calendar,
   User,
   Package,
-  CheckCircle,
-  Clock,
-  XCircle,
   Send,
-  FileText,
-  Plus,
-  Trash2,
 } from 'lucide-react';
 
 interface PurchaseOrder {
@@ -338,8 +328,8 @@ export default function PurchaseOrderDetailPage() {
                             item.receivedQty >= item.quantity
                               ? 'text-green-600'
                               : item.receivedQty > 0
-                              ? 'text-orange-600'
-                              : 'text-gray-500'
+                                ? 'text-orange-600'
+                                : 'text-gray-500'
                           )}
                         >
                           {item.receivedQty}

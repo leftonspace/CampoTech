@@ -20,7 +20,6 @@
  * ```
  */
 
-import { type JobResult } from './config';
 import { registerHandler, type JobHandler } from './workers';
 import { getOrCreateEmailProvider, type EmailOptions } from '../email';
 import { getOrCreateWhatsAppProvider } from '../whatsapp';

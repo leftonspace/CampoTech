@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     try {
         // Verify webhook signature (optional but recommended)
         const signature = request.headers.get('svix-signature');
-        const timestamp = request.headers.get('svix-timestamp');
+        const _timestamp = request.headers.get('svix-timestamp');
 
         // In production, verify the signature with RESEND_WEBHOOK_SECRET
         // For now, we'll just check that the webhook secret is configured

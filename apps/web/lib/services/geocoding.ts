@@ -114,7 +114,7 @@ async function geocodeWithGoogle(
     }
 
     return null;
-  } catch (error) {
+  } catch (_error) {
     console.error('Google geocoding error:', error);
     return null;
   }
@@ -162,7 +162,7 @@ async function geocodeWithNominatim(address: string): Promise<GeocodingResult | 
     }
 
     return null;
-  } catch (error) {
+  } catch (_error) {
     console.error('Nominatim geocoding error:', error);
     return null;
   }
@@ -214,7 +214,7 @@ async function cacheGeocode(address: string, result: GeocodingResult): Promise<v
         expiresAt: new Date(Date.now() + CACHE_TTL),
       },
     });
-  } catch (error) {
+  } catch (_error) {
     console.error('Failed to cache geocode:', error);
   }
 }
@@ -364,7 +364,7 @@ export async function queueForGeocoding(item: GeocodingQueueItem): Promise<strin
     }
 
     return null;
-  } catch (error) {
+  } catch (_error) {
     // Table might not exist, fall back to immediate processing
     console.log('GeocodingQueue table not available, processing immediately');
     await processGeocodingImmediately(item);
@@ -398,7 +398,7 @@ async function processGeocodingImmediately(item: GeocodingQueueItem): Promise<bo
         break;
     }
     return true;
-  } catch (error) {
+  } catch (_error) {
     console.error('Failed to update coordinates:', error);
     return false;
   }
@@ -476,7 +476,7 @@ export async function processGeocodingQueue(
               updateSuccess = true;
               break;
           }
-        } catch (err) {
+        } catch (_err) {
           console.error('Failed to update entity coordinates:', err);
         }
 
@@ -505,7 +505,7 @@ export async function processGeocodingQueue(
 
       processed++;
     }
-  } catch (error) {
+  } catch (_error) {
     // Queue table might not exist
     console.error('Geocoding queue processing error:', error);
   }
@@ -652,7 +652,7 @@ export async function setManualCoordinates(
         return false;
     }
     return true;
-  } catch (error) {
+  } catch (_error) {
     console.error('Failed to set manual coordinates:', error);
     return false;
   }
@@ -709,7 +709,7 @@ export async function triggerReGeocode(
     });
 
     return true;
-  } catch (error) {
+  } catch (_error) {
     console.error('Failed to trigger re-geocode:', error);
     return false;
   }
@@ -795,7 +795,7 @@ export async function cleanupOldLocationHistory(daysToKeep: number = 30): Promis
 
     console.log(`Deleted ${result.count} old location history records`);
     return result.count;
-  } catch (error) {
+  } catch (_error) {
     console.error('Failed to cleanup location history:', error);
     return 0;
   }
@@ -817,7 +817,7 @@ export async function cleanupOldGeocodingQueue(daysToKeep: number = 7): Promise<
 
     console.log(`Deleted ${result} old geocoding queue records`);
     return result as number;
-  } catch (error) {
+  } catch (_error) {
     // Table might not exist
     console.error('Failed to cleanup geocoding queue:', error);
     return 0;

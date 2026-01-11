@@ -20,14 +20,11 @@ import {
   Play,
   Trash2,
   Edit,
-  MoreVertical,
   CheckCircle,
   XCircle,
   AlertCircle,
-  FileText,
   Users,
   RefreshCw,
-  Download,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -611,11 +608,10 @@ export default function ScheduledReportsPage() {
                     <button
                       key={format}
                       onClick={() => setFormData({ ...formData, format })}
-                      className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${
-                        formData.format === format
-                          ? 'border-green-500 bg-green-50 text-green-700'
-                          : 'border-gray-300 hover:bg-gray-50'
-                      }`}
+                      className={`flex-1 px-3 py-2 text-sm rounded-lg border transition-colors ${formData.format === format
+                        ? 'border-green-500 bg-green-50 text-green-700'
+                        : 'border-gray-300 hover:bg-gray-50'
+                        }`}
                     >
                       {format.toUpperCase()}
                     </button>
@@ -688,8 +684,8 @@ export default function ScheduledReportsPage() {
                 {createMutation.isPending || updateMutation.isPending
                   ? 'Guardando...'
                   : editingSchedule
-                  ? 'Guardar cambios'
-                  : 'Crear programación'}
+                    ? 'Guardar cambios'
+                    : 'Crear programación'}
               </button>
             </div>
           </div>

@@ -13,7 +13,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
-import { SubscriptionTier, TIER_CONFIGS, getTierConfig } from '@/lib/config/tier-limits';
+import { SubscriptionTier, getTierConfig } from '@/lib/config/tier-limits';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -207,7 +207,7 @@ class SubscriptionManager {
       return { success: false, error: 'Ya estas en este plan.' };
     }
 
-    const currentConfig = getTierConfig(currentTier);
+    const _currentConfig = getTierConfig(currentTier);
     const newConfig = getTierConfig(newTier);
 
     if (!newConfig) {
@@ -255,7 +255,7 @@ class SubscriptionManager {
    * Create MP checkout URL for subscription
    */
   async createCheckoutUrl(orgId: string, tier: SubscriptionTier): Promise<string> {
-    const tierConfig = getTierConfig(tier);
+    const _tierConfig = getTierConfig(tier);
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     // TODO: Integrate with actual MP subscription API

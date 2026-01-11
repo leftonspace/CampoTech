@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { PublicHeader, PublicFooter } from '@/components/layout';
+import { PublicAIChatBubble } from '@/components/support/PublicAIChatBubble';
 import {
   MapPin,
   MessageSquare,
@@ -496,11 +497,10 @@ function MoreFeaturesModal({ onClose }: {
             {moreFeatures.map((feat, idx) => (
               <div
                 key={idx}
-                className={`rounded-lg p-4 border ${
-                  feat.free
+                className={`rounded-lg p-4 border ${feat.free
                     ? 'bg-success/5 border-success/30'
                     : 'bg-muted/30 border-border'
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-2 mb-2">
                   <feat.icon className={`w-5 h-5 ${feat.free ? 'text-success' : 'text-primary'}`} />
@@ -749,11 +749,10 @@ function AIFeatureSection() {
             <button
               key={s.id}
               onClick={() => setCurrentSlide(idx)}
-              className={`transition-all ${
-                idx === currentSlide
+              className={`transition-all ${idx === currentSlide
                   ? 'w-8 h-2 bg-primary rounded-full'
                   : 'w-2 h-2 bg-muted-foreground/30 rounded-full hover:bg-muted-foreground/50'
-              }`}
+                }`}
               aria-label={`Ir a escenario ${idx + 1}`}
             />
           ))}
@@ -808,11 +807,10 @@ function AIFeatureSection() {
                 {scenario.contacts.map((contact) => (
                   <div
                     key={contact.id}
-                    className={`p-3 cursor-pointer transition-colors ${
-                      contact.id === scenario.activeContactId
+                    className={`p-3 cursor-pointer transition-colors ${contact.id === scenario.activeContactId
                         ? 'bg-primary/10 border-l-2 border-l-primary'
                         : 'hover:bg-muted/50'
-                    }`}
+                      }`}
                   >
                     <div className="flex items-start gap-2">
                       <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
@@ -827,11 +825,10 @@ function AIFeatureSection() {
                         <div className="flex items-center justify-between mt-1">
                           <span className="text-[10px] text-muted-foreground">{contact.phone}</span>
                           {contact.aiConfidence && (
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                              contact.aiConfidence >= 90 ? 'bg-success/20 text-success' :
-                              contact.aiConfidence >= 80 ? 'bg-warning/20 text-warning' :
-                              'bg-muted text-muted-foreground'
-                            }`}>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${contact.aiConfidence >= 90 ? 'bg-success/20 text-success' :
+                                contact.aiConfidence >= 80 ? 'bg-warning/20 text-warning' :
+                                  'bg-muted text-muted-foreground'
+                              }`}>
                               IA {contact.aiConfidence}%
                             </span>
                           )}
@@ -869,13 +866,12 @@ function AIFeatureSection() {
                     className={`flex ${msg.type === 'inbound' ? 'justify-start' : 'justify-end'}`}
                   >
                     <div
-                      className={`max-w-[85%] rounded-lg px-3 py-2 ${
-                        msg.type === 'inbound'
+                      className={`max-w-[85%] rounded-lg px-3 py-2 ${msg.type === 'inbound'
                           ? 'bg-white border border-border rounded-tl-none'
                           : msg.type === 'ai-response'
-                          ? 'bg-success/20 border border-success/30 rounded-tr-none'
-                          : 'bg-primary/10 border border-primary/20 rounded-tr-none'
-                      }`}
+                            ? 'bg-success/20 border border-success/30 rounded-tr-none'
+                            : 'bg-primary/10 border border-primary/20 rounded-tr-none'
+                        }`}
                     >
                       {msg.type === 'ai-response' && (
                         <div className="flex items-center gap-1 text-[10px] text-success font-medium mb-1">
@@ -917,12 +913,10 @@ function AIFeatureSection() {
               <div className="p-4 border-b border-border">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                      scenario.aiPanel.status === 'active' ? 'bg-success/20' : 'bg-primary/20'
-                    }`}>
-                      <Bot className={`w-4 h-4 ${
-                        scenario.aiPanel.status === 'active' ? 'text-success' : 'text-primary'
-                      }`} />
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${scenario.aiPanel.status === 'active' ? 'bg-success/20' : 'bg-primary/20'
+                      }`}>
+                      <Bot className={`w-4 h-4 ${scenario.aiPanel.status === 'active' ? 'text-success' : 'text-primary'
+                        }`} />
                     </div>
                     <div>
                       <div className="font-semibold text-foreground text-sm">Asistente IA</div>
@@ -931,9 +925,8 @@ function AIFeatureSection() {
                       </div>
                     </div>
                   </div>
-                  <div className={`w-2 h-2 rounded-full animate-pulse ${
-                    scenario.aiPanel.status === 'active' ? 'bg-success' : 'bg-primary'
-                  }`} />
+                  <div className={`w-2 h-2 rounded-full animate-pulse ${scenario.aiPanel.status === 'active' ? 'bg-success' : 'bg-primary'
+                    }`} />
                 </div>
               </div>
 
@@ -942,19 +935,17 @@ function AIFeatureSection() {
                 {scenario.aiPanel.actions.map((action, idx) => (
                   <div
                     key={idx}
-                    className={`rounded-lg p-3 border ${
-                      action.type === 'alert'
+                    className={`rounded-lg p-3 border ${action.type === 'alert'
                         ? 'bg-warning/10 border-warning/30'
                         : action.type === 'success'
-                        ? 'bg-success/10 border-success/30'
-                        : 'bg-muted/50 border-border'
-                    }`}
+                          ? 'bg-success/10 border-success/30'
+                          : 'bg-muted/50 border-border'
+                      }`}
                   >
-                    <div className={`text-sm font-medium mb-1 ${
-                      action.type === 'alert' ? 'text-warning' :
-                      action.type === 'success' ? 'text-success' :
-                      'text-foreground'
-                    }`}>
+                    <div className={`text-sm font-medium mb-1 ${action.type === 'alert' ? 'text-warning' :
+                        action.type === 'success' ? 'text-success' :
+                          'text-foreground'
+                      }`}>
                       {action.title}
                     </div>
                     <p className="text-xs text-muted-foreground">{action.description}</p>
@@ -1266,11 +1257,10 @@ function PricingSection() {
           {pricing.map((plan) => (
             <div
               key={plan.name}
-              className={`relative bg-card rounded-xl p-8 border flex flex-col ${
-                plan.popular
+              className={`relative bg-card rounded-xl p-8 border flex flex-col ${plan.popular
                   ? 'border-primary ring-2 ring-primary shadow-lg'
                   : 'border-border'
-              }`}
+                }`}
             >
               {plan.popular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2">
@@ -1306,11 +1296,10 @@ function PricingSection() {
 
               <Link
                 href="/signup"
-                className={`mt-8 block w-full text-center py-3 px-4 rounded-lg font-medium transition-colors ${
-                  plan.popular
+                className={`mt-8 block w-full text-center py-3 px-4 rounded-lg font-medium transition-colors ${plan.popular
                     ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                     : 'bg-muted text-foreground hover:bg-muted/80'
-                }`}
+                  }`}
               >
                 {plan.cta}
               </Link>
@@ -1379,6 +1368,9 @@ export default function LandingPage() {
         <CTASection />
       </main>
       <PublicFooter />
+
+      {/* AI Chat Bubble - Floating in bottom-right corner */}
+      <PublicAIChatBubble />
     </div>
   );
 }

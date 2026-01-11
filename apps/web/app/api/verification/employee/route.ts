@@ -209,7 +209,7 @@ export async function GET(request: NextRequest) {
         }
 
         // Calculate ART status
-        const badgeService = getDigitalBadgeService();
+        const _badgeService = getDigitalBadgeService();
         let artStatus: 'valid' | 'expiring' | 'expired' | 'missing' = 'missing';
         let daysUntilExpiry: number | null = null;
 

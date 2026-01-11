@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { prisma, TransactionClient } from '@/lib/prisma';
+import { prisma } from '@/lib/prisma';
 import { InventoryService } from '@/src/services/inventory.service';
 
 /**

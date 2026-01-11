@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import {
-  Truck,
   ArrowLeft,
   Edit,
   Trash2,
@@ -15,14 +14,12 @@ import {
   Settings,
   AlertTriangle,
   CheckCircle,
-  Calendar,
-  Fuel,
-  Gauge,
   Upload,
   X,
   UserPlus,
   Crown,
   Package,
+  Briefcase, // Phase 4.1: Job History
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
 
@@ -229,7 +226,7 @@ export default function VehicleDetailPage() {
   const queryClient = useQueryClient();
   const vehicleId = params.id as string;
 
-  const [activeTab, setActiveTab] = useState<'documents' | 'maintenance' | 'drivers' | 'inventory'>('documents');
+  const [activeTab, setActiveTab] = useState<'documents' | 'maintenance' | 'drivers' | 'inventory' | 'jobs'>('documents');
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Modal states
@@ -287,6 +284,16 @@ export default function VehicleDetailPage() {
     queryKey: ['inventory-items'],
     queryFn: fetchAvailableItems,
     enabled: showInventoryModal,
+  });
+
+  // Phase 4.1: Vehicle job history query
+  const { data: jobsData, isLoading: jobsLoading } = useQuery({
+    queryKey: ['vehicle-jobs', vehicleId],
+    queryFn: async () => {
+      const res = await fetch(`/api/vehicles/${vehicleId}/jobs`);
+      return res.json();
+    },
+    enabled: activeTab === 'jobs',
   });
 
   const deleteMutation = useMutation({
@@ -589,50 +596,61 @@ export default function VehicleDetailPage() {
         <nav className="flex gap-6">
           <button
             onClick={() => setActiveTab('documents')}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'documents'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'documents'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
           >
             <FileText className="h-4 w-4 inline-block mr-2" />
             Documentos ({vehicle.documents.length})
           </button>
           <button
             onClick={() => setActiveTab('maintenance')}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'maintenance'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'maintenance'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
           >
             <Settings className="h-4 w-4 inline-block mr-2" />
             Mantenimiento ({vehicle.maintenanceLogs.length})
           </button>
           <button
             onClick={() => setActiveTab('drivers')}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'drivers'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'drivers'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
           >
             <Users className="h-4 w-4 inline-block mr-2" />
             Conductores ({vehicle.assignments.length})
           </button>
           <button
             onClick={() => setActiveTab('inventory')}
-            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'inventory'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'inventory'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
           >
             <Package className="h-4 w-4 inline-block mr-2" />
             Inventario
             {inventoryData?.data?.summary?.lowStockItems ? (
               <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-full">
                 {inventoryData.data.summary.lowStockItems}
+              </span>
+            ) : null}
+          </button>
+          <button
+            onClick={() => setActiveTab('jobs')}
+            className={`pb-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'jobs'
+              ? 'border-primary-600 text-primary-600'
+              : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+          >
+            <Briefcase className="h-4 w-4 inline-block mr-2" />
+            Historial de Trabajos
+            {jobsData?.data?.summary?.totalJobs ? (
+              <span className="ml-2 inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+                {jobsData.data.summary.totalJobs}
               </span>
             ) : null}
           </button>
@@ -939,6 +957,94 @@ export default function VehicleDetailPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Jobs History Tab - Phase 4.1 */}
+        {activeTab === 'jobs' && (
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-900">Historial de Trabajos</h3>
+              {jobsData?.data?.summary && (
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="text-gray-500">
+                    Total: <strong className="text-gray-700">{jobsData.data.summary.totalJobs}</strong> trabajos
+                  </span>
+                  <span className="text-gray-500">
+                    Kilometraje: <strong className="text-gray-700">{jobsData.data.summary.totalKilometersFormatted}</strong>
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {jobsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+              </div>
+            ) : !jobsData?.data?.jobs?.length ? (
+              <div className="text-center py-8 text-gray-500">
+                <Briefcase className="mx-auto h-12 w-12 text-gray-300" />
+                <p className="mt-2">No hay trabajos registrados con este vehículo</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {jobsData.data.jobs.map((job: {
+                  id: string;
+                  jobNumber: string;
+                  status: string;
+                  serviceType: string;
+                  scheduledDate: string;
+                  completedAt: string;
+                  customer: { name: string } | null;
+                  technician: { name: string } | null;
+                  vehicleMileageStart: number | null;
+                  vehicleMileageEnd: number | null;
+                  tripDistance: number | null;
+                  driverNameAtJob: string | null;
+                }) => (
+                  <Link
+                    key={job.id}
+                    href={`/dashboard/jobs/${job.id}`}
+                    className="flex items-center justify-between rounded-lg border p-4 hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-1">
+                        <span className="font-medium text-gray-900">{job.jobNumber}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${job.status === 'COMPLETED' ? 'bg-green-100 text-green-700' :
+                          job.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' :
+                            job.status === 'CANCELLED' ? 'bg-gray-100 text-gray-700' :
+                              'bg-amber-100 text-amber-700'
+                          }`}>
+                          {job.status === 'COMPLETED' ? 'Completado' :
+                            job.status === 'IN_PROGRESS' ? 'En trabajo' :
+                              job.status === 'CANCELLED' ? 'Cancelado' :
+                                job.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600">{job.serviceType}</p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {job.customer?.name || 'Sin cliente'} • {job.technician?.name || job.driverNameAtJob || 'Sin técnico'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-gray-500">
+                        {job.scheduledDate ? formatDate(job.scheduledDate) : '-'}
+                      </p>
+                      {job.tripDistance !== null && (
+                        <p className="text-sm font-medium text-primary-600">
+                          {job.tripDistance.toLocaleString()} km
+                        </p>
+                      )}
+                      {job.vehicleMileageStart && !job.tripDistance && (
+                        <p className="text-xs text-gray-400">
+                          Inicio: {job.vehicleMileageStart.toLocaleString()} km
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                ))}
               </div>
             )}
           </div>
