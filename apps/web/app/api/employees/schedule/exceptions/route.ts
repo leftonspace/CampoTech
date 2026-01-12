@@ -40,15 +40,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Can't add exception for past dates
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    if (exceptionDate < today) {
-      return NextResponse.json(
-        { success: false, error: 'No se puede agregar excepción para fechas pasadas' },
-        { status: 400 }
-      );
-    }
+    // Note: Past date restrictions removed to allow retroactive recording
+    // of off days, sick days, etc. This is a common business requirement.
 
     // Check permissions
     const roleUpper = session.role?.toUpperCase();
@@ -75,6 +68,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Upsert exception (create or update)
+    // For partial absences: isAvailable=false but startTime/endTime are provided
+    // For modified hours: isAvailable=true with startTime/endTime
     const exception = await prisma.scheduleException.upsert({
       where: {
         userId_date: {
@@ -85,8 +80,8 @@ export async function POST(request: NextRequest) {
       update: {
         isAvailable: isAvailable ?? false,
         reason: reason || null,
-        startTime: isAvailable && startTime ? startTime : null,
-        endTime: isAvailable && endTime ? endTime : null,
+        startTime: startTime || null,
+        endTime: endTime || null,
       },
       create: {
         userId: targetUserId,
@@ -94,8 +89,8 @@ export async function POST(request: NextRequest) {
         date: exceptionDate,
         isAvailable: isAvailable ?? false,
         reason: reason || null,
-        startTime: isAvailable && startTime ? startTime : null,
-        endTime: isAvailable && endTime ? endTime : null,
+        startTime: startTime || null,
+        endTime: endTime || null,
       },
     });
 

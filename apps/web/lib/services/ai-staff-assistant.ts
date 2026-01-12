@@ -15,6 +15,7 @@
 
 import OpenAI from 'openai';
 import { prisma } from '@/lib/prisma';
+import { formatDisplayDate, formatDisplayTime } from '@/lib/timezone';
 import {
   getSchedulingIntelligenceService,
   SchedulingIntelligenceResult,
@@ -403,7 +404,7 @@ export class AIStaffAssistant {
       requestedTime: time,
     });
 
-    let result = `ðŸ“… Disponibilidad para ${new Date(date).toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' })}:\n\n`;
+    let result = `ðŸ“… Disponibilidad para ${formatDisplayDate(new Date(date), { weekday: 'long', day: 'numeric', month: 'long' })}:\n\n`;
 
     if (!availability.isWorkingDay) {
       result += 'âš ï¸ No es día laborable\n';
@@ -567,7 +568,7 @@ export class AIStaffAssistant {
     }
 
     if (insights.lastServiceDate) {
-      result += `ðŸ“… Íšltimo servicio: ${insights.lastServiceDate.toLocaleDateString('es-AR')}\n`;
+      result += `ðŸ“… Íšltimo servicio: ${formatDisplayDate(insights.lastServiceDate)}\n`;
     }
 
     if (insights.cancelledJobs > 0) {
@@ -674,9 +675,9 @@ export class AIStaffAssistant {
     // Filter services if search term provided
     const filteredServices = searchTerm
       ? services.filter(s =>
-          s.name.toLowerCase().includes(searchTerm) ||
-          (s.description?.toLowerCase().includes(searchTerm))
-        )
+        s.name.toLowerCase().includes(searchTerm) ||
+        (s.description?.toLowerCase().includes(searchTerm))
+      )
       : services;
 
     let result = 'ðŸ’° **Precios de Servicios**\n\n';
@@ -772,8 +773,8 @@ export class AIStaffAssistant {
     return messages
       .map((m: MessageEntry) => {
         const sender = m.direction === 'inbound' ? 'CLIENTE' : 'EMPRESA';
-        const time = m.createdAt.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-        return `[${time}] ${sender}: ${m.body || '[Sin texto]'}`;
+        const time = formatDisplayTime(m.createdAt);
+        return `[${time}] ${sender}: ${m.body || '[Sin texto]'}`;;
       })
       .join('\n');
   }

@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/auth-context';
-import { cn, getInitials } from '@/lib/utils';
+import { cn, getInitials, formatPhone } from '@/lib/utils';
 import {
   Users,
   Plus,
@@ -24,8 +24,14 @@ import {
   Trash2,
   AlertTriangle,
   MessageCircle,
+  Upload,
+  Image as ImageIcon,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import TeamCalendar from '@/components/schedule/TeamCalendar';
+import ScheduleConfigModal from '@/components/schedule/ScheduleConfigModal';
 import PhoneInput from '@/components/ui/PhoneInput';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -60,6 +66,8 @@ interface TeamMember {
   driverLicenseNumber?: string;
   driverLicenseExpiry?: string;
   driverLicenseCategory?: string;
+  driverLicensePhotoFront?: string;
+  driverLicensePhotoBack?: string;
 }
 
 interface TeamStats {
@@ -90,17 +98,36 @@ const ROLE_CONFIG = {
   },
 };
 
-const STATUS_CONFIG = {
-  ACTIVE: {
-    label: 'Activo',
+// Live status configuration matching Standby business rules
+const LIVE_STATUS_CONFIG = {
+  // Priority 1: 🔴 Exception (Sick/Vacation)
+  UNAVAILABLE: {
+    label: 'No Disponible',
+    emoji: '🔴',
+    color: 'bg-red-100 text-red-700 border-red-200',
+  },
+  // Priority 2: ⚪ Outside hours or no schedule
+  OFF_SHIFT: {
+    label: 'Fuera de Turno',
+    emoji: '⚪',
+    color: 'bg-gray-100 text-gray-500 border-gray-200',
+  },
+  // Priority 3: 🟡 Has active IN_PROGRESS job
+  BUSY: {
+    label: 'Ocupado',
+    emoji: '🟡',
+    color: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+  },
+  // Priority 4: 🟢 Within hours + no active job
+  AVAILABLE: {
+    label: 'Disponible',
+    emoji: '🟢',
     color: 'bg-green-100 text-green-700 border-green-200',
   },
-  IN_WORK: {
-    label: 'En Trabajo',
-    color: 'bg-green-50 text-green-600 border-green-300',
-  },
-  REST: {
+  // Fallback for inactive users
+  INACTIVE: {
     label: 'Inactivo',
+    emoji: '⚫',
     color: 'bg-gray-200 text-gray-600 border-gray-300',
   },
 };
@@ -370,7 +397,7 @@ export default function TeamPage() {
         )}
 
         {activeTab === 'availability' && isOwnerOrDispatcher && (
-          <TeamCalendar canEdit={isOwnerOrDispatcher} />
+          <DisponibilidadTab canEdit={isOwnerOrDispatcher} members={members} />
         )}
 
         {activeTab === 'my-schedule' && isTechnician && (
@@ -445,6 +472,23 @@ function StatCard({ title, value, color = 'default', icon, loading }: StatCardPr
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// LIVE STATUS TYPE (from API) - Matches Standby business rules
+// ═══════════════════════════════════════════════════════════════════════════════
+
+type LiveStatusType = 'UNAVAILABLE' | 'OFF_SHIFT' | 'BUSY' | 'AVAILABLE';
+
+interface UserLiveStatus {
+  userId: string;
+  status: LiveStatusType;
+  statusLabel: string;
+  statusColor: string;
+  reason?: string;
+  currentJobId?: string;
+  jobNumber?: string;
+  hasSchedule?: boolean;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // EMPLOYEE LIST TAB
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -460,6 +504,46 @@ interface EmployeeListTabProps {
 
 function EmployeeListTab({ members, loading, canEdit, onEdit: _onEdit, onDelete, onCardClick, currentUserId }: EmployeeListTabProps) {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+
+  // Fetch live status for all users
+  const { data: liveStatusData } = useQuery({
+    queryKey: ['user-live-status'],
+    queryFn: async () => {
+      const res = await fetch('/api/users/live-status');
+      if (!res.ok) return { success: false, data: { statuses: {} } };
+      return res.json();
+    },
+    refetchInterval: 30000, // Refresh every 30 seconds
+    staleTime: 15000, // Consider data stale after 15 seconds
+  });
+
+  const liveStatuses: Record<string, UserLiveStatus> = liveStatusData?.data?.statuses || {};
+
+  // Get live status config for a member
+  const getLiveStatusConfig = (memberId: string, isActive: boolean) => {
+    if (!isActive) {
+      return LIVE_STATUS_CONFIG.INACTIVE;
+    }
+    const liveStatus = liveStatuses[memberId];
+    if (liveStatus) {
+      return LIVE_STATUS_CONFIG[liveStatus.status] || LIVE_STATUS_CONFIG.AVAILABLE;
+    }
+    // Default to available if no status yet
+    return LIVE_STATUS_CONFIG.AVAILABLE;
+  };
+
+  // Get status tooltip (for UNAVAILABLE shows reason, for BUSY shows job number)
+  const getStatusTooltip = (memberId: string): string => {
+    const liveStatus = liveStatuses[memberId];
+    if (!liveStatus) return '';
+    if (liveStatus.status === 'UNAVAILABLE' && liveStatus.reason) {
+      return liveStatus.reason;
+    }
+    if (liveStatus.status === 'BUSY' && liveStatus.jobNumber) {
+      return `Trabajo #${liveStatus.jobNumber}`;
+    }
+    return '';
+  };
 
   if (loading) {
     return (
@@ -488,13 +572,6 @@ function EmployeeListTab({ members, loading, canEdit, onEdit: _onEdit, onDelete,
     );
   }
 
-  const getEmployeeStatus = (member: TeamMember) => {
-    // Mock status - in production this would come from job data
-    if (!member.isActive) return 'REST';
-    if (Math.random() > 0.7) return 'IN_WORK';
-    return 'ACTIVE';
-  };
-
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'N/A';
     return new Date(dateStr).toLocaleDateString('es-AR', {
@@ -508,8 +585,8 @@ function EmployeeListTab({ members, loading, canEdit, onEdit: _onEdit, onDelete,
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {members.map((member) => {
         const roleConfig = ROLE_CONFIG[member.role] || ROLE_CONFIG.TECHNICIAN;
-        const status = getEmployeeStatus(member);
-        const statusConfig = STATUS_CONFIG[status];
+        const statusConfig = getLiveStatusConfig(member.id, member.isActive);
+        const statusTooltip = getStatusTooltip(member.id);
         const isCurrentUser = member.id === currentUserId;
 
         return (
@@ -536,104 +613,19 @@ function EmployeeListTab({ members, loading, canEdit, onEdit: _onEdit, onDelete,
                       <span className="ml-1 text-xs text-gray-400">(vos)</span>
                     )}
                   </h3>
-                  {/* Role & Status Badges */}
+                  {/* Role & Live Status Badges */}
                   <div className="flex flex-wrap gap-1.5 mt-1">
                     <span className={cn('px-2 py-0.5 text-xs font-medium rounded-full border', roleConfig.color)}>
                       {roleConfig.label}
                     </span>
-                    <span className={cn('px-2 py-0.5 text-xs font-medium rounded-full border', statusConfig.color)}>
+                    <span
+                      className={cn('px-2 py-0.5 text-xs font-medium rounded-full border inline-flex items-center gap-1', statusConfig.color)}
+                      title={statusTooltip}
+                    >
+                      <span>{statusConfig.emoji}</span>
                       {statusConfig.label}
                     </span>
                   </div>
-                  {/* Specialty Badges with Verification Status */}
-                  {member.specialties && member.specialties.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      {member.specialties.map((specialty) => {
-                        const label = SPECIALTY_LABELS[specialty] || specialty;
-                        const isRegulated = REGULATED_TRADES.includes(specialty);
-                        const cert = member.certifications?.[specialty];
-                        const hasMatricula = cert?.matricula && cert.matricula.trim() !== '';
-
-                        // Determine badge style based on verification status
-                        let badgeClass: string;
-                        let badgeText: string;
-                        let tooltip: string;
-
-                        if (hasMatricula) {
-                          // Green: Verified Professional
-                          badgeClass = 'bg-green-100 text-green-800 border-green-200';
-                          badgeText = `${label} ✓`;
-                          tooltip = `Matrícula: ${cert.matricula}${cert.category ? ` • ${cert.category}` : ''}`;
-                        } else if (isRegulated) {
-                          // Yellow: Regulated trade without license
-                          badgeClass = 'bg-yellow-100 text-yellow-800 border-yellow-200';
-                          badgeText = label;
-                          tooltip = 'Sin matrícula habilitante';
-                        } else {
-                          // Grey: Standard trade (license optional)
-                          badgeClass = 'bg-gray-100 text-gray-700 border-gray-200';
-                          badgeText = label;
-                          tooltip = '';
-                        }
-
-                        return (
-                          <span
-                            key={specialty}
-                            className={cn(
-                              'inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border',
-                              badgeClass
-                            )}
-                            title={tooltip}
-                          >
-                            {hasMatricula && <ShieldCheck className="h-3 w-3" />}
-                            {badgeText}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {/* Legacy single specialty support */}
-                  {!member.specialties?.length && member.specialty && (
-                    <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      {(() => {
-                        const specialty = member.specialty;
-                        const label = SPECIALTY_LABELS[specialty] || specialty;
-                        const isRegulated = REGULATED_TRADES.includes(specialty);
-                        const hasMatricula = member.matricula && member.matricula.trim() !== '';
-
-                        let badgeClass: string;
-                        let badgeText: string;
-                        let tooltip: string;
-
-                        if (hasMatricula) {
-                          badgeClass = 'bg-green-100 text-green-800 border-green-200';
-                          badgeText = `${label} ✓`;
-                          tooltip = `Matrícula: ${member.matricula}`;
-                        } else if (isRegulated) {
-                          badgeClass = 'bg-yellow-100 text-yellow-800 border-yellow-200';
-                          badgeText = label;
-                          tooltip = 'Sin matrícula habilitante';
-                        } else {
-                          badgeClass = 'bg-gray-100 text-gray-700 border-gray-200';
-                          badgeText = label;
-                          tooltip = '';
-                        }
-
-                        return (
-                          <span
-                            className={cn(
-                              'inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border',
-                              badgeClass
-                            )}
-                            title={tooltip}
-                          >
-                            {hasMatricula && <ShieldCheck className="h-3 w-3" />}
-                            {badgeText}
-                          </span>
-                        );
-                      })()}
-                    </div>
-                  )}
                 </div>
               </div>
 
@@ -699,7 +691,7 @@ function EmployeeListTab({ members, loading, canEdit, onEdit: _onEdit, onDelete,
               )}
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Phone className="h-4 w-4 text-gray-400" />
-                <span>{member.phone}</span>
+                <span>{formatPhone(member.phone)}</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <Calendar className="h-4 w-4 text-gray-400" />
@@ -842,8 +834,18 @@ function DeleteConfirmationModal({ member, onConfirm, onCancel, isDeleting }: De
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// WEEKLY SCHEDULES TAB
+// WEEKLY SCHEDULES TAB (Read-Only Visualizer)
+// Updated: Cleaner grid without repetitive orange warnings
 // ═══════════════════════════════════════════════════════════════════════════════
+
+interface ScheduleEntry {
+  id: string;
+  userId: string;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isAvailable: boolean;
+}
 
 function WeeklySchedulesTab({ members }: { members: TeamMember[] }) {
   const { data: schedulesData, isLoading } = useQuery({
@@ -855,17 +857,26 @@ function WeeklySchedulesTab({ members }: { members: TeamMember[] }) {
     },
   });
 
-  const schedules = schedulesData?.data?.schedules || [];
+  const schedules: ScheduleEntry[] = schedulesData?.data?.schedules || [];
 
-  const getScheduleForDay = (userId: string, dayOfWeek: number) => {
+  // Check if a user has ANY schedule records defined
+  const userHasSchedule = (userId: string): boolean => {
+    return schedules.some((s: ScheduleEntry) => s.userId === userId);
+  };
+
+  // Get schedule for a specific day
+  const getScheduleForDay = (userId: string, dayOfWeek: number): { text: string; isAvailable: boolean } => {
     const schedule = schedules.find(
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (s: any) => s.userId === userId && s.dayOfWeek === dayOfWeek
+      (s: ScheduleEntry) => s.userId === userId && s.dayOfWeek === dayOfWeek
     );
+
     if (schedule?.isAvailable) {
-      return `${schedule.startTime} - ${schedule.endTime}`;
+      return { text: `${schedule.startTime} - ${schedule.endTime}`, isAvailable: true };
     }
-    return 'Libre';
+
+    // If we are here, it's either "Libre" (Day Off) or "Sin Horario" (No setup)
+    // We handle the visual distinction in the render loop, not here.
+    return { text: 'Libre', isAvailable: false };
   };
 
   if (isLoading) {
@@ -880,62 +891,98 @@ function WeeklySchedulesTab({ members }: { members: TeamMember[] }) {
   }
 
   return (
-    <div className="card overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                Empleado
-              </th>
-              {DAYS_OF_WEEK.map((day) => (
-                <th
-                  key={day.id}
-                  className="px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500"
-                >
-                  {day.short}
+    <div className="space-y-4">
+      {/* Info banner */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
+        <Clock className="h-5 w-5 text-blue-600 flex-shrink-0" />
+        <p className="text-sm text-blue-800">
+          Vista de solo lectura. Para modificar horarios, haga clic en el día específico en la pestaña <strong>Disponibilidad</strong>.
+        </p>
+      </div>
+
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  Empleado
                 </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200 bg-white">
-            {members.map((member) => {
-              const roleConfig = ROLE_CONFIG[member.role] || ROLE_CONFIG.TECHNICIAN;
-              return (
-                <tr key={member.id} className="hover:bg-gray-50">
-                  <td className="whitespace-nowrap px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="h-8 w-8 rounded-full bg-teal-500 flex items-center justify-center text-white text-xs font-medium">
-                        {getInitials(member.name)}
+                {DAYS_OF_WEEK.map((day) => (
+                  <th
+                    key={day.id}
+                    className="px-3 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500"
+                  >
+                    {day.short}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 bg-white">
+              {members.map((member) => {
+                const roleConfig = ROLE_CONFIG[member.role] || ROLE_CONFIG.TECHNICIAN;
+                const hasAnySchedule = userHasSchedule(member.id);
+
+                return (
+                  <tr key={member.id} className="hover:bg-gray-50">
+                    {/* NAME COLUMN - Keep the warning here if needed */}
+                    <td className="whitespace-nowrap px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-teal-500 flex items-center justify-center text-white text-xs font-medium">
+                          {getInitials(member.name)}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900 text-sm">{member.name}</p>
+                          <div className="flex items-center gap-1.5">
+                            <span className={cn('px-1.5 py-0.5 text-xs font-medium rounded', roleConfig.color)}>
+                              {roleConfig.label}
+                            </span>
+                            {!hasAnySchedule && (
+                              <span className="px-1.5 py-0.5 text-xs font-medium rounded bg-orange-100 text-orange-700 border border-orange-200">
+                                ⚠️ Sin Configurar
+                              </span>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium text-gray-900 text-sm">{member.name}</p>
-                        <span className={cn('px-1.5 py-0.5 text-xs font-medium rounded', roleConfig.color)}>
-                          {roleConfig.label}
-                        </span>
-                      </div>
-                    </div>
-                  </td>
-                  {DAYS_OF_WEEK.map((day) => {
-                    const schedule = getScheduleForDay(member.id, day.id);
-                    const isAvailable = schedule !== 'Libre';
-                    return (
-                      <td
-                        key={day.id}
-                        className={cn(
-                          'px-3 py-3 text-center text-xs',
-                          isAvailable ? 'text-gray-700' : 'text-gray-400'
-                        )}
-                      >
-                        {schedule}
-                      </td>
-                    );
-                  })}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                    </td>
+                    {/* DAYS COLUMNS - Clean Look */}
+                    {DAYS_OF_WEEK.map((day) => {
+                      const scheduleInfo = getScheduleForDay(member.id, day.id);
+
+                      // VISUAL LOGIC:
+                      // 1. If user has NO schedule set up at all -> Show clean Dash "-"
+                      // 2. If user has schedule but is off today -> Show "Libre"
+                      // 3. If user is working -> Show Time
+
+                      let cellContent = <span className="text-gray-400">-</span>;
+                      let cellClass = "bg-gray-50/30"; // Default empty feel
+
+                      if (hasAnySchedule) {
+                        if (scheduleInfo.isAvailable) {
+                          cellContent = <span>{scheduleInfo.text}</span>;
+                          cellClass = "text-gray-900 font-medium bg-green-50/30"; // Subtle green tint for working days
+                        } else {
+                          cellContent = <span className="italic">Libre</span>;
+                          cellClass = "text-gray-400 bg-gray-50"; // Dimmed for days off
+                        }
+                      }
+
+                      return (
+                        <td
+                          key={day.id}
+                          className={cn('px-3 py-3 text-center text-xs border-l border-gray-100', cellClass)}
+                        >
+                          {cellContent}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -1053,6 +1100,53 @@ function MyScheduleTab({ userId }: { userId?: string }) {
             ))}
           </div>
         </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DISPONIBILIDAD TAB (The Manager)
+// Control center for Schedule & Exceptions
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface DisponibilidadTabProps {
+  canEdit: boolean;
+  members: TeamMember[];
+}
+
+function DisponibilidadTab({ canEdit, members }: DisponibilidadTabProps) {
+  const queryClient = useQueryClient();
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+
+  return (
+    <div className="space-y-4">
+      {/* Control Header */}
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Gestión de Disponibilidad</h2>
+          <p className="text-sm text-gray-500">Configura horarios base y marca excepciones (vacaciones, enfermedades).</p>
+        </div>
+      </div>
+
+      {/* Team Calendar for Exceptions - includes the schedule config button */}
+      <TeamCalendar
+        canEdit={canEdit}
+        onOpenScheduleConfig={() => setShowScheduleModal(true)}
+      />
+
+      {/* Schedule Config Modal */}
+      {showScheduleModal && (
+        <ScheduleConfigModal
+          members={members}
+          onClose={() => setShowScheduleModal(false)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['all-schedules'] });
+            queryClient.invalidateQueries({ queryKey: ['team-calendar'] });
+            queryClient.invalidateQueries({ queryKey: ['user-live-status'] });
+            setShowScheduleModal(false);
+          }}
+        />
       )}
     </div>
   );
@@ -1423,6 +1517,8 @@ function TeamMemberModal({ member, currentUserId, currentUserRole, onClose, onSu
     driverLicenseNumber: member?.driverLicenseNumber || '',
     driverLicenseExpiry: member?.driverLicenseExpiry?.split('T')[0] || '', // Format for date input
     driverLicenseCategory: member?.driverLicenseCategory || '',
+    driverLicensePhotoFront: member?.driverLicensePhotoFront || '',
+    driverLicensePhotoBack: member?.driverLicensePhotoBack || '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1430,6 +1526,15 @@ function TeamMemberModal({ member, currentUserId, currentUserRole, onClose, onSu
   const [showSpecialtyDropdown, setShowSpecialtyDropdown] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const specialtyButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Driver's license photo upload refs and state
+  const licensePhotoFrontRef = useRef<HTMLInputElement>(null);
+  const licensePhotoBackRef = useRef<HTMLInputElement>(null);
+  const [uploadingPhotoFront, setUploadingPhotoFront] = useState(false);
+  const [uploadingPhotoBack, setUploadingPhotoBack] = useState(false);
+
+  // Lightbox state for photo preview
+  const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
 
   const isOwner = member?.role === 'OWNER';
   const isEditing = !!member;
@@ -1598,6 +1703,53 @@ function TeamMemberModal({ member, currentUserId, currentUserRole, onClose, onSu
     return allValid;
   };
 
+  // Handle photo upload for driver's license
+  const handlePhotoUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    side: 'front' | 'back'
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, seleccioná una imagen (JPG, PNG, etc.)');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('La imagen no puede superar los 5MB');
+      return;
+    }
+
+    const setUploading = side === 'front' ? setUploadingPhotoFront : setUploadingPhotoBack;
+    const fieldName = side === 'front' ? 'driverLicensePhotoFront' : 'driverLicensePhotoBack';
+
+    setUploading(true);
+
+    try {
+      // Convert to base64 for preview (in production, upload to storage and use URL)
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setFormData(prev => ({ ...prev, [fieldName]: base64 }));
+        setUploading(false);
+      };
+      reader.onerror = () => {
+        alert('Error al leer la imagen');
+        setUploading(false);
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      alert('Error al procesar la imagen');
+      setUploading(false);
+    }
+
+    // Clear the input so the same file can be selected again
+    e.target.value = '';
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -1627,6 +1779,12 @@ function TeamMemberModal({ member, currentUserId, currentUserRole, onClose, onSu
         matricula: formData.certifications[formData.specialties[0]]?.matricula || null,
         skillLevel: formData.certifications[formData.specialties[0]]?.category || null,
         isActive: formData.isActive,
+        // Driver's license fields
+        driverLicenseNumber: formData.driverLicenseNumber || null,
+        driverLicenseExpiry: formData.driverLicenseExpiry || null,
+        driverLicenseCategory: formData.driverLicenseCategory || null,
+        driverLicensePhotoFront: formData.driverLicensePhotoFront || null,
+        driverLicensePhotoBack: formData.driverLicensePhotoBack || null,
       };
 
       // Only include sendWelcome for new users
@@ -1910,6 +2068,168 @@ function TeamMemberModal({ member, currentUserId, currentUserRole, onClose, onSu
                     </select>
                   </div>
                 </div>
+
+                {/* License Photo Uploads - Second Row */}
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                  {/* Photo Front */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Foto Frente
+                    </label>
+                    <input
+                      ref={licensePhotoFrontRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handlePhotoUpload(e, 'front')}
+                      className="hidden"
+                      disabled={isViewOnly}
+                    />
+                    {formData.driverLicensePhotoFront ? (
+                      <div className="relative group">
+                        <img
+                          src={formData.driverLicensePhotoFront}
+                          alt="Licencia frente"
+                          className="w-full h-24 object-cover rounded-lg border border-gray-200 cursor-pointer"
+                          onClick={() => setLightboxImage({ src: formData.driverLicensePhotoFront, alt: 'Licencia de Conducir - Frente' })}
+                        />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                          {/* Cambiar imagen - only when editable */}
+                          {!isViewOnly && (
+                            <button
+                              type="button"
+                              onClick={() => licensePhotoFrontRef.current?.click()}
+                              className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors"
+                              title="Cambiar imagen"
+                            >
+                              <Upload className="h-4 w-4 text-gray-700" />
+                            </button>
+                          )}
+                          {/* Ver imagen - always visible */}
+                          <button
+                            type="button"
+                            onClick={() => setLightboxImage({ src: formData.driverLicensePhotoFront, alt: 'Licencia de Conducir - Frente' })}
+                            className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors"
+                            title="Ver imagen"
+                          >
+                            <Eye className="h-4 w-4 text-gray-700" />
+                          </button>
+                          {/* Quitar imagen - only when editable */}
+                          {!isViewOnly && (
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, driverLicensePhotoFront: '' })}
+                              className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors"
+                              title="Quitar imagen"
+                            >
+                              <X className="h-4 w-4 text-red-600" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => !isViewOnly && licensePhotoFrontRef.current?.click()}
+                        disabled={isViewOnly || uploadingPhotoFront}
+                        className={cn(
+                          "w-full h-24 border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-1 transition-colors",
+                          isViewOnly
+                            ? "border-gray-200 bg-gray-50 cursor-not-allowed"
+                            : "border-gray-300 hover:border-teal-400 hover:bg-teal-50 cursor-pointer"
+                        )}
+                      >
+                        {uploadingPhotoFront ? (
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600" />
+                        ) : (
+                          <>
+                            <ImageIcon className="h-6 w-6 text-gray-400" />
+                            <span className="text-xs text-gray-500">Subir foto</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Photo Back */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Foto Dorso
+                    </label>
+                    <input
+                      ref={licensePhotoBackRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handlePhotoUpload(e, 'back')}
+                      className="hidden"
+                      disabled={isViewOnly}
+                    />
+                    {formData.driverLicensePhotoBack ? (
+                      <div className="relative group">
+                        <img
+                          src={formData.driverLicensePhotoBack}
+                          alt="Licencia dorso"
+                          className="w-full h-24 object-cover rounded-lg border border-gray-200 cursor-pointer"
+                          onClick={() => setLightboxImage({ src: formData.driverLicensePhotoBack, alt: 'Licencia de Conducir - Dorso' })}
+                        />
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                          {/* Cambiar imagen - only when editable */}
+                          {!isViewOnly && (
+                            <button
+                              type="button"
+                              onClick={() => licensePhotoBackRef.current?.click()}
+                              className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors"
+                              title="Cambiar imagen"
+                            >
+                              <Upload className="h-4 w-4 text-gray-700" />
+                            </button>
+                          )}
+                          {/* Ver imagen - always visible */}
+                          <button
+                            type="button"
+                            onClick={() => setLightboxImage({ src: formData.driverLicensePhotoBack, alt: 'Licencia de Conducir - Dorso' })}
+                            className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors"
+                            title="Ver imagen"
+                          >
+                            <Eye className="h-4 w-4 text-gray-700" />
+                          </button>
+                          {/* Quitar imagen - only when editable */}
+                          {!isViewOnly && (
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, driverLicensePhotoBack: '' })}
+                              className="p-2 bg-white rounded-full hover:bg-gray-100 transition-colors"
+                              title="Quitar imagen"
+                            >
+                              <X className="h-4 w-4 text-red-600" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => !isViewOnly && licensePhotoBackRef.current?.click()}
+                        disabled={isViewOnly || uploadingPhotoBack}
+                        className={cn(
+                          "w-full h-24 border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-1 transition-colors",
+                          isViewOnly
+                            ? "border-gray-200 bg-gray-50 cursor-not-allowed"
+                            : "border-gray-300 hover:border-teal-400 hover:bg-teal-50 cursor-pointer"
+                        )}
+                      >
+                        {uploadingPhotoBack ? (
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600" />
+                        ) : (
+                          <>
+                            <ImageIcon className="h-6 w-6 text-gray-400" />
+                            <span className="text-xs text-gray-500">Subir foto</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {!formData.driverLicenseNumber && isEditing && !isViewOnly && (
                   <p className="mt-2 text-xs text-amber-600 flex items-center gap-1">
                     ⚠️ Sin licencia registrada - recomendamos agregar para asignaciones de vehículos y seguros
@@ -2168,6 +2488,46 @@ function TeamMemberModal({ member, currentUserId, currentUserRole, onClose, onSu
           </form>
         </div>
       </div>
+
+      {/* Lightbox Overlay for Image Preview */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setLightboxImage(null)}
+          onKeyDown={(e) => e.key === 'Escape' && setLightboxImage(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label={lightboxImage.alt}
+          tabIndex={-1}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] animate-in zoom-in-95 duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={() => setLightboxImage(null)}
+              className="absolute -top-10 right-0 p-2 text-white/80 hover:text-white transition-colors"
+              title="Cerrar"
+            >
+              <X className="h-6 w-6" />
+            </button>
+
+            {/* Image */}
+            <img
+              src={lightboxImage.src}
+              alt={lightboxImage.alt}
+              className="max-w-full max-h-[85vh] rounded-lg shadow-2xl object-contain"
+            />
+
+            {/* Caption */}
+            <p className="text-center text-white/80 text-sm mt-3">
+              {lightboxImage.alt}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -15,6 +15,7 @@
  */
 
 import { prisma } from '@/lib/prisma';
+import { formatDisplayDate } from '@/lib/timezone';
 import type { SubscriptionTier, BillingCycle } from '@/lib/types/subscription';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -151,11 +152,11 @@ export async function getSubscriptionNotifications(
       eventType: { startsWith: 'notification_' },
       ...(unreadOnly
         ? {
-            eventData: {
-              path: ['read'],
-              equals: false,
-            },
-          }
+          eventData: {
+            path: ['read'],
+            equals: false,
+          },
+        }
         : {}),
     },
     orderBy: { createdAt: 'desc' },
@@ -405,11 +406,11 @@ export async function notifySubscriptionCancelled(
   accessUntil?: Date
 ): Promise<SubscriptionNotification> {
   const dateText = accessUntil
-    ? accessUntil.toLocaleDateString('es-AR', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-      })
+    ? formatDisplayDate(accessUntil, {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    })
     : 'el final del período actual';
 
   return createSubscriptionNotification({
@@ -435,7 +436,7 @@ export async function notifySubscriptionRenewed(
   nextRenewalDate: Date
 ): Promise<SubscriptionNotification> {
   const tierName = TIER_NAMES[tier];
-  const nextDate = nextRenewalDate.toLocaleDateString('es-AR', {
+  const nextDate = formatDisplayDate(nextRenewalDate, {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
@@ -461,7 +462,7 @@ export async function notifySubscriptionPaused(
   resumeDate?: Date
 ): Promise<SubscriptionNotification> {
   const message = resumeDate
-    ? `Tu suscripción fue pausada. Se reanudará el ${resumeDate.toLocaleDateString('es-AR')}.`
+    ? `Tu suscripción fue pausada. Se reanudará el ${formatDisplayDate(resumeDate)}.`
     : 'Tu suscripción fue pausada. Puedes reanudarla en cualquier momento.';
 
   return createSubscriptionNotification({
@@ -520,7 +521,7 @@ export async function notifyPlanDowngraded(
   const newTierName = TIER_NAMES[newTier];
 
   const message = effectiveDate
-    ? `Tu plan cambiará de ${oldTierName} a ${newTierName} el ${effectiveDate.toLocaleDateString('es-AR')}.`
+    ? `Tu plan cambiará de ${oldTierName} a ${newTierName} el ${formatDisplayDate(effectiveDate)}.`
     : `Tu plan fue cambiado de ${oldTierName} a ${newTierName}.`;
 
   return createSubscriptionNotification({
@@ -547,7 +548,7 @@ export async function notifyGracePeriodStarted(
   daysRemaining: number,
   gracePeriodEndsAt: Date
 ): Promise<SubscriptionNotification> {
-  const endDate = gracePeriodEndsAt.toLocaleDateString('es-AR', {
+  const endDate = formatDisplayDate(gracePeriodEndsAt, {
     day: '2-digit',
     month: 'long',
   });

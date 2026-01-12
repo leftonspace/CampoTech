@@ -14,6 +14,7 @@
  */
 
 import { getOrCreateEmailProvider, EmailResult } from '@/lib/email';
+import { formatDisplayDate } from '@/lib/timezone';
 import type { SubscriptionTier, BillingCycle } from '@/lib/types/subscription';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -517,13 +518,13 @@ function generatePaymentPendingHTML(
   instructions: PendingPaymentInstructions
 ): string {
   const expirationText = instructions.expirationDate
-    ? new Date(instructions.expirationDate).toLocaleDateString('es-AR', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      })
+    ? formatDisplayDate(new Date(instructions.expirationDate), {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
     : 'próximas 48 horas';
 
   return emailWrapper(`
@@ -580,7 +581,7 @@ function generatePaymentPendingText(
   instructions: PendingPaymentInstructions
 ): string {
   const expirationText = instructions.expirationDate
-    ? new Date(instructions.expirationDate).toLocaleDateString('es-AR')
+    ? formatDisplayDate(new Date(instructions.expirationDate))
     : 'próximas 48 horas';
 
   return `
@@ -619,11 +620,11 @@ function generateSubscriptionCancelledHTML(
   endDate?: Date
 ): string {
   const endDateText = endDate
-    ? new Date(endDate).toLocaleDateString('es-AR', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-      })
+    ? formatDisplayDate(new Date(endDate), {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    })
     : 'el final del período actual';
 
   return emailWrapper(`
@@ -666,7 +667,7 @@ function generateSubscriptionCancelledText(
   endDate?: Date
 ): string {
   const endDateText = endDate
-    ? new Date(endDate).toLocaleDateString('es-AR')
+    ? formatDisplayDate(new Date(endDate))
     : 'el final del período actual';
 
   return `
@@ -702,7 +703,7 @@ function generateSubscriptionRenewedHTML(
   nextRenewalDate: Date
 ): string {
   const tierName = TIER_NAMES[payment.tier];
-  const nextDateText = new Date(nextRenewalDate).toLocaleDateString('es-AR', {
+  const nextDateText = formatDisplayDate(new Date(nextRenewalDate), {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
@@ -752,7 +753,7 @@ function generateSubscriptionRenewedText(
   nextRenewalDate: Date
 ): string {
   const tierName = TIER_NAMES[payment.tier];
-  const nextDateText = new Date(nextRenewalDate).toLocaleDateString('es-AR');
+  const nextDateText = formatDisplayDate(new Date(nextRenewalDate));
 
   return `
 Suscripción renovada
@@ -787,7 +788,7 @@ function generatePaymentReminderHTML(
 ): string {
   const tierName = TIER_NAMES[tier];
   const price = billingCycle === 'YEARLY' ? TIER_PRICES[tier].yearly : TIER_PRICES[tier].monthly;
-  const dateText = new Date(nextBillingDate).toLocaleDateString('es-AR', {
+  const dateText = formatDisplayDate(new Date(nextBillingDate), {
     day: '2-digit',
     month: 'long',
     year: 'numeric',
@@ -842,7 +843,7 @@ function generatePaymentReminderText(
 ): string {
   const tierName = TIER_NAMES[tier];
   const price = billingCycle === 'YEARLY' ? TIER_PRICES[tier].yearly : TIER_PRICES[tier].monthly;
-  const dateText = new Date(nextBillingDate).toLocaleDateString('es-AR');
+  const dateText = formatDisplayDate(new Date(nextBillingDate));
 
   return `
 Recordatorio de pago
@@ -884,8 +885,8 @@ export async function sendTrialExpiringEmail(
     daysRemaining === 1
       ? '¡Último día!'
       : daysRemaining <= 3
-      ? '¡Solo quedan días!'
-      : 'Tu prueba termina pronto';
+        ? '¡Solo quedan días!'
+        : 'Tu prueba termina pronto';
 
   return provider.sendEmail({
     to: org.ownerEmail,

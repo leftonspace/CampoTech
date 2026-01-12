@@ -22,6 +22,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDisplayDate } from '@/lib/timezone';
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES
@@ -85,7 +86,7 @@ function BadgeCard({ badge, onObtain, onRenew }: BadgeCardProps) {
   const _isExpired = badge.isEarned && !badge.isValid;
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('es-AR', {
+    return formatDisplayDate(new Date(dateStr), {
       day: 'numeric',
       month: 'short',
       year: 'numeric',
@@ -99,8 +100,8 @@ function BadgeCard({ badge, onObtain, onRenew }: BadgeCardProps) {
         badge.isEarned && badge.isValid
           ? 'border-success-200 bg-success-50/50'
           : badge.isEarned && !badge.isValid
-          ? 'border-danger-200 bg-danger-50/50'
-          : 'border-gray-200 bg-white hover:border-primary-200 hover:shadow-sm'
+            ? 'border-danger-200 bg-danger-50/50'
+            : 'border-gray-200 bg-white hover:border-primary-200 hover:shadow-sm'
       )}
     >
       {/* Status indicator */}
@@ -119,8 +120,8 @@ function BadgeCard({ badge, onObtain, onRenew }: BadgeCardProps) {
           badge.isEarned && badge.isValid
             ? 'bg-success-100 text-success-600'
             : badge.isEarned && !badge.isValid
-            ? 'bg-danger-100 text-danger-600'
-            : 'bg-gray-100 text-gray-400'
+              ? 'bg-danger-100 text-danger-600'
+              : 'bg-gray-100 text-gray-400'
         )}
       >
         <Icon className="h-6 w-6" />
@@ -133,8 +134,8 @@ function BadgeCard({ badge, onObtain, onRenew }: BadgeCardProps) {
           badge.isEarned && badge.isValid
             ? 'text-success-900'
             : badge.isEarned && !badge.isValid
-            ? 'text-danger-900'
-            : 'text-gray-900'
+              ? 'text-danger-900'
+              : 'text-gray-900'
         )}
       >
         {badge.name}

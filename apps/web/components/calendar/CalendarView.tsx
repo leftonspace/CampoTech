@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { RefreshCw, Clock, User, Star, Repeat, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatDateBuenosAires, getBuenosAiresNow } from '@/lib/timezone';
+import { formatDateBuenosAires, formatDisplayDate, getBuenosAiresNow } from '@/lib/timezone';
 
 // Use the shared timezone utilities
 const formatLocalDate = formatDateBuenosAires;
@@ -308,7 +308,7 @@ function MonthView({
         <div className="w-80 border-l border-gray-100 bg-white overflow-y-auto">
           <div className="p-4 border-b border-gray-100">
             <h3 className="text-lg font-semibold text-gray-900">
-              {selectedDate.toLocaleDateString('es-AR', {
+              {formatDisplayDate(selectedDate, {
                 weekday: 'long',
                 day: 'numeric',
                 month: 'long',
@@ -503,7 +503,7 @@ function WeekView({
               className={cn('px-2 py-2 text-center', isToday && 'bg-teal-50')}
             >
               <div className="text-xs text-gray-500">
-                {day.toLocaleDateString('es-AR', { weekday: 'short' })}
+                {formatDisplayDate(day, { weekday: 'short' })}
               </div>
               <div
                 className={cn(

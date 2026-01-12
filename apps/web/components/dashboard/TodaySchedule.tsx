@@ -9,6 +9,7 @@ import {
   CheckCircle,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
+import { formatDateBuenosAires, getBuenosAiresNow, formatDisplayTime } from '@/lib/timezone';
 
 interface TechnicianSchedule {
   id: string;
@@ -28,8 +29,8 @@ interface TechnicianSchedule {
 }
 
 async function fetchTodaySchedule(): Promise<{ success: boolean; data: TechnicianSchedule[] }> {
-  // Get technicians with their jobs for today
-  const today = new Date().toISOString().split('T')[0];
+  // Get technicians with their jobs for today (in Argentina timezone)
+  const today = formatDateBuenosAires(getBuenosAiresNow());
   const res = await fetch(`/api/jobs/calendar?start=${today}&end=${today}`);
   if (!res.ok) throw new Error('Error cargando agenda');
 
@@ -200,10 +201,7 @@ export function TodaySchedule() {
                   </span>
                   {job.scheduledTimeSlot?.start && (
                     <span className="ml-auto shrink-0 text-xs text-gray-400">
-                      {new Date(job.scheduledTimeSlot.start).toLocaleTimeString('es-AR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {formatDisplayTime(new Date(job.scheduledTimeSlot.start))}
                     </span>
                   )}
                 </Link>

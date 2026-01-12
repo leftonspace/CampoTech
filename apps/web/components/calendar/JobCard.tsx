@@ -19,6 +19,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
+import { formatDisplayDate, formatDisplayTime } from '@/lib/timezone';
 import { CalendarEvent, ConfigSummary } from './CalendarView';
 
 interface JobCardProps {
@@ -123,11 +124,11 @@ export function JobCard({ event, onClose }: JobCardProps) {
   // Format date range for selected config
   let displayDateRange = '';
   if (!isViewingOriginalConfig && selectedConfig) {
-    const firstDate = new Date(selectedConfig.firstDate).toLocaleDateString('es-AR', {
+    const firstDate = formatDisplayDate(new Date(selectedConfig.firstDate), {
       day: 'numeric',
       month: 'short',
     });
-    const lastDate = new Date(selectedConfig.lastDate).toLocaleDateString('es-AR', {
+    const lastDate = formatDisplayDate(new Date(selectedConfig.lastDate), {
       day: 'numeric',
       month: 'short',
     });
@@ -135,15 +136,9 @@ export function JobCard({ event, onClose }: JobCardProps) {
   }
 
   const status = statusLabels[job.status] || statusLabels.PENDING;
-  const startTime = new Date(event.start).toLocaleTimeString('es-AR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  const endTime = new Date(event.end).toLocaleTimeString('es-AR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-  const date = new Date(event.start).toLocaleDateString('es-AR', {
+  const startTime = formatDisplayTime(new Date(event.start));
+  const endTime = formatDisplayTime(new Date(event.end));
+  const date = formatDisplayDate(new Date(event.start), {
     weekday: 'long',
     day: 'numeric',
     month: 'long',

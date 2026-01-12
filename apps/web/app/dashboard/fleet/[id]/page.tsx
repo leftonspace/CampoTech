@@ -21,7 +21,7 @@ import {
   Package,
   Briefcase, // Phase 4.1: Job History
 } from 'lucide-react';
-import { getInitials } from '@/lib/utils';
+import { getInitials, formatPhone } from '@/lib/utils';
 
 interface VehicleDocument {
   id: string;
@@ -812,7 +812,7 @@ export default function VehicleDetailPage() {
                             </span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-500">{assignment.user.phone}</p>
+                        <p className="text-sm text-gray-500">{formatPhone(assignment.user.phone)}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">

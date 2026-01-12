@@ -16,6 +16,7 @@
  */
 
 import { getOrCreateEmailProvider, EmailResult } from '@/lib/email';
+import { formatDisplayDate } from '@/lib/timezone';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -256,15 +257,15 @@ function generateDocumentExpiringHTML(
   const urgencyMessage = daysRemaining <= 1
     ? '¡Actualiza tu documento hoy para evitar bloqueos!'
     : daysRemaining <= 7
-    ? 'Actualiza tu documento pronto para evitar interrupciones.'
-    : 'Te recomendamos renovarlo con anticipación.';
+      ? 'Actualiza tu documento pronto para evitar interrupciones.'
+      : 'Te recomendamos renovarlo con anticipación.';
 
   const expirationDate = document.expiresAt
-    ? new Date(document.expiresAt).toLocaleDateString('es-AR', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-      })
+    ? formatDisplayDate(new Date(document.expiresAt), {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    })
     : 'pronto';
 
   return emailWrapper(`
@@ -315,7 +316,7 @@ function generateDocumentExpiringText(
 ): string {
   const dayText = daysRemaining === 1 ? 'día' : 'días';
   const expirationDate = document.expiresAt
-    ? new Date(document.expiresAt).toLocaleDateString('es-AR')
+    ? formatDisplayDate(new Date(document.expiresAt))
     : 'pronto';
 
   return `
@@ -351,11 +352,11 @@ function generateDocumentExpiredHTML(
   document: DocumentEmailData
 ): string {
   const expiredDate = document.expiresAt
-    ? new Date(document.expiresAt).toLocaleDateString('es-AR', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-      })
+    ? formatDisplayDate(new Date(document.expiresAt), {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    })
     : 'recientemente';
 
   return emailWrapper(`
@@ -406,7 +407,7 @@ function generateDocumentExpiredText(
   document: DocumentEmailData
 ): string {
   const expiredDate = document.expiresAt
-    ? new Date(document.expiresAt).toLocaleDateString('es-AR')
+    ? formatDisplayDate(new Date(document.expiresAt))
     : 'recientemente';
 
   return `
@@ -444,11 +445,11 @@ function generateDocumentApprovedHTML(
   badgeEarned?: BadgeEarned
 ): string {
   const expirationInfo = document.expiresAt
-    ? `Este documento vence el ${new Date(document.expiresAt).toLocaleDateString('es-AR', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-      })}. Te avisaremos antes de su vencimiento.`
+    ? `Este documento vence el ${formatDisplayDate(new Date(document.expiresAt), {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    })}. Te avisaremos antes de su vencimiento.`
     : '';
 
   const badgeSection = badgeEarned ? `
@@ -943,9 +944,9 @@ function generateEmployeeReminderHTML(
   const pendingCount = pendingItems.length;
   const itemsHtml = pendingItems.map(item => {
     const statusClass = item.status === 'expired' ? 'status-expired' :
-                        item.status === 'expiring' ? 'status-expiring' : 'status-pending';
+      item.status === 'expiring' ? 'status-expiring' : 'status-pending';
     const statusText = item.status === 'expired' ? 'Vencido' :
-                       item.status === 'expiring' ? `Vence en ${item.daysUntilExpiry} días` : 'Pendiente';
+      item.status === 'expiring' ? `Vence en ${item.daysUntilExpiry} días` : 'Pendiente';
     return `
       <div class="checklist-item">
         <strong>${item.name}</strong>
@@ -992,7 +993,7 @@ function generateEmployeeReminderText(
 ): string {
   const itemsList = pendingItems.map(item => {
     const statusText = item.status === 'expired' ? '[VENCIDO]' :
-                       item.status === 'expiring' ? `[Vence en ${item.daysUntilExpiry} días]` : '[Pendiente]';
+      item.status === 'expiring' ? `[Vence en ${item.daysUntilExpiry} días]` : '[Pendiente]';
     return `- ${item.name} ${statusText}`;
   }).join('\n');
 
@@ -1032,11 +1033,11 @@ function generateEmployeeExpiringToOwnerHTML(
   const dayText = daysRemaining === 1 ? 'día' : 'días';
 
   const expirationDate = document.expiresAt
-    ? new Date(document.expiresAt).toLocaleDateString('es-AR', {
-        day: '2-digit',
-        month: 'long',
-        year: 'numeric',
-      })
+    ? formatDisplayDate(new Date(document.expiresAt), {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+    })
     : 'pronto';
 
   return emailWrapper(`
@@ -1070,8 +1071,8 @@ function generateEmployeeExpiringToOwnerHTML(
 
       <p>
         ${daysRemaining <= 7
-          ? '⚠️ El empleado no podrá ser asignado a trabajos una vez que el documento expire.'
-          : 'Te recomendamos contactar al empleado para que actualice su documentación.'}
+      ? '⚠️ El empleado no podrá ser asignado a trabajos una vez que el documento expire.'
+      : 'Te recomendamos contactar al empleado para que actualice su documentación.'}
       </p>
 
       <p style="text-align: center;">
@@ -1096,7 +1097,7 @@ function generateEmployeeExpiringToOwnerText(
 ): string {
   const dayText = daysRemaining === 1 ? 'día' : 'días';
   const expirationDate = document.expiresAt
-    ? new Date(document.expiresAt).toLocaleDateString('es-AR')
+    ? formatDisplayDate(new Date(document.expiresAt))
     : 'pronto';
 
   return `
@@ -1113,8 +1114,8 @@ DETALLES:
 - Tiempo restante: ${daysRemaining} ${dayText}
 
 ${daysRemaining <= 7
-  ? '⚠️ El empleado no podrá ser asignado a trabajos una vez que el documento expire.'
-  : 'Te recomendamos contactar al empleado para que actualice su documentación.'}
+      ? '⚠️ El empleado no podrá ser asignado a trabajos una vez que el documento expire.'
+      : 'Te recomendamos contactar al empleado para que actualice su documentación.'}
 
 Ver empleados: ${VERIFICATION_URL}/empleados
 
@@ -1258,8 +1259,8 @@ export async function sendDocumentExpiringEmail(
     daysRemaining === 1
       ? '¡URGENTE! Tu documento vence mañana'
       : daysRemaining <= 7
-      ? `⚠️ Tu documento vence en ${daysRemaining} días`
-      : `📄 Recordatorio: documento vence en ${daysRemaining} días`;
+        ? `⚠️ Tu documento vence en ${daysRemaining} días`
+        : `📄 Recordatorio: documento vence en ${daysRemaining} días`;
 
   return provider.sendEmail({
     to: user.userEmail,

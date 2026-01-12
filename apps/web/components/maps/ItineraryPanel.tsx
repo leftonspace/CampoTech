@@ -18,6 +18,7 @@ import {
   Navigation,
   RefreshCw,
 } from 'lucide-react';
+import { getBuenosAiresNow, formatDateBuenosAires, formatDisplayDate, formatDisplayTime } from '@/lib/timezone';
 
 interface ItineraryJob {
   id: string;
@@ -103,10 +104,7 @@ async function fetchItinerary(
 function formatTime(dateStr: string | null): string {
   if (!dateStr) return '--:--';
   const date = new Date(dateStr);
-  return date.toLocaleTimeString('es-AR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return formatDisplayTime(date);
 }
 
 function formatDuration(minutes: number | null): string {
@@ -186,8 +184,7 @@ export function ItineraryPanel({
   onNavigate,
 }: ItineraryPanelProps) {
   const [selectedDate, setSelectedDate] = useState(() => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
+    return formatDateBuenosAires(getBuenosAiresNow());
   });
 
   const { data, isLoading, error, refetch } = useQuery({
@@ -198,10 +195,10 @@ export function ItineraryPanel({
   const changeDate = (days: number) => {
     const date = new Date(selectedDate);
     date.setDate(date.getDate() + days);
-    setSelectedDate(date.toISOString().split('T')[0]);
+    setSelectedDate(formatDateBuenosAires(date));
   };
 
-  const isToday = selectedDate === new Date().toISOString().split('T')[0];
+  const isToday = selectedDate === formatDateBuenosAires(getBuenosAiresNow());
 
   return (
     <div className="bg-white h-full flex flex-col shadow-lg">
@@ -234,7 +231,7 @@ export function ItineraryPanel({
         </button>
         <div className="text-center">
           <p className="text-sm font-medium text-gray-900">
-            {new Date(selectedDate).toLocaleDateString('es-AR', {
+            {formatDisplayDate(new Date(selectedDate), {
               weekday: 'long',
               day: 'numeric',
               month: 'long',
@@ -300,9 +297,8 @@ export function ItineraryPanel({
                   {/* Job Card */}
                   <button
                     onClick={() => onJobClick?.(job)}
-                    className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors ${
-                      isActive ? 'bg-orange-50' : ''
-                    }`}
+                    className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors ${isActive ? 'bg-orange-50' : ''
+                      }`}
                   >
                     <div className="flex gap-3">
                       {/* Status Icon */}

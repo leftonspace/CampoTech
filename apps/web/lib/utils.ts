@@ -106,16 +106,174 @@ export function formatCUIT(cuit: string): string {
 }
 
 /**
- * Format phone number
+ * Format phone number for display with proper international formatting
+ * Handles multiple country codes:
+ * - +1 (US/Canada): +1 (XXX) XXX-XXXX
+ * - +54 (Argentina): +54 9 XX XXXX-XXXX (mobile) or +54 XX XXXX-XXXX (landline)
+ * - +55 (Brazil): +55 XX XXXXX-XXXX
+ * - +52 (Mexico): +52 XX XXXX-XXXX
+ * - +56 (Chile): +56 X XXXX-XXXX
+ * - +57 (Colombia): +57 XXX XXX-XXXX
+ * - +598 (Uruguay): +598 X XXX-XXXX
+ * - Other international: +XX XXXX XXXX
  */
 export function formatPhone(phone: string): string {
+  if (!phone) return '';
+
   const clean = phone.replace(/\D/g, '');
+
+  // Empty or too short
+  if (clean.length < 7) return phone;
+
+  // +1 (US/Canada) - NANP format: +1 (XXX) XXX-XXXX
+  if (clean.startsWith('1') && clean.length === 11) {
+    const areaCode = clean.slice(1, 4);
+    const exchange = clean.slice(4, 7);
+    const subscriber = clean.slice(7);
+    return `+1 (${areaCode}) ${exchange}-${subscriber}`;
+  }
+
+  // Argentine mobile: +54 9 XX XXXX-XXXX (13 digits with 549)
+  if (clean.startsWith('549') && clean.length === 13) {
+    const areaCode = clean.slice(3, 5);
+    const firstPart = clean.slice(5, 9);
+    const secondPart = clean.slice(9);
+    return `+54 9 ${areaCode} ${firstPart}-${secondPart}`;
+  }
+
+  // Argentine landline/fixed: +54 XX XXXX-XXXX (12 digits with 54)
+  if (clean.startsWith('54') && !clean.startsWith('549') && clean.length === 12) {
+    const areaCode = clean.slice(2, 4);
+    const firstPart = clean.slice(4, 8);
+    const secondPart = clean.slice(8);
+    return `+54 ${areaCode} ${firstPart}-${secondPart}`;
+  }
+
+  // Brazil: +55 XX XXXXX-XXXX (13 digits) or +55 XX XXXX-XXXX (12 digits)
+  if (clean.startsWith('55') && (clean.length === 12 || clean.length === 13)) {
+    const areaCode = clean.slice(2, 4);
+    if (clean.length === 13) {
+      const firstPart = clean.slice(4, 9);
+      const secondPart = clean.slice(9);
+      return `+55 ${areaCode} ${firstPart}-${secondPart}`;
+    } else {
+      const firstPart = clean.slice(4, 8);
+      const secondPart = clean.slice(8);
+      return `+55 ${areaCode} ${firstPart}-${secondPart}`;
+    }
+  }
+
+  // Mexico: +52 XX XXXX-XXXX (12 digits)
+  if (clean.startsWith('52') && clean.length === 12) {
+    const areaCode = clean.slice(2, 4);
+    const firstPart = clean.slice(4, 8);
+    const secondPart = clean.slice(8);
+    return `+52 ${areaCode} ${firstPart}-${secondPart}`;
+  }
+
+  // Chile: +56 X XXXX-XXXX (11 digits)
+  if (clean.startsWith('56') && clean.length === 11) {
+    const prefix = clean.slice(2, 3);
+    const firstPart = clean.slice(3, 7);
+    const secondPart = clean.slice(7);
+    return `+56 ${prefix} ${firstPart}-${secondPart}`;
+  }
+
+  // Colombia: +57 XXX XXX-XXXX (12 digits)
+  if (clean.startsWith('57') && clean.length === 12) {
+    const areaCode = clean.slice(2, 5);
+    const firstPart = clean.slice(5, 8);
+    const secondPart = clean.slice(8);
+    return `+57 ${areaCode} ${firstPart}-${secondPart}`;
+  }
+
+  // Uruguay: +598 X XXX-XXXX (11 digits)
+  if (clean.startsWith('598') && clean.length === 11) {
+    const prefix = clean.slice(3, 4);
+    const firstPart = clean.slice(4, 7);
+    const secondPart = clean.slice(7);
+    return `+598 ${prefix} ${firstPart}-${secondPart}`;
+  }
+
+  // Paraguay: +595 XX XXX-XXXX (12 digits)
+  if (clean.startsWith('595') && clean.length === 12) {
+    const areaCode = clean.slice(3, 5);
+    const firstPart = clean.slice(5, 8);
+    const secondPart = clean.slice(8);
+    return `+595 ${areaCode} ${firstPart}-${secondPart}`;
+  }
+
+  // Peru: +51 XXX XXX-XXX (11 digits)
+  if (clean.startsWith('51') && clean.length === 11) {
+    const areaCode = clean.slice(2, 5);
+    const firstPart = clean.slice(5, 8);
+    const secondPart = clean.slice(8);
+    return `+51 ${areaCode} ${firstPart}-${secondPart}`;
+  }
+
+  // Bolivia: +591 X XXX-XXXX (11 digits)
+  if (clean.startsWith('591') && clean.length === 11) {
+    const prefix = clean.slice(3, 4);
+    const firstPart = clean.slice(4, 7);
+    const secondPart = clean.slice(7);
+    return `+591 ${prefix} ${firstPart}-${secondPart}`;
+  }
+
+  // Ecuador: +593 X XXX-XXXX (12 digits)
+  if (clean.startsWith('593') && clean.length === 12) {
+    const prefix = clean.slice(3, 4);
+    const firstPart = clean.slice(4, 8);
+    const secondPart = clean.slice(8);
+    return `+593 ${prefix} ${firstPart}-${secondPart}`;
+  }
+
+  // Venezuela: +58 XXX XXX-XXXX (12 digits)
+  if (clean.startsWith('58') && clean.length === 12) {
+    const areaCode = clean.slice(2, 5);
+    const firstPart = clean.slice(5, 8);
+    const secondPart = clean.slice(8);
+    return `+58 ${areaCode} ${firstPart}-${secondPart}`;
+  }
+
+  // Panama: +507 XXXX-XXXX (11 digits)
+  if (clean.startsWith('507') && clean.length === 11) {
+    const firstPart = clean.slice(3, 7);
+    const secondPart = clean.slice(7);
+    return `+507 ${firstPart}-${secondPart}`;
+  }
+
+  // 10-digit local number (assume Argentina without country code)
   if (clean.length === 10) {
     return `${clean.slice(0, 2)} ${clean.slice(2, 6)}-${clean.slice(6)}`;
   }
-  if (clean.length === 11) {
+
+  // 11-digit local number (assume Argentina mobile without country code)
+  if (clean.length === 11 && !clean.startsWith('1')) {
     return `${clean.slice(0, 3)} ${clean.slice(3, 7)}-${clean.slice(7)}`;
   }
+
+  // Generic international format for numbers > 10 digits
+  if (clean.length > 10) {
+    // Find country code (1-3 digits) and format the rest
+    const countryCodeLength = clean.startsWith('1') ? 1 :
+      clean.length <= 12 ? 2 : 3;
+    const countryCode = clean.slice(0, countryCodeLength);
+    const remaining = clean.slice(countryCodeLength);
+
+    // Format remaining as XXX XXXX-XXXX or similar
+    if (remaining.length >= 10) {
+      const areaCode = remaining.slice(0, 3);
+      const firstPart = remaining.slice(3, 7);
+      const secondPart = remaining.slice(7);
+      return `+${countryCode} ${areaCode} ${firstPart}-${secondPart}`;
+    } else if (remaining.length >= 7) {
+      const firstPart = remaining.slice(0, remaining.length - 4);
+      const secondPart = remaining.slice(-4);
+      return `+${countryCode} ${firstPart}-${secondPart}`;
+    }
+  }
+
+  // Return original if no pattern matches
   return phone;
 }
 

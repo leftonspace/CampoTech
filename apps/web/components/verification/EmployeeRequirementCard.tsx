@@ -33,6 +33,7 @@ import {
   Camera,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDisplayDate } from '@/lib/timezone';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -156,7 +157,7 @@ function ExpiryInfo({
 }) {
   if (!expiresAt) return null;
 
-  const date = new Date(expiresAt).toLocaleDateString('es-AR', {
+  const date = formatDisplayDate(new Date(expiresAt), {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -220,8 +221,8 @@ export function EmployeeRequirementCard({
         needsAttention
           ? 'border-amber-200 shadow-sm shadow-amber-100'
           : requirement.status === 'approved' && !requirement.isExpiringSoon
-          ? 'border-success-200'
-          : 'border-gray-200',
+            ? 'border-success-200'
+            : 'border-gray-200',
         className
       )}
     >
@@ -234,10 +235,10 @@ export function EmployeeRequirementCard({
             requirement.status === 'approved' && !requirement.isExpiringSoon
               ? 'bg-success-100'
               : requirement.status === 'rejected' || requirement.status === 'expired'
-              ? 'bg-danger-100'
-              : requirement.status === 'in_review' || requirement.status === 'pending'
-              ? 'bg-blue-100'
-              : 'bg-gray-100'
+                ? 'bg-danger-100'
+                : requirement.status === 'in_review' || requirement.status === 'pending'
+                  ? 'bg-blue-100'
+                  : 'bg-gray-100'
           )}
         >
           <RequirementIcon
@@ -246,10 +247,10 @@ export function EmployeeRequirementCard({
               requirement.status === 'approved' && !requirement.isExpiringSoon
                 ? 'text-success-600'
                 : requirement.status === 'rejected' || requirement.status === 'expired'
-                ? 'text-danger-600'
-                : requirement.status === 'in_review' || requirement.status === 'pending'
-                ? 'text-blue-600'
-                : 'text-gray-400'
+                  ? 'text-danger-600'
+                  : requirement.status === 'in_review' || requirement.status === 'pending'
+                    ? 'text-blue-600'
+                    : 'text-gray-400'
             )}
           />
         </div>
@@ -323,8 +324,8 @@ export function EmployeeRequirementCard({
                 requirement.status === 'rejected' || requirement.status === 'expired'
                   ? 'bg-danger-50 text-danger-700 hover:bg-danger-100'
                   : requirement.isExpiringSoon
-                  ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               )}
             >
               <RefreshCw className="h-4 w-4" />

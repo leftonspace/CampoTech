@@ -20,6 +20,7 @@ import {
   CalendarPlus,
   UserCheck
 } from 'lucide-react';
+import { formatDisplayTime, formatDisplayDate } from '@/lib/timezone';
 
 export interface Message {
   id: string;
@@ -77,10 +78,7 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
   const isHuman = message.senderType === 'human';
 
   const formatTime = (timestamp: string) => {
-    return new Date(timestamp).toLocaleTimeString('es-AR', {
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatDisplayTime(new Date(timestamp));
   };
 
   const renderMediaContent = () => {
@@ -409,7 +407,7 @@ function AIActionMessage({ message, formatTime }: AIActionMessageProps) {
   if (metadata?.jobNumber) details.push(`Turno: ${metadata.jobNumber}`);
   if (metadata?.technicianName) details.push(`Técnico: ${metadata.technicianName}`);
   if (metadata?.scheduledDate) {
-    const dateStr = new Date(metadata.scheduledDate).toLocaleDateString('es-AR', {
+    const dateStr = formatDisplayDate(new Date(metadata.scheduledDate), {
       weekday: 'short',
       day: 'numeric',
       month: 'short'

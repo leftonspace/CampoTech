@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { CalendarView, CalendarEvent } from '@/components/calendar/CalendarView';
 import { JobCard } from '@/components/calendar/JobCard';
-import { getBuenosAiresNow } from '@/lib/timezone';
+import { getBuenosAiresNow, formatDisplayDate } from '@/lib/timezone';
 
 interface Technician {
   id: string;
@@ -171,7 +171,7 @@ export default function CalendarPage() {
             <ChevronRight className="h-5 w-5" />
           </button>
           <h2 className="ml-2 text-lg font-semibold text-gray-900">
-            {currentDate.toLocaleDateString('es-AR', {
+            {formatDisplayDate(currentDate, {
               month: 'long',
               year: 'numeric',
               ...(view === 'day' ? { weekday: 'long', day: 'numeric' } : {}),
@@ -186,11 +186,10 @@ export default function CalendarPage() {
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                  view === v
+                className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${view === v
                     ? 'bg-white text-gray-900 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
-                }`}
+                  }`}
               >
                 {v === 'day' ? 'Día' : v === 'week' ? 'Semana' : 'Mes'}
               </button>
@@ -224,11 +223,10 @@ export default function CalendarPage() {
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setSelectedTechnicianId(undefined)}
-              className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-                !selectedTechnicianId
+              className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${!selectedTechnicianId
                   ? 'bg-primary-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+                }`}
             >
               Todos
             </button>
@@ -236,11 +234,10 @@ export default function CalendarPage() {
               <button
                 key={tech.id}
                 onClick={() => setSelectedTechnicianId(tech.id)}
-                className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${
-                  selectedTechnicianId === tech.id
+                className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${selectedTechnicianId === tech.id
                     ? 'bg-primary-600 text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+                  }`}
               >
                 {tech.name}
               </button>

@@ -46,6 +46,7 @@ interface CalendarDayModalProps {
   canEdit: boolean;
   onClose: () => void;
   onUpdate: () => void;
+  preSelectedEmployee?: string; // Pre-fill employee when clicking from calendar row
 }
 
 // Exception reasons
@@ -99,10 +100,12 @@ export default function CalendarDayModal({
   canEdit,
   onClose,
   onUpdate,
+  preSelectedEmployee,
 }: CalendarDayModalProps) {
   const queryClient = useQueryClient();
-  const [showAddException, setShowAddException] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState('');
+  // Auto-open exception form if preSelectedEmployee is provided
+  const [showAddException, setShowAddException] = useState(!!preSelectedEmployee);
+  const [selectedEmployee, setSelectedEmployee] = useState(preSelectedEmployee || '');
   const [exceptionReason, setExceptionReason] = useState('Vacaciones');
   const [exceptionIsAvailable, setExceptionIsAvailable] = useState(false);
   const [exceptionStartTime, setExceptionStartTime] = useState('09:00');

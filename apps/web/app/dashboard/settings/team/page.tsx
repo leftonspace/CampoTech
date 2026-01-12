@@ -6,6 +6,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
+import { formatPhone } from '@/lib/utils';
 import {
   ArrowLeft,
   Plus,
@@ -292,7 +293,7 @@ export default function TeamSettingsPage() {
                       </div>
                       <div>
                         <p className="font-medium text-gray-900">{user.name}</p>
-                        <p className="text-sm text-gray-500">{user.phone}</p>
+                        <p className="text-sm text-gray-500">{formatPhone(user.phone)}</p>
                         <p className="text-xs text-gray-400">
                           Agregado {new Date(user.createdAt).toLocaleDateString('es-AR')}
                         </p>
@@ -391,7 +392,7 @@ export default function TeamSettingsPage() {
                         </div>
                       </td>
                       <td className="whitespace-nowrap px-4 py-3">
-                        <p className="text-gray-900">{member.phone}</p>
+                        <p className="text-gray-900">{formatPhone(member.phone)}</p>
                         {member.email && (
                           <p className="text-sm text-gray-500">{member.email}</p>
                         )}

@@ -15,6 +15,7 @@ import {
   Users,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { getBuenosAiresNow, formatDateBuenosAires, formatDisplayDate } from '@/lib/timezone';
 import TeamCalendar from '@/components/schedule/TeamCalendar';
 
 type TabType = 'my-schedule' | 'team-calendar';
@@ -169,7 +170,7 @@ export default function SchedulePage() {
   const [exceptionIsAvailable, setExceptionIsAvailable] = useState(false);
   const [exceptionStartTime, setExceptionStartTime] = useState('09:00');
   const [exceptionEndTime, setExceptionEndTime] = useState('18:00');
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentMonth, setCurrentMonth] = useState(getBuenosAiresNow());
 
   // Determine which user's schedule to show
   const targetUserId = selectedUserId || user?.id;
@@ -573,7 +574,7 @@ export default function SchedulePage() {
                   <ChevronLeft className="h-5 w-5" />
                 </button>
                 <span className="font-medium min-w-[140px] text-center">
-                  {currentMonth.toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })}
+                  {formatDisplayDate(currentMonth, { month: 'long', year: 'numeric' })}
                 </span>
                 <button
                   onClick={() => setCurrentMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1))}
@@ -600,15 +601,15 @@ export default function SchedulePage() {
                   }
 
                   const exception = getExceptionForDate(date);
-                  const isToday = date.toDateString() === new Date().toDateString();
-                  const isPast = date < new Date(new Date().setHours(0, 0, 0, 0));
+                  const isToday = formatDateBuenosAires(date) === formatDateBuenosAires(getBuenosAiresNow());
+                  const isPast = formatDateBuenosAires(date) < formatDateBuenosAires(getBuenosAiresNow());
 
                   return (
                     <button
                       key={i}
                       onClick={() => {
                         if (!isPast && canEdit) {
-                          setExceptionDate(date.toISOString().split('T')[0]);
+                          setExceptionDate(formatDateBuenosAires(date));
                           setShowExceptionModal(true);
                         }
                       }}
@@ -655,7 +656,7 @@ export default function SchedulePage() {
                         />
                         <div>
                           <p className="font-medium text-gray-900">
-                            {new Date(exception.date).toLocaleDateString('es-AR', {
+                            {formatDisplayDate(new Date(exception.date), {
                               weekday: 'long',
                               day: 'numeric',
                               month: 'long',
@@ -705,7 +706,7 @@ export default function SchedulePage() {
                     type="date"
                     value={exceptionDate}
                     onChange={(e) => setExceptionDate(e.target.value)}
-                    min={new Date().toISOString().split('T')[0]}
+                    min={formatDateBuenosAires(getBuenosAiresNow())}
                     className="input w-full"
                   />
                 </div>

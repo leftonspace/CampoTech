@@ -16,6 +16,7 @@ import {
   Calendar,
   RefreshCw,
 } from 'lucide-react';
+import { getBuenosAiresNow, formatDateBuenosAires, formatDisplayDate } from '@/lib/timezone';
 
 interface ItineraryJob {
   id: string;
@@ -124,9 +125,9 @@ async function fetchItinerary(technicianId: string, date: string): Promise<Itine
 }
 
 export function ItineraryTimeline({ technicianId, initialDate }: ItineraryTimelineProps) {
-  const [date, setDate] = useState(initialDate || new Date());
+  const [date, setDate] = useState(initialDate || getBuenosAiresNow());
 
-  const dateStr = date.toISOString().split('T')[0];
+  const dateStr = formatDateBuenosAires(date);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['itinerary', technicianId, dateStr],
@@ -147,13 +148,13 @@ export function ItineraryTimeline({ technicianId, initialDate }: ItineraryTimeli
   };
 
   const handleToday = () => {
-    setDate(new Date());
+    setDate(getBuenosAiresNow());
   };
 
   const itinerary = data?.data?.itinerary || [];
   const stats = data?.data?.stats;
 
-  const isToday = dateStr === new Date().toISOString().split('T')[0];
+  const isToday = dateStr === formatDateBuenosAires(getBuenosAiresNow());
 
   return (
     <div className="flex flex-col h-full">
@@ -176,7 +177,7 @@ export function ItineraryTimeline({ technicianId, initialDate }: ItineraryTimeli
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-gray-400" />
           <span className="font-medium text-gray-900">
-            {date.toLocaleDateString('es-AR', {
+            {formatDisplayDate(date, {
               weekday: 'short',
               day: 'numeric',
               month: 'short',

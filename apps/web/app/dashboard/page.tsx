@@ -7,6 +7,7 @@ import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import { formatCurrency, JOB_STATUS_LABELS } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { getDatePartsBuenosAires } from '@/lib/timezone';
 import {
   Briefcase,
   FileText,
@@ -73,7 +74,7 @@ interface Job {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function getGreeting(): string {
-  const hour = new Date().getHours();
+  const { hour } = getDatePartsBuenosAires(new Date());
   if (hour < 12) return 'Buenos días';
   if (hour < 18) return 'Buenas tardes';
   return 'Buenas noches';

@@ -15,6 +15,7 @@
 
 import OpenAI from 'openai';
 import { prisma } from '@/lib/prisma';
+import { formatDisplayDate } from '@/lib/timezone';
 import {
   getSchedulingIntelligenceService,
   SchedulingIntelligenceResult,
@@ -240,7 +241,7 @@ INFORMACIÓN DEL CLIENTE:
 - Nombre: ${context.customer.name}
 - Teléfono: ${context.customer.phone}
 ${context.customer.previousJobs ? `- Trabajos anteriores: ${context.customer.previousJobs}` : ''}
-${context.customer.lastServiceDate ? `- Último servicio: ${context.customer.lastServiceDate.toLocaleDateString('es-AR')}` : ''}`
+${context.customer.lastServiceDate ? `- Último servicio: ${formatDisplayDate(context.customer.lastServiceDate)}` : ''}`
     : '';
 
   const activeJobContext = context.activeJob
@@ -249,7 +250,7 @@ TRABAJO ACTIVO:
 - ID: ${context.activeJob.id}
 - Estado: ${context.activeJob.status}
 - Tipo: ${context.activeJob.serviceType}
-${context.activeJob.scheduledDate ? `- Fecha programada: ${context.activeJob.scheduledDate.toLocaleDateString('es-AR')}` : ''}`
+${context.activeJob.scheduledDate ? `- Fecha programada: ${formatDisplayDate(context.activeJob.scheduledDate)}` : ''}`
     : '';
 
   // Build scheduling intelligence context

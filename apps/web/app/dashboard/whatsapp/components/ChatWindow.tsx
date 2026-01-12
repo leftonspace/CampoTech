@@ -16,6 +16,7 @@ import {
   Settings,
   Power,
 } from 'lucide-react';
+import { formatDisplayTime } from '@/lib/timezone';
 import MessageBubble, { Message } from './MessageBubble';
 import MessageInput from './MessageInput';
 import type { Conversation } from './ConversationList';
@@ -87,7 +88,7 @@ export default function ChatWindow({
   const formatDisabledUntil = (dateStr: string | null) => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
-    return date.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    return formatDisplayTime(date);
   };
 
   if (!conversation) {

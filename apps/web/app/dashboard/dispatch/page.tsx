@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api-client';
 import { cn, JOB_STATUS_LABELS, JOB_STATUS_COLORS } from '@/lib/utils';
 import { ProtectedRoute } from '@/lib/auth-context';
+import { getBuenosAiresNow, formatDisplayDate, formatDateBuenosAires } from '@/lib/timezone';
 import {
   ArrowLeft,
   Calendar,
@@ -37,11 +38,11 @@ export default function DispatchPage() {
 
 function DispatchContent() {
   const queryClient = useQueryClient();
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState(getBuenosAiresNow());
   const [draggingJob, setDraggingJob] = useState<Job | null>(null);
   const [dragOverTechnician, setDragOverTechnician] = useState<string | null>(null);
 
-  const dateStr = selectedDate.toISOString().split('T')[0];
+  const dateStr = formatDateBuenosAires(selectedDate);
 
   const { data: jobsData, isLoading: jobsLoading, refetch: refetchJobs } = useQuery({
     queryKey: ['dispatch-jobs', dateStr],
@@ -110,7 +111,7 @@ function DispatchContent() {
   };
 
   const goToToday = () => {
-    setSelectedDate(new Date());
+    setSelectedDate(getBuenosAiresNow());
   };
 
   // Drag and drop handlers
@@ -435,19 +436,16 @@ function JobCard({
 // ═══════════════════════════════════════════════════════════════════════════════
 
 function formatFullDate(date: Date): string {
-  return new Intl.DateTimeFormat('es-AR', {
+  return formatDisplayDate(date, {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric',
-  }).format(date);
+  });
 }
 
 function isToday(date: Date): boolean {
-  const today = new Date();
-  return (
-    date.getFullYear() === today.getFullYear() &&
-    date.getMonth() === today.getMonth() &&
-    date.getDate() === today.getDate()
-  );
+  const todayStr = formatDateBuenosAires(getBuenosAiresNow());
+  const dateStr = formatDateBuenosAires(date);
+  return dateStr === todayStr;
 }

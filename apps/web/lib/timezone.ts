@@ -1,8 +1,8 @@
 /**
  * Timezone utilities for CampoTech
  *
- * All dates/times in the application should be displayed in Buenos Aires timezone
- * regardless of the user's local timezone (note: this is not the case we need a solution)
+ * All dates/times in the application are displayed in Buenos Aires timezone
+ * regardless of the user's local timezone.
  */
 
 // Buenos Aires timezone (Argentina Standard Time, UTC-3)
@@ -20,6 +20,13 @@ export function getBuenosAiresNow(): Date {
 }
 
 /**
+ * Get today's date as YYYY-MM-DD string in Buenos Aires timezone
+ */
+export function getTodayStringBuenosAires(): string {
+  return formatDateBuenosAires(new Date());
+}
+
+/**
  * Format a date as YYYY-MM-DD in Buenos Aires timezone
  */
 export function formatDateBuenosAires(date: Date): string {
@@ -30,6 +37,24 @@ export function formatDateBuenosAires(date: Date): string {
     day: '2-digit',
   });
   return formatter.format(date); // Returns YYYY-MM-DD format
+}
+
+/**
+ * Check if a date is today or in the future (Buenos Aires timezone)
+ */
+export function isDateTodayOrFutureBuenosAires(date: Date): boolean {
+  const todayStr = getTodayStringBuenosAires();
+  const dateStr = formatDateBuenosAires(date);
+  return dateStr >= todayStr;
+}
+
+/**
+ * Check if a date is today in Buenos Aires timezone
+ */
+export function isDateTodayBuenosAires(date: Date): boolean {
+  const todayStr = getTodayStringBuenosAires();
+  const dateStr = formatDateBuenosAires(date);
+  return dateStr === todayStr;
 }
 
 /**
@@ -85,3 +110,4 @@ export function getDatePartsBuenosAires(date: Date): {
     minute: getPart('minute'),
   };
 }
+

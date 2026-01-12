@@ -27,6 +27,7 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDisplayDate } from '@/lib/timezone';
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES
@@ -266,7 +267,7 @@ function ExpiryDisplay({
     return <span className="text-gray-400">-</span>;
   }
 
-  const date = new Date(nextExpiry).toLocaleDateString('es-AR', {
+  const date = formatDisplayDate(new Date(nextExpiry), {
     day: 'numeric',
     month: 'short',
   });

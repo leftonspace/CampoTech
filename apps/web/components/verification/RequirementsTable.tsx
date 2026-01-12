@@ -24,6 +24,7 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatDisplayDate } from '@/lib/timezone';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -129,7 +130,7 @@ function ExpiryDisplay({ expiresAt, daysUntilExpiry, isExpiringSoon }: {
     return <span className="text-gray-400">-</span>;
   }
 
-  const date = new Date(expiresAt).toLocaleDateString('es-AR', {
+  const date = formatDisplayDate(new Date(expiresAt), {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
