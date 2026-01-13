@@ -346,6 +346,7 @@ function TrialStatusBanner({ daysRemaining, trialEndsAt, hasTrialExpired }: Tria
       day: 'numeric',
       month: 'long',
       year: 'numeric',
+      timeZone: 'America/Buenos_Aires',
     });
   };
 
@@ -420,6 +421,7 @@ function CurrentSubscription({ tier, billingPeriod, isTrialing }: CurrentSubscri
       day: 'numeric',
       month: 'long',
       year: 'numeric',
+      timeZone: 'America/Buenos_Aires',
     });
   };
 
@@ -582,7 +584,7 @@ function CancellationSection() {
             <div className="mt-3 flex items-center gap-4 text-xs text-amber-600">
               <span>Estado: {currentRequest.refundStatus === 'completed' ? 'Reembolso completado' : 'Procesando'}</span>
               {currentRequest.effectiveDate && (
-                <span>Efectiva: {new Date(currentRequest.effectiveDate).toLocaleDateString('es-AR')}</span>
+                <span>Efectiva: {new Date(currentRequest.effectiveDate).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}</span>
               )}
             </div>
             {currentRequest.status === 'pending' && (

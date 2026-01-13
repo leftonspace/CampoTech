@@ -1,6 +1,15 @@
 import { prisma } from '../lib/prisma';
 import { Prisma } from '@prisma/client';
 
+/**
+ * Parse a date string with optional time as Argentina timezone.
+ * Prevents timezone-related date shifts when storing user-selected dates.
+ */
+function parseDateTimeAsArgentina(dateStr: string, timeStr?: string | null): Date {
+    const time = timeStr || '12:00'; // Default to noon if no time provided
+    return new Date(`${dateStr}T${time}:00-03:00`);
+}
+
 export interface InvoiceFilter {
     status?: string;
     customerId?: string;
@@ -123,8 +132,8 @@ export class InvoiceService {
                 invoiceNumber,
                 type: mappedInvoiceType as any,
                 status: asDraft ? 'DRAFT' : 'PENDING',
-                issuedAt: issueDate ? new Date(issueDate) : new Date(),
-                dueDate: dueDate ? new Date(dueDate) : null,
+                issuedAt: issueDate ? parseDateTimeAsArgentina(issueDate) : new Date(),
+                dueDate: dueDate ? parseDateTimeAsArgentina(dueDate) : null,
                 jobId: jobId || null,
                 subtotal,
                 taxAmount: totalIva,
@@ -205,7 +214,7 @@ export class InvoiceService {
                     method: method.toUpperCase() as any,
                     status: 'COMPLETED',
                     reference,
-                    paidAt: date ? new Date(date) : new Date(),
+                    paidAt: date ? parseDateTimeAsArgentina(date) : new Date(),
                     // notes is not in Payment model, let's omit or use reference
                 },
             });

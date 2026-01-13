@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     X,
@@ -14,6 +15,8 @@ import {
     Calendar,
     GraduationCap,
     Pencil,
+    Plus,
+    AlertCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatDisplayDate } from '@/lib/timezone';
@@ -25,17 +28,22 @@ interface Employee {
     role: string;
 }
 
+interface ScheduleException {
+    id: string;
+    userId: string;
+    date: string;
+    isAvailable: boolean;
+    reason: string | null;
+    startTime: string | null;
+    endTime: string | null;
+}
+
 interface EmployeeDayModalProps {
     employee: Employee;
     date: Date;
-    currentStatus: string;
-    currentReason: string | null;
-    startTime: string | null;
-    endTime: string | null;
-    baseStartTime?: string | null; // Base schedule for comparison
+    exceptions: ScheduleException[];  // All exceptions for this day
+    baseStartTime?: string | null;    // Base work schedule
     baseEndTime?: string | null;
-    hasException: boolean;
-    exceptionId?: string;
     onClose: () => void;
     onUpdate: () => void;
 }
@@ -88,40 +96,6 @@ const EXCEPTION_TYPES = [
     },
 ];
 
-// Status config for display
-const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
-    available: {
-        label: 'Disponible',
-        color: 'text-green-700',
-        bgColor: 'bg-green-100',
-    },
-    special: {
-        label: 'Horario Modificado',
-        color: 'text-blue-700',
-        bgColor: 'bg-blue-100',
-    },
-    vacation: {
-        label: 'Vacaciones',
-        color: 'text-yellow-700',
-        bgColor: 'bg-yellow-100',
-    },
-    sick: {
-        label: 'Enfermedad',
-        color: 'text-orange-700',
-        bgColor: 'bg-orange-100',
-    },
-    study: {
-        label: 'Examen / Estudio',
-        color: 'text-purple-700',
-        bgColor: 'bg-purple-100',
-    },
-    dayoff: {
-        label: 'Franco / Ausente',
-        color: 'text-gray-600',
-        bgColor: 'bg-gray-100',
-    },
-};
-
 // Helper functions for 12h/24h conversion
 const parse12hTime = (time24: string): { time: string; period: 'AM' | 'PM' } => {
     if (!time24) return { time: '9:00', period: 'AM' };
@@ -144,7 +118,12 @@ const convertTo24h = (time12: string, period: 'AM' | 'PM'): string => {
     return `${String(h).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
 };
 
-// Time Input Component (matching job creation form style)
+const format12h = (time24: string): string => {
+    const parsed = parse12hTime(time24);
+    return `${parsed.time} ${parsed.period}`;
+};
+
+// Time Input Component
 interface TimeInputProps {
     label: string;
     time: string;
@@ -187,49 +166,40 @@ function TimeInput({ label, time, period, onTimeChange, onPeriodChange }: TimeIn
 export default function EmployeeDayModal({
     employee,
     date,
-    currentStatus,
-    currentReason,
-    startTime,
-    endTime,
+    exceptions,
     baseStartTime,
     baseEndTime,
-    hasException,
-    exceptionId,
     onClose,
     onUpdate,
 }: EmployeeDayModalProps) {
     const queryClient = useQueryClient();
     const [isVisible, setIsVisible] = useState(false);
-    const [isEditingHours, setIsEditingHours] = useState(false);
 
-    // Full day toggle for exceptions
+    // Mode: 'view' | 'add' | 'edit-work' | 'edit-exception'
+    const [mode, setMode] = useState<'view' | 'add' | 'edit-work' | 'edit-exception'>('view');
+    const [editingExceptionId, setEditingExceptionId] = useState<string | null>(null);
+
+    // Full day toggle for new exceptions
     const [isFullDay, setIsFullDay] = useState(true);
     const [selectedExceptionType, setSelectedExceptionType] = useState<string | null>(null);
 
-    // 12h format state for available status editing
-    const [editTime, setEditTime] = useState(() => parse12hTime(startTime || baseStartTime || '09:00'));
-    const [editEndTimeState, setEditEndTimeState] = useState(() => parse12hTime(endTime || baseEndTime || '18:00'));
+    // Error message from API
+    const [apiError, setApiError] = useState<string | null>(null);
 
-    // 12h format state for partial absence - hours ABSENT (simpler than tracking work hours)
-    const [absentStartTime, setAbsentStartTime] = useState({ time: '10:00', period: 'AM' as 'AM' | 'PM' });
-    const [absentEndTime, setAbsentEndTime] = useState({ time: '2:00', period: 'PM' as 'AM' | 'PM' });
+    // 12h format state for work schedule editing
+    const [workStartTime, setWorkStartTime] = useState(() => parse12hTime(baseStartTime || '09:00'));
+    const [workEndTime, setWorkEndTime] = useState(() => parse12hTime(baseEndTime || '18:00'));
 
-    // Check if hours are modified from base schedule
-    const isHoursModified = useMemo(() => {
-        if (!baseStartTime || !baseEndTime) return false;
-        const currentStart = convertTo24h(editTime.time, editTime.period);
-        const currentEnd = convertTo24h(editEndTimeState.time, editEndTimeState.period);
-        return currentStart !== baseStartTime || currentEnd !== baseEndTime;
-    }, [editTime, editEndTimeState, baseStartTime, baseEndTime]);
+    // 12h format state for exception time editing
+    const [exceptionStartTime, setExceptionStartTime] = useState({ time: '10:00', period: 'AM' as 'AM' | 'PM' });
+    const [exceptionEndTime, setExceptionEndTime] = useState({ time: '2:00', period: 'PM' as 'AM' | 'PM' });
 
-    // Determine if time can be edited (only when available/working)
-    const isTimeEditable = currentStatus === 'available' || currentStatus === 'special';
-
-    // Check if current status is an exception (not available)
-    const isExceptionStatus = ['vacation', 'sick', 'study', 'dayoff'].includes(currentStatus);
+    // Track if component is mounted (for SSR safety with portal)
+    const [mounted, setMounted] = useState(false);
 
     // Animation and scroll lock
     useEffect(() => {
+        setMounted(true);
         requestAnimationFrame(() => setIsVisible(true));
         const originalOverflow = document.body.style.overflow;
         document.body.style.overflow = 'hidden';
@@ -238,26 +208,18 @@ export default function EmployeeDayModal({
         };
     }, []);
 
-    // Initialize times when props change
+    // Reset times when props change
     useEffect(() => {
-        const start = startTime || baseStartTime || '09:00';
-        const end = endTime || baseEndTime || '18:00';
-        setEditTime(parse12hTime(start));
-        setEditEndTimeState(parse12hTime(end));
-        // Check if current exception has hours (partial absence)
-        if (hasException && startTime && endTime) {
-            setIsFullDay(false);
-            setAbsentStartTime(parse12hTime(startTime));
-            setAbsentEndTime(parse12hTime(endTime));
-        }
-    }, [startTime, endTime, baseStartTime, baseEndTime, hasException]);
+        setWorkStartTime(parse12hTime(baseStartTime || '09:00'));
+        setWorkEndTime(parse12hTime(baseEndTime || '18:00'));
+    }, [baseStartTime, baseEndTime]);
 
     const handleClose = () => {
         setIsVisible(false);
         setTimeout(onClose, 200);
     };
 
-    // Create/Update exception mutation
+    // Create exception mutation
     const createExceptionMutation = useMutation({
         mutationFn: async (data: {
             userId: string;
@@ -272,114 +234,151 @@ export default function EmployeeDayModal({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data),
             });
-            if (!res.ok) throw new Error('Error al crear excepción');
-            return res.json();
+            const json = await res.json();
+            if (!res.ok) {
+                throw new Error(json.error || 'Error al crear excepción');
+            }
+            return json;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['team-calendar'] });
             onUpdate();
+            setMode('view');
+            setSelectedExceptionType(null);
+            setEditingExceptionId(null);
+            setApiError(null);
+        },
+        onError: (error: Error) => {
+            setApiError(error.message);
         },
     });
 
     // Delete exception mutation
     const deleteExceptionMutation = useMutation({
-        mutationFn: async (exceptionIdToDelete: string) => {
-            const res = await fetch(`/api/employees/schedule/exceptions?id=${exceptionIdToDelete}`, {
+        mutationFn: async (exceptionId: string) => {
+            const res = await fetch(`/api/employees/schedule/exceptions?id=${exceptionId}`, {
                 method: 'DELETE',
             });
-            if (!res.ok) throw new Error('Error al eliminar excepción');
-            return res.json();
+            const json = await res.json();
+            if (!res.ok) {
+                throw new Error(json.error || 'Error al eliminar excepción');
+            }
+            return json;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['team-calendar'] });
             onUpdate();
+            setApiError(null);
+        },
+        onError: (error: Error) => {
+            setApiError(error.message);
         },
     });
 
     const dateStr = date.toISOString().split('T')[0];
     const isLoading = createExceptionMutation.isPending || deleteExceptionMutation.isPending;
 
-    // Handle exception type selection
-    const handleSetException = (reason: string) => {
+    // Check if there's a full-day exception
+    const fullDayException = exceptions.find(e => !e.startTime || !e.endTime);
+    const partialExceptions = exceptions.filter(e => e.startTime && e.endTime);
+
+    // Handle adding new exception
+    const handleAddException = () => {
+        if (!selectedExceptionType) return;
+
+        setApiError(null);
+
         if (isFullDay) {
-            // Full day absence - no hours
             createExceptionMutation.mutate({
                 userId: employee.id,
                 date: dateStr,
                 isAvailable: false,
-                reason,
+                reason: selectedExceptionType,
             });
         } else {
-            // Partial absence - include hours absent
             createExceptionMutation.mutate({
                 userId: employee.id,
                 date: dateStr,
                 isAvailable: false,
-                reason,
-                startTime: convertTo24h(absentStartTime.time, absentStartTime.period),
-                endTime: convertTo24h(absentEndTime.time, absentEndTime.period),
+                reason: selectedExceptionType,
+                startTime: convertTo24h(exceptionStartTime.time, exceptionStartTime.period),
+                endTime: convertTo24h(exceptionEndTime.time, exceptionEndTime.period),
             });
         }
-        setSelectedExceptionType(null);
     };
 
-    // Handle clicking an exception type button
-    const handleExceptionClick = (reason: string) => {
-        if (currentReason === reason) return; // Already selected
-        setSelectedExceptionType(reason);
-        setIsFullDay(true); // Default to full day
-    };
-
-    // Confirm exception after setting full day toggle
-    const handleConfirmException = () => {
-        if (selectedExceptionType) {
-            handleSetException(selectedExceptionType);
-        }
-    };
-
-    // Handle saving modified hours (for available status)
-    const handleSaveHours = () => {
+    // Handle saving work hours modification
+    const handleSaveWorkHours = () => {
+        setApiError(null);
         createExceptionMutation.mutate({
             userId: employee.id,
             date: dateStr,
             isAvailable: true,
             reason: 'Horario Modificado',
-            startTime: convertTo24h(editTime.time, editTime.period),
-            endTime: convertTo24h(editEndTimeState.time, editEndTimeState.period),
+            startTime: convertTo24h(workStartTime.time, workStartTime.period),
+            endTime: convertTo24h(workEndTime.time, workEndTime.period),
         });
-        setIsEditingHours(false);
     };
 
-    const handleCancelEdit = () => {
-        const start = startTime || baseStartTime || '09:00';
-        const end = endTime || baseEndTime || '18:00';
-        setEditTime(parse12hTime(start));
-        setEditEndTimeState(parse12hTime(end));
-        setIsEditingHours(false);
+    // Handle updating existing exception times
+    const handleUpdateException = (exc: ScheduleException) => {
+        setApiError(null);
+
+        // First delete the old exception, then create new one
+        deleteExceptionMutation.mutate(exc.id, {
+            onSuccess: () => {
+                if (isFullDay) {
+                    createExceptionMutation.mutate({
+                        userId: employee.id,
+                        date: dateStr,
+                        isAvailable: false,
+                        reason: exc.reason || 'Franco / Ausente',
+                    });
+                } else {
+                    createExceptionMutation.mutate({
+                        userId: employee.id,
+                        date: dateStr,
+                        isAvailable: false,
+                        reason: exc.reason || 'Franco / Ausente',
+                        startTime: convertTo24h(exceptionStartTime.time, exceptionStartTime.period),
+                        endTime: convertTo24h(exceptionEndTime.time, exceptionEndTime.period),
+                    });
+                }
+            },
+        });
     };
 
-    const handleCancelException = () => {
-        setSelectedExceptionType(null);
-        setIsFullDay(true);
+    const handleDeleteException = (exceptionId: string) => {
+        setApiError(null);
+        deleteExceptionMutation.mutate(exceptionId);
     };
 
-    const handleDeleteException = () => {
-        if (exceptionId) {
-            deleteExceptionMutation.mutate(exceptionId);
+    // Start editing an exception
+    const startEditException = (exc: ScheduleException) => {
+        setEditingExceptionId(exc.id);
+        if (exc.startTime && exc.endTime) {
+            setExceptionStartTime(parse12hTime(exc.startTime));
+            setExceptionEndTime(parse12hTime(exc.endTime));
+            setIsFullDay(false);
+        } else {
+            setIsFullDay(true);
         }
+        setMode('edit-exception');
     };
 
-    const statusConfig = STATUS_CONFIG[currentStatus] || STATUS_CONFIG.dayoff;
-    const displayStartTime = startTime || baseStartTime || '09:00';
-    const displayEndTime = endTime || baseEndTime || '18:00';
-    const displayStart12h = parse12hTime(displayStartTime);
-    const displayEnd12h = parse12hTime(displayEndTime);
+    // Get exception type config
+    const getExceptionTypeConfig = (reason: string | null) => {
+        return EXCEPTION_TYPES.find(t => t.reason === reason) || EXCEPTION_TYPES[3]; // default to dayoff
+    };
 
-    return (
+    // Don't render until mounted (SSR safety)
+    if (!mounted) return null;
+
+    return createPortal(
         <div
             className={cn(
-                'fixed inset-0 z-50 flex items-center justify-center p-4 transition-all duration-200',
-                isVisible ? 'bg-black/50' : 'bg-transparent pointer-events-none'
+                'fixed inset-0 z-[100] flex items-center justify-center p-4 transition-all duration-200',
+                isVisible ? 'bg-black/60' : 'bg-transparent pointer-events-none'
             )}
             onClick={handleClose}
         >
@@ -418,70 +417,64 @@ export default function EmployeeDayModal({
                         </button>
                     </div>
 
-                    {/* Current Status */}
-                    <div className="p-4 border-b border-gray-100">
-                        <p className="text-sm text-gray-500 mb-2">Estado actual</p>
-                        <div className="flex items-center gap-3 flex-wrap">
-                            <span className={cn('px-3 py-1.5 rounded-full text-sm font-medium', statusConfig.bgColor, statusConfig.color)}>
-                                {/* Show partial indicator or just the label */}
-                                {isExceptionStatus && startTime && endTime
-                                    ? `Parcial - ${statusConfig.label}`
-                                    : statusConfig.label
-                                }
-                            </span>
-
-                            {/* Inline time display with edit button */}
-                            {baseStartTime && baseEndTime && !isEditingHours && (
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm text-gray-600 flex items-center gap-1">
-                                        <Clock className="h-4 w-4" />
-                                        {parse12hTime(baseStartTime).time} {parse12hTime(baseStartTime).period} - {parse12hTime(baseEndTime).time} {parse12hTime(baseEndTime).period}
-                                    </span>
-                                    <button
-                                        onClick={() => setIsEditingHours(true)}
-                                        className="flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 hover:bg-teal-50 px-2 py-1 rounded-md transition-colors"
-                                    >
-                                        <Pencil className="h-3 w-3" />
-                                        Editar
-                                    </button>
-                                </div>
-                            )}
-
-                            {hasException && currentStatus === 'special' && (
-                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                                    Horario Modificado
-                                </span>
-                            )}
+                    {/* Error Message */}
+                    {apiError && (
+                        <div className="mx-4 mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+                            <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+                            <p className="text-sm text-red-700">{apiError}</p>
                         </div>
+                    )}
 
-                        {/* Inline time editor */}
-                        {isEditingHours && (
-                            <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    {/* Work Schedule Section */}
+                    {baseStartTime && baseEndTime && mode !== 'edit-work' && (
+                        <div className="p-4 border-b border-gray-100">
+                            <p className="text-sm font-medium text-gray-700 mb-2">Horario de trabajo</p>
+                            <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
+                                <span className="text-sm text-gray-700 flex items-center gap-2">
+                                    <Clock className="h-4 w-4 text-gray-400" />
+                                    {format12h(baseStartTime)} - {format12h(baseEndTime)}
+                                </span>
+                                <button
+                                    onClick={() => setMode('edit-work')}
+                                    className="flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 hover:bg-teal-50 px-2 py-1 rounded-md transition-colors"
+                                >
+                                    <Pencil className="h-3 w-3" />
+                                    Modificar
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Work Schedule Edit Mode */}
+                    {mode === 'edit-work' && (
+                        <div className="p-4 border-b border-gray-100">
+                            <p className="text-sm font-medium text-gray-700 mb-3">Modificar horario de trabajo</p>
+                            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                                 <div className="grid gap-4 sm:grid-cols-2 mb-4">
                                     <TimeInput
                                         label="Entrada"
-                                        time={editTime.time}
-                                        period={editTime.period}
-                                        onTimeChange={(t) => setEditTime({ ...editTime, time: t })}
-                                        onPeriodChange={(p) => setEditTime({ ...editTime, period: p })}
+                                        time={workStartTime.time}
+                                        period={workStartTime.period}
+                                        onTimeChange={(t) => setWorkStartTime({ ...workStartTime, time: t })}
+                                        onPeriodChange={(p) => setWorkStartTime({ ...workStartTime, period: p })}
                                     />
                                     <TimeInput
                                         label="Salida"
-                                        time={editEndTimeState.time}
-                                        period={editEndTimeState.period}
-                                        onTimeChange={(t) => setEditEndTimeState({ ...editEndTimeState, time: t })}
-                                        onPeriodChange={(p) => setEditEndTimeState({ ...editEndTimeState, period: p })}
+                                        time={workEndTime.time}
+                                        period={workEndTime.period}
+                                        onTimeChange={(t) => setWorkEndTime({ ...workEndTime, time: t })}
+                                        onPeriodChange={(p) => setWorkEndTime({ ...workEndTime, period: p })}
                                     />
                                 </div>
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={handleCancelEdit}
+                                        onClick={() => { setMode('view'); setApiError(null); }}
                                         className="flex-1 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
                                     >
                                         Cancelar
                                     </button>
                                     <button
-                                        onClick={handleSaveHours}
+                                        onClick={handleSaveWorkHours}
                                         disabled={isLoading}
                                         className="flex-1 px-3 py-2 text-sm text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center gap-1"
                                     >
@@ -490,38 +483,165 @@ export default function EmployeeDayModal({
                                     </button>
                                 </div>
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
 
-                    {/* Exception Types */}
-                    <div className="p-4">
-                        <p className="text-sm font-medium text-gray-700 mb-3">Marcar como ausente</p>
+                    {/* Current Exceptions List - always show when not editing a specific exception */}
+                    {exceptions.length > 0 && mode !== 'edit-exception' && (
+                        <div className="p-4 border-b border-gray-100">
+                            <p className="text-sm font-medium text-gray-700 mb-3">
+                                Excepciones activas ({exceptions.length})
+                            </p>
+                            <div className="space-y-2">
+                                {exceptions.map((exc) => {
+                                    const typeConfig = getExceptionTypeConfig(exc.reason);
+                                    const Icon = typeConfig.icon;
+                                    const isPartial = exc.startTime && exc.endTime;
 
-                        <div className="space-y-2">
-                            {EXCEPTION_TYPES.map((type) => {
-                                const Icon = type.icon;
-                                const isCurrentReason = currentReason === type.reason;
-                                const isSelected = selectedExceptionType === type.reason;
+                                    return (
+                                        <div
+                                            key={exc.id}
+                                            className={cn(
+                                                'p-3 rounded-lg border flex items-center gap-3',
+                                                typeConfig.borderColor,
+                                                typeConfig.iconBg
+                                            )}
+                                        >
+                                            <div className={cn('w-10 h-10 rounded-full flex items-center justify-center bg-white/50')}>
+                                                <Icon className={cn('h-5 w-5', typeConfig.iconColor)} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="font-medium text-gray-900">{typeConfig.label}</p>
+                                                <p className="text-sm text-gray-600">
+                                                    {isPartial ? `${format12h(exc.startTime!)} - ${format12h(exc.endTime!)}` : 'Todo el día'}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    onClick={() => startEditException(exc)}
+                                                    className="p-2 text-gray-500 hover:text-teal-600 hover:bg-white rounded-lg transition-colors"
+                                                    title="Editar"
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteException(exc.id)}
+                                                    disabled={isLoading}
+                                                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-white rounded-lg transition-colors disabled:opacity-50"
+                                                    title="Eliminar"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
 
-                                // Determine description text: show absence hours if this is the active exception
-                                const descriptionText = isCurrentReason && startTime && endTime
-                                    ? `Ausente: ${parse12hTime(startTime).time} ${parse12hTime(startTime).period} - ${parse12hTime(endTime).time} ${parse12hTime(endTime).period}`
-                                    : isCurrentReason && hasException
-                                        ? 'Todo el día'
-                                        : type.description;
+                    {/* Edit Exception Mode */}
+                    {mode === 'edit-exception' && editingExceptionId && (
+                        <div className="p-4 border-b border-gray-100">
+                            {(() => {
+                                const exc = exceptions.find(e => e.id === editingExceptionId);
+                                if (!exc) return null;
+                                const typeConfig = getExceptionTypeConfig(exc.reason);
 
                                 return (
-                                    <div key={type.id}>
+                                    <>
+                                        <p className="text-sm font-medium text-gray-700 mb-3">
+                                            Editar {typeConfig.label}
+                                        </p>
+                                        <div className={cn('p-4 rounded-lg border', typeConfig.borderColor, typeConfig.iconBg)}>
+                                            {/* Full Day Toggle */}
+                                            <label className="flex items-center justify-between cursor-pointer mb-4">
+                                                <span className="text-sm font-medium text-gray-700">Todo el día</span>
+                                                <div className="relative">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isFullDay}
+                                                        onChange={(e) => setIsFullDay(e.target.checked)}
+                                                        className="sr-only"
+                                                    />
+                                                    <div className={cn(
+                                                        'w-11 h-6 rounded-full transition-colors',
+                                                        isFullDay ? 'bg-teal-600' : 'bg-gray-300'
+                                                    )}>
+                                                        <div className={cn(
+                                                            'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform',
+                                                            isFullDay ? 'translate-x-5' : 'translate-x-0'
+                                                        )} />
+                                                    </div>
+                                                </div>
+                                            </label>
+
+                                            {/* Hours Editor */}
+                                            {!isFullDay && (
+                                                <div className="mb-4">
+                                                    <p className="text-sm font-medium text-gray-700 mb-2">Horas de ausencia</p>
+                                                    <div className="grid gap-4 sm:grid-cols-2">
+                                                        <TimeInput
+                                                            label="Desde"
+                                                            time={exceptionStartTime.time}
+                                                            period={exceptionStartTime.period}
+                                                            onTimeChange={(t) => setExceptionStartTime({ ...exceptionStartTime, time: t })}
+                                                            onPeriodChange={(p) => setExceptionStartTime({ ...exceptionStartTime, period: p })}
+                                                        />
+                                                        <TimeInput
+                                                            label="Hasta"
+                                                            time={exceptionEndTime.time}
+                                                            period={exceptionEndTime.period}
+                                                            onTimeChange={(t) => setExceptionEndTime({ ...exceptionEndTime, time: t })}
+                                                            onPeriodChange={(p) => setExceptionEndTime({ ...exceptionEndTime, period: p })}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => { setMode('view'); setEditingExceptionId(null); setApiError(null); }}
+                                                    className="flex-1 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                                                >
+                                                    Cancelar
+                                                </button>
+                                                <button
+                                                    onClick={() => handleUpdateException(exc)}
+                                                    disabled={isLoading}
+                                                    className="flex-1 px-3 py-2 text-sm text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50 flex items-center justify-center gap-1"
+                                                >
+                                                    <Check className="h-4 w-4" />
+                                                    Guardar
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </>
+                                );
+                            })()}
+                        </div>
+                    )}
+
+                    {/* Add Exception Mode */}
+                    {mode === 'add' && (
+                        <div className="p-4 border-b border-gray-100">
+                            <p className="text-sm font-medium text-gray-700 mb-3">Agregar excepción</p>
+
+                            {/* Exception Type Selection */}
+                            <div className="space-y-2 mb-4">
+                                {EXCEPTION_TYPES.map((type) => {
+                                    const Icon = type.icon;
+                                    const isSelected = selectedExceptionType === type.reason;
+
+                                    return (
                                         <button
-                                            onClick={() => handleExceptionClick(type.reason)}
-                                            disabled={isLoading || isCurrentReason}
+                                            key={type.id}
+                                            onClick={() => setSelectedExceptionType(type.reason)}
                                             className={cn(
-                                                'w-full flex items-center gap-3 p-3 rounded-lg border transition-colors disabled:opacity-50',
-                                                isCurrentReason
-                                                    ? 'border-2 border-gray-400 bg-gray-50'
-                                                    : isSelected
-                                                        ? `border-2 ${type.borderColor} ${type.iconBg}`
-                                                        : `${type.borderColor} ${type.hoverBg}`
+                                                'w-full flex items-center gap-3 p-3 rounded-lg border transition-colors',
+                                                isSelected
+                                                    ? `border-2 ${type.borderColor} ${type.iconBg}`
+                                                    : `${type.borderColor} ${type.hoverBg}`
                                             )}
                                         >
                                             <div className={cn('w-10 h-10 rounded-full flex items-center justify-center', type.iconBg)}>
@@ -529,104 +649,107 @@ export default function EmployeeDayModal({
                                             </div>
                                             <div className="text-left flex-1">
                                                 <p className="font-medium text-gray-900">{type.label}</p>
-                                                <p className={cn(
-                                                    'text-sm',
-                                                    isCurrentReason ? 'text-gray-700 font-medium' : 'text-gray-500'
-                                                )}>
-                                                    {descriptionText}
-                                                </p>
+                                                <p className="text-sm text-gray-500">{type.description}</p>
                                             </div>
-                                            {isCurrentReason && (
-                                                <Check className="h-5 w-5 text-green-600" />
-                                            )}
+                                            {isSelected && <Check className="h-5 w-5 text-green-600" />}
                                         </button>
+                                    );
+                                })}
+                            </div>
 
-                                        {/* Full Day Toggle + Hours Worked (when this exception is selected) */}
-                                        {isSelected && (
-                                            <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                                                {/* Full Day Toggle */}
-                                                <label className="flex items-center justify-between cursor-pointer">
-                                                    <span className="text-sm font-medium text-gray-700">Todo el día</span>
-                                                    <div className="relative">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={isFullDay}
-                                                            onChange={(e) => setIsFullDay(e.target.checked)}
-                                                            className="sr-only"
-                                                        />
-                                                        <div className={cn(
-                                                            'w-11 h-6 rounded-full transition-colors',
-                                                            isFullDay ? 'bg-teal-600' : 'bg-gray-300'
-                                                        )}>
-                                                            <div className={cn(
-                                                                'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform',
-                                                                isFullDay ? 'translate-x-5' : 'translate-x-0'
-                                                            )} />
-                                                        </div>
-                                                    </div>
-                                                </label>
-
-                                                {/* Hours Absent (if not full day) */}
-                                                {!isFullDay && (
-                                                    <div className="mt-4">
-                                                        <p className="text-sm font-medium text-gray-700 mb-2">Horas de ausencia</p>
-                                                        <div className="grid gap-4 sm:grid-cols-2">
-                                                            <TimeInput
-                                                                label="Salió a las"
-                                                                time={absentStartTime.time}
-                                                                period={absentStartTime.period}
-                                                                onTimeChange={(t) => setAbsentStartTime({ ...absentStartTime, time: t })}
-                                                                onPeriodChange={(p) => setAbsentStartTime({ ...absentStartTime, period: p })}
-                                                            />
-                                                            <TimeInput
-                                                                label="Regresó a las"
-                                                                time={absentEndTime.time}
-                                                                period={absentEndTime.period}
-                                                                onTimeChange={(t) => setAbsentEndTime({ ...absentEndTime, time: t })}
-                                                                onPeriodChange={(p) => setAbsentEndTime({ ...absentEndTime, period: p })}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                {/* Confirm/Cancel */}
-                                                <div className="flex gap-2 mt-4">
-                                                    <button
-                                                        onClick={handleCancelException}
-                                                        className="flex-1 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                                                    >
-                                                        Cancelar
-                                                    </button>
-                                                    <button
-                                                        onClick={handleConfirmException}
-                                                        disabled={isLoading}
-                                                        className="flex-1 px-3 py-2 text-sm text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center gap-1"
-                                                    >
-                                                        <Check className="h-4 w-4" />
-                                                        Confirmar
-                                                    </button>
-                                                </div>
+                            {/* Time Configuration */}
+                            {selectedExceptionType && (
+                                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 mb-4">
+                                    {/* Full Day Toggle */}
+                                    <label className="flex items-center justify-between cursor-pointer">
+                                        <span className="text-sm font-medium text-gray-700">Todo el día</span>
+                                        <div className="relative">
+                                            <input
+                                                type="checkbox"
+                                                checked={isFullDay}
+                                                onChange={(e) => setIsFullDay(e.target.checked)}
+                                                className="sr-only"
+                                            />
+                                            <div className={cn(
+                                                'w-11 h-6 rounded-full transition-colors',
+                                                isFullDay ? 'bg-teal-600' : 'bg-gray-300'
+                                            )}>
+                                                <div className={cn(
+                                                    'absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform',
+                                                    isFullDay ? 'translate-x-5' : 'translate-x-0'
+                                                )} />
                                             </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
+                                        </div>
+                                    </label>
 
-                    {/* Delete Exception (if exists) */}
-                    {hasException && exceptionId && (
-                        <div className="p-4 border-t border-gray-100">
+                                    {/* Hours Selection */}
+                                    {!isFullDay && (
+                                        <div className="mt-4">
+                                            <p className="text-sm font-medium text-gray-700 mb-2">Horas de ausencia</p>
+                                            <div className="grid gap-4 sm:grid-cols-2">
+                                                <TimeInput
+                                                    label="Desde"
+                                                    time={exceptionStartTime.time}
+                                                    period={exceptionStartTime.period}
+                                                    onTimeChange={(t) => setExceptionStartTime({ ...exceptionStartTime, time: t })}
+                                                    onPeriodChange={(p) => setExceptionStartTime({ ...exceptionStartTime, period: p })}
+                                                />
+                                                <TimeInput
+                                                    label="Hasta"
+                                                    time={exceptionEndTime.time}
+                                                    period={exceptionEndTime.period}
+                                                    onTimeChange={(t) => setExceptionEndTime({ ...exceptionEndTime, time: t })}
+                                                    onPeriodChange={(p) => setExceptionEndTime({ ...exceptionEndTime, period: p })}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Action Buttons */}
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => { setMode('view'); setSelectedExceptionType(null); setApiError(null); }}
+                                    className="flex-1 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={handleAddException}
+                                    disabled={isLoading || !selectedExceptionType}
+                                    className="flex-1 px-3 py-2 text-sm text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 flex items-center justify-center gap-1"
+                                >
+                                    <Check className="h-4 w-4" />
+                                    Agregar
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Add Exception Button (in view mode) */}
+                    {mode === 'view' && !fullDayException && (
+                        <div className="p-4">
                             <button
-                                onClick={handleDeleteException}
-                                disabled={isLoading}
-                                className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                                onClick={() => { setMode('add'); setApiError(null); }}
+                                className="w-full flex items-center justify-center gap-2 p-3 rounded-lg border border-dashed border-gray-300 text-gray-600 hover:bg-gray-50 hover:border-gray-400 transition-colors"
                             >
-                                <Trash2 className="h-4 w-4" />
-                                Eliminar excepción
+                                <Plus className="h-4 w-4" />
+                                Agregar excepción
                             </button>
-                            <p className="text-xs text-gray-500 text-center mt-2">
-                                Volver al horario base configurado
+                            {partialExceptions.length > 0 && (
+                                <p className="text-xs text-gray-500 text-center mt-2">
+                                    Las excepciones no pueden superponerse en horario
+                                </p>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Full day exception notice */}
+                    {mode === 'view' && fullDayException && (
+                        <div className="p-4">
+                            <p className="text-sm text-gray-500 text-center">
+                                Elimine la excepción de día completo para agregar ausencias parciales
                             </p>
                         </div>
                     )}
@@ -639,6 +762,7 @@ export default function EmployeeDayModal({
                     </div>
                 )}
             </div>
-        </div >
+        </div>,
+        document.body
     );
 }

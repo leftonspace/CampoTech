@@ -14,6 +14,8 @@ import {
   MapPin,
   Clock,
 } from 'lucide-react';
+import { useAssignmentValidation, type ValidationWarning } from '@/hooks/useAssignmentValidation';
+import { OnCallWarningModal } from '@/components/schedule/OnCallWarningModal';
 
 interface Technician {
   id: string;
@@ -88,10 +90,18 @@ export function ReassignJobDialog({
   const [selectedTechnicianId, setSelectedTechnicianId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
+  // On-call validation
+  const { validateAssignment, isValidating } = useAssignmentValidation();
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [warnings, setWarnings] = useState<ValidationWarning[]>([]);
+  const [selectedTechName, setSelectedTechName] = useState('');
+
   // Reset selection when dialog opens with new job
   useEffect(() => {
     if (isOpen && job) {
       setSelectedTechnicianId(job.technicianId);
+      setShowWarningModal(false);
+      setWarnings([]);
     }
   }, [isOpen, job]);
 
@@ -108,6 +118,45 @@ export function ReassignJobDialog({
       }
     },
   });
+
+  // Handle confirm button - validate first, then assign
+  const handleConfirmClick = async () => {
+    if (!selectedTechnicianId || !job) {
+      // No technician selected = unassign, no validation needed
+      mutation.mutate();
+      return;
+    }
+
+    // Parse scheduled date and time from job
+    const scheduledDate = job.scheduledTime ? job.scheduledTime.split(' ')[0] : null;
+    const scheduledTimeStart = job.scheduledTime?.includes(':')
+      ? job.scheduledTime.split(' ')[1]?.substring(0, 5)
+      : null;
+
+    // Validate assignment
+    const result = await validateAssignment(
+      selectedTechnicianId,
+      scheduledDate,
+      scheduledTimeStart
+    );
+
+    if (result.warnings.length > 0) {
+      // Show warning modal
+      const tech = technicians.find(t => t.id === selectedTechnicianId);
+      setSelectedTechName(tech?.name || 'Técnico');
+      setWarnings(result.warnings);
+      setShowWarningModal(true);
+    } else {
+      // No warnings, proceed with assignment
+      mutation.mutate();
+    }
+  };
+
+  // Handle confirming despite warning
+  const handleConfirmDespiteWarning = () => {
+    setShowWarningModal(false);
+    mutation.mutate();
+  };
 
   if (!isOpen || !job) return null;
 
@@ -195,8 +244,8 @@ export function ReassignJobDialog({
           <button
             onClick={() => setSelectedTechnicianId(null)}
             className={`w-full flex items-center gap-3 p-3 rounded-lg mb-1 transition-colors ${selectedTechnicianId === null
-                ? 'bg-primary-50 border-2 border-primary-500'
-                : 'hover:bg-gray-50 border-2 border-transparent'
+              ? 'bg-primary-50 border-2 border-primary-500'
+              : 'hover:bg-gray-50 border-2 border-transparent'
               }`}
           >
             <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
@@ -221,8 +270,8 @@ export function ReassignJobDialog({
                 key={tech.id}
                 onClick={() => setSelectedTechnicianId(tech.id)}
                 className={`w-full flex items-center gap-3 p-3 rounded-lg mb-1 transition-colors ${isSelected
-                    ? 'bg-primary-50 border-2 border-primary-500'
-                    : 'hover:bg-gray-50 border-2 border-transparent'
+                  ? 'bg-primary-50 border-2 border-primary-500'
+                  : 'hover:bg-gray-50 border-2 border-transparent'
                   }`}
               >
                 <div className="relative">
@@ -244,12 +293,12 @@ export function ReassignJobDialog({
                   {/* Status indicator */}
                   <div
                     className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white ${tech.status === 'en_linea'
-                        ? 'bg-green-500'
-                        : tech.status === 'en_camino'
-                          ? 'bg-blue-500'
-                          : tech.status === 'trabajando'
-                            ? 'bg-amber-500'
-                            : 'bg-gray-400'
+                      ? 'bg-green-500'
+                      : tech.status === 'en_camino'
+                        ? 'bg-blue-500'
+                        : tech.status === 'trabajando'
+                          ? 'bg-amber-500'
+                          : 'bg-gray-400'
                       }`}
                   />
                 </div>
@@ -300,14 +349,14 @@ export function ReassignJobDialog({
               Cancelar
             </button>
             <button
-              onClick={() => mutation.mutate()}
-              disabled={!hasChanged || mutation.isPending}
+              onClick={handleConfirmClick}
+              disabled={!hasChanged || mutation.isPending || isValidating}
               className="px-4 py-2 text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              {mutation.isPending ? (
+              {mutation.isPending || isValidating ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  Asignando...
+                  {isValidating ? 'Validando...' : 'Asignando...'}
                 </>
               ) : (
                 <>
@@ -319,6 +368,16 @@ export function ReassignJobDialog({
           </div>
         </div>
       </div>
+
+      {/* On-Call Warning Modal */}
+      <OnCallWarningModal
+        isOpen={showWarningModal}
+        warnings={warnings}
+        technicianName={selectedTechName}
+        onConfirm={handleConfirmDespiteWarning}
+        onCancel={() => setShowWarningModal(false)}
+        isLoading={mutation.isPending}
+      />
     </div>
   );
 }

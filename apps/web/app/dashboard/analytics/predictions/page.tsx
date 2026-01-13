@@ -253,11 +253,10 @@ export default function PredictionsPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? 'border-green-600 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
+              className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
+                ? 'border-green-600 text-green-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
             >
               <Icon size={18} />
               {tab.label}
@@ -395,7 +394,7 @@ export default function PredictionsPage() {
                       <div className="flex-1">
                         <p className="font-medium text-gray-900">{anomaly.description}</p>
                         <p className="text-sm text-gray-500">
-                          {new Date(anomaly.detectedAt).toLocaleDateString('es-AR')}
+                          {new Date(anomaly.detectedAt).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}
                         </p>
                       </div>
                       <span className={`px-2 py-1 rounded text-xs font-medium uppercase ${getSeverityColor(anomaly.severity)}`}>
@@ -474,7 +473,7 @@ export default function PredictionsPage() {
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Pronóstico de Demanda</h3>
                 <AreaChart
                   data={demandData.forecast.forecasts.map((f) => ({
-                    label: new Date(f.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }),
+                    label: new Date(f.date).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', timeZone: 'America/Buenos_Aires' }),
                     value: f.predictedDemand,
                   }))}
                   height={300}
@@ -556,7 +555,7 @@ export default function PredictionsPage() {
                       <p className="text-sm text-gray-500">Meta $1M</p>
                       <p className="text-2xl font-bold text-gray-900">
                         {revenueData.milestones[0]?.estimatedDate
-                          ? new Date(revenueData.milestones[0].estimatedDate).toLocaleDateString('es-AR', { month: 'short', year: 'numeric' })
+                          ? new Date(revenueData.milestones[0].estimatedDate).toLocaleDateString('es-AR', { month: 'short', year: 'numeric', timeZone: 'America/Buenos_Aires' })
                           : 'N/A'}
                       </p>
                     </div>
@@ -573,7 +572,7 @@ export default function PredictionsPage() {
                       <p className="text-sm font-medium text-gray-700 mb-2">{scenario.name}</p>
                       <BarChart
                         data={scenario.projections.map((p) => ({
-                          label: new Date(p.month).toLocaleDateString('es-AR', { month: 'short' }),
+                          label: new Date(p.month).toLocaleDateString('es-AR', { month: 'short', timeZone: 'America/Buenos_Aires' }),
                           value: p.projectedRevenue,
                         }))}
                         height={100}

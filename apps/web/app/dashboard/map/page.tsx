@@ -319,7 +319,7 @@ function formatRelativeTime(dateString: string | null): string {
   if (diffHours < 24) return `Hace ${diffHours}h`;
   if (diffDays === 1) return 'Ayer';
   if (diffDays < 7) return `Hace ${diffDays} días`;
-  return date.toLocaleDateString('es-AR');
+  return date.toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' });
 }
 
 // Default layer state

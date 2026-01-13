@@ -879,7 +879,7 @@ class EdgeCasesService {
             userId: member.userId,
             type: 'organization_deleted',
             title: 'Organización programada para eliminación',
-            message: `La organización será eliminada permanentemente el ${recoveryDeadline.toLocaleDateString('es-AR')}. Contactá al dueño para recuperarla.`,
+            message: `La organización será eliminada permanentemente el ${recoveryDeadline.toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}. Contactá al dueño para recuperarla.`,
             data: {
               organizationId,
               recoveryDeadline: recoveryDeadline.toISOString(),

@@ -10,6 +10,8 @@ import {
   Settings,
   Clock,
   User,
+  Calendar,
+  CalendarDays,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getBuenosAiresNow, formatDisplayDate } from '@/lib/timezone';
@@ -49,15 +51,11 @@ interface CalendarData {
 
 interface EmployeeStatus {
   employee: Employee;
-  status: string;
-  reason: string | null;
-  startTime: string | null;  // For exceptions: absence times. For available: work times
-  endTime: string | null;
+  status: string;           // Primary status for display (worst case)
+  exceptions: ScheduleException[];  // All exceptions for this day
   baseStartTime: string | null;  // Base schedule times (for reference)
   baseEndTime: string | null;
-  isException: boolean;
-  isPartialAbsence: boolean;  // True if exception has specific hours (not full day)
-  exceptionId?: string;
+  hasExceptions: boolean;
 }
 
 // Status filter options - Argentine Labor Law categories
@@ -116,6 +114,16 @@ const STATUS_BADGE_COLORS: Record<string, string> = {
   dayoff: 'bg-gray-100 text-gray-500',
 };
 
+// Status colors for week view chips (lighter bg + visible border)
+const STATUS_CHIP_STYLES: Record<string, string> = {
+  available: 'bg-green-50 border-green-300 text-green-800',
+  special: 'bg-blue-50 border-blue-300 text-blue-800',
+  vacation: 'bg-amber-50 border-amber-300 text-amber-800',
+  sick: 'bg-orange-50 border-orange-300 text-orange-800',
+  study: 'bg-purple-50 border-purple-300 text-purple-800',
+  dayoff: 'bg-gray-50 border-gray-200 text-gray-500',
+};
+
 interface TeamCalendarProps {
   canEdit: boolean;
   onOpenScheduleConfig?: () => void;
@@ -125,6 +133,16 @@ export default function TeamCalendar({ canEdit, onOpenScheduleConfig }: TeamCale
   const { user: _user } = useAuth();
   const queryClient = useQueryClient();
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+    // Start of current week (Monday)
+    const today = getBuenosAiresNow();
+    const dayOfWeek = today.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Monday is start of week
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diff);
+    return monday;
+  });
+  const [viewMode, setViewMode] = useState<'week' | 'month'>('month');
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
@@ -132,8 +150,8 @@ export default function TeamCalendar({ canEdit, onOpenScheduleConfig }: TeamCale
   // Selected date for side panel (defaults to today in Argentina timezone)
   const [selectedDate, setSelectedDate] = useState<Date | null>(() => getBuenosAiresNow());
 
-  // Selected employee for edit modal
-  const [selectedEmployeeForEdit, setSelectedEmployeeForEdit] = useState<EmployeeStatus | null>(null);
+  // Selected employee ID for edit modal (store ID only, derive status from query data)
+  const [selectedEmployeeIdForEdit, setSelectedEmployeeIdForEdit] = useState<string | null>(null);
 
   // Fetch calendar data
   const { data: calendarData, isLoading } = useQuery<{ success: boolean; data: CalendarData }>({
@@ -171,10 +189,37 @@ export default function TeamCalendar({ canEdit, onOpenScheduleConfig }: TeamCale
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
   };
 
+  // Navigate weeks
+  const prevWeek = () => {
+    const newWeekStart = new Date(currentWeekStart);
+    newWeekStart.setDate(currentWeekStart.getDate() - 7);
+    setCurrentWeekStart(newWeekStart);
+    // Also update month if we crossed into previous month
+    if (newWeekStart.getMonth() !== currentMonth.getMonth()) {
+      setCurrentMonth(new Date(newWeekStart.getFullYear(), newWeekStart.getMonth()));
+    }
+  };
+
+  const nextWeek = () => {
+    const newWeekStart = new Date(currentWeekStart);
+    newWeekStart.setDate(currentWeekStart.getDate() + 7);
+    setCurrentWeekStart(newWeekStart);
+    // Also update month if we crossed into next month
+    if (newWeekStart.getMonth() !== currentMonth.getMonth()) {
+      setCurrentMonth(new Date(newWeekStart.getFullYear(), newWeekStart.getMonth()));
+    }
+  };
+
   const goToToday = () => {
     const today = getBuenosAiresNow();
     setCurrentMonth(today);
     setSelectedDate(today);
+    // Also reset week to current week
+    const dayOfWeek = today.getDay();
+    const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(today);
+    monday.setDate(today.getDate() + diff);
+    setCurrentWeekStart(monday);
   };
 
   // Generate calendar weeks (like CalendarView)
@@ -207,79 +252,99 @@ export default function TeamCalendar({ canEdit, onOpenScheduleConfig }: TeamCale
     return weeks;
   }, [currentMonth]);
 
-  // Get employee status for a specific day
-  const getEmployeeStatusForDay = (employeeId: string, date: Date) => {
+  // Generate the 7 days of the current week (for week view)
+  const currentWeekDays = useMemo(() => {
+    const days: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(currentWeekStart);
+      day.setDate(currentWeekStart.getDate() + i);
+      days.push(day);
+    }
+    return days;
+  }, [currentWeekStart]);
+
+  // Format week date range for header (e.g., "12 - 18 ene 2026")
+  const weekDateRange = useMemo(() => {
+    const start = currentWeekDays[0];
+    const end = currentWeekDays[6];
+    const startDay = start.getDate();
+    const endDay = end.getDate();
+    const startMonth = formatDisplayDate(start, { month: 'short' });
+    const endMonth = formatDisplayDate(end, { month: 'short' });
+    const year = end.getFullYear();
+
+    if (start.getMonth() === end.getMonth()) {
+      return `${startDay} - ${endDay} ${startMonth} ${year}`;
+    }
+    return `${startDay} ${startMonth} - ${endDay} ${endMonth} ${year}`;
+  }, [currentWeekDays]);
+
+  // Get primary status for an employee on a specific day
+  const getPrimaryStatusForDay = (employeeId: string, date: Date): string => {
     const dateStr = date.toISOString().split('T')[0];
     const dayOfWeek = date.getDay();
 
-    // Get base schedule for reference
+    // Get all exceptions for this employee on this date
+    const dayExceptions = exceptions.filter(
+      e => e.userId === employeeId && e.date.split('T')[0] === dateStr
+    );
+
+    // Check for full-day exception first
+    const fullDayException = dayExceptions.find(e => !e.startTime || !e.endTime);
+    if (fullDayException) {
+      return REASON_TO_STATUS[fullDayException.reason || ''] || 'dayoff';
+    }
+
+    // If there are partial exceptions, show "mixed" indicator
+    if (dayExceptions.length > 0) {
+      // Return the "worst" status for display purposes
+      const statuses = dayExceptions.map(e => REASON_TO_STATUS[e.reason || ''] || 'dayoff');
+      // Priority: sick > vacation > study > dayoff > special
+      if (statuses.includes('sick')) return 'sick';
+      if (statuses.includes('vacation')) return 'vacation';
+      if (statuses.includes('study')) return 'study';
+      if (statuses.includes('dayoff')) return 'dayoff';
+      if (statuses.includes('special')) return 'special';
+    }
+
+    // Fall back to regular schedule
+    const schedule = schedules.find(
+      s => s.userId === employeeId && s.dayOfWeek === dayOfWeek
+    );
+
+    if (schedule?.isAvailable) {
+      return 'available';
+    }
+
+    return 'dayoff';
+  };
+
+  // Get full employee status including all exceptions
+  const getEmployeeStatusForDay = (employeeId: string, date: Date): Omit<EmployeeStatus, 'employee'> => {
+    const dateStr = date.toISOString().split('T')[0];
+    const dayOfWeek = date.getDay();
+
+    // Get base schedule
     const schedule = schedules.find(
       s => s.userId === employeeId && s.dayOfWeek === dayOfWeek
     );
     const baseStartTime = schedule?.isAvailable ? schedule.startTime : null;
     const baseEndTime = schedule?.isAvailable ? schedule.endTime : null;
 
-    // Check for exception first
-    const exception = exceptions.find(
+    // Get all exceptions for this day
+    const dayExceptions = exceptions.filter(
       e => e.userId === employeeId && e.date.split('T')[0] === dateStr
     );
 
-    if (exception) {
-      const hasExceptionHours = !!(exception.startTime && exception.endTime);
-
-      if (!exception.isAvailable) {
-        // Absence exception (vacation, sick, etc.)
-        const status = REASON_TO_STATUS[exception.reason || ''] || 'dayoff';
-        return {
-          status,
-          reason: exception.reason,
-          startTime: exception.startTime || null,  // Absence hours (if partial)
-          endTime: exception.endTime || null,
-          baseStartTime,  // Original schedule for reference
-          baseEndTime,
-          isException: true,
-          isPartialAbsence: hasExceptionHours,
-          exceptionId: exception.id,
-        };
-      } else {
-        // Modified hours exception (still working, different times)
-        return {
-          status: 'special',
-          reason: exception.reason,
-          startTime: exception.startTime,
-          endTime: exception.endTime,
-          baseStartTime,
-          baseEndTime,
-          isException: true,
-          isPartialAbsence: false,
-          exceptionId: exception.id,
-        };
-      }
-    }
-
-    // Check regular schedule
-    if (schedule?.isAvailable) {
-      return {
-        status: 'available',
-        reason: null,
-        startTime: schedule.startTime,
-        endTime: schedule.endTime,
-        baseStartTime: schedule.startTime,
-        baseEndTime: schedule.endTime,
-        isException: false,
-        isPartialAbsence: false,
-      };
-    }
+    // Determine primary status
+    const status = getPrimaryStatusForDay(employeeId, date);
 
     return {
-      status: 'dayoff',
-      reason: null,
-      startTime: null,
-      endTime: null,
-      baseStartTime: null,
-      baseEndTime: null,
-      isException: false,
-      isPartialAbsence: false,
+      status,
+      exceptions: dayExceptions,
+      baseStartTime,
+      baseEndTime,
+      hasExceptions: dayExceptions.length > 0,
     };
   };
 
@@ -304,12 +369,24 @@ export default function TeamCalendar({ canEdit, onOpenScheduleConfig }: TeamCale
     const filteredEmployees = selectedEmployees.length > 0
       ? employees.filter(e => selectedEmployees.includes(e.id))
       : employees;
+    const dayOfWeek = date.getDay();
 
-    return filteredEmployees.map(emp => ({
-      employeeId: emp.id,
-      employeeName: emp.name,
-      ...getEmployeeStatusForDay(emp.id, date)
-    }));
+    return filteredEmployees.map(emp => {
+      const status = getPrimaryStatusForDay(emp.id, date);
+      const schedule = schedules.find(
+        s => s.userId === emp.id && s.dayOfWeek === dayOfWeek
+      );
+      const startTime = schedule?.isAvailable ? schedule.startTime : null;
+      const endTime = schedule?.isAvailable ? schedule.endTime : null;
+
+      return {
+        employeeId: emp.id,
+        employeeName: emp.name,
+        status,
+        startTime,
+        endTime,
+      };
+    });
   };
 
   // Toggle employee selection
@@ -350,22 +427,59 @@ export default function TeamCalendar({ canEdit, onOpenScheduleConfig }: TeamCale
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-lg bg-white p-3 shadow-sm">
         {/* Navigation */}
         <div className="flex items-center gap-2">
-          <button onClick={prevMonth} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100">
+          <button
+            onClick={viewMode === 'week' ? prevWeek : prevMonth}
+            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+          >
             <ChevronLeft className="h-5 w-5" />
           </button>
           <button onClick={goToToday} className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100">
             Hoy
           </button>
-          <button onClick={nextMonth} className="rounded-lg p-2 text-gray-500 hover:bg-gray-100">
+          <button
+            onClick={viewMode === 'week' ? nextWeek : nextMonth}
+            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100"
+          >
             <ChevronRight className="h-5 w-5" />
           </button>
           <h2 className="ml-2 text-lg font-semibold text-gray-900 capitalize">
-            {formatDisplayDate(currentMonth, { month: 'long', year: 'numeric' })}
+            {viewMode === 'week'
+              ? weekDateRange
+              : formatDisplayDate(currentMonth, { month: 'long', year: 'numeric' })
+            }
           </h2>
         </div>
 
         {/* Right side controls */}
         <div className="flex items-center gap-2">
+          {/* View Toggle */}
+          <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+            <button
+              onClick={() => setViewMode('week')}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+                viewMode === 'week'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              <CalendarDays className="h-4 w-4" />
+              <span className="hidden sm:inline">Semana</span>
+            </button>
+            <button
+              onClick={() => setViewMode('month')}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-md transition-colors',
+                viewMode === 'month'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              )}
+            >
+              <Calendar className="h-4 w-4" />
+              <span className="hidden sm:inline">Mes</span>
+            </button>
+          </div>
+
           {/* Employee selector */}
           <div className="relative">
             <button
@@ -453,9 +567,9 @@ export default function TeamCalendar({ canEdit, onOpenScheduleConfig }: TeamCale
               key={filter.id}
               onClick={() => setStatusFilter(filter.id)}
               className={cn(
-                'px-3 py-1 rounded-full text-sm font-medium transition-colors',
+                'px-3 py-1.5 rounded-full text-sm font-medium transition-all',
                 statusFilter === filter.id
-                  ? filter.color
+                  ? filter.color.replace('100', '200').replace('700', '800')
                   : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
               )}
             >
@@ -465,116 +579,222 @@ export default function TeamCalendar({ canEdit, onOpenScheduleConfig }: TeamCale
         </div>
       </div>
 
-      {/* Main Calendar Area - Split View Layout with Gap */}
+      {/* Calendar Grid + Side Panel - Split Layout */}
       <div className="flex gap-4">
         {/* Calendar Grid - Separate Card */}
         <div className="flex-1 rounded-lg bg-white shadow-sm overflow-hidden">
-          {/* Day Headers */}
-          <div className="grid grid-cols-7 border-b border-gray-100">
-            {DAY_NAMES.map((day) => (
-              <div key={day} className="px-2 py-3 text-center text-sm font-medium text-gray-500">
-                {day}
-              </div>
-            ))}
-          </div>
-
-          {/* Weeks Grid */}
-          <div className="grid" style={{ gridTemplateRows: `repeat(${weeks.length}, minmax(90px, 1fr))` }}>
-            {weeks.map((week, weekIndex) => (
-              <div key={weekIndex} className="grid grid-cols-7 border-b border-gray-50 last:border-b-0">
-                {week.map((date, dayIndex) => {
+          {viewMode === 'week' ? (
+            /* ═══════════════════════════════════════════════════════════════════════════════
+               WEEK VIEW - Table with dates in headers
+               ═══════════════════════════════════════════════════════════════════════════════ */
+            <>
+              {/* Day Headers with Dates */}
+              <div className="grid grid-cols-7 border-b border-gray-100">
+                {currentWeekDays.map((date, idx) => {
                   const dateStr = formatDateStr(date);
-                  const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
                   const isToday = dateStr === today;
                   const isSelected = dateStr === selectedDateStr;
-                  const employeeDots = getEmployeeDotsForDay(date);
-
                   return (
                     <button
-                      key={dayIndex}
+                      key={idx}
                       onClick={() => setSelectedDate(date)}
                       className={cn(
-                        'min-h-[90px] border-r border-gray-50 last:border-r-0 p-2 pb-4 text-left transition-all hover:bg-gray-50 flex flex-col',
-                        isCurrentMonth ? 'bg-white' : 'bg-gray-50/50',
-                        // Selected: thick teal border, keep white bg
-                        isSelected && 'ring-2 ring-inset ring-teal-600 bg-white hover:bg-white'
+                        'px-2 py-3 text-center transition-colors hover:bg-gray-50',
+                        isSelected && 'bg-teal-50'
                       )}
                     >
-                      {/* Day number - fixed at top-right */}
-                      <div className="flex justify-end">
-                        <span
-                          className={cn(
-                            'flex h-6 w-6 items-center justify-center text-sm',
-                            // Today: bold + teal color (no circle)
-                            isToday && 'font-bold text-teal-600',
-                            // Not today: normal weight
-                            !isToday && (isCurrentMonth ? 'font-medium text-gray-900' : 'font-medium text-gray-400')
-                          )}
-                        >
-                          {date.getDate()}
-                        </span>
+                      <div className={cn(
+                        'text-xs font-medium uppercase',
+                        isToday ? 'text-teal-600' : 'text-gray-500'
+                      )}>
+                        {DAY_NAMES[date.getDay()]}
                       </div>
-
-                      {/* Status dots - positioned at ~75% height */}
-                      <div className="flex-grow" />
-                      {employeeDots.length > 0 && (
-                        <div className="flex items-center justify-center gap-1 flex-wrap">
-                          {employeeDots.slice(0, 4).map((empDot) => (
-                            <span
-                              key={empDot.employeeId}
-                              className={cn(
-                                'h-2.5 w-2.5 rounded-full',
-                                STATUS_DOT_COLORS[empDot.status] || 'bg-gray-400'
-                              )}
-                              title={`${empDot.employeeName}: ${STATUS_LABELS[empDot.status] || empDot.status}`}
-                            />
-                          ))}
-                          {employeeDots.length > 4 && (
-                            <span className="text-xs font-medium text-gray-500">
-                              +{employeeDots.length - 4}
-                            </span>
-                          )}
-                        </div>
-                      )}
+                      <div className={cn(
+                        'text-lg font-semibold',
+                        isToday ? 'text-teal-600' : 'text-gray-900'
+                      )}>
+                        {date.getDate()}
+                      </div>
                     </button>
                   );
                 })}
               </div>
-            ))}
-          </div>
+
+              {/* Week Row - Employee schedule chips for each day */}
+              <div className="grid grid-cols-7">
+                {currentWeekDays.map((date, dayIdx) => {
+                  const dateStr = formatDateStr(date);
+                  const isToday = dateStr === today;
+                  const employeeStatuses = getEmployeeDotsForDay(date);
+
+                  // Helper to format time display (simplified)
+                  const formatTimeShort = (time: string | null) => {
+                    if (!time) return '';
+                    return time.substring(0, 5); // Just "HH:MM"
+                  };
+
+                  return (
+                    <div
+                      key={dayIdx}
+                      className={cn(
+                        'border-r border-gray-100 last:border-r-0 p-2 min-h-[280px]',
+                        isToday && 'bg-teal-50/20'
+                      )}
+                    >
+                      {/* Employee Chips */}
+                      <div className="space-y-1.5">
+                        {employeeStatuses.map((emp) => {
+                          const chipStyle = STATUS_CHIP_STYLES[emp.status] || STATUS_CHIP_STYLES.dayoff;
+                          const hasHours = emp.startTime && emp.endTime;
+                          const timeDisplay = hasHours
+                            ? `${formatTimeShort(emp.startTime)}-${formatTimeShort(emp.endTime)}`
+                            : (emp.status === 'dayoff' ? 'Libre' : STATUS_LABELS[emp.status] || '');
+
+                          return (
+                            <button
+                              key={emp.employeeId}
+                              onClick={() => {
+                                setSelectedDate(date);
+                                setSelectedEmployeeIdForEdit(emp.employeeId);
+                              }}
+                              className={cn(
+                                'w-full px-3 py-2 rounded-md border text-left transition-all',
+                                'hover:shadow-sm hover:scale-[1.02] active:scale-[0.98]',
+                                chipStyle
+                              )}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-base font-medium truncate">
+                                  {emp.employeeName.split(' ')[0]}
+                                </span>
+                                <span className="text-sm opacity-80 flex-shrink-0">
+                                  {timeDisplay}
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            /* ═══════════════════════════════════════════════════════════════════════════════
+               MONTH VIEW - Original calendar grid
+               ═══════════════════════════════════════════════════════════════════════════════ */
+            <>
+              {/* Day Headers */}
+              <div className="grid grid-cols-7 border-b border-gray-100">
+                {DAY_NAMES.map((day) => (
+                  <div key={day} className="px-2 py-3 text-center text-sm font-medium text-gray-500">
+                    {day}
+                  </div>
+                ))}
+              </div>
+
+              {/* Weeks Grid */}
+              <div className="grid" style={{ gridTemplateRows: `repeat(${weeks.length}, minmax(90px, 1fr))` }}>
+                {weeks.map((week, weekIndex) => (
+                  <div key={weekIndex} className="grid grid-cols-7 border-b border-gray-50 last:border-b-0">
+                    {week.map((date, dayIndex) => {
+                      const dateStr = formatDateStr(date);
+                      const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
+                      const isToday = dateStr === today;
+                      const isSelected = dateStr === selectedDateStr;
+                      const employeeDots = getEmployeeDotsForDay(date);
+
+                      return (
+                        <button
+                          key={dayIndex}
+                          onClick={() => setSelectedDate(date)}
+                          className={cn(
+                            'min-h-[90px] border-r border-gray-50 last:border-r-0 p-2 pb-4 text-left transition-all hover:bg-gray-50 flex flex-col',
+                            isCurrentMonth ? 'bg-white' : 'bg-gray-50/50',
+                            // Selected: thick teal border, keep white bg
+                            isSelected && 'ring-2 ring-inset ring-teal-600 bg-white hover:bg-white'
+                          )}
+                        >
+                          {/* Day number - fixed at top-right */}
+                          <div className="flex justify-end">
+                            <span
+                              className={cn(
+                                'flex h-6 w-6 items-center justify-center text-sm',
+                                // Today: bold + teal color (no circle)
+                                isToday && 'font-bold text-teal-600',
+                                // Not today: normal weight
+                                !isToday && (isCurrentMonth ? 'font-medium text-gray-900' : 'font-medium text-gray-400')
+                              )}
+                            >
+                              {date.getDate()}
+                            </span>
+                          </div>
+
+                          {/* Status dots - positioned at ~75% height */}
+                          <div className="flex-grow" />
+                          {employeeDots.length > 0 && (
+                            <div className="flex items-center justify-center gap-1 flex-wrap">
+                              {employeeDots.slice(0, 4).map((empDot) => (
+                                <span
+                                  key={empDot.employeeId}
+                                  className={cn(
+                                    'h-2.5 w-2.5 rounded-full',
+                                    STATUS_DOT_COLORS[empDot.status] || 'bg-gray-400'
+                                  )}
+                                  title={`${empDot.employeeName}: ${STATUS_LABELS[empDot.status] || empDot.status}`}
+                                />
+                              ))}
+                              {employeeDots.length > 4 && (
+                                <span className="text-xs font-medium text-gray-500">
+                                  +{employeeDots.length - 4}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
-        {/* Side Panel - Employee Details for Selected Day - Separate Card */}
-        {selectedDate && (
+        {/* Side Panel - Employee Details for Selected Day - Only in Month View */}
+        {viewMode === 'month' && selectedDate && (
           <AvailabilitySidePanel
             selectedDate={selectedDate}
             statuses={selectedDayStatuses}
             canEdit={canEdit}
-            onEmployeeClick={(empStatus) => setSelectedEmployeeForEdit(empStatus)}
+            onEmployeeClick={(empStatus) => setSelectedEmployeeIdForEdit(empStatus.employee.id)}
           />
         )}
       </div>
 
-      {/* Employee Day Edit Modal */}
-      {selectedEmployeeForEdit && selectedDate && (
-        <EmployeeDayModal
-          employee={selectedEmployeeForEdit.employee}
-          date={selectedDate}
-          currentStatus={selectedEmployeeForEdit.status}
-          currentReason={selectedEmployeeForEdit.reason}
-          startTime={selectedEmployeeForEdit.startTime}
-          endTime={selectedEmployeeForEdit.endTime}
-          baseStartTime={selectedEmployeeForEdit.baseStartTime}
-          baseEndTime={selectedEmployeeForEdit.baseEndTime}
-          hasException={selectedEmployeeForEdit.isException}
-          exceptionId={selectedEmployeeForEdit.exceptionId}
-          onClose={() => setSelectedEmployeeForEdit(null)}
-          onUpdate={() => {
-            queryClient.invalidateQueries({ queryKey: ['team-calendar'] });
-            setSelectedEmployeeForEdit(null);
-          }}
-        />
-      )}
+      {/* Employee Day Edit Modal - derive fresh data from query each render */}
+      {selectedEmployeeIdForEdit && selectedDate && (() => {
+        // Find employee and derive current status from latest query data
+        const employee = employees.find(e => e.id === selectedEmployeeIdForEdit);
+        if (!employee) return null;
+
+        const status = getEmployeeStatusForDay(selectedEmployeeIdForEdit, selectedDate);
+
+        return (
+          <EmployeeDayModal
+            employee={employee}
+            date={selectedDate}
+            exceptions={status.exceptions}
+            baseStartTime={status.baseStartTime}
+            baseEndTime={status.baseEndTime}
+            onClose={() => setSelectedEmployeeIdForEdit(null)}
+            onUpdate={() => {
+              queryClient.invalidateQueries({ queryKey: ['team-calendar'] });
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }
@@ -591,134 +811,125 @@ interface AvailabilitySidePanelProps {
 }
 
 function AvailabilitySidePanel({ selectedDate, statuses, canEdit, onEmployeeClick }: AvailabilitySidePanelProps) {
-  // Group by status
-  const availableCount = statuses.filter(s => s.status === 'available' || s.status === 'special').length;
-  const unavailableCount = statuses.length - availableCount;
+  // Format time for display
+  const formatTime = (time: string | null) => {
+    if (!time) return '';
+    const [hours, minutes] = time.split(':').map(Number);
+    const period = hours >= 12 ? 'PM' : 'AM';
+    const h = hours % 12 || 12;
+    return `${h}:${String(minutes).padStart(2, '0')} ${period}`;
+  };
+
+  const dateLabel = formatDisplayDate(selectedDate, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+
+  // Count by status
+  const countByStatus = statuses.reduce((acc, s) => {
+    acc[s.status] = (acc[s.status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
-    <div className="w-80 rounded-lg bg-white shadow-sm overflow-y-auto flex-shrink-0">
+    <div className="w-80 flex-shrink-0 rounded-lg bg-white shadow-sm">
       {/* Header */}
       <div className="p-4 border-b border-gray-100">
-        <h3 className="text-lg font-semibold text-gray-900">
-          {formatDisplayDate(selectedDate, {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-          })}
-        </h3>
-        <p className="text-sm text-gray-500 mt-0.5">
-          {availableCount} disponible{availableCount !== 1 ? 's' : ''} · {unavailableCount} ausente{unavailableCount !== 1 ? 's' : ''}
+        <h3 className="font-semibold text-gray-900 capitalize">{dateLabel}</h3>
+        <p className="text-sm text-gray-500 mt-1">
+          {statuses.length} empleado{statuses.length !== 1 ? 's' : ''}
         </p>
       </div>
 
-      {/* Employee List */}
-      <div className="p-4 space-y-3">
-        {statuses.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-gray-500 text-sm">No hay empleados para este filtro</p>
-          </div>
-        ) : (
-          statuses.map((empStatus) => (
-            <EmployeeStatusCard
-              key={empStatus.employee.id}
-              empStatus={empStatus}
-              canEdit={canEdit}
-              onClick={() => onEmployeeClick(empStatus)}
-            />
-          ))
-        )}
+      {/* Status Summary */}
+      <div className="p-4 border-b border-gray-100 flex flex-wrap gap-2">
+        {Object.entries(countByStatus).map(([status, count]) => (
+          <span
+            key={status}
+            className={cn('px-2 py-1 rounded-full text-xs font-medium', STATUS_BADGE_COLORS[status])}
+          >
+            {count} {STATUS_LABELS[status] || status}
+          </span>
+        ))}
       </div>
 
-      {/* Hint for editing */}
-      {canEdit && statuses.length > 0 && (
-        <div className="px-4 pb-4">
-          <p className="text-xs text-gray-400 text-center">
-            Haz clic en un empleado para editar
-          </p>
-        </div>
-      )}
+      {/* Employee List */}
+      <div className="max-h-[500px] overflow-y-auto divide-y divide-gray-50">
+        {statuses.map((empStatus) => {
+          const hasExceptions = empStatus.exceptions.length > 0;
+          const hasFullDayException = empStatus.exceptions.some(e => !e.startTime || !e.endTime);
+          const hasPartialException = empStatus.exceptions.some(e => e.startTime && e.endTime);
+
+          // Get the primary exception type for display
+          const primaryException = empStatus.exceptions[0];
+          const exceptionLabel = primaryException
+            ? (STATUS_LABELS[REASON_TO_STATUS[primaryException.reason || ''] || 'dayoff'] || primaryException.reason)
+            : null;
+
+          return (
+            <button
+              key={empStatus.employee.id}
+              onClick={() => canEdit && onEmployeeClick(empStatus)}
+              disabled={!canEdit}
+              className={cn(
+                'w-full p-3 text-left hover:bg-gray-50 transition-colors flex items-center gap-3',
+                !canEdit && 'cursor-default'
+              )}
+            >
+              {/* Avatar */}
+              <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+                <User className="h-4 w-4 text-gray-500" />
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-gray-900 truncate">{empStatus.employee.name}</p>
+
+                {/* Row 1: Work schedule (if available) OR status badge for full-day absence */}
+                {empStatus.baseStartTime && empStatus.baseEndTime && !hasFullDayException ? (
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-gray-600 flex items-center gap-1">
+                      <Clock className="h-3 w-3 text-gray-400" />
+                      {formatTime(empStatus.baseStartTime)} - {formatTime(empStatus.baseEndTime)}
+                    </span>
+                  </div>
+                ) : !hasExceptions && !empStatus.baseStartTime ? (
+                  <span className={cn('px-1.5 py-0.5 rounded text-xs font-medium inline-block mt-0.5', STATUS_BADGE_COLORS['dayoff'])}>
+                    Franco / Ausente
+                  </span>
+                ) : null}
+
+                {/* Row 2: Exception indicator */}
+                {hasExceptions && (
+                  <div className="flex items-center gap-1.5 mt-1">
+                    {hasFullDayException ? (
+                      <span className={cn('px-1.5 py-0.5 rounded text-xs font-medium', STATUS_BADGE_COLORS[empStatus.status])}>
+                        {exceptionLabel} (día completo)
+                      </span>
+                    ) : hasPartialException ? (
+                      <>
+                        <span className={cn('px-1.5 py-0.5 rounded text-xs font-medium', STATUS_BADGE_COLORS[empStatus.status])}>
+                          {exceptionLabel}
+                        </span>
+                        <span className="text-xs text-amber-600">
+                          ({empStatus.exceptions.length === 1 ? 'parcial' : `${empStatus.exceptions.length} parciales`})
+                        </span>
+                      </>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            </button>
+          );
+        })}
+
+        {statuses.length === 0 && (
+          <div className="p-8 text-center text-gray-500">
+            <p>No hay empleados para mostrar</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// EMPLOYEE STATUS CARD
-// ═══════════════════════════════════════════════════════════════════════════════
-
-interface EmployeeStatusCardProps {
-  empStatus: EmployeeStatus;
-  canEdit: boolean;
-  onClick: () => void;
-}
-
-function EmployeeStatusCard({ empStatus, canEdit, onClick }: EmployeeStatusCardProps) {
-  const { employee, status, reason, startTime, endTime, isException, isPartialAbsence } = empStatus;
-
-  const statusLabel = STATUS_LABELS[status] || status;
-  const statusDotColor = STATUS_DOT_COLORS[status] || 'bg-gray-400';
-  const statusBadgeColor = STATUS_BADGE_COLORS[status] || 'bg-gray-100 text-gray-600';
-
-  // Check if this is an exception status (absence type)
-  const isAbsenceStatus = ['vacation', 'sick', 'study', 'dayoff'].includes(status);
-
-  // Format time display
-  const formatTime = (time: string | null) => {
-    if (!time) return null;
-    const [h, m] = time.split(':');
-    return `${h}:${m}`;
-  };
-
-  const timeDisplay = startTime && endTime
-    ? `${formatTime(startTime)} - ${formatTime(endTime)}`
-    : null;
-
-  return (
-    <button
-      onClick={canEdit ? onClick : undefined}
-      className={cn(
-        'w-full text-left bg-white border border-gray-100 rounded-xl p-4 shadow-sm transition-all',
-        canEdit && 'hover:shadow-md hover:border-gray-200 cursor-pointer'
-      )}
-    >
-      {/* Header: Employee name + status badge */}
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <span className={cn('h-2.5 w-2.5 rounded-full', statusDotColor)} />
-          <span className="font-medium text-gray-900">{employee.name}</span>
-        </div>
-        <span className={cn(
-          'text-xs font-medium px-2.5 py-1 rounded-full',
-          statusBadgeColor
-        )}>
-          {statusLabel}{isPartialAbsence ? ' (parcial)' : ''}
-        </span>
-      </div>
-
-      {/* Time info - differentiate between work hours and absence hours */}
-      {timeDisplay && (
-        <div className="flex items-center gap-1.5 text-gray-500 mb-1">
-          <Clock className="h-3.5 w-3.5" />
-          <span className="text-sm">
-            {isAbsenceStatus && isPartialAbsence ? `Ausente: ${timeDisplay}` : timeDisplay}
-          </span>
-        </div>
-      )}
-
-      {/* Role */}
-      <div className="flex items-center gap-1.5 text-gray-500 mb-1">
-        <User className="h-3.5 w-3.5" />
-        <span className="text-sm">
-          {employee.role === 'TECHNICIAN' ? 'Técnico' : employee.role === 'DISPATCHER' ? 'Despachador' : employee.role}
-        </span>
-      </div>
-
-      {/* Exception indicator - only show full reason for full-day absences */}
-      {isException && reason && !isPartialAbsence && (
-        <div className="mt-2 text-xs text-gray-500 italic">
-          Motivo: {reason}
-        </div>
-      )}
-    </button>
-  );
-}
-

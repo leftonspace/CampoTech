@@ -296,6 +296,8 @@ export const api = {
       apiRequest('/jobs', { method: 'POST', body: data }),
     update: (id: string, data: unknown) =>
       apiRequest(`/jobs/${id}`, { method: 'PUT', body: data }),
+    delete: (id: string) =>
+      apiRequest(`/jobs/${id}`, { method: 'DELETE' }),
     updateStatus: (id: string, status: string) =>
       apiRequest(`/jobs/${id}/status`, { method: 'PATCH', body: { status } }),
     assign: (id: string, userId: string) =>

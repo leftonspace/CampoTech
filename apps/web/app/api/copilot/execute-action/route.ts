@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { parseDateTimeAsArgentina } from '@/lib/timezone';
 
 interface ExecuteActionRequest {
   action_type: 'create_job' | 'create_customer' | 'send_message' | 'schedule_followup';
@@ -86,7 +87,7 @@ export async function POST(request: NextRequest) {
             description: (data.description as string) || 'Creado desde co-pilot',
             serviceType: (data.serviceType as string) || 'REPAIR',
             status: 'PENDING',
-            scheduledDate: data.scheduledDate ? new Date(data.scheduledDate as string) : null,
+            scheduledDate: data.scheduledDate ? parseDateTimeAsArgentina(data.scheduledDate as string) : null,
             estimatedPrice: data.estimatedPrice ? Number(data.estimatedPrice) : null,
           },
         });

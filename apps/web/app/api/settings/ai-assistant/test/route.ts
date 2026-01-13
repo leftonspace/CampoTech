@@ -196,11 +196,11 @@ export async function POST(request: NextRequest) {
         const wordStem = getWordStem(word);
         // Check if stems match or one contains the other
         return wordStem === keywordStem ||
-               wordStem.includes(keywordStem) ||
-               keywordStem.includes(wordStem) ||
-               // Also check if keyword is substring of word or vice versa
-               word.includes(keywordLower) ||
-               keywordLower.includes(word);
+          wordStem.includes(keywordStem) ||
+          keywordStem.includes(wordStem) ||
+          // Also check if keyword is substring of word or vice versa
+          word.includes(keywordLower) ||
+          keywordLower.includes(word);
       });
     });
 
@@ -366,9 +366,9 @@ async function getTechnicianAvailability(
       status,
       currentLocation: tech.currentLocation
         ? {
-            lat: Number(tech.currentLocation.latitude),
-            lng: Number(tech.currentLocation.longitude),
-          }
+          lat: Number(tech.currentLocation.latitude),
+          lng: Number(tech.currentLocation.longitude),
+        }
         : null,
       todaysJobs: tech.assignedJobs.length,
       nextAvailableSlot,
@@ -512,11 +512,11 @@ function buildTestSystemPrompt(
   // Services - only include if permitted, and only show prices if pricing permitted
   const servicesText = perms.services && config.servicesOffered.length > 0
     ? config.servicesOffered
-        .map(
-          (s) =>
-            `- ${s.name}: ${s.description}${perms.pricing && s.priceRange ? ` (${s.priceRange})` : ''}`
-        )
-        .join('\n')
+      .map(
+        (s) =>
+          `- ${s.name}: ${s.description}${perms.pricing && s.priceRange ? ` (${s.priceRange})` : ''}`
+      )
+      .join('\n')
     : '[Información de servicios no disponible]';
 
   // Pricing info - only show if permitted
@@ -594,14 +594,14 @@ function buildTestSystemPrompt(
   // Business hours - only show details if permitted (but still check internally for open/closed status)
   const businessHoursText = perms.businessHours
     ? (Object.entries(config.businessHours || {})
-        .filter(([, hours]) => hours !== null)
-        .map(([day, hours]) => {
-          if (!hours) return null;
-          const isToday = day === currentDayKey;
-          return `${daysMap[day] || day}: ${hours.open} - ${hours.close}${isToday ? ' ← HOY' : ''}`;
-        })
-        .filter(Boolean)
-        .join('\n') || 'Horarios no configurados')
+      .filter(([, hours]) => hours !== null)
+      .map(([day, hours]) => {
+        if (!hours) return null;
+        const isToday = day === currentDayKey;
+        return `${daysMap[day] || day}: ${hours.open} - ${hours.close}${isToday ? ' ← HOY' : ''}`;
+      })
+      .filter(Boolean)
+      .join('\n') || 'Horarios no configurados')
     : '[Horarios de atención no disponibles - consultá con un representante]';
 
   // Build technician status text - respect technicianNames and technicianAvailability permissions
@@ -618,24 +618,22 @@ function buildTestSystemPrompt(
     techStatusText = `
 TÉCNICOS DISPONIBLES AHORA (${availableTechs.length}/${technicians.length}):
 ${technicians
-  .map(
-    (t, index) => {
-      // Use real name or anonymous "Técnico N"
-      const displayName = perms.technicianNames ? t.name : `Técnico ${index + 1}`;
-      return `- ${displayName} (${t.specialty || 'General'}): ${
-        t.status === 'disponible'
-          ? '✅ Disponible'
-          : t.status === 'ocupado'
-            ? '🔧 Ocupado'
-            : t.status === 'en_camino'
-              ? '🚗 En camino'
-              : '⚫ Sin conexión'
-      }${t.todaysJobs > 0 ? ` - ${t.todaysJobs} trabajos hoy` : ''}${
-        t.nextAvailableSlot ? ` - Libre desde ${t.nextAvailableSlot}` : ''
-      }`;
-    }
-  )
-  .join('\n')}`;
+        .map(
+          (t, index) => {
+            // Use real name or anonymous "Técnico N"
+            const displayName = perms.technicianNames ? t.name : `Técnico ${index + 1}`;
+            return `- ${displayName} (${t.specialty || 'General'}): ${t.status === 'disponible'
+              ? '✅ Disponible'
+              : t.status === 'ocupado'
+                ? '🔧 Ocupado'
+                : t.status === 'en_camino'
+                  ? '🚗 En camino'
+                  : '⚫ Sin conexión'
+              }${t.todaysJobs > 0 ? ` - ${t.todaysJobs} trabajos hoy` : ''}${t.nextAvailableSlot ? ` - Libre desde ${t.nextAvailableSlot}` : ''
+              }`;
+          }
+        )
+        .join('\n')}`;
   }
 
   // Build schedule slots text - respect scheduleSlots permission
@@ -648,10 +646,11 @@ ${technicians
       .map((day) => {
         const availableSlots = day.timeSlots.filter((s) => s.available);
         const dateObj = new Date(day.date);
-        const dayName = dateObj.toLocaleDateString('es-AR', { weekday: 'long' });
+        const dayName = dateObj.toLocaleDateString('es-AR', { weekday: 'long', timeZone: 'America/Buenos_Aires' });
         const dateStr = dateObj.toLocaleDateString('es-AR', {
           day: 'numeric',
           month: 'short',
+          timeZone: 'America/Buenos_Aires',
         });
 
         if (availableSlots.length === 0) {

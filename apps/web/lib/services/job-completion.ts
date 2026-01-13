@@ -165,7 +165,7 @@ export async function completeJobWithSnapshot(
         const expiryDate = new Date(job.technician.driverLicenseExpiry);
         if (expiryDate < new Date()) {
             warnings.push(
-                `La licencia de conducir de ${job.technician.name} está vencida desde ${expiryDate.toLocaleDateString('es-AR')}.`
+                `La licencia de conducir de ${job.technician.name} está vencida desde ${expiryDate.toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}.`
             );
         }
     }

@@ -243,7 +243,7 @@ export function EmployeeVerificationBadge({
           {/* Last reminder info */}
           {lastReminderSentAt && (
             <p className="text-xs text-gray-500">
-              Último recordatorio: {new Date(lastReminderSentAt).toLocaleDateString('es-AR')}
+              Último recordatorio: {new Date(lastReminderSentAt).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}
             </p>
           )}
         </div>

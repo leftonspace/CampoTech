@@ -261,7 +261,7 @@ function aggregateCustomerGrowth(
     const date = new Date(customer.createdAt);
     const key = groupByWeek
       ? `Sem ${getWeekNumber(date)}`
-      : date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+      : date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', timeZone: 'America/Buenos_Aires' });
     groups[key] = cumulative;
   });
 
@@ -316,7 +316,7 @@ function calculateCohortRetention(
     );
 
     if (cohort.length === 0) {
-      months.push({ label: monthStart.toLocaleDateString('es-AR', { month: 'short' }), value: 0 });
+      months.push({ label: monthStart.toLocaleDateString('es-AR', { month: 'short', timeZone: 'America/Buenos_Aires' }), value: 0 });
       continue;
     }
 
@@ -326,7 +326,7 @@ function calculateCohortRetention(
 
     const retentionRate = (activeInCohort / cohort.length) * 100;
     months.push({
-      label: monthStart.toLocaleDateString('es-AR', { month: 'short' }),
+      label: monthStart.toLocaleDateString('es-AR', { month: 'short', timeZone: 'America/Buenos_Aires' }),
       value: Math.round(retentionRate),
     });
   }
@@ -350,7 +350,7 @@ function aggregateSatisfactionTrend(
       const date = new Date(review.createdAt);
       const key = groupByWeek
         ? `Sem ${getWeekNumber(date)}`
-        : date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+        : date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', timeZone: 'America/Buenos_Aires' });
 
       if (!groups[key]) {
         groups[key] = { sum: 0, count: 0 };

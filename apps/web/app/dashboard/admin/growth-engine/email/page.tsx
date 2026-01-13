@@ -304,7 +304,7 @@ export default function EmailOutreachDashboard() {
                                             <td className="px-6 py-4">
                                                 <div className="font-medium text-gray-900">{campaign.name}</div>
                                                 <div className="text-sm text-gray-500">
-                                                    {new Date(campaign.createdAt).toLocaleDateString('es-AR')}
+                                                    {new Date(campaign.createdAt).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-gray-600">{campaign.source || 'Todos'}</td>

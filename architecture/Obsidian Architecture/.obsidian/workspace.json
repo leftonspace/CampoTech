@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Access Banner.md",
+                "file": "02_App/Operations/Team Availability Page.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Access Banner"
+              "title": "Team Availability Page"
             }
           }
         ]
@@ -195,8 +195,8 @@
   },
   "active": "0fc50cda106de3bf",
   "lastOpenFiles": [
-    "02_App/Core/Dashboard Home.md",
     "Access Banner.md",
+    "02_App/Core/Dashboard Home.md",
     "00_Flows/App Onboarding.md",
     "00_Flows/Login Flow.md",
     "Sitemap.canvas",

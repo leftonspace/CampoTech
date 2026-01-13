@@ -111,3 +111,25 @@ export function getDatePartsBuenosAires(date: Date): {
   };
 }
 
+/**
+ * Parse a date string with optional time as Argentina timezone.
+ * 
+ * This combines the selected date with the actual start time to create
+ * an accurate datetime. If no time is provided, defaults to noon to prevent
+ * timezone-related date shifts.
+ * 
+ * USE THIS for all user-selected dates to prevent day-shift bugs!
+ * 
+ * @param dateStr - Date in YYYY-MM-DD format
+ * @param timeStr - Optional time in HH:MM format (24h)
+ * @returns Date object representing the datetime in Argentina timezone
+ * 
+ * Examples:
+ * - parseDateTimeAsArgentina("2026-01-12", "09:00") → 2026-01-12T09:00:00-03:00
+ * - parseDateTimeAsArgentina("2026-01-12") → 2026-01-12T12:00:00-03:00 (noon fallback)
+ */
+export function parseDateTimeAsArgentina(dateStr: string, timeStr?: string | null): Date {
+  const time = timeStr || '12:00'; // Default to noon if no time provided
+  return new Date(`${dateStr}T${time}:00-03:00`);
+}
+

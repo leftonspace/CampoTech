@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
@@ -9,6 +9,9 @@ import { ArrowLeft, Search, Calendar, Clock, Users, MapPin, X, Check, Wrench, Re
 import Link from 'next/link';
 import AddressAutocomplete, { ParsedAddress } from '@/components/ui/AddressAutocomplete';
 import { useVehicleSuggestion, getMatchTypeLabel } from '@/hooks/useVehicleSuggestion';
+import { AssignmentConflictBanner } from '@/components/schedule/AssignmentConflictBanner';
+import EmployeeDayModal from '@/components/schedule/EmployeeDayModal';
+import type { ValidationWarning } from '@/hooks/useAssignmentValidation';
 
 // Customer type with address
 interface CustomerAddress {
@@ -216,6 +219,17 @@ export default function NewJobPage() {
   const [activeVisitDropdown, setActiveVisitDropdown] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Assignment conflict tracking
+  const [visitConflicts, setVisitConflicts] = useState<Record<string, ValidationWarning[]>>({});
+  const [isValidatingConflicts, setIsValidatingConflicts] = useState(false);
+  const [conflictModalData, setConflictModalData] = useState<{
+    isOpen: boolean;
+    technicianId: string;
+    technicianName: string;
+    date: Date;
+    visitId: string;
+  } | null>(null);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -335,6 +349,101 @@ export default function NewJobPage() {
           : [...v.technicianIds, techId]
       };
     }));
+  };
+
+  // Validate technicians for scheduling conflicts
+  const validateVisitAssignments = useCallback(async (visit: JobVisit) => {
+    if (!visit.date || visit.technicianIds.length === 0) {
+      setVisitConflicts(prev => ({ ...prev, [visit.id]: [] }));
+      return;
+    }
+
+    setIsValidatingConflicts(true);
+    const allWarnings: ValidationWarning[] = [];
+
+    // Helper to convert 12h to 24h format
+    const to24h = (time: string, period: 'AM' | 'PM'): string | null => {
+      if (!time) return null;
+      const hour = parseInt(time.split(':')[0]);
+      const min = time.split(':')[1] || '00';
+      let h24 = hour;
+      if (period === 'PM' && hour !== 12) h24 = hour + 12;
+      if (period === 'AM' && hour === 12) h24 = 0;
+      return `${h24}:${min}`;
+    };
+
+    const timeStart = to24h(visit.timeStart, visit.timePeriodStart);
+    const timeEnd = to24h(visit.timeEnd, visit.timePeriodEnd);
+
+    for (const techId of visit.technicianIds) {
+      try {
+        const response = await fetch('/api/employees/schedule/validate-assignment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            technicianId: techId,
+            scheduledDate: visit.date,
+            scheduledTimeStart: timeStart,
+            scheduledTimeEnd: timeEnd,
+          }),
+        });
+        const data = await response.json();
+        if (data.success && data.data?.warnings) {
+          allWarnings.push(...data.data.warnings);
+        }
+      } catch (error) {
+        console.error('Error validating technician:', error);
+      }
+    }
+
+    setVisitConflicts(prev => ({ ...prev, [visit.id]: allWarnings }));
+    setIsValidatingConflicts(false);
+  }, []);
+
+  // Re-validate when visits change (technicians or date)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      visits.forEach(visit => {
+        if (visit.date && visit.technicianIds.length > 0) {
+          validateVisitAssignments(visit);
+        }
+      });
+    }, 300); // Debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [visits, validateVisitAssignments]);
+
+  // Check if any visit has unresolved conflicts
+  const hasUnresolvedConflicts = Object.values(visitConflicts).some(warnings => warnings.length > 0);
+
+  // Handle conflict action (change date, remove technician, modify exception)
+  const handleConflictAction = (
+    action: 'change_date' | 'remove_technician' | 'modify_exception' | 'modify_schedule',
+    warning: ValidationWarning,
+    visitId: string
+  ) => {
+    if (action === 'remove_technician') {
+      toggleVisitTechnician(visitId, warning.details.technicianId);
+    } else if (action === 'modify_exception' && warning.details.exceptionDate) {
+      // Open the EmployeeDayModal to modify the exception
+      setConflictModalData({
+        isOpen: true,
+        technicianId: warning.details.technicianId,
+        technicianName: warning.details.technicianName,
+        date: new Date(warning.details.exceptionDate),
+        visitId,
+      });
+    } else if (action === 'change_date') {
+      // Focus the date input (scroll into view)
+      const dateInput = document.querySelector(`input[type="date"]`) as HTMLInputElement;
+      if (dateInput) {
+        dateInput.focus();
+        dateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } else if (action === 'modify_schedule') {
+      // Redirect to team schedule page
+      window.open(`/dashboard/settings/team?employee=${warning.details.technicianId}&tab=schedule`, '_blank');
+    }
   };
 
   // Auto-fill address when customer is selected
@@ -1001,6 +1110,16 @@ export default function NewJobPage() {
                   )}
                 </div>
 
+                {/* Scheduling Conflict Warnings */}
+                {visitConflicts[visit.id]?.length > 0 && (
+                  <AssignmentConflictBanner
+                    warnings={visitConflicts[visit.id]}
+                    isLoading={isValidatingConflicts}
+                    onAction={(action, warning) => handleConflictAction(action, warning, visit.id)}
+                    className="mt-2"
+                  />
+                )}
+
                 {/* Vehicle Suggestion - Phase 2.1 */}
                 {visit.technicianIds.length > 0 && visit.date && (
                   <VehicleSuggestionInline
@@ -1080,16 +1199,59 @@ export default function NewJobPage() {
 
         {error && <p className="text-sm text-danger-500">{error}</p>}
 
+        {/* Conflict warning before submit */}
+        {hasUnresolvedConflicts && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <p className="text-sm text-amber-700 font-medium">
+              ⚠️ Hay conflictos de horario sin resolver. Resolvé los conflictos antes de crear el trabajo.
+            </p>
+          </div>
+        )}
+
         {/* Actions */}
         <div className="flex justify-end gap-2">
           <Link href="/dashboard/jobs" className="btn-outline">
             Cancelar
           </Link>
-          <button type="submit" disabled={isSubmitting} className="btn-primary">
+          <button
+            type="submit"
+            disabled={isSubmitting || hasUnresolvedConflicts}
+            className="btn-primary"
+            title={hasUnresolvedConflicts ? 'Resolvé los conflictos de horario antes de continuar' : undefined}
+          >
             {isSubmitting ? 'Creando...' : 'Crear trabajo'}
           </button>
         </div>
       </form>
+
+      {/* Exception Modification Modal */}
+      {conflictModalData?.isOpen && (
+        <EmployeeDayModal
+          employee={{
+            id: conflictModalData.technicianId,
+            name: conflictModalData.technicianName,
+            role: 'TECHNICIAN',
+          }}
+          date={conflictModalData.date}
+          exceptions={[]}
+          onClose={() => {
+            setConflictModalData(null);
+            // Re-validate after modal closes
+            const visit = visits.find(v => v.id === conflictModalData.visitId);
+            if (visit) {
+              setTimeout(() => validateVisitAssignments(visit), 500);
+            }
+          }}
+          onUpdate={() => {
+            setConflictModalData(null);
+            // Re-validate
+            const visit = visits.find(v => v.id === conflictModalData.visitId);
+            if (visit) {
+              setTimeout(() => validateVisitAssignments(visit), 500);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

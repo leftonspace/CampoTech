@@ -542,8 +542,8 @@ function buildPDFContent(invoice: any, jobData: InvoicePDFJobData): string {
         <div style="text-align: right">
           <div class="invoice-title">FACTURA</div>
           <div class="invoice-number">#${invoice.invoiceNumber || invoice.id}</div>
-          <p>Fecha: ${new Date(invoice.createdAt).toLocaleDateString('es-AR')}</p>
-          ${invoice.dueDate ? `<p>Vencimiento: ${new Date(invoice.dueDate).toLocaleDateString('es-AR')}</p>` : ''}
+          <p>Fecha: ${new Date(invoice.createdAt).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}</p>
+          ${invoice.dueDate ? `<p>Vencimiento: ${new Date(invoice.dueDate).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}</p>` : ''}
         </div>
       </div>
 
@@ -562,7 +562,7 @@ function buildPDFContent(invoice: any, jobData: InvoicePDFJobData): string {
             <div class="section-title">Servicio</div>
             <p><strong>${invoice.job.serviceType || 'Servicio'}</strong></p>
             <p>${invoice.job.address || ''}</p>
-            ${invoice.job.completedAt ? `<p>Completado: ${new Date(invoice.job.completedAt).toLocaleDateString('es-AR')}</p>` : ''}
+            ${invoice.job.completedAt ? `<p>Completado: ${new Date(invoice.job.completedAt).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}</p>` : ''}
           </div>
           ` : ''}
         </div>
@@ -611,7 +611,7 @@ function buildPDFContent(invoice: any, jobData: InvoicePDFJobData): string {
       <div class="cae-info">
         <div class="section-title">Datos Fiscales (AFIP)</div>
         <p><strong>CAE:</strong> ${invoice.caeNumber}</p>
-        <p><strong>Vencimiento CAE:</strong> ${invoice.caeExpirationDate ? new Date(invoice.caeExpirationDate).toLocaleDateString('es-AR') : ''}</p>
+        <p><strong>Vencimiento CAE:</strong> ${invoice.caeExpirationDate ? new Date(invoice.caeExpirationDate).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' }) : ''}</p>
         <p><strong>Punto de Venta:</strong> ${invoice.pointOfSale || ''}</p>
         <p><strong>Tipo:</strong> ${invoice.invoiceType || 'B'}</p>
       </div>

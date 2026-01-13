@@ -360,7 +360,7 @@ export default function SchedulePage() {
   // Format date for display
   const _formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
+    return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', timeZone: 'America/Buenos_Aires' });
   };
 
   // Generate calendar grid for current month

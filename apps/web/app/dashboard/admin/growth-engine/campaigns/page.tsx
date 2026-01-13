@@ -212,7 +212,7 @@ export default async function CampaignsPage() {
                                         <td className="px-4 py-3">
                                             <p className="font-medium text-gray-900">{campaign.name}</p>
                                             <p className="text-xs text-gray-500">
-                                                {new Date(campaign.createdAt).toLocaleDateString('es-AR')}
+                                                {new Date(campaign.createdAt).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}
                                             </p>
                                         </td>
                                         <td className="px-4 py-3">

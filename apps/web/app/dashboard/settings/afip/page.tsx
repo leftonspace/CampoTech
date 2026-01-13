@@ -162,8 +162,8 @@ export default function AFIPSettingsPage() {
           <button
             onClick={() => setActiveTab('upload')}
             className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'upload'
-                ? 'border-b-2 border-primary-500 bg-primary-50 text-primary-700'
-                : 'text-gray-600 hover:bg-gray-50'
+              ? 'border-b-2 border-primary-500 bg-primary-50 text-primary-700'
+              : 'text-gray-600 hover:bg-gray-50'
               }`}
           >
             <Upload className="mr-2 inline h-4 w-4" />
@@ -172,8 +172,8 @@ export default function AFIPSettingsPage() {
           <button
             onClick={() => setActiveTab('help')}
             className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${activeTab === 'help'
-                ? 'border-b-2 border-primary-500 bg-primary-50 text-primary-700'
-                : 'text-gray-600 hover:bg-gray-50'
+              ? 'border-b-2 border-primary-500 bg-primary-50 text-primary-700'
+              : 'text-gray-600 hover:bg-gray-50'
               }`}
           >
             <HelpCircle className="mr-2 inline h-4 w-4" />
@@ -189,7 +189,7 @@ export default function AFIPSettingsPage() {
                 <FileCheck className="h-4 w-4" />
                 <span>
                   Certificado válido hasta:{' '}
-                  <strong>{new Date(settings.certificateExpiry).toLocaleDateString('es-AR')}</strong>
+                  <strong>{new Date(settings.certificateExpiry).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}</strong>
                 </span>
               </div>
             )}

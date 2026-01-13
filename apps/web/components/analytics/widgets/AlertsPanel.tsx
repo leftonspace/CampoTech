@@ -197,7 +197,7 @@ export default function AlertsPanel({ maxAlerts = 5, className = '', showHeader 
     if (diffMins < 60) return `Hace ${diffMins}m`;
     if (diffHours < 24) return `Hace ${diffHours}h`;
     if (diffDays < 7) return `Hace ${diffDays}d`;
-    return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+    return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', timeZone: 'America/Buenos_Aires' });
   };
 
   if (isLoading) {
@@ -255,11 +255,10 @@ export default function AlertsPanel({ maxAlerts = 5, className = '', showHeader 
           <button
             key={f.key}
             onClick={() => setFilter(f.key as typeof filter)}
-            className={`px-3 py-1 text-xs rounded-lg transition-colors ${
-              filter === f.key
+            className={`px-3 py-1 text-xs rounded-lg transition-colors ${filter === f.key
                 ? 'bg-green-100 text-green-700'
                 : 'text-gray-600 hover:bg-gray-100'
-            }`}
+              }`}
           >
             {f.label}
           </button>
@@ -396,9 +395,8 @@ export function AlertsBellIcon() {
     >
       <Bell size={20} className={criticalCount > 0 ? 'text-red-500' : 'text-gray-600'} />
       {totalCount > 0 && (
-        <span className={`absolute -top-0.5 -right-0.5 w-5 h-5 text-xs rounded-full flex items-center justify-center font-medium ${
-          criticalCount > 0 ? 'bg-red-500 text-white' : 'bg-amber-500 text-white'
-        }`}>
+        <span className={`absolute -top-0.5 -right-0.5 w-5 h-5 text-xs rounded-full flex items-center justify-center font-medium ${criticalCount > 0 ? 'bg-red-500 text-white' : 'bg-amber-500 text-white'
+          }`}>
           {totalCount > 9 ? '9+' : totalCount}
         </span>
       )}

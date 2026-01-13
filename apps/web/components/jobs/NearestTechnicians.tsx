@@ -15,6 +15,8 @@ import {
   ChevronUp,
 } from 'lucide-react';
 import { getInitials } from '@/lib/utils';
+import { useAssignmentValidation, type ValidationWarning } from '@/hooks/useAssignmentValidation';
+import { OnCallWarningModal } from '@/components/schedule/OnCallWarningModal';
 
 interface NearestTechnician {
   id: string;
@@ -46,6 +48,8 @@ interface NearestTechniciansResponse {
         jobNumber: string;
         description: string;
         customerName: string;
+        scheduledDate?: string;
+        scheduledTimeStart?: string;
       };
     };
     technicians: NearestTechnician[];
@@ -62,6 +66,8 @@ interface NearestTechniciansProps {
   onAssign?: (technicianId: string) => void;
   selectedId?: string;
   limit?: number;
+  scheduledDate?: string;
+  scheduledTimeStart?: string;
 }
 
 const specialtyLabels: Record<string, string> = {
@@ -98,9 +104,18 @@ export function NearestTechnicians({
   onAssign,
   selectedId,
   limit = 10,
+  scheduledDate,
+  scheduledTimeStart,
 }: NearestTechniciansProps) {
   const [expanded, setExpanded] = useState(true);
   const [assigningId, setAssigningId] = useState<string | null>(null);
+
+  // On-call validation
+  const { validateAssignment, isValidating } = useAssignmentValidation();
+  const [showWarningModal, setShowWarningModal] = useState(false);
+  const [warnings, setWarnings] = useState<ValidationWarning[]>([]);
+  const [pendingTechId, setPendingTechId] = useState<string | null>(null);
+  const [pendingTechName, setPendingTechName] = useState('');
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['nearest-technicians', jobId, lat, lng, specialty, limit],
@@ -109,7 +124,29 @@ export function NearestTechnicians({
     staleTime: 30000,
   });
 
-  const handleAssign = async (technicianId: string) => {
+  const handleAssign = async (technicianId: string, techName: string) => {
+    if (!onAssign) return;
+
+    // Validate first
+    const result = await validateAssignment(
+      technicianId,
+      scheduledDate || data?.data?.destination?.job?.scheduledDate,
+      scheduledTimeStart || data?.data?.destination?.job?.scheduledTimeStart
+    );
+
+    if (result.warnings.length > 0) {
+      // Show warning modal
+      setPendingTechId(technicianId);
+      setPendingTechName(techName);
+      setWarnings(result.warnings);
+      setShowWarningModal(true);
+    } else {
+      // No warnings, proceed
+      performAssign(technicianId);
+    }
+  };
+
+  const performAssign = async (technicianId: string) => {
     if (!onAssign) return;
     setAssigningId(technicianId);
     try {
@@ -117,6 +154,14 @@ export function NearestTechnicians({
     } finally {
       setAssigningId(null);
     }
+  };
+
+  const handleConfirmDespiteWarning = () => {
+    setShowWarningModal(false);
+    if (pendingTechId) {
+      performAssign(pendingTechId);
+    }
+    setPendingTechId(null);
   };
 
   const technicians = data?.data?.technicians || [];
@@ -191,19 +236,19 @@ export function NearestTechnicians({
                   key={tech.id}
                   onClick={() => onSelect?.(tech)}
                   className={`flex items-center gap-3 px-4 py-3 border-b last:border-b-0 cursor-pointer transition-colors ${selectedId === tech.id
-                      ? 'bg-primary-50'
-                      : 'hover:bg-gray-50'
+                    ? 'bg-primary-50'
+                    : 'hover:bg-gray-50'
                     }`}
                 >
                   {/* Rank */}
                   <div
                     className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${index === 0
-                        ? 'bg-green-100 text-green-700'
-                        : index === 1
-                          ? 'bg-blue-100 text-blue-700'
-                          : index === 2
-                            ? 'bg-amber-100 text-amber-700'
-                            : 'bg-gray-100 text-gray-600'
+                      ? 'bg-green-100 text-green-700'
+                      : index === 1
+                        ? 'bg-blue-100 text-blue-700'
+                        : index === 2
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-gray-100 text-gray-600'
                       }`}
                   >
                     {index + 1}
@@ -273,12 +318,12 @@ export function NearestTechnicians({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleAssign(tech.id);
+                          handleAssign(tech.id, tech.name);
                         }}
-                        disabled={assigningId === tech.id}
+                        disabled={assigningId === tech.id || isValidating}
                         className="rounded-lg bg-primary-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-primary-700 disabled:opacity-50"
                       >
-                        {assigningId === tech.id ? (
+                        {assigningId === tech.id || (isValidating && pendingTechId === tech.id) ? (
                           <RefreshCw className="h-4 w-4 animate-spin" />
                         ) : (
                           'Asignar'
@@ -292,6 +337,19 @@ export function NearestTechnicians({
           )}
         </div>
       )}
+
+      {/* On-Call Warning Modal */}
+      <OnCallWarningModal
+        isOpen={showWarningModal}
+        warnings={warnings}
+        technicianName={pendingTechName}
+        onConfirm={handleConfirmDespiteWarning}
+        onCancel={() => {
+          setShowWarningModal(false);
+          setPendingTechId(null);
+        }}
+        isLoading={assigningId !== null}
+      />
     </div>
   );
 }

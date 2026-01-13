@@ -360,7 +360,7 @@ export default function AIAnalyticsPage() {
                   </div>
                 </div>
                 <span className="text-xs text-gray-500">
-                  {new Date(day.date).toLocaleDateString('es-AR', { weekday: 'short' })}
+                  {new Date(day.date).toLocaleDateString('es-AR', { weekday: 'short', timeZone: 'America/Buenos_Aires' })}
                 </span>
                 <span className="text-xs font-medium text-gray-700">{day.total}</span>
               </div>

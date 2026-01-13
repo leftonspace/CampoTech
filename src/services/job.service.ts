@@ -1,6 +1,26 @@
 import { prisma } from '../lib/prisma';
 import { Prisma } from '@prisma/client';
 
+/**
+ * Parse a date string with optional time as Argentina timezone.
+ * 
+ * This combines the selected date with the actual start time to create
+ * an accurate datetime. If no time is provided, defaults to noon to prevent
+ * timezone-related date shifts.
+ * 
+ * @param dateStr - Date in YYYY-MM-DD format
+ * @param timeStr - Optional time in HH:MM format (24h)
+ * @returns Date object representing the datetime in Argentina timezone
+ * 
+ * Examples:
+ * - parseDateTimeAsArgentina("2026-01-12", "09:00") → 2026-01-12T09:00:00-03:00
+ * - parseDateTimeAsArgentina("2026-01-12") → 2026-01-12T12:00:00-03:00 (noon fallback)
+ */
+function parseDateTimeAsArgentina(dateStr: string, timeStr?: string | null): Date {
+    const time = timeStr || '12:00'; // Default to noon if no time provided
+    return new Date(`${dateStr}T${time}:00-03:00`);
+}
+
 export interface JobFilter {
     status?: string | string[];
     technicianId?: string;
@@ -134,13 +154,16 @@ export class JobService {
         const durationType = bodyDurationType || (hasRecurrence ? 'RECURRING' : (expandedVisits.length > 1 ? 'MULTIPLE_VISITS' : 'SINGLE_VISIT'));
         const visitCount = expandedVisits.length > 1 ? expandedVisits.length : null;
 
+        // Extract start time from scheduledTimeSlot if available
+        const startTime = scheduledTimeSlot?.start || null;
+
         return prisma.job.create({
             data: {
                 jobNumber,
                 serviceType,
                 description,
                 urgency,
-                scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
+                scheduledDate: scheduledDate ? parseDateTimeAsArgentina(scheduledDate, startTime) : null,
                 scheduledTimeSlot: scheduledTimeSlot || null,
                 customerId,
                 technicianId: technicianIds[0] || null,
@@ -373,13 +396,24 @@ export class JobService {
         const expanded: any[] = [];
         visits.forEach((visit, idx) => {
             const configIndex = visit.visitConfigIndex || (idx + 1);
+            // Get start time from visit data
+            const visitStartTime = visit.timeStart || null;
+
             if (visit.isRecurring && visit.recurrencePattern && visit.recurrenceCount) {
-                const dates = this.generateRecurringDates(new Date(visit.date), visit.recurrencePattern, visit.recurrenceCount);
+                // For recurring, parse initial date with the visit's start time
+                const startDate = typeof visit.date === 'string'
+                    ? parseDateTimeAsArgentina(visit.date, visitStartTime)
+                    : visit.date;
+                const dates = this.generateRecurringDates(startDate, visit.recurrencePattern, visit.recurrenceCount);
                 dates.forEach(date => {
                     expanded.push({ ...visit, date, configIndex, isFromRecurrence: true });
                 });
             } else {
-                expanded.push({ ...visit, date: new Date(visit.date), configIndex, isFromRecurrence: false });
+                // Parse single visit date with the visit's start time
+                const visitDate = typeof visit.date === 'string'
+                    ? parseDateTimeAsArgentina(visit.date, visitStartTime)
+                    : visit.date;
+                expanded.push({ ...visit, date: visitDate, configIndex, isFromRecurrence: false });
             }
         });
         return expanded;

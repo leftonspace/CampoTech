@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { parseDateTimeAsArgentina } from '@/lib/timezone';
 
 export async function GET(
   request: NextRequest,
@@ -147,9 +148,9 @@ export async function POST(
         cost: cost ? parseFloat(cost) : null,
         vendor: vendor || null,
         invoiceNumber: invoiceNumber || null,
-        scheduledDate: scheduledDate ? new Date(scheduledDate) : null,
-        completedDate: completedDate ? new Date(completedDate) : new Date(),
-        nextServiceDate: nextServiceDate ? new Date(nextServiceDate) : null,
+        scheduledDate: scheduledDate ? parseDateTimeAsArgentina(scheduledDate) : null,
+        completedDate: completedDate ? parseDateTimeAsArgentina(completedDate) : new Date(),
+        nextServiceDate: nextServiceDate ? parseDateTimeAsArgentina(nextServiceDate) : null,
         nextServiceMileage: nextServiceMileage ? parseInt(nextServiceMileage) : null,
         notes: notes || null,
         createdById: session.userId,
@@ -160,13 +161,13 @@ export async function POST(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const updateData: Record<string, any> = {};
     if (completedDate || !scheduledDate) {
-      updateData.lastServiceDate = completedDate ? new Date(completedDate) : new Date();
+      updateData.lastServiceDate = completedDate ? parseDateTimeAsArgentina(completedDate) : new Date();
     }
     if (mileageAtService && parseInt(mileageAtService) > (vehicle.currentMileage || 0)) {
       updateData.currentMileage = parseInt(mileageAtService);
     }
     if (nextServiceDate) {
-      updateData.nextServiceDate = new Date(nextServiceDate);
+      updateData.nextServiceDate = parseDateTimeAsArgentina(nextServiceDate);
     }
     if (nextServiceMileage) {
       updateData.nextServiceMileage = parseInt(nextServiceMileage);

@@ -272,7 +272,7 @@ export default function ContactInfo({
                           </p>
                           <p className="text-xs text-gray-500 mt-0.5">
                             {job.scheduledDate
-                              ? new Date(job.scheduledDate).toLocaleDateString('es-AR')
+                              ? new Date(job.scheduledDate).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })
                               : 'Sin programar'}
                           </p>
                         </div>

@@ -169,16 +169,18 @@ function buildReminderContent(
   const timeLabel = formatIntervalLabel(intervalMinutes);
   const scheduledTime = job.scheduledDate
     ? new Date(job.scheduledDate).toLocaleTimeString('es-AR', {
-        hour: '2-digit',
-        minute: '2-digit',
-      })
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'America/Buenos_Aires',
+    })
     : '';
   const scheduledDateStr = job.scheduledDate
     ? new Date(job.scheduledDate).toLocaleDateString('es-AR', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-      })
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      timeZone: 'America/Buenos_Aires',
+    })
     : '';
 
   if (reminderType === 'customer') {

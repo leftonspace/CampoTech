@@ -295,7 +295,7 @@ export default function TeamSettingsPage() {
                         <p className="font-medium text-gray-900">{user.name}</p>
                         <p className="text-sm text-gray-500">{formatPhone(user.phone)}</p>
                         <p className="text-xs text-gray-400">
-                          Agregado {new Date(user.createdAt).toLocaleDateString('es-AR')}
+                          Agregado {new Date(user.createdAt).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}
                         </p>
                       </div>
                     </div>

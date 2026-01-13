@@ -176,3 +176,65 @@ export async function PUT(request: NextRequest) {
     );
   }
 }
+
+// PATCH - Update schedule type and advance notice for a user
+export async function PATCH(request: NextRequest) {
+  try {
+    const session = await getSession();
+
+    if (!session) {
+      return NextResponse.json(
+        { success: false, error: 'No autorizado' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { userId, scheduleType, advanceNoticeHours } = body;
+
+    const targetUserId = userId || session.userId;
+
+    // Check permissions
+    const roleUpper = session.role?.toUpperCase();
+    if (targetUserId !== session.userId && roleUpper !== 'OWNER' && roleUpper !== 'DISPATCHER') {
+      return NextResponse.json(
+        { success: false, error: 'No tienes permiso para modificar este horario' },
+        { status: 403 }
+      );
+    }
+
+    // Validate schedule type
+    const validTypes = ['base', 'rotating', 'ondemand', 'custom'];
+    if (scheduleType && !validTypes.includes(scheduleType)) {
+      return NextResponse.json(
+        { success: false, error: 'Tipo de horario inválido' },
+        { status: 400 }
+      );
+    }
+
+    // Update user's schedule settings
+    const updatedUser = await prisma.user.update({
+      where: { id: targetUserId },
+      data: {
+        ...(scheduleType && { scheduleType }),
+        ...(advanceNoticeHours !== undefined && { advanceNoticeHours: Math.max(0, parseInt(advanceNoticeHours) || 0) }),
+      },
+      select: {
+        id: true,
+        scheduleType: true,
+        advanceNoticeHours: true,
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: updatedUser,
+    });
+  } catch (error) {
+    console.error('Error updating schedule settings:', error);
+    return NextResponse.json(
+      { success: false, error: 'Error al actualizar configuración de horario' },
+      { status: 500 }
+    );
+  }
+}

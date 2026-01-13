@@ -168,7 +168,7 @@ export class SubscriptionCancellationService {
         effectiveDate,
         message: eligibleForRefund
           ? `Tu cancelación ha sido procesada. Recibirás un reembolso de $${refundAmount?.toFixed(2)} ARS dentro de ${REFUND_PROCESSING_DAYS} días hábiles.`
-          : `Tu suscripción será cancelada el ${effectiveDate.toLocaleDateString('es-AR')}. Podrás seguir usando el servicio hasta esa fecha.`,
+          : `Tu suscripción será cancelada el ${effectiveDate.toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}. Podrás seguir usando el servicio hasta esa fecha.`,
       };
     } catch (error) {
       console.error('Error requesting cancellation:', error);

@@ -189,7 +189,7 @@ export function AIActionBanner({
     }
     if (metadata.scheduledDate || metadata.scheduledTime) {
       const dateTime = [
-        metadata.scheduledDate ? new Date(metadata.scheduledDate).toLocaleDateString('es-AR') : '',
+        metadata.scheduledDate ? new Date(metadata.scheduledDate).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' }) : '',
         metadata.scheduledTime,
       ].filter(Boolean).join(' - ');
       if (dateTime) {

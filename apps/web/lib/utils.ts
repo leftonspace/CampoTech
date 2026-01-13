@@ -24,7 +24,8 @@ export function formatCurrency(amount: number): string {
 }
 
 /**
- * Format date in Argentine format
+ * Format date in Argentine format - ALWAYS uses Buenos Aires timezone
+ * This ensures dates display consistently regardless of user location
  */
 export function formatDate(date: string | Date | null | undefined): string {
   if (!date) return '-';
@@ -34,11 +35,12 @@ export function formatDate(date: string | Date | null | undefined): string {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: 'America/Buenos_Aires', // Always use Argentina timezone
   }).format(d);
 }
 
 /**
- * Format date and time
+ * Format date and time - ALWAYS uses Buenos Aires timezone
  */
 export function formatDateTime(date: string | Date | null | undefined): string {
   if (!date) return '-';
@@ -50,6 +52,7 @@ export function formatDateTime(date: string | Date | null | undefined): string {
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'America/Buenos_Aires', // Always use Argentina timezone
   }).format(d);
 }
 

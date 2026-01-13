@@ -306,7 +306,7 @@ export function ProfileDetailModal({ profile, onClose }: ProfileDetailProps) {
                                                         {isExpired ? 'VENCIDA' : isExpiringSoon ? 'POR VENCER' : 'VIGENTE'}
                                                     </span>
                                                     <span className="font-medium text-gray-900">
-                                                        {expiry.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                        {expiry.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/Buenos_Aires' })}
                                                     </span>
                                                     {isExpiringSoon && !isExpired && (
                                                         <span className="text-xs text-amber-600">
@@ -328,12 +328,12 @@ export function ProfileDetailModal({ profile, onClose }: ProfileDetailProps) {
                         <div className="space-y-2 text-sm">
                             <div className="flex items-center gap-2 text-gray-600">
                                 <Calendar className="w-4 h-4" />
-                                <span>Importado: {new Date(profile.createdAt).toLocaleDateString('es-AR')}</span>
+                                <span>Importado: {new Date(profile.createdAt).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}</span>
                             </div>
                             {profile.scrapedAt && (
                                 <div className="flex items-center gap-2 text-gray-600">
                                     <FileText className="w-4 h-4" />
-                                    <span>Scrapeado: {new Date(profile.scrapedAt).toLocaleDateString('es-AR')}</span>
+                                    <span>Scrapeado: {new Date(profile.scrapedAt).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}</span>
                                 </div>
                             )}
                             {profile.whatsappStatus && (

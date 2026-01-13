@@ -8,6 +8,7 @@ import {
 } from '@/lib/middleware/field-filter';
 import { JobService } from '@/src/services/job.service';
 import { jobRouteIntegrationService } from '@/lib/services/job-route-integration.service';
+import { parseDateTimeAsArgentina } from '@/lib/timezone';
 
 // Transform scheduledTimeSlot JSON to separate start/end fields for frontend compatibility
 function transformJobTimeSlot<T extends { scheduledTimeSlot?: unknown }>(job: T): T & { scheduledTimeStart: string | null; scheduledTimeEnd: string | null } {
@@ -111,7 +112,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const updateData: Record<string, unknown> = {
       description,
       urgency: urgency || priority?.toUpperCase(),
-      scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
+      scheduledDate: scheduledDate ? parseDateTimeAsArgentina(scheduledDate, scheduledTimeStart) : undefined,
       scheduledTimeSlot: scheduledTimeStart && scheduledTimeEnd
         ? { start: scheduledTimeStart, end: scheduledTimeEnd }
         : undefined,

@@ -230,16 +230,16 @@ export default function CreditsPage() {
                     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
                         <div className="flex items-start gap-4">
                             <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${account.graceEverActivated
-                                    ? account.graceForfeited
-                                        ? 'bg-gray-100'
-                                        : 'bg-amber-100'
-                                    : 'bg-emerald-100'
+                                ? account.graceForfeited
+                                    ? 'bg-gray-100'
+                                    : 'bg-amber-100'
+                                : 'bg-emerald-100'
                                 }`}>
                                 <Gift className={`w-6 h-6 ${account.graceEverActivated
-                                        ? account.graceForfeited
-                                            ? 'text-gray-500'
-                                            : 'text-amber-600'
-                                        : 'text-emerald-600'
+                                    ? account.graceForfeited
+                                        ? 'text-gray-500'
+                                        : 'text-amber-600'
+                                    : 'text-emerald-600'
                                     }`} />
                             </div>
                             <div className="flex-1">
@@ -280,8 +280,8 @@ export default function CreditsPage() {
                                     key={key}
                                     onClick={() => setSelectedPackage(key)}
                                     className={`text-left p-4 rounded-xl border-2 transition-all ${selectedPackage === key
-                                            ? 'border-emerald-500 bg-emerald-50'
-                                            : 'border-gray-200 hover:border-gray-300'
+                                        ? 'border-emerald-500 bg-emerald-50'
+                                        : 'border-gray-200 hover:border-gray-300'
                                         }`}
                                 >
                                     <div className="flex items-start justify-between">
@@ -293,8 +293,8 @@ export default function CreditsPage() {
                                             </p>
                                         </div>
                                         <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center ${selectedPackage === key
-                                                ? 'border-emerald-500 bg-emerald-500'
-                                                : 'border-gray-300'
+                                            ? 'border-emerald-500 bg-emerald-500'
+                                            : 'border-gray-300'
                                             }`}>
                                             {selectedPackage === key && (
                                                 <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -356,7 +356,7 @@ export default function CreditsPage() {
                                         {purchases.map(purchase => (
                                             <tr key={purchase.id} className="hover:bg-gray-50">
                                                 <td className="px-5 py-4 text-sm text-gray-600">
-                                                    {new Date(purchase.createdAt).toLocaleDateString('es-AR')}
+                                                    {new Date(purchase.createdAt).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}
                                                 </td>
                                                 <td className="px-5 py-4 text-sm font-medium text-gray-900">
                                                     {purchase.packageName}
@@ -369,10 +369,10 @@ export default function CreditsPage() {
                                                 </td>
                                                 <td className="px-5 py-4 text-center">
                                                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${purchase.status === 'completed'
-                                                            ? 'bg-emerald-100 text-emerald-600'
-                                                            : purchase.status === 'pending'
-                                                                ? 'bg-amber-100 text-amber-600'
-                                                                : 'bg-red-100 text-red-600'
+                                                        ? 'bg-emerald-100 text-emerald-600'
+                                                        : purchase.status === 'pending'
+                                                            ? 'bg-amber-100 text-amber-600'
+                                                            : 'bg-red-100 text-red-600'
                                                         }`}>
                                                         {purchase.status === 'completed' ? '✓ Pagado' :
                                                             purchase.status === 'pending' ? 'Pendiente' :

@@ -1036,7 +1036,7 @@ function CustomerTable({
     if (diffDays === 1) return 'Ayer';
     if (diffDays < 7) return `Hace ${diffDays} días`;
     if (diffDays < 30) return `Hace ${Math.floor(diffDays / 7)} sem`;
-    return d.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+    return d.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', timeZone: 'America/Buenos_Aires' });
   };
 
   // Filter customers based on column filters

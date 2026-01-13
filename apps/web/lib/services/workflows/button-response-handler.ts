@@ -20,6 +20,7 @@ import { prisma } from '@/lib/prisma';
 import { handleFAQButtonClick } from './faq-workflow';
 import { getInteractiveMessageService } from '../interactive-message.service';
 import { getAttributionService } from '../attribution.service';
+import { parseDateTimeAsArgentina } from '@/lib/timezone';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -442,11 +443,12 @@ async function createJobFromPending(
         });
         const jobNumber = `JOB-${String(jobCount + 1).padStart(5, '0')}`;
 
-        // Parse date
+        // Parse date with time
         let scheduledDate: Date | undefined;
         if (data.preferredDate || data.date) {
             const dateStr = (data.preferredDate || data.date) as string;
-            scheduledDate = new Date(dateStr);
+            const timeStr = (data.selectedTime || data.time) as string | undefined;
+            scheduledDate = parseDateTimeAsArgentina(dateStr, timeStr);
         }
 
         // Create the job

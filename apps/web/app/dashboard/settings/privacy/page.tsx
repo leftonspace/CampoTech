@@ -432,7 +432,7 @@ export default function PrivacySettingsPage() {
             </div>
             {exportData.export.expiresAt && exportData.export.status === 'completed' && (
               <p className="text-xs text-gray-500 mt-1">
-                Disponible hasta: {new Date(exportData.export.expiresAt).toLocaleDateString('es-AR')}
+                Disponible hasta: {new Date(exportData.export.expiresAt).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}
               </p>
             )}
           </div>

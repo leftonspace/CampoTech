@@ -28,6 +28,7 @@ import { getSchedulingIntelligenceService } from '../scheduling-intelligence';
 import { getAttributionService } from '../attribution.service';
 import { getInteractiveMessageService } from '../interactive-message.service';
 import { setPendingInteraction } from './button-response-handler';
+import { parseDateTimeAsArgentina } from '@/lib/timezone';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // WORKFLOW STEPS
@@ -425,10 +426,13 @@ const createJobStep: WorkflowStep = {
       });
       const jobNumber = `JOB-${String(jobCount + 1).padStart(5, '0')}`;
 
-      // Parse scheduled date
+      // Parse scheduled date with time
       let scheduledDate: Date | undefined;
       if (context.extractedEntities.preferredDate) {
-        scheduledDate = new Date(context.extractedEntities.preferredDate);
+        scheduledDate = parseDateTimeAsArgentina(
+          context.extractedEntities.preferredDate,
+          context.extractedEntities.preferredTime
+        );
       }
 
       // Create the job

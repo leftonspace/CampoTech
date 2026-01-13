@@ -201,7 +201,7 @@ export default function LeadsPage() {
     if (diffMins < 60) return `hace ${diffMins} min`;
     if (diffHours < 24) return `hace ${diffHours}h`;
     if (diffDays < 7) return `hace ${diffDays}d`;
-    return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+    return date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', timeZone: 'America/Buenos_Aires' });
   };
 
   return (

@@ -56,7 +56,7 @@ export function UsageChart({ data, height = 200 }: UsageChartProps) {
   const barWidth = 100 / chartData.length;
 
   const formatDate = (date: Date) => {
-    return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
+    return date.toLocaleDateString('es-AR', { day: 'numeric', month: 'short', timeZone: 'America/Buenos_Aires' });
   };
 
   return (

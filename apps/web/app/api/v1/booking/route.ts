@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { z } from 'zod';
+import { parseDateTimeAsArgentina } from '@/lib/timezone';
 
 // This is a PUBLIC endpoint (Rate Limited) for anonymous users to book a service
 // Flow: Search -> Click Profile -> "Book Now" -> This API
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
                 status: 'PENDING_APPROVAL', // New status for marketplace requests
                 source: 'MARKETPLACE',
                 description: data.notes || 'Solicitud desde Marketplace',
-                scheduledDate: new Date(data.scheduledAt),
+                scheduledDate: parseDateTimeAsArgentina(data.scheduledAt.split('T')[0], data.scheduledAt.split('T')[1]?.substring(0, 5)),
 
                 // Customer Info (Either link existing or create loose link)
                 customerName: data.customer.name,

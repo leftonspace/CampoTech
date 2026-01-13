@@ -437,6 +437,10 @@ export default function ScheduleConfigModal({
     const [scheduleType, setScheduleType] = useState<string>('base');
     const [isSaving, setIsSaving] = useState(false);
 
+    // Confirmation dialog for switching schedule types
+    const [showSwitchConfirm, setShowSwitchConfirm] = useState(false);
+    const [pendingScheduleType, setPendingScheduleType] = useState<string | null>(null);
+
     // State for each day's schedule (Horario Base)
     const [daySchedules, setDaySchedules] = useState<{
         [dayId: number]: {
@@ -448,16 +452,17 @@ export default function ScheduleConfigModal({
     }>({});
 
     // State for Turnos Rotativos - each day can have a different shift
+    // All days start as null (grey) - user must click to assign shifts
     const [dayShifts, setDayShifts] = useState<{
         [dayId: number]: string | null; // shift ID or null for day off
     }>({
-        1: 'morning', // Monday
-        2: 'morning', // Tuesday
-        3: 'morning', // Wednesday
-        4: 'morning', // Thursday
-        5: 'morning', // Friday
-        6: null,      // Saturday off
-        0: null,      // Sunday off
+        1: null, // Monday - starts empty
+        2: null, // Tuesday - starts empty
+        3: null, // Wednesday - starts empty
+        4: null, // Thursday - starts empty
+        5: null, // Friday - starts empty
+        6: null, // Saturday - starts empty
+        0: null, // Sunday - starts empty
     });
     const [shiftTimes, setShiftTimes] = useState<{
         [shiftId: string]: { startTime: string; endTime: string };
@@ -644,6 +649,60 @@ export default function ScheduleConfigModal({
         }));
     };
 
+    // Check if the current schedule type has any data entered
+    const hasDataInCurrentType = (): boolean => {
+        if (scheduleType === 'base') {
+            return Object.values(daySchedules).some(s =>
+                (s.startTime && s.startTime.includes(':')) || (s.endTime && s.endTime.includes(':'))
+            );
+        } else if (scheduleType === 'rotating') {
+            // Check if any day has a non-default shift assigned
+            return Object.values(dayShifts).some(shift => shift !== null);
+        } else if (scheduleType === 'ondemand') {
+            return Object.values(onDemandSchedules).some(s =>
+                (s.startTime && s.startTime.includes(':')) || (s.endTime && s.endTime.includes(':'))
+            );
+        } else if (scheduleType === 'custom') {
+            return Object.values(customSchedule).some(blocks => blocks && blocks.length > 0);
+        }
+        return false;
+    };
+
+    // Get display name for schedule type
+    const getScheduleTypeName = (typeId: string): string => {
+        const type = SCHEDULE_TYPES.find(t => t.id === typeId);
+        return type?.name || typeId;
+    };
+
+    // Handle attempting to switch schedule types
+    const handleScheduleTypeClick = (newType: string) => {
+        if (newType === scheduleType) return; // Same type, do nothing
+
+        if (hasDataInCurrentType()) {
+            // Show confirmation dialog
+            setPendingScheduleType(newType);
+            setShowSwitchConfirm(true);
+        } else {
+            // No data, switch directly
+            setScheduleType(newType);
+        }
+    };
+
+    // Confirm the schedule type switch
+    const confirmScheduleTypeSwitch = () => {
+        if (pendingScheduleType) {
+            setScheduleType(pendingScheduleType);
+            setPendingScheduleType(null);
+        }
+        setShowSwitchConfirm(false);
+    };
+
+    // Cancel the schedule type switch
+    const cancelScheduleTypeSwitch = () => {
+        setPendingScheduleType(null);
+        setShowSwitchConfirm(false);
+    };
+
     // Save mutation - handles all schedule types
     const saveMutation = useMutation({
         mutationFn: async () => {
@@ -735,11 +794,23 @@ export default function ScheduleConfigModal({
                 });
                 await Promise.all(promises);
             }
+
+            // Always save the schedule type and advance notice for the user
+            await fetch('/api/employees/schedule', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: selectedEmployeeId,
+                    scheduleType,
+                    advanceNoticeHours: scheduleType === 'ondemand' ? advanceNotice : 0,
+                }),
+            });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['all-schedules'] });
             queryClient.invalidateQueries({ queryKey: ['team-calendar'] });
             queryClient.invalidateQueries({ queryKey: ['user-live-status'] });
+            queryClient.invalidateQueries({ queryKey: ['team-members'] });
             onSuccess();
             handleClose();
         },
@@ -813,7 +884,7 @@ export default function ScheduleConfigModal({
                                 return (
                                     <button
                                         key={type.id}
-                                        onClick={() => setScheduleType(type.id)}
+                                        onClick={() => handleScheduleTypeClick(type.id)}
                                         className={cn(
                                             "flex items-center gap-2.5 p-3 rounded-lg border-2 transition-all text-left",
                                             isSelected
@@ -976,12 +1047,15 @@ export default function ScheduleConfigModal({
                                     </label>
                                     <div className="flex items-center gap-2">
                                         <input
-                                            type="number"
-                                            min={0}
-                                            max={72}
+                                            type="text"
+                                            inputMode="numeric"
                                             value={advanceNotice}
-                                            onChange={(e) => setAdvanceNotice(parseInt(e.target.value) || 0)}
+                                            onChange={(e) => {
+                                                const val = e.target.value.replace(/\D/g, '');
+                                                setAdvanceNotice(parseInt(val) || 0);
+                                            }}
                                             className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center text-sm"
+                                            placeholder="0"
                                         />
                                         <span className="text-sm text-gray-600">horas de anticipación</span>
                                     </div>
@@ -1105,6 +1179,50 @@ export default function ScheduleConfigModal({
                     </div>
                 </div>
             </div>
+
+            {/* Confirmation Dialog for Schedule Type Switch */}
+            {showSwitchConfirm && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                    {/* Dark overlay */}
+                    <div
+                        className="absolute inset-0 bg-black/60"
+                        onClick={cancelScheduleTypeSwitch}
+                    />
+
+                    {/* Dialog */}
+                    <div className="relative bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="flex items-start gap-4">
+                            <div className="p-2 rounded-full bg-amber-100">
+                                <Info className="h-5 w-5 text-amber-600" />
+                            </div>
+                            <div className="flex-1">
+                                <h3 className="font-semibold text-gray-900 mb-2">
+                                    ¿Cambiar tipo de horario?
+                                </h3>
+                                <p className="text-sm text-gray-600 mb-4">
+                                    Ya tienes datos ingresados en <strong>{getScheduleTypeName(scheduleType)}</strong>.
+                                    Si cambias a <strong>{pendingScheduleType ? getScheduleTypeName(pendingScheduleType) : ''}</strong>,
+                                    estos datos no se guardarán.
+                                </p>
+                                <div className="flex gap-3">
+                                    <button
+                                        onClick={cancelScheduleTypeSwitch}
+                                        className="flex-1 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        onClick={confirmScheduleTypeSwitch}
+                                        className="flex-1 px-4 py-2 text-sm font-medium text-white bg-amber-500 hover:bg-amber-600 rounded-lg transition-colors"
+                                    >
+                                        Sí, cambiar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

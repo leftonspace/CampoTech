@@ -135,6 +135,13 @@ model User {
   verificationStatus      UserVerificationStatus @default(pending) @map("verification_status")
 
   // ═══════════════════════════════════════════════════════════════════════════════
+  // SCHEDULE TYPE & ON-CALL SETTINGS
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
+  scheduleType         String  @default("base") @map("schedule_type") // 'base', 'rotating', 'ondemand', 'custom'
+  advanceNoticeHours   Int     @default(0) @map("advance_notice_hours") // Hours of advance notice required for on-call employees
+
+  // ═══════════════════════════════════════════════════════════════════════════════
   // PHASE 4.3: DIGITAL ENTRY BADGE
   // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2422,17 +2429,19 @@ model ScheduleException {
   date           DateTime     @db.Date
   isAvailable    Boolean      @default(false)
   reason         String?
-  startTime      String?
-  endTime        String?
+  startTime      String?      // Required for partial absences (e.g., "10:00")
+  endTime        String?      // Required for partial absences (e.g., "14:00")
   createdAt      DateTime     @default(now())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, date])
+  // Note: Removed unique [userId, date] to allow multiple exceptions per day
+  // Overlap validation is handled in the API layer
   @@index([organizationId])
   @@index([userId])
   @@index([date])
   @@index([organizationId, date])
+  @@index([userId, date])
   @@map("schedule_exceptions")
 }
 

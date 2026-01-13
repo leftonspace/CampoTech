@@ -15,6 +15,7 @@ import {
   canAccessModule,
   UserRole,
 } from '@/lib/middleware/field-filter';
+import { parseDateTimeAsArgentina } from '@/lib/timezone';
 
 export async function GET(
   request: NextRequest,
@@ -156,14 +157,14 @@ export async function PUT(
     if (existing.afipCae) {
       // Invoice with CAE - only allow status, paidAt, and paymentMethod updates
       if (body.status !== undefined) updateData.status = body.status;
-      if (body.paidAt !== undefined) updateData.paidAt = body.paidAt ? new Date(body.paidAt) : null;
+      if (body.paidAt !== undefined) updateData.paidAt = body.paidAt ? parseDateTimeAsArgentina(body.paidAt) : null;
       if (body.paymentMethod !== undefined) updateData.paymentMethod = body.paymentMethod;
     } else {
       // Invoice without CAE - allow all edits (it's still a draft or pending CAE)
       if (body.status !== undefined) updateData.status = body.status;
-      if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? new Date(body.dueDate) : null;
+      if (body.dueDate !== undefined) updateData.dueDate = body.dueDate ? parseDateTimeAsArgentina(body.dueDate) : null;
       if (body.notes !== undefined) updateData.notes = body.notes;
-      if (body.paidAt !== undefined) updateData.paidAt = body.paidAt ? new Date(body.paidAt) : null;
+      if (body.paidAt !== undefined) updateData.paidAt = body.paidAt ? parseDateTimeAsArgentina(body.paidAt) : null;
       if (body.paymentMethod !== undefined) updateData.paymentMethod = body.paymentMethod;
       // Note: invoice number, type, customer, line items, totals should go through proper workflow
     }

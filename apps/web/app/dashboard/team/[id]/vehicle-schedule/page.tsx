@@ -269,8 +269,8 @@ export default function VehicleSchedulePage() {
                                             {schedule.vehicle.make} {schedule.vehicle.model} - {schedule.vehicle.plateNumber}
                                         </p>
                                         <p className="text-sm text-blue-700">
-                                            {schedule.startDate && new Date(schedule.startDate).toLocaleDateString('es-AR')}
-                                            {schedule.endDate ? ` - ${new Date(schedule.endDate).toLocaleDateString('es-AR')}` : ' (sin fecha fin)'}
+                                            {schedule.startDate && new Date(schedule.startDate).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}
+                                            {schedule.endDate ? ` - ${new Date(schedule.endDate).toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })}` : ' (sin fecha fin)'}
                                             {schedule.timeStart && ` | ${schedule.timeStart} - ${schedule.timeEnd}`}
                                         </p>
                                     </div>

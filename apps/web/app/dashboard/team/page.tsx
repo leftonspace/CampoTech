@@ -77,7 +77,7 @@ interface TeamStats {
   averageRating: number;
 }
 
-type TabType = 'employees' | 'schedules' | 'availability' | 'my-schedule';
+type TabType = 'employees' | 'availability' | 'my-schedule';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -178,12 +178,11 @@ export default function TeamPage() {
   const isOwnerOrDispatcher = userRole === 'OWNER' || userRole === 'DISPATCHER';
   const isTechnician = userRole === 'TECHNICIAN';
 
-  // Fetch team members (with includeInactive flag for archive view)
+  // Fetch ALL team members (always include inactive for accurate tab counts)
   const { data: teamData, isLoading: teamLoading } = useQuery({
-    queryKey: ['team-members', showInactive],
+    queryKey: ['team-members'],
     queryFn: async () => {
-      const url = showInactive ? '/api/users?includeInactive=true' : '/api/users';
-      const res = await fetch(url);
+      const res = await fetch('/api/users?includeInactive=true');
       if (!res.ok) throw new Error('Error fetching team');
       return res.json();
     },
@@ -234,7 +233,6 @@ export default function TeamPage() {
     }
     return [
       { id: 'employees' as TabType, label: 'Lista de Empleados' },
-      { id: 'schedules' as TabType, label: 'Horarios' },
       { id: 'availability' as TabType, label: 'Disponibilidad' },
     ];
   }, [isTechnician]);
@@ -294,32 +292,6 @@ export default function TeamPage() {
             Agregar Empleado
           </button>
         )}
-      </div>
-
-      {/* Stat Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Empleados"
-          value={stats.totalEmployees}
-          loading={statsLoading}
-        />
-        <StatCard
-          title="Técnicos Activos"
-          value={stats.activeTechnicians}
-          color="teal"
-          loading={statsLoading}
-        />
-        <StatCard
-          title="En Trabajo Ahora"
-          value={stats.inProgressCount}
-          loading={statsLoading}
-        />
-        <StatCard
-          title="Rating Promedio"
-          value={stats.averageRating.toFixed(1)}
-          icon={<Star className="h-5 w-5 text-amber-400 fill-amber-400" />}
-          loading={statsLoading}
-        />
       </div>
 
       {/* Tabs */}
@@ -390,10 +362,6 @@ export default function TeamPage() {
               currentUserId={user?.id}
             />
           </>
-        )}
-
-        {activeTab === 'schedules' && isOwnerOrDispatcher && (
-          <WeeklySchedulesTab members={members} />
         )}
 
         {activeTab === 'availability' && isOwnerOrDispatcher && (
@@ -1881,7 +1849,7 @@ function TeamMemberModal({ member, currentUserId, currentUserRole, onClose, onSu
                     <Calendar className="h-3.5 w-3.5" />
                     <span>
                       {member.createdAt
-                        ? new Date(member.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric' })
+                        ? new Date(member.createdAt).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'America/Buenos_Aires' })
                         : '—'}
                     </span>
                   </div>
