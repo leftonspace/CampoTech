@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { cn, formatCurrency, formatPhone, formatAddress, getInitials } from '@/lib/utils';
@@ -27,6 +26,7 @@ import {
 } from 'lucide-react';
 import { Customer } from '@/types';
 import CustomerProfileModal from './CustomerProfileModal';
+import NewCustomerModal from './NewCustomerModal';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -64,6 +64,7 @@ export default function CustomersPage() {
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedCustomers, setSelectedCustomers] = useState<Set<string>>(new Set());
+  const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
 
   // Pagination state
   const [allLoadedCustomers, setAllLoadedCustomers] = useState<Customer[]>([]);
@@ -328,10 +329,10 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-bold text-gray-900">Clientes</h1>
           <p className="text-gray-500">Gestioná tu base de clientes</p>
         </div>
-        <Link href="/dashboard/customers/new" className="btn-primary">
+        <button onClick={() => setShowNewCustomerModal(true)} className="btn-primary">
           <Plus className="mr-2 h-4 w-4" />
           Nuevo Cliente
-        </Link>
+        </button>
       </div>
 
       {/* Stat Cards */}
@@ -502,12 +503,22 @@ export default function CustomersPage() {
           <p className="mt-4 text-gray-500">
             {search ? 'No se encontraron clientes con esa búsqueda' : 'No hay clientes'}
           </p>
-          <Link href="/dashboard/customers/new" className="btn-primary mt-4 inline-flex">
+          <button onClick={() => setShowNewCustomerModal(true)} className="btn-primary mt-4 inline-flex">
             <Plus className="mr-2 h-4 w-4" />
             Crear cliente
-          </Link>
+          </button>
         </div>
       )}
+
+      {/* New Customer Modal */}
+      <NewCustomerModal
+        isOpen={showNewCustomerModal}
+        onClose={() => setShowNewCustomerModal(false)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['customers'] });
+          queryClient.invalidateQueries({ queryKey: ['customer-stats'] });
+        }}
+      />
 
       {/* Customer Profile Modal */}
       <CustomerProfileModal

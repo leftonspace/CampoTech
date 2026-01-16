@@ -321,6 +321,8 @@ export default function PhoneInput({
             className="flex-1 h-10 px-3 py-2 text-sm bg-transparent placeholder:text-muted-foreground focus:outline-none"
             required={required}
             disabled={disabled}
+            onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá un número de teléfono')}
+            onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
           />
         </div>
         {countryCode === 'OTHER' && (
@@ -436,6 +438,8 @@ export default function PhoneInput({
           className="flex-1 h-10 px-3 py-2 text-sm bg-transparent placeholder:text-muted-foreground focus:outline-none"
           required={required}
           disabled={disabled}
+          onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá un número de teléfono')}
+          onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
         />
       </div>
       {error && <p className="mt-1 text-sm text-danger-500">{error}</p>}

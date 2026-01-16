@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -30,7 +30,8 @@ import {
   CalendarDays,
 } from 'lucide-react';
 import { Job } from '@/types';
-import JobDetailModal from './JobDetailModal';
+import NewJobModal from '@/components/jobs/NewJobModal';
+import EditJobModal from '@/components/jobs/EditJobModal';
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES & CONSTANTS
@@ -110,16 +111,35 @@ export default function JobsPage() {
   const searchParams = useSearchParams();
 
   // State
+  const [activeTab, setActiveTab] = useState<'todos' | 'activos' | 'cancelados'>('activos'); // Job folder tabs
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || '');
   const [priorityFilter, setPriorityFilter] = useState<string>('');
   const [technicianFilter, setTechnicianFilter] = useState<string>('');
   const [durationTypeFilter, setDurationTypeFilter] = useState<string>('');
+  const [sortBy, setSortBy] = useState<string>('newest'); // Default: newest first by creation date
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [assignModalJob, setAssignModalJob] = useState<Job | null>(null);
   const [cancelConfirmJob, setCancelConfirmJob] = useState<Job | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const [isNewJobModalOpen, setIsNewJobModalOpen] = useState(false);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    if (!openMenuId) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      // Check if click is outside the menu (not on menu button or menu items)
+      if (!target.closest('[data-menu-container]')) {
+        setOpenMenuId(null);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [openMenuId]);
 
   // Fetch jobs
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
@@ -168,6 +188,11 @@ export default function JobsPage() {
     const rows: JobOrVisitRow[] = [];
 
     for (const job of allJobs) {
+      // Tab filter: Todos shows all, Activos excludes cancelled, Cancelados shows only cancelled
+      if (activeTab === 'activos' && job.status === 'CANCELLED') continue;
+      if (activeTab === 'cancelados' && job.status !== 'CANCELLED') continue;
+      // 'todos' shows all jobs (no filter)
+
       // Search filter
       if (search) {
         const searchFields = [
@@ -273,15 +298,33 @@ export default function JobsPage() {
       }
     }
 
-    // Sort by first scheduled date
+    // Sort based on selected option
     rows.sort((a, b) => {
       const dateA = a.visitConfig?.firstDate || a.job.scheduledDate || '';
       const dateB = b.visitConfig?.firstDate || b.job.scheduledDate || '';
-      return new Date(dateA).getTime() - new Date(dateB).getTime();
+      const createdA = a.job.createdAt || '';
+      const createdB = b.job.createdAt || '';
+
+      switch (sortBy) {
+        case 'newest':
+          // Newest created first
+          return new Date(createdB).getTime() - new Date(createdA).getTime();
+        case 'oldest':
+          // Oldest created first
+          return new Date(createdA).getTime() - new Date(createdB).getTime();
+        case 'scheduled_asc':
+          // Soonest scheduled first
+          return new Date(dateA).getTime() - new Date(dateB).getTime();
+        case 'scheduled_desc':
+          // Latest scheduled first
+          return new Date(dateB).getTime() - new Date(dateA).getTime();
+        default:
+          return new Date(createdB).getTime() - new Date(createdA).getTime();
+      }
     });
 
     return rows;
-  }, [allJobs, search, priorityFilter, technicianFilter]);
+  }, [allJobs, search, priorityFilter, technicianFilter, sortBy, activeTab]);
 
   const hasActiveFilters = search || statusFilter || priorityFilter || technicianFilter || durationTypeFilter;
 
@@ -291,6 +334,7 @@ export default function JobsPage() {
     setPriorityFilter('');
     setTechnicianFilter('');
     setDurationTypeFilter('');
+    setSortBy('newest');
   };
 
   // Duplicate job mutation
@@ -373,6 +417,37 @@ export default function JobsPage() {
     setAssignModalJob(job);
   };
 
+  // Prefetch default vehicles for technicians when hovering over a job card
+  // This ensures the data is cached before the Edit modal opens
+  const handleJobHover = useCallback((job: Job) => {
+    // Get all technician IDs from job assignments
+    const technicianIds = job.assignments?.map((a: { technicianId: string }) => a.technicianId) || [];
+    if (technicianIds.length === 0) return;
+
+    // Prefetch default vehicle for each technician (in parallel, silent)
+    for (const techId of technicianIds) {
+      // Use a date for the query - we just need the permanent assignment
+      const today = new Date().toISOString().split('T')[0];
+      const queryKey = ['default-vehicle', techId, today];
+
+      // Only prefetch if not already cached
+      const cached = queryClient.getQueryData(queryKey);
+      if (!cached) {
+        queryClient.prefetchQuery({
+          queryKey,
+          queryFn: async () => {
+            const response = await fetch(
+              `/api/scheduling/vehicle-for-job?technicianId=${techId}&date=${today}`
+            );
+            if (!response.ok) return null;
+            return response.json();
+          },
+          staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+        });
+      }
+    }
+  }, [queryClient]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -381,10 +456,10 @@ export default function JobsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Trabajos</h1>
           <p className="text-gray-500">Gestiona los trabajos de tu equipo</p>
         </div>
-        <Link href="/dashboard/jobs/new" className="btn-primary">
+        <button onClick={() => setIsNewJobModalOpen(true)} className="btn-primary">
           <Plus className="mr-2 h-4 w-4" />
           Nuevo trabajo
-        </Link>
+        </button>
       </div>
 
       {/* Stat Cards */}
@@ -418,28 +493,81 @@ export default function JobsPage() {
         />
       </div>
 
-      {/* Filter Bar */}
-      <div className="card p-4">
-        <div className="flex flex-col gap-4">
-          {/* Main row */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            {/* Search */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Buscar por cliente, técnico, descripción, dirección..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="input pl-10"
-              />
-            </div>
+      {/* Tabs + Filters Row */}
+      <div className="flex flex-col gap-4">
+        {/* Main row: Tabs + Filters */}
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          {/* Tabs */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActiveTab('todos')}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors',
+                activeTab === 'todos'
+                  ? 'bg-gray-100 text-gray-900 border border-gray-300'
+                  : 'text-gray-600 hover:bg-gray-100'
+              )}
+            >
+              <List className="h-4 w-4" />
+              Todos
+              {allJobs && (
+                <span className={cn(
+                  'px-2 py-0.5 text-xs rounded-full',
+                  activeTab === 'todos' ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-600'
+                )}>
+                  {allJobs.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('activos')}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors',
+                activeTab === 'activos'
+                  ? 'bg-primary-50 text-primary-600 border border-primary-200'
+                  : 'text-gray-600 hover:bg-gray-100'
+              )}
+            >
+              <Briefcase className="h-4 w-4" />
+              Activos
+              {allJobs && (
+                <span className={cn(
+                  'px-2 py-0.5 text-xs rounded-full',
+                  activeTab === 'activos' ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'
+                )}>
+                  {allJobs.filter(j => j.status !== 'CANCELLED').length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('cancelados')}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors',
+                activeTab === 'cancelados'
+                  ? 'bg-red-50 text-red-600 border border-red-200'
+                  : 'text-gray-600 hover:bg-gray-100'
+              )}
+            >
+              <XCircle className="h-4 w-4" />
+              Cancelados
+              {allJobs && (
+                <span className={cn(
+                  'px-2 py-0.5 text-xs rounded-full',
+                  activeTab === 'cancelados' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+                )}>
+                  {allJobs.filter(j => j.status === 'CANCELLED').length}
+                </span>
+              )}
+            </button>
+          </div>
 
-            {/* Status dropdown (inline) */}
+          {/* Filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Status dropdown */}
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="input w-auto min-w-[180px]"
+              className="input w-auto text-sm py-2"
             >
               <option value="">Todos los estados</option>
               <option value="PENDING">Pendiente</option>
@@ -447,22 +575,21 @@ export default function JobsPage() {
               <option value="EN_ROUTE">En camino</option>
               <option value="IN_PROGRESS">En trabajo</option>
               <option value="COMPLETED">Completado</option>
-              <option value="CANCELLED">Cancelado</option>
             </select>
 
             {/* More filters button */}
             <button
               onClick={() => setShowMoreFilters(!showMoreFilters)}
               className={cn(
-                'btn-outline whitespace-nowrap',
+                'btn-outline whitespace-nowrap text-sm py-2',
                 showMoreFilters && 'border-primary-500 text-primary-600'
               )}
             >
               <Filter className="mr-2 h-4 w-4" />
               Más Filtros
-              {(priorityFilter || technicianFilter || durationTypeFilter) && (
+              {(priorityFilter || technicianFilter || durationTypeFilter || sortBy !== 'newest') && (
                 <span className="ml-2 rounded-full bg-primary-500 px-2 py-0.5 text-xs text-white">
-                  {[priorityFilter, technicianFilter, durationTypeFilter].filter(Boolean).length}
+                  {[priorityFilter, technicianFilter, durationTypeFilter, sortBy !== 'newest' ? 'sort' : ''].filter(Boolean).length}
                 </span>
               )}
             </button>
@@ -470,84 +597,111 @@ export default function JobsPage() {
             {/* View toggle */}
             <div className="flex rounded-lg border bg-gray-50">
               <button
-                className="flex items-center gap-2 rounded-l-lg px-4 py-2 text-sm font-medium bg-white text-primary-600 shadow-sm"
+                className="flex items-center gap-2 rounded-l-lg px-3 py-2 text-sm font-medium bg-white text-primary-600 shadow-sm"
               >
                 <List className="h-4 w-4" />
                 Lista
               </button>
               <Link
                 href="/dashboard/calendar"
-                className="flex items-center gap-2 rounded-r-lg px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
+                className="flex items-center gap-2 rounded-r-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100"
               >
                 <Calendar className="h-4 w-4" />
                 Calendario
               </Link>
             </div>
           </div>
+        </div>
 
-          {/* Expanded filters */}
-          {showMoreFilters && (
-            <div className="flex flex-wrap items-center gap-4 border-t pt-4">
-              {/* Priority filter */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Prioridad:</label>
-                <select
-                  value={priorityFilter}
-                  onChange={(e) => setPriorityFilter(e.target.value)}
-                  className="input w-auto py-1.5 text-sm"
-                >
-                  <option value="">Todas</option>
-                  <option value="low">Baja</option>
-                  <option value="normal">Normal</option>
-                  <option value="high">Alta</option>
-                  <option value="urgent">Urgente</option>
-                </select>
-              </div>
-
-              {/* Technician filter */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Técnico:</label>
-                <select
-                  value={technicianFilter}
-                  onChange={(e) => setTechnicianFilter(e.target.value)}
-                  className="input w-auto py-1.5 text-sm"
-                >
-                  <option value="">Todos</option>
-                  {technicians.map((tech) => (
-                    <option key={tech.id} value={tech.id}>
-                      {tech.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Duration type filter (single/multi-visit/recurring) */}
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Tipo:</label>
-                <select
-                  value={durationTypeFilter}
-                  onChange={(e) => setDurationTypeFilter(e.target.value)}
-                  className="input w-auto py-1.5 text-sm"
-                >
-                  <option value="">Todos</option>
-                  <option value="SINGLE_VISIT">Visita única</option>
-                  <option value="MULTIPLE_VISITS">Múltiples visitas</option>
-                  <option value="RECURRING">Recurrente</option>
-                </select>
-              </div>
-
-              {/* Clear filters */}
-              {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
-                >
-                  <X className="h-4 w-4" />
-                  Limpiar filtros
-                </button>
-              )}
+        {/* Expanded filters row */}
+        {showMoreFilters && (
+          <div className="flex flex-wrap items-center gap-4 pt-2 border-t">
+            {/* Priority filter */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Prioridad:</label>
+              <select
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="input w-auto py-1.5 text-sm"
+              >
+                <option value="">Todas</option>
+                <option value="low">Baja</option>
+                <option value="normal">Normal</option>
+                <option value="high">Alta</option>
+                <option value="urgent">Urgente</option>
+              </select>
             </div>
-          )}
+
+            {/* Technician filter */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Técnico:</label>
+              <select
+                value={technicianFilter}
+                onChange={(e) => setTechnicianFilter(e.target.value)}
+                className="input w-auto py-1.5 text-sm"
+              >
+                <option value="">Todos</option>
+                {technicians.map((tech) => (
+                  <option key={tech.id} value={tech.id}>
+                    {tech.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Duration type filter */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Tipo:</label>
+              <select
+                value={durationTypeFilter}
+                onChange={(e) => setDurationTypeFilter(e.target.value)}
+                className="input w-auto py-1.5 text-sm"
+              >
+                <option value="">Todos</option>
+                <option value="SINGLE_VISIT">Visita única</option>
+                <option value="MULTIPLE_VISITS">Múltiples visitas</option>
+                <option value="RECURRING">Recurrente</option>
+              </select>
+            </div>
+
+            {/* Sort dropdown */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Ordenar:</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="input w-auto py-1.5 text-sm"
+              >
+                <option value="newest">Más recientes</option>
+                <option value="oldest">Más antiguos</option>
+                <option value="scheduled_asc">Fecha próxima</option>
+                <option value="scheduled_desc">Fecha lejana</option>
+              </select>
+            </div>
+
+            {/* Clear filters */}
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700"
+              >
+                <X className="h-4 w-4" />
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Search bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Buscar por cliente, técnico, descripción, dirección..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="input pl-10 w-full"
+          />
         </div>
       </div>
 
@@ -579,21 +733,37 @@ export default function JobsPage() {
               onAction={handleAction}
               onAssignClick={handleAssignClick}
               onCardClick={(job) => setSelectedJobId(job.id)}
+              onHover={handleJobHover}
             />
           ))
         ) : (
           <div className="card p-12 text-center">
-            <Briefcase className="mx-auto h-12 w-12 text-gray-300" />
-            <p className="mt-4 text-gray-500">No se encontraron trabajos</p>
-            {hasActiveFilters ? (
-              <button onClick={clearFilters} className="btn-outline mt-4">
-                Limpiar filtros
-              </button>
+            {activeTab === 'cancelados' ? (
+              <>
+                <XCircle className="mx-auto h-12 w-12 text-gray-300" />
+                <p className="mt-4 text-gray-500">No hay trabajos cancelados</p>
+                <button
+                  onClick={() => setActiveTab('activos')}
+                  className="btn-outline mt-4"
+                >
+                  Ver trabajos activos
+                </button>
+              </>
             ) : (
-              <Link href="/dashboard/jobs/new" className="btn-primary mt-4 inline-flex">
-                <Plus className="mr-2 h-4 w-4" />
-                Crear trabajo
-              </Link>
+              <>
+                <Briefcase className="mx-auto h-12 w-12 text-gray-300" />
+                <p className="mt-4 text-gray-500">No se encontraron trabajos</p>
+                {hasActiveFilters ? (
+                  <button onClick={clearFilters} className="btn-outline mt-4">
+                    Limpiar filtros
+                  </button>
+                ) : (
+                  <button onClick={() => setIsNewJobModalOpen(true)} className="btn-primary mt-4 inline-flex">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Crear trabajo
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
@@ -622,13 +792,27 @@ export default function JobsPage() {
         />
       )}
 
-      {/* Job Detail Modal */}
-      <JobDetailModal
-        jobId={selectedJobId}
-        onClose={() => setSelectedJobId(null)}
-        onEdit={(jobId) => {
-          setSelectedJobId(null);
-          router.push(`/dashboard/jobs/${jobId}?edit=true`);
+      {/* Job Edit Modal - replaces the old detail modal */}
+      {selectedJobId && (
+        <EditJobModal
+          isOpen={!!selectedJobId}
+          jobId={selectedJobId}
+          onClose={() => setSelectedJobId(null)}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ['jobs'] });
+            queryClient.invalidateQueries({ queryKey: ['jobs-stats'] });
+            setSelectedJobId(null);
+          }}
+        />
+      )}
+
+      {/* New Job Modal */}
+      <NewJobModal
+        isOpen={isNewJobModalOpen}
+        onClose={() => setIsNewJobModalOpen(false)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['jobs'] });
+          queryClient.invalidateQueries({ queryKey: ['jobs-stats'] });
         }}
       />
     </div>
@@ -701,9 +885,10 @@ interface JobCardProps {
   onAction: (action: string, job: Job, e: React.MouseEvent) => void;
   onAssignClick: (job: Job, e: React.MouseEvent) => void;
   onCardClick: (job: Job) => void;
+  onHover?: (job: Job) => void;
 }
 
-function JobCard({ job, visitConfig, isVisitRow, totalConfigs, openMenuId, onMenuClick, onAction, onAssignClick, onCardClick }: JobCardProps) {
+function JobCard({ job, visitConfig, isVisitRow, totalConfigs, openMenuId, onMenuClick, onAction, onAssignClick, onCardClick, onHover }: JobCardProps) {
   // For visit config rows, calculate aggregate status
   const pendingCount = visitConfig?.visits.filter(v => v.status === 'PENDING').length || 0;
   const completedCount = visitConfig?.visits.filter(v => v.status === 'COMPLETED').length || 0;
@@ -714,7 +899,7 @@ function JobCard({ job, visitConfig, isVisitRow, totalConfigs, openMenuId, onMen
     ? (completedCount === totalVisitDates ? 'COMPLETED' : (pendingCount === totalVisitDates ? 'PENDING' : 'IN_PROGRESS'))
     : job.status;
 
-  const hasAssignment = visitConfig?.technician || (job.assignments && job.assignments.length > 0);
+  const _hasAssignment = visitConfig?.technician || (job.assignments && job.assignments.length > 0);
   const isCompleted = displayStatus === 'COMPLETED' || displayStatus === 'CANCELLED';
   const canCancel = !isCompleted;
   const canAssign = !isCompleted;
@@ -764,6 +949,7 @@ function JobCard({ job, visitConfig, isVisitRow, totalConfigs, openMenuId, onMen
   return (
     <div
       onClick={() => onCardClick(job)}
+      onMouseEnter={() => onHover?.(job)}
       className="bg-white rounded-xl border border-gray-200 p-5 hover:shadow-md transition-all duration-200 block cursor-pointer"
     >
       <div className="flex flex-col lg:flex-row lg:items-center gap-4">
@@ -772,7 +958,7 @@ function JobCard({ job, visitConfig, isVisitRow, totalConfigs, openMenuId, onMen
           {/* Job ID + Badges */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm text-gray-500 font-mono">
-              {job.jobNumber}
+              {job.jobNumber?.replace('JOB-', 'Trabajo-')}
               {isVisitRow && visitConfig && totalConfigs > 1 && (
                 <span className="text-primary-600 font-semibold"> (Visita {visitConfig.configIndex}/{totalConfigs})</span>
               )}
@@ -850,18 +1036,8 @@ function JobCard({ job, visitConfig, isVisitRow, totalConfigs, openMenuId, onMen
 
         {/* Section 4: Technician - lg:w-36 */}
         <div className="lg:w-36">
-          {visitConfig?.technician ? (
-            // Visit config technician
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-teal-50 border border-teal-200 flex items-center justify-center">
-                <User className="h-4 w-4 text-teal-600" />
-              </div>
-              <span className="text-sm text-gray-700 truncate">
-                {visitConfig.technician.name}
-              </span>
-            </div>
-          ) : hasAssignment && job.assignments && job.assignments.length > 0 ? (
-            // Job-level technician (for non-visit rows)
+          {job.assignments && job.assignments.length > 0 ? (
+            // Show technicians from job.assignments (contains all assigned technicians)
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-full bg-teal-50 border border-teal-200 flex items-center justify-center">
                 <User className="h-4 w-4 text-teal-600" />
@@ -869,8 +1045,18 @@ function JobCard({ job, visitConfig, isVisitRow, totalConfigs, openMenuId, onMen
               <span className="text-sm text-gray-700 truncate">
                 {job.assignments[0].technician?.name}
                 {job.assignments.length > 1 && (
-                  <span className="text-gray-400">...</span>
+                  <span className="ml-1 text-xs text-teal-600 font-medium">+{job.assignments.length - 1}</span>
                 )}
+              </span>
+            </div>
+          ) : visitConfig?.technician ? (
+            // Fallback: Visit config technician (legacy, single technician)
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-full bg-teal-50 border border-teal-200 flex items-center justify-center">
+                <User className="h-4 w-4 text-teal-600" />
+              </div>
+              <span className="text-sm text-gray-700 truncate">
+                {visitConfig.technician.name}
               </span>
             </div>
           ) : canAssign ? (
@@ -897,7 +1083,7 @@ function JobCard({ job, visitConfig, isVisitRow, totalConfigs, openMenuId, onMen
           )}
 
           {/* 3-dot menu */}
-          <div className="relative">
+          <div className="relative" data-menu-container>
             <button
               onClick={(e) => onMenuClick(job.id, e)}
               className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -999,7 +1185,7 @@ function AssignTechnicianModal({ job, technicians, onClose, onSuccess }: AssignT
 
         {/* Job summary */}
         <div className="p-4 bg-gray-50 border-b">
-          <p className="text-sm text-gray-500">{job.jobNumber}</p>
+          <p className="text-sm text-gray-500">{job.jobNumber?.replace('JOB-', 'Trabajo-')}</p>
           <p className="font-medium">{SERVICE_TYPE_LABELS[job.serviceType] || job.serviceType}</p>
           <p className="text-sm text-gray-600">
             {job.customer?.name} • {job.scheduledDate ? formatDate(job.scheduledDate) : 'Sin fecha'}
@@ -1071,7 +1257,7 @@ function CancelConfirmModal({ job, isLoading, onConfirm, onClose }: CancelConfir
         </div>
         <h3 className="text-lg font-semibold text-center">¿Cancelar trabajo?</h3>
         <p className="text-gray-500 text-center mt-2">
-          Esta acción cancelará el trabajo <strong>{job.jobNumber}</strong>. Esta acción no se puede deshacer.
+          Esta acción cancelará el trabajo <strong>{job.jobNumber?.replace('JOB-', 'Trabajo-')}</strong>. Esta acción no se puede deshacer.
         </p>
         <div className="flex gap-3 mt-6">
           <button onClick={onClose} className="btn-outline flex-1" disabled={isLoading}>

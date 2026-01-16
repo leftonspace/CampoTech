@@ -27,6 +27,18 @@ export async function GET(request: NextRequest) {
 
     const organizationId = session.organizationId;
 
+    // Map frontend sort values to database field names
+    const getSortField = (s: string | null): string => {
+      switch (s) {
+        case 'jobs': return 'jobCount';
+        case 'revenue': return 'totalSpent';
+        case 'recent': return 'createdAt';
+        case 'oldest': return 'createdAt';
+        case 'name': return 'name';
+        default: return 'createdAt';
+      }
+    };
+
     const result = await CustomerService.listCustomers(organizationId, {
       search: search || undefined,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,8 +46,8 @@ export async function GET(request: NextRequest) {
     }, {
       page,
       limit,
-      sort: sort === 'jobs' ? 'jobCount' : (sort === 'revenue' ? 'totalSpent' : (sort || 'createdAt')),
-      order: 'desc',
+      sort: getSortField(sort),
+      order: sort === 'oldest' ? 'asc' : 'desc',
     });
 
     // Normalize user role for permission checking

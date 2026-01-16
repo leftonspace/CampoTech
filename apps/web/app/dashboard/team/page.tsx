@@ -17,7 +17,6 @@ import {
   Briefcase,
   X,
   Save,
-  ShieldCheck,
   Wrench,
   Eye,
   Award,
@@ -26,9 +25,6 @@ import {
   MessageCircle,
   Upload,
   Image as ImageIcon,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
 } from 'lucide-react';
 import TeamCalendar from '@/components/schedule/TeamCalendar';
 import ScheduleConfigModal from '@/components/schedule/ScheduleConfigModal';
@@ -133,10 +129,10 @@ const LIVE_STATUS_CONFIG = {
 };
 
 // Trades that require professional licensing (matrícula) in Argentina
-const REGULATED_TRADES = ['GASISTA', 'ELECTRICISTA', 'REFRIGERACION', 'CALEFACCIONISTA'];
+const _REGULATED_TRADES = ['GASISTA', 'ELECTRICISTA', 'REFRIGERACION', 'CALEFACCIONISTA'];
 
 // Human-readable labels for specialty codes
-const SPECIALTY_LABELS: Record<string, string> = {
+const _SPECIALTY_LABELS: Record<string, string> = {
   GASISTA: 'Gasista',
   ELECTRICISTA: 'Electricista',
   PLOMERO: 'Plomero',
@@ -195,7 +191,7 @@ export default function TeamPage() {
     : allMembers.filter(m => m.isActive !== false);
 
   // Fetch team stats
-  const { data: statsData, isLoading: statsLoading } = useQuery({
+  const { data: statsData, isLoading: _statsLoading } = useQuery({
     queryKey: ['team-stats'],
     queryFn: async () => {
       const res = await fetch('/api/users/stats');
@@ -216,7 +212,7 @@ export default function TeamPage() {
     enabled: members.length > 0,
   });
 
-  const stats: TeamStats = statsData?.data || {
+  const _stats: TeamStats = statsData?.data || {
     totalEmployees: members.length,
     activeTechnicians: members.filter(m => m.role === 'TECHNICIAN' && m.isActive).length,
     inProgressCount: 2,
@@ -418,6 +414,7 @@ interface StatCardProps {
   loading?: boolean;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function StatCard({ title, value, color = 'default', icon, loading }: StatCardProps) {
   return (
     <div className="card p-5">
@@ -815,6 +812,7 @@ interface ScheduleEntry {
   isAvailable: boolean;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function WeeklySchedulesTab({ members }: { members: TeamMember[] }) {
   const { data: schedulesData, isLoading } = useQuery({
     queryKey: ['all-schedules'],

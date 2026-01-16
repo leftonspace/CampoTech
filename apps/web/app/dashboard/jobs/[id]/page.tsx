@@ -202,7 +202,7 @@ export default function JobDetailPage() {
   const job = data?.data as Job | undefined;
   const teamMembers = usersData?.data as UserType[] | undefined;
   const customers = customersData?.data as Customer[] | undefined;
-  const vehicles = vehiclesData?.data as Vehicle[] | undefined; // Phase 2.2
+  const vehicles = vehiclesData?.data?.vehicles as Vehicle[] | undefined; // Phase 2.2 - API returns { vehicles: [], stats: {} }
 
   // Build availability map for quick lookup
   const availabilityMap = new Map<string, AvailableEmployee>();

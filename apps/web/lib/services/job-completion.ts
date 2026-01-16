@@ -76,6 +76,7 @@ export async function snapshotVehicleDriver(jobId: string): Promise<SnapshotResu
 
 /**
  * Completes a job with full vehicle/driver snapshotting
+ * Phase 6: Now snapshots all visit-level vehicle/driver assignments
  */
 // Type for the completed job with relations
 interface CompletedJobWithRelations {
@@ -95,7 +96,7 @@ export async function completeJobWithSnapshot(
 ): Promise<{ job: CompletedJobWithRelations; snapshot: SnapshotResult; warnings: string[] }> {
     const warnings: string[] = [];
 
-    // Get job with vehicle info
+    // Get job with vehicle info and Phase 6 visit assignments
     const job = await prisma.job.findFirst({
         where: { id: jobId, organizationId: orgId },
         include: {
@@ -115,6 +116,35 @@ export async function completeJobWithSnapshot(
                     driverLicenseNumber: true,
                     driverLicenseExpiry: true,
                     driverLicenseCategory: true,
+                },
+            },
+            // Phase 6: Include visit vehicle assignments for snapshotting
+            visits: {
+                include: {
+                    vehicleAssignments: {
+                        include: {
+                            vehicle: {
+                                select: {
+                                    id: true,
+                                    plateNumber: true,
+                                    make: true,
+                                    model: true,
+                                },
+                            },
+                            drivers: {
+                                include: {
+                                    user: {
+                                        select: {
+                                            id: true,
+                                            name: true,
+                                            driverLicenseNumber: true,
+                                            driverLicenseExpiry: true,
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
                 },
             },
         },
@@ -170,7 +200,27 @@ export async function completeJobWithSnapshot(
         }
     }
 
-    // Create snapshot data
+    // Phase 6: Check all drivers in visit assignments for license issues
+    for (const visit of job.visits) {
+        for (const vehicleAssignment of visit.vehicleAssignments) {
+            for (const driver of vehicleAssignment.drivers) {
+                if (!driver.user.driverLicenseNumber) {
+                    warnings.push(
+                        `El técnico ${driver.user.name} no tiene licencia de conducir registrada (vehículo: ${vehicleAssignment.vehicle.plateNumber || 'sin patente'}).`
+                    );
+                } else if (driver.user.driverLicenseExpiry) {
+                    const expiry = new Date(driver.user.driverLicenseExpiry);
+                    if (expiry < new Date()) {
+                        warnings.push(
+                            `La licencia de ${driver.user.name} está vencida desde ${expiry.toLocaleDateString('es-AR', { timeZone: 'America/Buenos_Aires' })} (vehículo: ${vehicleAssignment.vehicle.plateNumber || 'sin patente'}).`
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    // Create snapshot data (legacy - for job-level single vehicle/driver)
     const snapshotData: SnapshotResult = {
         vehiclePlateAtJob: job.vehicle?.plateNumber || null,
         driverNameAtJob: job.technician?.name || null,
@@ -192,7 +242,7 @@ export async function completeJobWithSnapshot(
                 photos: data.photos || [],
                 customerSignature: data.customerSignature || null,
                 vehicleMileageEnd: mileageEnd ?? null,
-                // Snapshot fields - frozen for audit
+                // Snapshot fields - frozen for audit (legacy job-level)
                 vehiclePlateAtJob: snapshotData.vehiclePlateAtJob,
                 driverNameAtJob: snapshotData.driverNameAtJob,
                 driverLicenseAtJob: snapshotData.driverLicenseAtJob,
@@ -212,6 +262,33 @@ export async function completeJobWithSnapshot(
                     where: { id: job.vehicle.id },
                     data: { currentMileage: mileageEnd },
                 });
+            }
+        }
+
+        // Phase 6: Snapshot all visit-level vehicle/driver assignments
+        // "Lock on Complete" pattern - immutable forensic record
+        for (const visit of job.visits) {
+            for (const vehicleAssignment of visit.vehicleAssignments) {
+                // Snapshot vehicle data
+                await tx.jobVisitVehicle.update({
+                    where: { id: vehicleAssignment.id },
+                    data: {
+                        vehiclePlateSnapshot: vehicleAssignment.vehicle.plateNumber,
+                        vehicleMakeSnapshot: vehicleAssignment.vehicle.make,
+                        vehicleModelSnapshot: vehicleAssignment.vehicle.model,
+                    },
+                });
+
+                // Snapshot driver data
+                for (const driver of vehicleAssignment.drivers) {
+                    await tx.jobVisitVehicleDriver.update({
+                        where: { id: driver.id },
+                        data: {
+                            driverNameSnapshot: driver.user.name,
+                            driverLicenseSnapshot: driver.user.driverLicenseNumber,
+                        },
+                    });
+                }
             }
         }
 

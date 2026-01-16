@@ -625,7 +625,16 @@ model AIConfiguration {
   // ... existing
   
   // NEW: Workflow permissions
-  workflowPermissions Json @default("{\"suggestResponses\": true, \"translateMessages\": true, \"suggestActions\": true, \"accessDatabase\": true, \"accessSchedule\": true}")
+  workflowPermissions Json @default("{
+    \"suggestResponses\": true,
+    \"translateMessages\": true,
+    \"suggestActions\": true,
+    \"accessDatabase\": true,
+    \"accessSchedule\": true,
+    \"autoApproveSmallPriceAdjustments\": false,
+    \"autoApproveThresholdPercent\": 5,
+    \"autoAssignTechnicians\": false
+  }")
 }
 ```
 
@@ -673,6 +682,44 @@ Add "Permisos de Acción" section:
       onChange={(v) => updateWorkflowPerm('accessSchedule', v)}
     />
   </NestedPermission>
+</div>
+
+{/* Auto-Approval Section */}
+<div className="space-y-4 mt-6 border-t pt-6">
+  <h3>Auto-Aprobaciones</h3>
+  <p className="text-gray-500">Permitir que AI apruebe automáticamente ciertas acciones</p>
+  
+  <PermissionToggle
+    label="Auto-aprobar ajustes de precio pequeños"
+    description="AI aprueba automáticamente ajustes del técnico bajo el umbral"
+    checked={config.workflowPermissions.autoApproveSmallPriceAdjustments}
+    onChange={(v) => updateWorkflowPerm('autoApproveSmallPriceAdjustments', v)}
+  />
+  
+  <NestedPermission visible={config.workflowPermissions.autoApproveSmallPriceAdjustments}>
+    <div className="flex items-center gap-2">
+      <label>Umbral máximo:</label>
+      <input
+        type="number"
+        min="1"
+        max="50"
+        value={config.workflowPermissions.autoApproveThresholdPercent}
+        onChange={(e) => updateWorkflowPerm('autoApproveThresholdPercent', parseInt(e.target.value))}
+        className="input w-20"
+      />
+      <span>%</span>
+    </div>
+    <p className="text-xs text-gray-400">
+      Ajustes mayores a este porcentaje requieren aprobación manual
+    </p>
+  </NestedPermission>
+  
+  <PermissionToggle
+    label="Auto-asignar técnicos"
+    description="AI asigna técnicos automáticamente según disponibilidad"
+    checked={config.workflowPermissions.autoAssignTechnicians}
+    onChange={(v) => updateWorkflowPerm('autoAssignTechnicians', v)}
+  />
 </div>
 ```
 

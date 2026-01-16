@@ -98,6 +98,16 @@ export class JobService {
                         orderBy: { visitNumber: 'asc' },
                         include: {
                             technician: { select: { id: true, name: true } },
+                            vehicleAssignments: {
+                                include: {
+                                    vehicle: { select: { id: true, plateNumber: true, make: true, model: true } },
+                                    drivers: {
+                                        include: {
+                                            user: { select: { id: true, name: true } },
+                                        },
+                                    },
+                                },
+                            },
                         },
                     },
                 },
@@ -121,6 +131,7 @@ export class JobService {
 
     /**
      * Create a job with assignments and visits
+     * Phase 6: Now supports multiple vehicles per visit with multiple drivers
      */
     static async createJob(orgId: string, userId: string, data: any) {
         const {
@@ -131,7 +142,7 @@ export class JobService {
             scheduledTimeSlot,
             customerId,
             technicianIds = [],
-            vehicleId = null, // Phase 2.1: Vehicle for this job
+            vehicleId = null, // Legacy: single vehicle for job (Phase 2.1)
             visits = [],
             durationType: bodyDurationType,
         } = data;
@@ -157,50 +168,117 @@ export class JobService {
         // Extract start time from scheduledTimeSlot if available
         const startTime = scheduledTimeSlot?.start || null;
 
-        return prisma.job.create({
-            data: {
-                jobNumber,
-                serviceType,
-                description,
-                urgency,
-                scheduledDate: scheduledDate ? parseDateTimeAsArgentina(scheduledDate, startTime) : null,
-                scheduledTimeSlot: scheduledTimeSlot || null,
-                customerId,
-                technicianId: technicianIds[0] || null,
-                vehicleId: vehicleId || null, // Phase 2.1: Vehicle for this job
-                createdById: userId,
-                organizationId: orgId,
-                durationType: durationType as any,
-                visitCount,
-                recurrencePattern: hasRecurrence ? (visits.find((v: any) => v.isRecurring)?.recurrencePattern as any) : null,
-                recurrenceCount: hasRecurrence ? visits.find((v: any) => v.isRecurring)?.recurrenceCount : null,
-                assignments: {
-                    create: technicianIds.map((techId: string) => ({
-                        technicianId: techId,
-                    })),
-                },
-                visits: expandedVisits.length > 0 ? {
-                    create: expandedVisits.map((visit, index) => ({
-                        visitNumber: index + 1,
-                        visitConfigIndex: visit.configIndex,
-                        scheduledDate: visit.date,
-                        scheduledTimeSlot: (visit.timeStart || visit.timeEnd)
-                            ? { start: visit.timeStart || '', end: visit.timeEnd || '' }
-                            : null,
-                        technicianId: visit.technicianIds?.[0] || technicianIds[0] || null,
-                    })),
-                } : undefined,
-            },
+        // Determine initial status: ASSIGNED if technicians are provided, otherwise PENDING
+        const initialStatus = technicianIds.length > 0 ? 'ASSIGNED' : 'PENDING';
+
+        // Use transaction to create job, visits, and vehicle assignments atomically
+        const jobId = await prisma.$transaction(
+            async (tx) => {
+                // Create the job with visits
+                const job = await tx.job.create({
+                    data: {
+                        jobNumber,
+                        serviceType,
+                        description,
+                        urgency,
+                        status: initialStatus,
+                        scheduledDate: scheduledDate ? parseDateTimeAsArgentina(scheduledDate, startTime) : null,
+                        scheduledTimeSlot: scheduledTimeSlot || null,
+                        customerId,
+                        technicianId: technicianIds[0] || null,
+                        vehicleId: vehicleId || null, // Legacy: single vehicle for job
+                        createdById: userId,
+                        organizationId: orgId,
+                        durationType: durationType as any,
+                        visitCount,
+                        recurrencePattern: hasRecurrence ? (visits.find((v: any) => v.isRecurring)?.recurrencePattern as any) : null,
+                        recurrenceCount: hasRecurrence ? visits.find((v: any) => v.isRecurring)?.recurrenceCount : null,
+                        assignments: {
+                            create: technicianIds.map((techId: string) => ({
+                                technicianId: techId,
+                            })),
+                        },
+                        visits: expandedVisits.length > 0 ? {
+                            create: expandedVisits.map((visit, index) => ({
+                                visitNumber: index + 1,
+                                visitConfigIndex: visit.configIndex,
+                                scheduledDate: visit.date,
+                                scheduledTimeSlot: (visit.timeStart || visit.timeEnd)
+                                    ? { start: visit.timeStart || '', end: visit.timeEnd || '' }
+                                    : null,
+                                technicianId: visit.technicianIds?.[0] || technicianIds[0] || null,
+                            })),
+                        } : undefined,
+                    },
+                    include: {
+                        visits: { orderBy: { visitNumber: 'asc' } },
+                    },
+                });
+
+                // Phase 6: Create vehicle assignments for each visit
+                // Match visits to their vehicle assignments by visitNumber (array index + 1)
+                for (const createdVisit of job.visits) {
+                    // Find the corresponding expanded visit by matching visitNumber (1-based index)
+                    const visitIndex = createdVisit.visitNumber - 1;
+                    const expandedVisit = expandedVisits[visitIndex];
+
+                    const vehicleAssignments = expandedVisit?.vehicleAssignments || [];
+
+                    for (const assignment of vehicleAssignments) {
+                        if (!assignment.vehicleId) continue;
+
+                        // Create the JobVisitVehicle record
+                        const visitVehicle = await tx.jobVisitVehicle.create({
+                            data: {
+                                jobVisitId: createdVisit.id,
+                                vehicleId: assignment.vehicleId,
+                            },
+                        });
+
+                        // Create JobVisitVehicleDriver records for each driver
+                        const driverIds = assignment.driverIds || [];
+                        for (const driverId of driverIds) {
+                            await tx.jobVisitVehicleDriver.create({
+                                data: {
+                                    jobVisitVehicleId: visitVehicle.id,
+                                    userId: driverId,
+                                },
+                            });
+                        }
+                    }
+                }
+
+                // Return the job ID to fetch after transaction completes
+                return job.id;
+            }
+        );
+
+        // Fetch the complete job with all relations AFTER the transaction
+        // This prevents transaction timeout issues
+        return prisma.job.findUniqueOrThrow({
+            where: { id: jobId },
             include: {
                 customer: true,
                 technician: { select: { id: true, name: true } },
-                vehicle: { select: { id: true, plateNumber: true, make: true, model: true } }, // Phase 2.1
+                vehicle: { select: { id: true, plateNumber: true, make: true, model: true } },
                 assignments: {
                     include: { technician: { select: { id: true, name: true } } },
                 },
                 visits: {
                     orderBy: { visitNumber: 'asc' },
-                    include: { technician: { select: { id: true, name: true } } },
+                    include: {
+                        technician: { select: { id: true, name: true } },
+                        vehicleAssignments: {
+                            include: {
+                                vehicle: { select: { id: true, plateNumber: true, make: true, model: true } },
+                                drivers: {
+                                    include: {
+                                        user: { select: { id: true, name: true } },
+                                    },
+                                },
+                            },
+                        },
+                    },
                 },
             },
         });
@@ -208,6 +286,7 @@ export class JobService {
 
     /**
      * Get a single job by ID
+     * Phase 6: Includes vehicle assignments per visit
      */
     static async getJobById(orgId: string, id: string) {
         return prisma.job.findFirst({
@@ -215,9 +294,24 @@ export class JobService {
             include: {
                 customer: true,
                 technician: { select: { id: true, name: true } },
-                vehicle: { select: { id: true, plateNumber: true, make: true, model: true } }, // Phase 2.1
+                vehicle: { select: { id: true, plateNumber: true, make: true, model: true } },
                 assignments: { include: { technician: { select: { id: true, name: true } } } },
-                visits: { include: { technician: { select: { id: true, name: true } } } },
+                visits: {
+                    orderBy: { visitNumber: 'asc' },
+                    include: {
+                        technician: { select: { id: true, name: true } },
+                        vehicleAssignments: {
+                            include: {
+                                vehicle: { select: { id: true, plateNumber: true, make: true, model: true } },
+                                drivers: {
+                                    include: {
+                                        user: { select: { id: true, name: true, driverLicenseNumber: true, driverLicenseExpiry: true } },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
             },
         });
     }

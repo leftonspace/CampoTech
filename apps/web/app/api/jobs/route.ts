@@ -115,8 +115,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error');
     console.error('Create job error:', err.message);
+    console.error('Create job stack:', err.stack);
     return NextResponse.json(
-      { success: false, error: 'Error creating job' },
+      { success: false, error: err.message || 'Error creating job' },
       { status: 500 }
     );
   }

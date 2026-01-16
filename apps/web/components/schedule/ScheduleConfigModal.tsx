@@ -11,7 +11,6 @@ import {
     Check,
     Plus,
     Trash2,
-    Clock,
     Bell,
     Info,
 } from 'lucide-react';
@@ -173,7 +172,7 @@ function parseTimeInfo(time: string): { display: string; is24Hour: boolean; peri
         return { display: time, is24Hour: false, period: 'AM' };
     }
 
-    const [hourStr, minStr] = time.split(':');
+    const [hourStr, _minStr] = time.split(':');
     const hour = parseInt(hourStr, 10);
 
     if (isNaN(hour)) {
@@ -597,7 +596,7 @@ export default function ScheduleConfigModal({
     };
 
     // Set specific shift for a day
-    const setDayShift = (dayId: number, shiftId: string | null) => {
+    const _setDayShift = (dayId: number, shiftId: string | null) => {
         setDayShifts(prev => ({ ...prev, [dayId]: shiftId }));
     };
 

@@ -64,14 +64,36 @@ export default function AddressAutocomplete({
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [isConfirmed, setIsConfirmed] = useState(!!value); // Track if address is confirmed (selected or pre-loaded)
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const prevValueRef = useRef<string>(value); // Track previous value to detect external changes
 
   const debouncedValue = useDebounce(value, 300);
 
+  // Sync isConfirmed when value is set externally (e.g., modal loads with existing address)
+  // This ensures we don't show suggestions for pre-populated addresses
+  useEffect(() => {
+    const prevValue = prevValueRef.current;
+    prevValueRef.current = value;
+
+    // If value was set externally (changed from empty to something, or changed to a different address)
+    // and it wasn't cleared by the user, mark as confirmed
+    if (value && value !== prevValue && !showSuggestions) {
+      setIsConfirmed(true);
+      setSuggestions([]);
+    }
+  }, [value, showSuggestions]);
+
   // Fetch suggestions from Google Places API
+  // Only fetch if user is actively typing (not when address is confirmed)
   useEffect(() => {
     const fetchSuggestions = async () => {
+      // Don't fetch if address is confirmed (already selected or pre-loaded)
+      if (isConfirmed) {
+        return;
+      }
+
       if (!debouncedValue || debouncedValue.length < 3) {
         setSuggestions([]);
         return;
@@ -113,7 +135,7 @@ export default function AddressAutocomplete({
     };
 
     fetchSuggestions();
-  }, [debouncedValue, defaultCountry]);
+  }, [debouncedValue, defaultCountry, isConfirmed]);
 
   // Click outside to close suggestions
   useEffect(() => {
@@ -131,6 +153,8 @@ export default function AddressAutocomplete({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       onChange(e.target.value);
       setSelectedIndex(-1);
+      // User is typing - unconfirm to allow new suggestions
+      setIsConfirmed(false);
     },
     [onChange]
   );
@@ -139,6 +163,7 @@ export default function AddressAutocomplete({
     onChange('');
     setSuggestions([]);
     setShowSuggestions(false);
+    setIsConfirmed(false); // Reset confirmed state when cleared
     inputRef.current?.focus();
   }, [onChange]);
 
@@ -146,6 +171,7 @@ export default function AddressAutocomplete({
     async (suggestion: Suggestion) => {
       setIsLoading(true);
       setShowSuggestions(false);
+      setIsConfirmed(true); // Mark as confirmed to prevent re-fetching suggestions
 
       try {
         // Get place details to extract address components and coordinates
@@ -243,13 +269,16 @@ export default function AddressAutocomplete({
         onChange={handleInputChange}
         onKeyDown={handleKeyDown}
         onFocus={() => {
-          if (suggestions.length > 0) setShowSuggestions(true);
+          // Only show suggestions if user has started typing (not confirmed/pre-loaded address)
+          if (suggestions.length > 0 && !isConfirmed) setShowSuggestions(true);
         }}
         placeholder={placeholder}
         className={`input pl-10 pr-10 ${className}`}
         disabled={disabled}
         required={required}
         autoComplete="off"
+        onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá una dirección')}
+        onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
       />
       {isLoading ? (
         <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 animate-spin" />
@@ -272,9 +301,8 @@ export default function AddressAutocomplete({
             <li
               key={suggestion.placeId}
               onClick={() => handleSelectSuggestion(suggestion)}
-              className={`cursor-pointer px-4 py-3 hover:bg-gray-50 ${
-                index === selectedIndex ? 'bg-gray-100' : ''
-              }`}
+              className={`cursor-pointer px-4 py-3 hover:bg-gray-50 ${index === selectedIndex ? 'bg-gray-100' : ''
+                }`}
             >
               <div className="font-medium text-gray-900">{suggestion.mainText}</div>
               {suggestion.secondaryText && (

@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type');
+    const specialty = searchParams.get('specialty');
     const activeOnly = searchParams.get('activeOnly') !== 'false';
 
     const where: Record<string, unknown> = {
@@ -39,6 +40,10 @@ export async function GET(request: NextRequest) {
 
     if (type) {
       where.type = type.toUpperCase() as 'SERVICE' | 'PRODUCT';
+    }
+
+    if (specialty) {
+      where.specialty = specialty.toUpperCase();
     }
 
     if (activeOnly) {
@@ -54,6 +59,8 @@ export async function GET(request: NextRequest) {
       unit: string | null;
       taxRate: Decimal;
       isActive: boolean;
+      specialty: string | null;
+      pricingModel: string | null;
       createdAt: Date;
       updatedAt: Date;
     }> = [];
@@ -61,7 +68,7 @@ export async function GET(request: NextRequest) {
     try {
       items = await prisma.priceItem.findMany({
         where,
-        orderBy: [{ type: 'asc' }, { name: 'asc' }],
+        orderBy: [{ type: 'asc' }, { specialty: 'asc' }, { name: 'asc' }],
       });
     } catch (queryError) {
       // Handle missing table gracefully
@@ -86,11 +93,19 @@ export async function GET(request: NextRequest) {
       unit: item.unit,
       taxRate: Number(item.taxRate),
       isActive: item.isActive,
+      specialty: item.specialty,
+      pricingModel: item.pricingModel,
     }));
+
+    // Get unique specialties for filter dropdown
+    const specialties = [...new Set(items.map(i => i.specialty).filter(Boolean))];
 
     return NextResponse.json({
       success: true,
       data: transformedItems,
+      meta: {
+        specialties,
+      },
     });
   } catch (error) {
     const err = error instanceof Error ? error : new Error('Unknown error');
@@ -121,7 +136,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, type, price, unit, taxRate, isActive } = body;
+    const { name, description, type, price, unit, taxRate, isActive, specialty, pricingModel } = body;
 
     if (!name || price === undefined || price === null) {
       return NextResponse.json(
@@ -129,6 +144,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Valid pricing models
+    const validPricingModels = ['FIXED', 'HOURLY', 'PER_UNIT', 'PER_M2', 'PER_DAY', 'QUOTE'];
+    const normalizedPricingModel = pricingModel?.toUpperCase();
 
     let item;
     try {
@@ -142,6 +161,10 @@ export async function POST(request: NextRequest) {
           unit: unit || null,
           taxRate: taxRate ? new Decimal(taxRate) : new Decimal(21),
           isActive: isActive !== false,
+          specialty: specialty?.toUpperCase() || null,
+          pricingModel: validPricingModels.includes(normalizedPricingModel)
+            ? normalizedPricingModel as 'FIXED' | 'HOURLY' | 'PER_UNIT' | 'PER_M2' | 'PER_DAY' | 'QUOTE'
+            : null,
         },
       });
     } catch (queryError) {
@@ -170,6 +193,8 @@ export async function POST(request: NextRequest) {
         unit: item.unit,
         taxRate: Number(item.taxRate),
         isActive: item.isActive,
+        specialty: item.specialty,
+        pricingModel: item.pricingModel,
       },
     });
   } catch (error) {
@@ -181,3 +206,4 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+

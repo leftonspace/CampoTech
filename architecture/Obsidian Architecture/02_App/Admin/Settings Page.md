@@ -192,6 +192,18 @@ Link: [[Inventory Page]]
 - Token budget
 - Fallback behaviors
 
+### Workflow Permissions
+- Suggest responses (AI proposes, user approves)
+- Translate messages
+- Suggest actions (create customer, job, etc.)
+- Access database (query customer history)
+- Access schedule (check availability)
+
+### Auto-Approvals
+- Auto-approve small price adjustments (< X%)
+- Auto-assign technicians
+- Threshold configuration
+
 Link: [[WhatsApp Page]]
 
 ---
