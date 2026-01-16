@@ -4,16 +4,30 @@
  * Public AI Chat Bubble
  * =====================
  * 
+ * Phase 4 Enhanced: Session persistence + Support Queue integration
+ * 
  * Floating AI chat bubble for public pages (landing, pricing, etc.)
  * - Appears in bottom-right corner
  * - Fixed position (follows scroll)
  * - Opens/closes on click
  * - Connects to LangGraph AI support workflow
+ * - Persists session in localStorage for 14 days
+ * - Shows ticket number after escalation
+ * - Displays admin responses
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { MessageCircle, X, Send, Bot, User, Sparkles, Loader2 } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, Sparkles, Loader2, Shield, Ticket } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const STORAGE_KEY_SESSION = 'campotech_support_session';
+const STORAGE_KEY_CREATED = 'campotech_support_created';
+const STORAGE_KEY_TICKET = 'campotech_support_ticket';
+const SESSION_EXPIRY_DAYS = 14;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -21,9 +35,61 @@ import { cn } from '@/lib/utils';
 
 interface ChatMessage {
     id: string;
-    role: 'user' | 'assistant';
+    role: 'user' | 'assistant' | 'admin';
     content: string;
     timestamp: Date;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HELPER FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function generateSessionId(): string {
+    return `session_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+}
+
+function getStoredSession(): { sessionId: string | null; ticketNumber: string | null; isExpired: boolean } {
+    if (typeof window === 'undefined') {
+        return { sessionId: null, ticketNumber: null, isExpired: false };
+    }
+
+    const sessionId = localStorage.getItem(STORAGE_KEY_SESSION);
+    const created = localStorage.getItem(STORAGE_KEY_CREATED);
+    const ticketNumber = localStorage.getItem(STORAGE_KEY_TICKET);
+
+    if (!sessionId || !created) {
+        return { sessionId: null, ticketNumber: null, isExpired: false };
+    }
+
+    // Check if session has expired (14 days)
+    const createdDate = new Date(created);
+    const now = new Date();
+    const daysDiff = (now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (daysDiff > SESSION_EXPIRY_DAYS) {
+        // Clear expired session
+        localStorage.removeItem(STORAGE_KEY_SESSION);
+        localStorage.removeItem(STORAGE_KEY_CREATED);
+        localStorage.removeItem(STORAGE_KEY_TICKET);
+        return { sessionId: null, ticketNumber: null, isExpired: true };
+    }
+
+    return { sessionId, ticketNumber, isExpired: false };
+}
+
+function saveSession(sessionId: string, ticketNumber?: string): void {
+    if (typeof window === 'undefined') return;
+
+    localStorage.setItem(STORAGE_KEY_SESSION, sessionId);
+    localStorage.setItem(STORAGE_KEY_CREATED, new Date().toISOString());
+    if (ticketNumber) {
+        localStorage.setItem(STORAGE_KEY_TICKET, ticketNumber);
+    }
+}
+
+function saveTicketNumber(ticketNumber: string): void {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(STORAGE_KEY_TICKET, ticketNumber);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -35,9 +101,37 @@ export function PublicAIChatBubble() {
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [sessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+    const [sessionId, setSessionId] = useState<string>('');
+    const [ticketNumber, setTicketNumber] = useState<string | null>(null);
+    const [hasUnread, setHasUnread] = useState(false);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLInputElement>(null);
+    const hasLoadedHistory = useRef(false);
+
+    // Initialize session from localStorage
+    useEffect(() => {
+        const stored = getStoredSession();
+        if (stored.sessionId) {
+            setSessionId(stored.sessionId);
+            if (stored.ticketNumber) {
+                setTicketNumber(stored.ticketNumber);
+            }
+        } else {
+            const newSessionId = generateSessionId();
+            setSessionId(newSessionId);
+            saveSession(newSessionId);
+        }
+    }, []);
+
+    // Load conversation history when opening if we have a session
+    useEffect(() => {
+        if (isOpen && sessionId && !hasLoadedHistory.current) {
+            hasLoadedHistory.current = true;
+            loadConversationHistory();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen, sessionId]);
 
     // Auto-scroll to bottom when messages change
     useEffect(() => {
@@ -51,9 +145,52 @@ export function PublicAIChatBubble() {
         }
     }, [isOpen]);
 
-    // Add welcome message on first open
+    // Clear unread indicator when opened
     useEffect(() => {
-        if (isOpen && messages.length === 0) {
+        if (isOpen && hasUnread) {
+            setHasUnread(false);
+        }
+    }, [isOpen, hasUnread]);
+
+    const loadConversationHistory = async () => {
+        if (!sessionId) return;
+
+        setIsLoadingHistory(true);
+        try {
+            // Try to load from our support API
+            const response = await fetch(`/api/support/public-chat/history?sessionId=${sessionId}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.messages && data.messages.length > 0) {
+                    const loadedMessages: ChatMessage[] = data.messages.map((msg: { id: string; role: string; content: string; createdAt: string }) => ({
+                        id: msg.id,
+                        role: msg.role as 'user' | 'assistant' | 'admin',
+                        content: msg.content,
+                        timestamp: new Date(msg.createdAt),
+                    }));
+                    setMessages(loadedMessages);
+
+                    if (data.ticketNumber) {
+                        setTicketNumber(data.ticketNumber);
+                        saveTicketNumber(data.ticketNumber);
+                    }
+
+                    // Check for unread admin messages
+                    const hasUnreadAdmin = data.hasUnreadAdmin || false;
+                    if (hasUnreadAdmin) {
+                        setHasUnread(true);
+                    }
+                    return;
+                }
+            }
+        } catch (error) {
+            console.log('[Chat] No history found or error loading:', error);
+        } finally {
+            setIsLoadingHistory(false);
+        }
+
+        // If no history, show welcome message
+        if (messages.length === 0) {
             setMessages([{
                 id: 'welcome',
                 role: 'assistant',
@@ -61,11 +198,11 @@ export function PublicAIChatBubble() {
                 timestamp: new Date(),
             }]);
         }
-    }, [isOpen, messages.length]);
+    };
 
     const sendMessage = useCallback(async () => {
         const text = inputValue.trim();
-        if (!text || isLoading) return;
+        if (!text || isLoading || !sessionId) return;
 
         // Add user message
         const userMessage: ChatMessage = {
@@ -87,6 +224,7 @@ export function PublicAIChatBubble() {
                     message: text,
                     sessionId,
                     context: 'landing_page',
+                    pageUrl: typeof window !== 'undefined' ? window.location.href : undefined,
                 }),
             });
 
@@ -104,6 +242,12 @@ export function PublicAIChatBubble() {
                 timestamp: new Date(),
             };
             setMessages(prev => [...prev, aiMessage]);
+
+            // If we got a ticket number, save it
+            if (data.ticketNumber) {
+                setTicketNumber(data.ticketNumber);
+                saveTicketNumber(data.ticketNumber);
+            }
         } catch (error) {
             console.error('Chat error:', error);
             // Add error message
@@ -139,7 +283,9 @@ export function PublicAIChatBubble() {
                                 </div>
                                 <div>
                                     <h3 className="text-white font-semibold text-sm">Asistente CampoTech</h3>
-                                    <p className="text-white/80 text-xs">Respuestas instantáneas con IA</p>
+                                    <p className="text-white/80 text-xs">
+                                        {ticketNumber ? `Ticket #${ticketNumber}` : 'Respuestas instantáneas con IA'}
+                                    </p>
                                 </div>
                             </div>
                             <button
@@ -150,38 +296,66 @@ export function PublicAIChatBubble() {
                             </button>
                         </div>
 
+                        {/* Ticket Banner */}
+                        {ticketNumber && (
+                            <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex items-center gap-2 text-sm">
+                                <Ticket className="w-4 h-4 text-amber-600" />
+                                <span className="text-amber-800">
+                                    Ticket <strong>#{ticketNumber}</strong> - Nuestro equipo te responderá pronto
+                                </span>
+                            </div>
+                        )}
+
                         {/* Messages */}
                         <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[350px] max-h-[450px] bg-gray-50">
-                            {messages.map((message) => (
-                                <div
-                                    key={message.id}
-                                    className={cn(
-                                        'flex gap-2',
-                                        message.role === 'user' ? 'justify-end' : 'justify-start'
-                                    )}
-                                >
-                                    {message.role === 'assistant' && (
-                                        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                                            <Bot className="w-4 h-4 text-emerald-600" />
-                                        </div>
-                                    )}
+                            {isLoadingHistory ? (
+                                <div className="flex items-center justify-center h-40">
+                                    <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+                                </div>
+                            ) : (
+                                messages.map((message) => (
                                     <div
+                                        key={message.id}
                                         className={cn(
-                                            'max-w-[80%] rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap',
-                                            message.role === 'user'
-                                                ? 'bg-emerald-500 text-white rounded-br-md'
-                                                : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md shadow-sm'
+                                            'flex gap-2',
+                                            message.role === 'user' ? 'justify-end' : 'justify-start'
                                         )}
                                     >
-                                        {message.content}
-                                    </div>
-                                    {message.role === 'user' && (
-                                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                                            <User className="w-4 h-4 text-gray-600" />
+                                        {(message.role === 'assistant' || message.role === 'admin') && (
+                                            <div className={cn(
+                                                "w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0",
+                                                message.role === 'admin' ? "bg-teal-600" : "bg-emerald-100"
+                                            )}>
+                                                {message.role === 'admin' ? (
+                                                    <Shield className="w-4 h-4 text-white" />
+                                                ) : (
+                                                    <Bot className="w-4 h-4 text-emerald-600" />
+                                                )}
+                                            </div>
+                                        )}
+                                        <div
+                                            className={cn(
+                                                'max-w-[80%] rounded-2xl px-4 py-2 text-sm whitespace-pre-wrap',
+                                                message.role === 'user'
+                                                    ? 'bg-emerald-500 text-white rounded-br-md'
+                                                    : message.role === 'admin'
+                                                        ? 'bg-teal-600 text-white rounded-bl-md shadow-sm'
+                                                        : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md shadow-sm'
+                                            )}
+                                        >
+                                            {message.role === 'admin' && (
+                                                <span className="text-xs text-teal-200 block mb-1">👤 Equipo soporte</span>
+                                            )}
+                                            {message.content}
                                         </div>
-                                    )}
-                                </div>
-                            ))}
+                                        {message.role === 'user' && (
+                                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                                                <User className="w-4 h-4 text-gray-600" />
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            )}
 
                             {/* Loading indicator */}
                             {isLoading && (
@@ -246,11 +420,19 @@ export function PublicAIChatBubble() {
                 ) : (
                     <>
                         <MessageCircle className="w-6 h-6 text-white" />
-                        {/* Pulse effect */}
-                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                        </span>
+                        {/* Notification indicator */}
+                        {(hasUnread || ticketNumber) && (
+                            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                                {hasUnread ? (
+                                    <>
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                    </>
+                                ) : (
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+                                )}
+                            </span>
+                        )}
                     </>
                 )}
             </button>
@@ -259,3 +441,4 @@ export function PublicAIChatBubble() {
 }
 
 export default PublicAIChatBubble;
+

@@ -18,6 +18,7 @@ import {
   Save,
   X,
   MessageCircle,
+  FolderOpen,
 } from 'lucide-react';
 import { generateCustomerWhatsAppLink } from '@/lib/whatsapp-links';
 import PhoneInput from '@/components/ui/PhoneInput';
@@ -390,6 +391,13 @@ export default function CustomerDetailPage() {
               >
                 <FileText className="mr-2 h-4 w-4" />
                 Nueva factura
+              </Link>
+              <Link
+                href={`/dashboard/customers/${customer.id}/folder`}
+                className="btn-outline w-full justify-center bg-teal-50 border-teal-200 text-teal-700 hover:bg-teal-100"
+              >
+                <FolderOpen className="mr-2 h-4 w-4" />
+                Carpeta de Datos
               </Link>
             </div>
           </div>

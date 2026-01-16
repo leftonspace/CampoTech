@@ -11,6 +11,7 @@
 export interface WhatsAppProvider {
   sendMessage(to: string, message: string): Promise<{ success: boolean; messageId?: string; error?: string }>;
   sendTemplate(to: string, templateName: string, languageCode: string, components?: TemplateComponent[]): Promise<{ success: boolean; messageId?: string; error?: string }>;
+  sendDocument?(to: string, documentUrl: string, filename: string, caption?: string): Promise<{ success: boolean; messageId?: string; error?: string }>;
 }
 
 interface TemplateComponent {
@@ -209,6 +210,72 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
 
     return this.sendMessage(to, message);
   }
+
+  /**
+   * Send a document via WhatsApp (PDF, etc.)
+   * The document must be accessible via a public URL
+   */
+  async sendDocument(
+    to: string,
+    documentUrl: string,
+    filename: string,
+    caption?: string
+  ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    try {
+      const formattedPhone = this.formatPhoneNumber(to);
+      console.log(`[WhatsApp] Sending document to ${formattedPhone}: ${filename}`);
+
+      const body: Record<string, unknown> = {
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: formattedPhone,
+        type: 'document',
+        document: {
+          link: documentUrl,
+          filename: filename,
+          caption: caption || undefined,
+        },
+      };
+
+      const response = await fetch(
+        `${this.baseUrl}/${this.apiVersion}/${this.phoneNumberId}/messages`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${this.accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(body),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const errorData = data as WhatsAppAPIError;
+        console.error('WhatsApp document API error:', errorData.error);
+        return {
+          success: false,
+          error: `${errorData.error.message} (Code: ${errorData.error.code})`,
+        };
+      }
+
+      const successData = data as WhatsAppAPIResponse;
+      console.log(`WhatsApp document "${filename}" sent to ${to}, ID: ${successData.messages[0].id}`);
+
+      return {
+        success: true,
+        messageId: successData.messages[0].id,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`Failed to send WhatsApp document to ${to}:`, errorMessage);
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }
 }
 
 // Console WhatsApp Provider for development/testing
@@ -243,6 +310,26 @@ export class ConsoleWhatsAppProvider implements WhatsAppProvider {
     return {
       success: true,
       messageId: `whatsapp-template-dev-${Date.now()}`,
+    };
+  }
+
+  async sendDocument(
+    to: string,
+    documentUrl: string,
+    filename: string,
+    caption?: string
+  ): Promise<{ success: boolean; messageId?: string; error?: string }> {
+    console.log('========================================');
+    console.log('📄 WhatsApp Document (DEV MODE - NOT ACTUALLY SENT)');
+    console.log(`To: ${to}`);
+    console.log(`Document URL: ${documentUrl}`);
+    console.log(`Filename: ${filename}`);
+    console.log(`Caption: ${caption || '(none)'}`);
+    console.log('========================================');
+
+    return {
+      success: true,
+      messageId: `whatsapp-doc-dev-${Date.now()}`,
     };
   }
 }

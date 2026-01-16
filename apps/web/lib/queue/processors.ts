@@ -714,6 +714,55 @@ const webhookHandler: JobHandler<WebhookData> = async (job) => {
 // REGISTRATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// JOB COMPLETION DOCUMENTS PROCESSOR (Phase 2)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface JobSendDocumentsData {
+  jobId: string;
+  organizationId: string;
+  sendReport?: boolean;
+  sendInvoice?: boolean;
+}
+
+/**
+ * Send completion documents (report + invoice) to customer via WhatsApp
+ */
+const jobSendDocumentsHandler: JobHandler<JobSendDocumentsData> = async (job) => {
+  const { jobId, organizationId, sendReport = true, sendInvoice = true } = job.data;
+
+  try {
+    // Dynamic import to avoid circular dependency
+    const { sendCompletionDocuments } = await import('@/lib/services/job-completion-documents');
+
+    const result = await sendCompletionDocuments({
+      jobId,
+      organizationId,
+      sendReport,
+      sendInvoice,
+    });
+
+    return {
+      success: result.success,
+      jobId: job.id,
+      data: {
+        reportSent: result.reportSent,
+        invoiceSent: result.invoiceSent,
+        reportUrl: result.reportUrl,
+        invoiceUrl: result.invoiceUrl,
+        errors: result.errors,
+      },
+    };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return {
+      success: false,
+      jobId: job.id,
+      error: errorMessage,
+    };
+  }
+};
+
 /**
  * Register all job processors
  * Call this before starting workers
@@ -739,6 +788,9 @@ export function registerAllProcessors(): void {
   registerHandler('notification.push', pushNotificationHandler);
   registerHandler('notification.inApp', inAppNotificationHandler);
   registerHandler('job.statusNotify', jobStatusNotifyHandler);
+
+  // Job Documents (Phase 2)
+  registerHandler('job.sendDocuments', jobSendDocumentsHandler);
 
   // Webhooks
   registerHandler('webhook.send', webhookHandler);

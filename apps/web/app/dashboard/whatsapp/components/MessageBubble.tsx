@@ -18,7 +18,9 @@ import {
   Zap,
   UserPlus,
   CalendarPlus,
-  UserCheck
+  UserCheck,
+  Globe,
+  Languages,
 } from 'lucide-react';
 import { formatDisplayTime, formatDisplayDate } from '@/lib/timezone';
 
@@ -36,7 +38,7 @@ export interface Message {
   senderUserId?: string;
   senderUserName?: string;
   aiConfidence?: number;
-  aiActionTaken?: 'customer_created' | 'job_created' | 'technician_assigned' | 'schedule_confirmed' | 'suggestion' | 'conflict_detected' | 'price_quoted';
+  aiActionTaken?: 'customer_created' | 'job_created' | 'technician_assigned' | 'schedule_confirmed' | 'suggestion' | 'conflict_detected' | 'price_quoted' | 'language_detected' | 'translation_pending';
   aiActionMetadata?: {
     customerName?: string;
     jobNumber?: string;
@@ -45,8 +47,16 @@ export interface Message {
     scheduledTime?: string;
     serviceType?: string;
     price?: string;
+    detectedLanguage?: string;
+    detectedLanguageName?: string;
   };
   isProactiveSuggestion?: boolean; // AI suggested this without being asked
+  // Phase 5.2: Translation fields
+  detectedLanguage?: string;       // ISO 639-1 code (e.g., 'en', 'pt')
+  detectedLanguageName?: string;   // Full name (e.g., 'English', 'Português')
+  originalContent?: string;        // Original text if translated
+  translatedContent?: string;      // Spanish translation of customer message
+  languageConfirmed?: boolean;     // User confirmed the detected language
 }
 
 interface MessageBubbleProps {
@@ -254,9 +264,26 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
     textClasses = 'text-gray-900';
   }
 
+  // Determine if this message has translation info
+  const hasTranslation = !isOutbound && message.detectedLanguage &&
+    message.detectedLanguage !== 'es' && message.translatedContent;
+
   return (
     <div className={`flex ${isOutbound ? 'justify-end' : 'justify-start'}`}>
       <div className={`max-w-[70%] p-3 ${bubbleClasses} ${wrapperClasses}`}>
+        {/* Phase 5.3: Language badge for non-Spanish inbound messages */}
+        {hasTranslation && (
+          <div className="flex items-center gap-1.5 mb-2 px-2 py-1 bg-sky-100 rounded-full w-fit">
+            <Globe className="h-3 w-3 text-sky-600" />
+            <span className="text-xs text-sky-700 font-medium">
+              {message.detectedLanguageName || message.detectedLanguage}
+            </span>
+            {message.languageConfirmed && (
+              <Check className="h-3 w-3 text-sky-600" />
+            )}
+          </div>
+        )}
+
         {/* Proactive suggestion indicator */}
         {message.isProactiveSuggestion && isAI && (
           <div className="flex items-center gap-1 mb-2 px-2 py-1 bg-purple-400/30 rounded-full w-fit">
@@ -303,9 +330,35 @@ export default function MessageBubble({ message, onImageClick, onMediaDownload }
           </div>
         )}
 
-        {/* Text content */}
+        {/* Text content - show translated version with original for non-Spanish messages */}
         {message.content && (
-          <p className={`text-sm whitespace-pre-wrap break-words ${textClasses}`}>{message.content}</p>
+          <>
+            {hasTranslation ? (
+              <>
+                {/* Translated content (Spanish) - primary */}
+                <div className="mb-2">
+                  <div className="flex items-center gap-1 text-xs text-gray-500 mb-1">
+                    <Languages className="h-3 w-3" />
+                    <span>Traducción:</span>
+                  </div>
+                  <p className={`text-sm whitespace-pre-wrap break-words ${textClasses}`}>
+                    {message.translatedContent}
+                  </p>
+                </div>
+                {/* Original content - secondary */}
+                <div className="pt-2 border-t border-gray-200">
+                  <div className="flex items-center gap-1 text-xs text-gray-400 mb-1">
+                    <span>Original ({message.detectedLanguageName || message.detectedLanguage}):</span>
+                  </div>
+                  <p className="text-xs text-gray-500 whitespace-pre-wrap break-words italic">
+                    {message.originalContent || message.content}
+                  </p>
+                </div>
+              </>
+            ) : (
+              <p className={`text-sm whitespace-pre-wrap break-words ${textClasses}`}>{message.content}</p>
+            )}
+          </>
         )}
 
         {/* Timestamp and status */}
@@ -392,6 +445,23 @@ const AI_ACTION_CONFIG: Record<string, {
     iconBg: 'bg-teal-100',
     iconColor: 'text-teal-600',
     title: 'Precio Informado'
+  },
+  // Phase 5.3: Language detection actions
+  language_detected: {
+    icon: Globe,
+    bgColor: 'bg-sky-50',
+    borderColor: 'border-sky-200',
+    iconBg: 'bg-sky-100',
+    iconColor: 'text-sky-600',
+    title: 'Idioma Detectado'
+  },
+  translation_pending: {
+    icon: Languages,
+    bgColor: 'bg-violet-50',
+    borderColor: 'border-violet-200',
+    iconBg: 'bg-violet-100',
+    iconColor: 'text-violet-600',
+    title: 'Traduciendo...'
   }
 };
 

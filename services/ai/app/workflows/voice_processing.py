@@ -24,6 +24,7 @@ from app.integrations import (
     update_message_status,
 )
 from app.models.schemas import ConversationMessage, JobExtraction
+from app.services.translation import detect_and_translate, translate_for_customer
 
 
 class VoiceProcessingState(TypedDict):
@@ -36,9 +37,16 @@ class VoiceProcessingState(TypedDict):
     organization_id: str
     conversation_history: list[ConversationMessage]
     
+    # Phase 5.2: Translation settings (from organization)
+    business_languages: list[str]  # Languages the business team speaks
+    
+    # Phase 5.5: Workflow permissions (from AIConfiguration)
+    workflow_permissions: dict  # JSON permissions from workflowPermissions field
+    
     # Processing state
     status: Literal[
         "transcribing",
+        "translating",
         "extracting",
         "routing",
         "confirming",
@@ -55,9 +63,54 @@ class VoiceProcessingState(TypedDict):
     job_id: str | None
     error: str | None
     
+    # Phase 5.2: Translation tracking
+    detected_language: str | None           # ISO code of detected language
+    detected_language_name: str | None      # Full name of detected language
+    original_transcription: str | None      # Original transcription (if translated)
+    translated_transcription: str | None    # Spanish translation (if needed)
+    language_confidence: float | None       # Confidence of language detection
+    
     # Workflow tracking
     confirmation_sent: bool
     confirmation_message_id: str | None
+
+
+# ============================================================================
+# PERMISSION HELPERS (Phase 5.5)
+# ============================================================================
+
+
+def check_permission(state: VoiceProcessingState, permission: str) -> bool:
+    """
+    Check if a specific workflow permission is enabled.
+    
+    Phase 5.5: Workflow Permissions
+    
+    Permissions:
+    - suggestResponses: Suggest text responses
+    - translateMessages: Auto-translate messages
+    - suggestActions: Suggest job creation, assignments, etc.
+    - accessDatabase: Query business data
+    - accessSchedule: Check calendar availability
+    - autoApproveSmallPriceAdjustments: Auto-approve minor discounts
+    - autoApproveThresholdPercent: Max % for auto-approval
+    - autoAssignTechnicians: Auto-assign available technicians
+    """
+    permissions = state.get("workflow_permissions", {})
+    
+    # Default to True for most permissions (permissive default)
+    defaults = {
+        "suggestResponses": True,
+        "translateMessages": True,
+        "suggestActions": True,
+        "accessDatabase": True,
+        "accessSchedule": True,
+        "autoApproveSmallPriceAdjustments": False,
+        "autoApproveThresholdPercent": 5,
+        "autoAssignTechnicians": False,
+    }
+    
+    return permissions.get(permission, defaults.get(permission, True))
 
 
 # ============================================================================
@@ -71,7 +124,7 @@ async def transcribe_node(state: VoiceProcessingState) -> VoiceProcessingState:
         # Download audio from WhatsApp
         audio_data = await download_audio(state["audio_url"])
         
-        # Transcribe with Whisper
+        # Transcribe with Whisper (auto-detect language for Phase 5.2)
         transcription = await transcribe_audio(audio_data, language="es")
         
         # Update message in database
@@ -84,7 +137,7 @@ async def transcribe_node(state: VoiceProcessingState) -> VoiceProcessingState:
         return {
             **state,
             "transcription": transcription,
-            "status": "extracting",
+            "status": "translating",  # Phase 5.2: Next step is translation check
             "error": None,
         }
         
@@ -93,6 +146,81 @@ async def transcribe_node(state: VoiceProcessingState) -> VoiceProcessingState:
             **state,
             "status": "failed",
             "error": f"Transcription failed: {str(e)}",
+        }
+
+
+async def translate_node(state: VoiceProcessingState) -> VoiceProcessingState:
+    """
+    Node: Detect language and translate if needed.
+    
+    Phase 5.2: Translation Core
+    - Detects the language of the transcription
+    - If not Spanish and not a language the business speaks, translates to Spanish
+    - Preserves original for display while using translation for extraction
+    
+    Phase 5.5: Respects translateMessages permission
+    """
+    try:
+        # Phase 5.5: Check if translation is permitted
+        if not check_permission(state, "translateMessages"):
+            return {
+                **state,
+                "status": "extracting",
+                "detected_language": "es",
+                "detected_language_name": "Español (traducción deshabilitada)",
+            }
+        
+        transcription = state.get("transcription")
+        if not transcription:
+            return {
+                **state,
+                "status": "extracting",
+                "detected_language": "es",
+                "detected_language_name": "Español",
+            }
+        
+        # Get business languages (default to just Spanish)
+        business_languages = state.get("business_languages", ["es"])
+        
+        # Detect and translate if needed
+        final_text, lang_result, translated = await detect_and_translate(
+            transcription,
+            business_languages,
+        )
+        
+        # Prepare state update
+        update = {
+            **state,
+            "status": "extracting",
+            "detected_language": lang_result.code,
+            "detected_language_name": lang_result.name,
+            "language_confidence": lang_result.confidence,
+        }
+        
+        if translated:
+            # Store both original and translation
+            update["original_transcription"] = transcription
+            update["translated_transcription"] = translated
+            update["transcription"] = translated  # Use translation for extraction
+            
+            # Update message in database with translation info
+            await update_message_status(
+                message_id=state["message_id"],
+                detected_language=lang_result.code,
+                original_content=transcription,
+                translated_content=translated,
+            )
+        
+        return update
+        
+    except Exception as e:
+        # On translation error, continue with original transcription
+        return {
+            **state,
+            "status": "extracting",
+            "detected_language": "es",
+            "detected_language_name": "Español",
+            "error": f"Translation warning: {str(e)}",  # Non-fatal
         }
 
 
@@ -334,6 +462,7 @@ def build_voice_workflow() -> StateGraph:
     
     # Add nodes
     workflow.add_node("transcribe", transcribe_node)
+    workflow.add_node("translate", translate_node)  # Phase 5.2: Translation node
     workflow.add_node("extract", extract_node)
     workflow.add_node("confirm", send_confirmation_node)
     workflow.add_node("auto_create", auto_create_job_node)
@@ -344,15 +473,18 @@ def build_voice_workflow() -> StateGraph:
     workflow.set_entry_point("transcribe")
     
     # Add edges
-    # transcribe -> extract (if successful) or handle_failure
+    # transcribe -> translate (if successful) or handle_failure
     workflow.add_conditional_edges(
         "transcribe",
-        lambda state: "extract" if state["status"] != "failed" else "handle_failure",
+        lambda state: "translate" if state["status"] != "failed" else "handle_failure",
         {
-            "extract": "extract",
+            "translate": "translate",
             "handle_failure": "handle_failure",
         },
     )
+    
+    # translate -> extract (always continues, translation errors are non-fatal)
+    workflow.add_edge("translate", "extract")
     
     # extract -> route by confidence or handle_failure
     workflow.add_conditional_edges(

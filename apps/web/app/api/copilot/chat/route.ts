@@ -41,6 +41,21 @@ Formato de respuesta:
 - Para crear trabajos, mostrá un resumen antes de confirmar
 - Para alertas, usá emojis ⚠️ o ✅ para llamar la atención`;
 
+// Phase 5.3: Language-aware prompt addition
+const getLanguageAwarePrompt = (customerLanguage?: string, customerLanguageName?: string) => {
+  if (!customerLanguage || customerLanguage === 'es') {
+    return '';
+  }
+
+  return `
+
+CONTEXTO DE IDIOMA:
+El cliente habla ${customerLanguageName || customerLanguage} (código: ${customerLanguage}).
+- Cuando sugieras respuestas para enviar al cliente, redactalas en ${customerLanguageName || customerLanguage}
+- Los mensajes del cliente que ves ya están traducidos al español para tu referencia
+- Manteneme informado en español de Argentina, pero las respuestas que deben ir al cliente van en ${customerLanguageName || customerLanguage}`;
+};
+
 interface ChatRequest {
   message: string;
   conversationId?: string;
@@ -59,6 +74,9 @@ interface ChatRequest {
       jobs?: unknown[];
       invoices?: unknown[];
     };
+    // Phase 5.3: Customer language context
+    customerLanguage?: string;      // ISO code
+    customerLanguageName?: string;  // Full name
   };
 }
 
@@ -73,8 +91,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user has permission (OWNER or DISPATCHER)
-    if (!['OWNER', 'DISPATCHER'].includes(session.role?.toUpperCase() || '')) {
+    // Phase 5.4: Allow OWNER, DISPATCHER, and TECHNICIAN roles
+    const userRole = session.role?.toUpperCase() || '';
+    const allowedRoles = ['OWNER', 'DISPATCHER', 'TECHNICIAN'];
+    if (!allowedRoles.includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'No tenés permiso para usar el co-pilot' },
         { status: 403 }
@@ -83,6 +103,24 @@ export async function POST(request: NextRequest) {
 
     const body: ChatRequest = await request.json();
     const { message, conversationId, context } = body;
+
+    // Phase 5.4: For TECHNICIAN role, verify they are assigned to the conversation
+    if (userRole === 'TECHNICIAN' && conversationId) {
+      const conversation = await prisma.waConversation.findFirst({
+        where: {
+          id: conversationId,
+          organizationId: session.organizationId,
+          assignedToId: session.userId,
+        },
+      });
+
+      if (!conversation) {
+        return NextResponse.json(
+          { success: false, error: 'No estás asignado a esta conversación' },
+          { status: 403 }
+        );
+      }
+    }
 
     if (!message) {
       return NextResponse.json(
@@ -178,11 +216,18 @@ export async function POST(request: NextRequest) {
     const isSummaryRequest = /resumen|resumí|de qué se trata/i.test(message);
     const isScheduleRequest = /horario|disponib|agenda|libre/i.test(message);
 
+    // Phase 5.3: Build language-aware system prompt
+    const languageAddendum = getLanguageAwarePrompt(
+      context?.customerLanguage,
+      context?.customerLanguageName
+    );
+    const fullSystemPrompt = SYSTEM_PROMPT + languageAddendum;
+
     // Get AI response
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: fullSystemPrompt },
         ...contextMessages,
         { role: 'user', content: message },
       ],

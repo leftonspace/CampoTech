@@ -101,6 +101,7 @@ export const JOB_TYPES = {
   'invoice.afip': { tier: 'background' as const, description: 'Generate AFIP electronic invoice' },
   'sync.data': { tier: 'background' as const, description: 'Sync data between services' },
   'cache.invalidate': { tier: 'background' as const, description: 'Invalidate cache entries' },
+  'job.sendDocuments': { tier: 'background' as const, description: 'Send completion documents to customer' },
 
   // Batch jobs
   'report.generate': { tier: 'batch' as const, description: 'Generate analytics report' },

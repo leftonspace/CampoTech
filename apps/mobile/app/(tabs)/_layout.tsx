@@ -5,9 +5,9 @@
  * Role-based navigation with bottom tabs.
  *
  * Tab visibility by role:
- * - OWNER: All tabs (today, jobs, calendar, team, profile)
- * - DISPATCHER: today, jobs, calendar, customers, profile
- * - TECHNICIAN: today, inventory, profile
+ * - OWNER: All tabs (today, jobs, calendar, team, chats, profile)
+ * - DISPATCHER: today, jobs, calendar, customers, chats, profile
+ * - TECHNICIAN: today, inventory, chats, profile
  */
 
 import { Tabs, Redirect } from 'expo-router';
@@ -24,6 +24,7 @@ import {
   Map,
   FileText,
   BarChart3,
+  MessageSquare,
 } from 'lucide-react-native';
 import { useRef, useEffect, useMemo } from 'react';
 
@@ -53,6 +54,8 @@ export default function TabsLayout() {
   const canSeeInvoices = userRole === 'OWNER';
   const canSeeAnalytics = userRole === 'OWNER';
   const canSeeInventory = userRole === 'TECHNICIAN';
+  // Phase 5.4: Chats available to all roles (technicians see assigned conversations)
+  const canSeeChats = userRole === 'OWNER' || userRole === 'DISPATCHER' || userRole === 'TECHNICIAN';
 
   // Animate sync icon
   useEffect(() => {
@@ -178,6 +181,20 @@ export default function TabsLayout() {
             href: canSeeTeam ? undefined : null,
             tabBarIcon: ({ color, size }) => (
               <Users size={size} color={color} />
+            ),
+          }}
+        />
+
+        {/* Chats - Phase 5.4: All roles (technicians see assigned conversations) */}
+        <Tabs.Screen
+          name="chats"
+          options={{
+            title: 'Chats',
+            headerTitle: 'Mis Conversaciones',
+            headerShown: true,
+            href: canSeeChats ? undefined : null,
+            tabBarIcon: ({ color, size }) => (
+              <MessageSquare size={size} color={color} />
             ),
           }}
         />

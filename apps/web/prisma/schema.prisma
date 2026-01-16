@@ -101,6 +101,19 @@ model Organization {
   whatsappCredits            WhatsAppCredits?
   pricingSettings            OrganizationPricingSettings?
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // PHASE 5: TRANSLATION SETTINGS
+  // Organization-level language preferences for AI translation
+  // ═══════════════════════════════════════════════════════════════════════════════
+  translationEnabled    Boolean   @default(false) @map("translation_enabled")
+  languagesSpoken       String[]  @default(["es"]) @map("languages_spoken")  // Languages the team speaks
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // PHASE 3.4 & 4: EXPORT AND DATA ACCESS REQUESTS
+  // ═══════════════════════════════════════════════════════════════════════════════
+  exportRequests        ExportRequest[]
+  dataAccessRequests    DataAccessRequest[]
+
   @@index([subscriptionStatus])
   @@index([subscriptionTier])
   @@index([trialEndsAt])
@@ -211,6 +224,10 @@ model User {
   organizationMemberships    UserOrganization[]          @relation("UserMemberships")
   jobVisitDriverAssignments  JobVisitVehicleDriver[]     @relation("DriverVisitAssignments")
   createdLineItems           JobLineItem[]               @relation("LineItemCreator")
+  
+  // Phase 3.4 & 4
+  exportRequests             ExportRequest[]             @relation("ExportRequestedBy")
+  assignedDataRequests       DataAccessRequest[]         @relation("DataRequestAssignee")
 
   @@unique([email, organizationId])
   @@index([organizationId])
@@ -246,6 +263,7 @@ model Customer {
   jobs            Job[]
   reviews         Review[]
   waConversations WaConversation[]
+  dataAccessRequests DataAccessRequest[]  // Phase 4 ARCO
 
   @@index([phone])
   @@index([organizationId])
@@ -2186,6 +2204,12 @@ model WaConversation {
   assignedToId         String?
   activeJobId          String?
   isActive             Boolean              @default(true)
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // PHASE 5: SESSION LANGUAGE
+  // Detected customer language for the conversation session
+  // ═══════════════════════════════════════════════════════════════════════════════
+  sessionLanguage       String?              @map("session_language")
   createdAt            DateTime             @default(now())
   updatedAt            DateTime             @updatedAt
   assignedTo           User?                @relation("WaConversationAssignee", fields: [assignedToId], references: [id])
@@ -2231,6 +2255,23 @@ model WaMessage {
   aiConfidence          Int?
   isProactiveSuggestion Boolean        @default(false)
   senderType            String?
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // PHASE 5.1: AI FEEDBACK TRACKING
+  // Collect user feedback on AI actions for training data
+  // ═══════════════════════════════════════════════════════════════════════════════
+  aiFeedback            String?              @map("ai_feedback")           // "positive" | "negative" | null
+  aiFeedbackAt          DateTime?            @map("ai_feedback_at")
+  aiFeedbackUserId      String?              @map("ai_feedback_user_id")
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // PHASE 5.2: TRANSLATION TRACKING
+  // Store original and translated content for multi-language support
+  // ═══════════════════════════════════════════════════════════════════════════════
+  detectedLanguage      String?              @map("detected_language")     // ISO code: "en", "pt", "fr", etc.
+  originalContent       String?              @map("original_content")      // Customer's original message
+  translatedContent     String?              @map("translated_content")    // Spanish translation
+  languageConfirmed     Boolean              @default(false) @map("language_confirmed")
   conversation          WaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   organization          Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   sentBy                User?          @relation("WaMessageSender", fields: [sentById], references: [id])
@@ -2698,6 +2739,13 @@ model AIConfiguration {
   awayMessage              String?
   transferKeywords         Json         @default("[]")
   escalationUserId         String?
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // PHASE 5.5: WORKFLOW PERMISSIONS
+  // Owner-configurable AI action permissions and auto-approval settings
+  // ═══════════════════════════════════════════════════════════════════════════════
+  workflowPermissions      Json         @default("{\"suggestResponses\": true, \"translateMessages\": true, \"suggestActions\": true, \"accessDatabase\": true, \"accessSchedule\": true, \"autoApproveSmallPriceAdjustments\": false, \"autoApproveThresholdPercent\": 5, \"autoAssignTechnicians\": false}")
+  
   createdAt                DateTime     @default(now())
   updatedAt                DateTime     @updatedAt
   escalationUser           User?        @relation("AIEscalationUser", fields: [escalationUserId], references: [id])
@@ -2728,6 +2776,14 @@ model AIConversationLog {
   feedbackNotes       String?
   reviewedAt          DateTime?
   reviewedById        String?
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // PHASE 5.1: GRANULAR FEEDBACK FIELDS
+  // More detailed feedback tracking for AI training
+  // ═══════════════════════════════════════════════════════════════════════════════
+  feedbackType          String?              @map("feedback_type")         // "response" | "action" | "translation"
+  userModified          Boolean              @default(false) @map("user_modified")
+  modifiedContent       String?              @map("modified_content")
   createdAt           DateTime     @default(now())
   organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -3122,6 +3178,21 @@ enum WhatsAppIntegrationType {
   NONE
   WAME_LINK
   BSP_API
+}
+
+/// =============================================================================
+/// PHASE 4: PUBLIC SUPPORT QUEUE SYSTEM
+/// =============================================================================
+
+/// Status for public support conversations
+enum SupportStatus {
+  open              // AI handling, not escalated
+  pending_response  // Escalated, waiting for admin
+  responded         // Admin replied, waiting for visitor
+  new_reply         // Visitor replied to admin (needs attention!)
+  closed
+
+  @@map("support_status")
 }
 
 enum SubscriptionStatus {
@@ -4348,3 +4419,260 @@ model StatusIncident {
   @@index([startedAt])
   @@map("status_incidents")
 }
+
+/// =============================================================================
+/// PHASE 4: PUBLIC SUPPORT QUEUE MODELS
+/// =============================================================================
+
+/// Support conversation for public visitors (anonymous)
+model PublicSupportConversation {
+  id             String   @id @default(cuid())
+  sessionId      String   @unique @map("session_id")  // Browser session ID
+  
+  // Contact info (collected before escalation)
+  visitorName    String?  @map("visitor_name")
+  visitorEmail   String?  @map("visitor_email")
+  visitorPhone   String?  @map("visitor_phone")
+  
+  // Ticket info
+  ticketNumber   String   @unique @map("ticket_number")  // #12345
+  status         SupportStatus @default(open)
+  category       String?  // ventas, soporte, facturacion, etc.
+  
+  // Control flags
+  aiDisabled     Boolean  @default(false) @map("ai_disabled")  // True = human only mode
+  escalatedAt    DateTime? @map("escalated_at")  // When AI escalated
+  
+  // Push notification
+  pushSubscription String? @map("push_subscription") @db.Text  // Web push subscription JSON
+  
+  // Context
+  pageUrl        String?  @map("page_url")  // Where the chat was started
+  userAgent      String?  @map("user_agent")
+  
+  // Timestamps
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  lastActivityAt DateTime @default(now()) @map("last_activity_at")
+  closedAt       DateTime? @map("closed_at")
+  
+  // Relations
+  messages       PublicSupportMessage[]
+  
+  @@index([sessionId])
+  @@index([status])
+  @@index([ticketNumber])
+  @@index([lastActivityAt])
+  @@index([createdAt])
+  @@map("public_support_conversations")
+}
+
+/// Messages within a public support conversation
+model PublicSupportMessage {
+  id             String   @id @default(cuid())
+  conversationId String   @map("conversation_id")
+  
+  role           String   // "user" | "assistant" | "admin"
+  content        String   @db.Text
+  metadata       Json?    // Additional context (AI intents, escalation reason, etc.)
+  
+  // For admin responses
+  respondedBy    String?  @map("responded_by")  // Admin user ID who wrote this
+  
+  // Notification tracking
+  notifiedVia    String[] @map("notified_via")  // ["email", "push", "whatsapp"]
+  notifiedAt     DateTime? @map("notified_at")
+  
+  // Read tracking
+  readByAdmin    Boolean  @default(false) @map("read_by_admin")
+  readByVisitor  Boolean  @default(false) @map("read_by_visitor")
+  
+  createdAt      DateTime @default(now()) @map("created_at")
+  
+  conversation   PublicSupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  @@index([conversationId])
+  @@index([role])
+  @@index([createdAt])
+  @@index([conversationId, createdAt])
+  @@map("public_support_messages")
+}
+
+/// =============================================================================
+/// PHASE 3.4: ASYNC EXPORT QUEUE
+/// =============================================================================
+
+/// Export status enum
+enum ExportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  EXPIRED
+}
+
+/// Async export request for large data exports with email delivery
+model ExportRequest {
+  id             String       @id @default(cuid())
+  organizationId String       @map("organization_id")
+  
+  // What to export
+  exportType     String       @map("export_type")  // "customer_folder", "job_report", "whatsapp_history"
+  targetId       String       @map("target_id")    // customerId, jobId, etc.
+  targetName     String?      @map("target_name")  // Customer name for display
+  
+  // Options
+  options        Json         @default("{}") // { includeJobs, includeInvoices, includePhotos, etc. }
+  format         String       @default("pdf") // "pdf", "json", "csv"
+  
+  // Status
+  status         ExportStatus @default(PENDING)
+  progress       Int          @default(0)  // 0-100
+  errorMessage   String?      @map("error_message")
+  
+  // Delivery
+  deliveryMethod String       @default("download") @map("delivery_method") // "download", "email"
+  deliveryEmail  String?      @map("delivery_email")  // Email to send to
+  
+  // File info (after generation)
+  fileUrl        String?      @map("file_url")      // Signed URL for download
+  fileSize       Int?         @map("file_size")     // Bytes
+  fileName       String?      @map("file_name")
+  
+  // Security
+  downloadToken  String?      @unique @map("download_token")  // Secure token for download link
+  downloadCount  Int          @default(0) @map("download_count")
+  maxDownloads   Int          @default(5) @map("max_downloads")
+  expiresAt      DateTime?    @map("expires_at")
+  
+  // Tracking
+  requestedById  String       @map("requested_by_id")
+  startedAt      DateTime?    @map("started_at")
+  completedAt    DateTime?    @map("completed_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  
+  // Relations
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requestedBy    User         @relation("ExportRequestedBy", fields: [requestedById], references: [id])
+  
+  @@index([organizationId])
+  @@index([status])
+  @@index([downloadToken])
+  @@index([expiresAt])
+  @@index([createdAt])
+  @@map("export_requests")
+}
+
+/// =============================================================================
+/// PHASE 4: ARCO DATA ACCESS REQUEST (Ley 25.326 Argentina)
+/// =============================================================================
+
+/// ARCO request status
+enum DataRequestStatus {
+  SUBMITTED        // Customer submitted request
+  PENDING_VERIFICATION  // Waiting for email/phone verification
+  VERIFIED         // Customer verified identity
+  IN_PROGRESS      // Data being compiled
+  READY            // Data ready for download
+  DOWNLOADED       // Customer downloaded data
+  EXPIRED          // Link expired
+  REJECTED         // Request rejected (invalid identity, etc.)
+}
+
+/// ARCO request type
+enum DataRequestType {
+  ACCESS       // A - Acceso: Get copy of their data
+  RECTIFICATION // R - Rectificación: Correct data
+  CANCELLATION  // C - Cancelación: Delete data
+  OPPOSITION    // O - Oposición: Object to processing
+}
+
+/// Customer data access request (ARCO compliance)
+model DataAccessRequest {
+  id               String            @id @default(cuid())
+  organizationId   String            @map("organization_id")
+  
+  // Request type
+  requestType      DataRequestType   @default(ACCESS) @map("request_type")
+  
+  // Requester identity
+  requesterName    String            @map("requester_name")
+  requesterEmail   String            @map("requester_email")
+  requesterPhone   String?           @map("requester_phone")
+  requesterDni     String?           @map("requester_dni")  // Argentine DNI for identity verification
+  
+  // Linked customer (if found)
+  customerId       String?           @map("customer_id")
+  
+  // Verification
+  verificationCode String?           @map("verification_code")  // 6-digit code
+  verificationSentAt DateTime?       @map("verification_sent_at")
+  verificationAttempts Int           @default(0) @map("verification_attempts")
+  verifiedAt       DateTime?         @map("verified_at")
+  
+  // Request details
+  requestReason    String?           @map("request_reason") @db.Text  // Why they need the data
+  dataScope        String[]          @map("data_scope")  // ["jobs", "invoices", "whatsapp", "all"]
+  
+  // Status
+  status           DataRequestStatus @default(SUBMITTED)
+  statusHistory    Json              @default("[]") @map("status_history")  // Audit trail
+  
+  // Processing
+  assignedToId     String?           @map("assigned_to_id")  // Staff handling the request
+  internalNotes    String?           @map("internal_notes") @db.Text
+  
+  // Delivery (secure download link)
+  downloadToken    String?           @unique @map("download_token")
+  downloadUrl      String?           @map("download_url")
+  expiresAt        DateTime?         @map("expires_at")
+  downloadedAt     DateTime?         @map("downloaded_at")
+  
+  // Legal/Compliance
+  legalDeadline    DateTime?         @map("legal_deadline")  // 10 business days per Ley 25.326
+  responseDate     DateTime?         @map("response_date")
+  rejectionReason  String?           @map("rejection_reason")
+  
+  // Timestamps
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+  
+  // Relations
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer         Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  assignedTo       User?             @relation("DataRequestAssignee", fields: [assignedToId], references: [id])
+  auditLogs        DataRequestAuditLog[]
+  
+  @@index([organizationId])
+  @@index([status])
+  @@index([requesterEmail])
+  @@index([downloadToken])
+  @@index([createdAt])
+  @@index([legalDeadline])
+  @@map("data_access_requests")
+}
+
+/// Audit log for data access requests (compliance requirement)
+model DataRequestAuditLog {
+  id             String   @id @default(cuid())
+  requestId      String   @map("request_id")
+  
+  action         String   // "created", "verified", "status_changed", "downloaded", "expired"
+  previousStatus String?  @map("previous_status")
+  newStatus      String?  @map("new_status")
+  details        Json     @default("{}")  // Additional context
+  
+  performedBy    String?  @map("performed_by")  // User ID or "system" or "customer"
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  
+  createdAt      DateTime @default(now()) @map("created_at")
+  
+  request        DataAccessRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  
+  @@index([requestId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("data_request_audit_logs")
+}
+

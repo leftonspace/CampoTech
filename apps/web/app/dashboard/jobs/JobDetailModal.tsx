@@ -23,7 +23,11 @@ import {
   Camera,
   MessageCircle,
   ExternalLink,
+  Mic,
+  Receipt,
 } from 'lucide-react';
+import { JobReportButton } from '@/components/jobs/JobReportButton';
+import VoiceInvoiceReview from './components/VoiceInvoiceReview';
 import { cn, formatCurrency, formatPhone, formatAddress, formatDate, formatDateTime, JOB_STATUS_LABELS } from '@/lib/utils';
 import { Job } from '@/types';
 
@@ -39,12 +43,13 @@ interface JobDetailModalProps {
   onEdit?: (jobId: string) => void;
 }
 
-type TabType = 'resumen' | 'visitas' | 'equipo' | 'historial';
+type TabType = 'resumen' | 'visitas' | 'equipo' | 'facturacion' | 'historial';
 
 const TABS: { id: TabType; label: string; icon: React.ElementType }[] = [
   { id: 'resumen', label: 'Resumen', icon: Briefcase },
   { id: 'visitas', label: 'Visitas', icon: CalendarDays },
   { id: 'equipo', label: 'Equipo', icon: Users },
+  { id: 'facturacion', label: 'Facturación', icon: Receipt },
   { id: 'historial', label: 'Historial', icon: History },
 ];
 
@@ -745,6 +750,41 @@ export default function JobDetailModal({
                   )}
                 </div>
               )}
+              {/* ═══════════════════════════════════════════════════════════════ */}
+              {/* TAB: FACTURACIÓN (Phase 6: Voice-to-Invoice) */}
+              {/* ═══════════════════════════════════════════════════════════════ */}
+              {activeTab === 'facturacion' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                      <Mic className="h-4 w-4 text-primary-500" />
+                      Reporte de Voz a Factura
+                    </h3>
+                    <span className="text-xs text-gray-500 bg-primary-50 px-2 py-1 rounded-full">
+                      IA Asistida
+                    </span>
+                  </div>
+
+                  <p className="text-sm text-gray-600">
+                    Utilizá el reporte de voz para generar automáticamente los items de facturación.
+                    La IA extraerá partes, materiales y servicios de tu descripción.
+                  </p>
+
+                  <VoiceInvoiceReview
+                    jobId={job.id}
+                    onComplete={(result) => {
+                      // Refresh job data after applying line items
+                      queryClient.invalidateQueries({ queryKey: ['job-detail', jobId] });
+                      queryClient.invalidateQueries({ queryKey: ['jobs'] });
+                      console.log('Voice invoice completed:', result);
+                    }}
+                    onCancel={() => {
+                      // Switch back to summary tab
+                      setActiveTab('resumen');
+                    }}
+                  />
+                </div>
+              )}
 
               {/* ═══════════════════════════════════════════════════════════════ */}
               {/* TAB: HISTORIAL */}
@@ -908,6 +948,14 @@ export default function JobDetailModal({
                     WhatsApp
                   </button>
                 )}
+
+                {/* Job Report button - download PDF */}
+                <JobReportButton
+                  jobId={job.id}
+                  jobNumber={job.jobNumber}
+                  jobStatus={job.status}
+                  variant="compact"
+                />
 
                 {/* Cancelar button - red outline (cancels job if not final) */}
                 {!isFinal && (

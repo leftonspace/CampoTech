@@ -15,6 +15,7 @@ import uvicorn
 
 from app.api.voice import router as voice_router
 from app.api.support import router as support_router
+from app.api.invoice import router as invoice_router
 from app.config import settings
 from app.middleware.monitoring import setup_langsmith
 
@@ -122,6 +123,7 @@ async def readiness_check() -> dict[str, Any]:
 # Include routers
 app.include_router(voice_router, prefix="/api", tags=["voice"])
 app.include_router(support_router, prefix="/api", tags=["support"])
+app.include_router(invoice_router, tags=["invoice"])
 
 
 if __name__ == "__main__":

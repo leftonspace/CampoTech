@@ -20,13 +20,27 @@ function isTableNotFoundError(error: unknown): boolean {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
+    // Support both session auth and service-to-service auth
+    const serviceKey = request.headers.get('x-service-key');
+    const serviceOrgId = request.headers.get('x-organization-id');
+    const expectedServiceKey = process.env.CAMPOTECH_SERVICE_KEY;
 
-    if (!session) {
-      return NextResponse.json(
-        { success: false, error: 'No autorizado' },
-        { status: 401 }
-      );
+    let organizationId: string;
+
+    // Check service key auth first (for AI service calls)
+    if (serviceKey && serviceOrgId && expectedServiceKey && serviceKey === expectedServiceKey) {
+      organizationId = serviceOrgId;
+    } else {
+      // Fall back to session auth
+      const session = await getSession();
+
+      if (!session) {
+        return NextResponse.json(
+          { success: false, error: 'No autorizado' },
+          { status: 401 }
+        );
+      }
+      organizationId = session.organizationId;
     }
 
     const { searchParams } = new URL(request.url);
@@ -35,7 +49,7 @@ export async function GET(request: NextRequest) {
     const activeOnly = searchParams.get('activeOnly') !== 'false';
 
     const where: Record<string, unknown> = {
-      organizationId: session.organizationId,
+      organizationId,
     };
 
     if (type) {

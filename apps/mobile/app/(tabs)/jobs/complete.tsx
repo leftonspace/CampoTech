@@ -3,7 +3,7 @@
  * =====================
  *
  * Multi-step flow for completing a job:
- * 1. Notes and materials used
+ * 1. Notes and materials used (with Voice-to-Invoice AI option)
  * 2. Photo capture
  * 3. Signature capture
  */
@@ -29,6 +29,8 @@ import SignatureCanvas from 'react-native-signature-canvas';
 import { jobsCollection, jobPhotosCollection, database } from '../../../watermelon/database';
 import { Job } from '../../../watermelon/models';
 import { enqueueOperation } from '../../../lib/sync/sync-engine';
+import { VoiceInput } from '../../../components/voice/VoiceInput';
+import { useAuth } from '../../../lib/auth/auth-context';
 
 type Step = 'notes' | 'photos' | 'signature';
 
@@ -42,6 +44,7 @@ export default function CompleteJobScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const signatureRef = useRef<any>(null);
+  const { organizationId, token } = useAuth();
 
   const [step, setStep] = useState<Step>('notes');
   const [notes, setNotes] = useState('');
@@ -50,6 +53,83 @@ export default function CompleteJobScreen() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [signature, setSignature] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Voice-to-Invoice AI state
+  const [useVoiceInput, setUseVoiceInput] = useState(false);
+  const [voiceTranscription, setVoiceTranscription] = useState<string | null>(null);
+  const [isExtractingInvoice, setIsExtractingInvoice] = useState(false);
+
+  // Voice-to-Invoice: Extract invoice data from transcription
+  const handleVoiceInvoiceExtraction = async (transcription: string) => {
+    if (!id || !organizationId) return;
+
+    setVoiceTranscription(transcription);
+    setIsExtractingInvoice(true);
+
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${apiUrl}/api/jobs/${id}/voice-invoice`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          transcription,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Error al extraer datos');
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.suggestion) {
+        // Auto-populate notes with job summary
+        if (data.suggestion.extraction?.workPerformed) {
+          setNotes(data.suggestion.extraction.workPerformed);
+        } else if (data.suggestion.extraction?.jobSummary) {
+          setNotes(data.suggestion.extraction.jobSummary);
+        }
+
+        // Auto-populate materials from extracted line items
+        const extractedMaterials: Material[] = data.suggestion.lineItems
+          .filter((item: any) => item.unitPrice !== null)
+          .map((item: any) => ({
+            name: item.description,
+            quantity: item.quantity,
+            price: item.unitPrice,
+          }));
+
+        if (extractedMaterials.length > 0) {
+          setMaterials(extractedMaterials);
+          Alert.alert(
+            'IA Extracción Completada',
+            `Se extrajeron ${extractedMaterials.length} items.\nTotal estimado: $${data.suggestion.total.toLocaleString('es-AR')}\n\nRevisá los items antes de continuar.`,
+            [{ text: 'Revisar', style: 'default' }]
+          );
+        } else {
+          Alert.alert(
+            'Sin items encontrados',
+            'La IA no pudo extraer items con precios. Agregá los materiales manualmente.',
+            [{ text: 'OK' }]
+          );
+        }
+      }
+    } catch (error) {
+      console.error('Voice invoice extraction error:', error);
+      // Just use the transcription as notes if extraction fails
+      setNotes(transcription);
+      Alert.alert(
+        'Extracción no disponible',
+        'Se guardó la transcripción como notas. Agregá los materiales manualmente.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setIsExtractingInvoice(false);
+    }
+  };
 
   const handleAddMaterial = () => {
     if (!newMaterial.name || !newMaterial.price) {
@@ -232,16 +312,78 @@ export default function CompleteJobScreen() {
           {/* Step 1: Notes */}
           {step === 'notes' && (
             <View style={styles.stepContent}>
-              <Text style={styles.sectionTitle}>Notas del trabajo</Text>
-              <TextInput
-                style={styles.textArea}
-                placeholder="Descripción del trabajo realizado..."
-                placeholderTextColor="#9ca3af"
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-                numberOfLines={4}
-              />
+              {/* Voice/Text Input Toggle */}
+              <View style={styles.inputModeToggle}>
+                <Text style={styles.sectionTitle}>Notas del trabajo</Text>
+                <TouchableOpacity
+                  style={[
+                    styles.voiceToggle,
+                    useVoiceInput && styles.voiceToggleActive,
+                  ]}
+                  onPress={() => setUseVoiceInput(!useVoiceInput)}
+                >
+                  <Feather
+                    name={useVoiceInput ? 'mic' : 'edit-3'}
+                    size={16}
+                    color={useVoiceInput ? '#16a34a' : '#6b7280'}
+                  />
+                  <Text
+                    style={[
+                      styles.voiceToggleText,
+                      useVoiceInput && styles.voiceToggleTextActive,
+                    ]}
+                  >
+                    {useVoiceInput ? 'Voz IA' : 'Texto'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Voice Input Mode */}
+              {useVoiceInput ? (
+                <View style={styles.voiceInputContainer}>
+                  <Text style={styles.voiceHint}>
+                    Grabá un mensaje describiendo el trabajo realizado, los materiales usados y el tiempo trabajado.
+                    La IA extraerá los items automáticamente.
+                  </Text>
+
+                  {isExtractingInvoice ? (
+                    <View style={styles.extractingContainer}>
+                      <Feather name="loader" size={24} color="#16a34a" />
+                      <Text style={styles.extractingText}>
+                        Extrayendo datos con IA...
+                      </Text>
+                    </View>
+                  ) : (
+                    <VoiceInput
+                      onRecordingComplete={async (_uri: string, _duration: number) => {
+                        // Recording uploaded, waiting for transcription
+                      }}
+                      onTranscriptionComplete={handleVoiceInvoiceExtraction}
+                      maxDuration={180}
+                      showTranscription={true}
+                      placeholder="Mantené presionado para grabar reporte"
+                    />
+                  )}
+
+                  {voiceTranscription && (
+                    <View style={styles.transcriptionPreview}>
+                      <Text style={styles.transcriptionLabel}>Transcripción:</Text>
+                      <Text style={styles.transcriptionText}>{voiceTranscription}</Text>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                /* Text Input Mode */
+                <TextInput
+                  style={styles.textArea}
+                  placeholder="Descripción del trabajo realizado..."
+                  placeholderTextColor="#9ca3af"
+                  value={notes}
+                  onChangeText={setNotes}
+                  multiline
+                  numberOfLines={4}
+                />
+              )}
 
               <Text style={styles.sectionTitle}>Materiales utilizados</Text>
               {materials.map((material, index) => (
@@ -700,5 +842,77 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.7,
+  },
+  // Voice-to-Invoice styles
+  inputModeToggle: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  voiceToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  voiceToggleActive: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#16a34a',
+  },
+  voiceToggleText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#6b7280',
+  },
+  voiceToggleTextActive: {
+    color: '#16a34a',
+  },
+  voiceInputContainer: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 24,
+  },
+  voiceHint: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  extractingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingVertical: 24,
+  },
+  extractingText: {
+    fontSize: 14,
+    color: '#16a34a',
+    fontWeight: '500',
+  },
+  transcriptionPreview: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+  },
+  transcriptionLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+    marginBottom: 4,
+  },
+  transcriptionText: {
+    fontSize: 14,
+    color: '#374151',
+    fontStyle: 'italic',
+    lineHeight: 20,
   },
 });

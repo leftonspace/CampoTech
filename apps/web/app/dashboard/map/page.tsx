@@ -730,7 +730,52 @@ export default function LiveMapPage() {
 
     setIsLoaded(true);
 
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // FIX: Leaflet map size invalidation for first-load rendering
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // Leaflet calculates container size on init, but with Next.js client-side routing
+    // the container may not have its final dimensions yet. This causes the map to
+    // render incorrectly until a resize event occurs.
+
+    // 1. Immediate invalidation after a short delay for layout to settle
+    const invalidateTimer = setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+
+    // 2. Another invalidation after a longer delay for slower renders
+    const invalidateTimer2 = setTimeout(() => {
+      map.invalidateSize();
+    }, 500);
+
+    // 3. ResizeObserver to handle container size changes
+    let resizeObserver: ResizeObserver | null = null;
+    if (mapRef.current && typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => {
+        map.invalidateSize();
+      });
+      resizeObserver.observe(mapRef.current);
+    }
+
+    // 4. Visibility change handler (for tab switching)
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        map.invalidateSize();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    // 5. Window resize handler
+    const handleResize = () => {
+      map.invalidateSize();
+    };
+    window.addEventListener('resize', handleResize);
+
     return () => {
+      clearTimeout(invalidateTimer);
+      clearTimeout(invalidateTimer2);
+      resizeObserver?.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('resize', handleResize);
       map.remove();
       leafletMapRef.current = null;
     };
@@ -1820,15 +1865,22 @@ export default function LiveMapPage() {
 
       {/* Map Container */}
       <div className="relative flex-1 overflow-hidden rounded-lg bg-white shadow-sm">
-        {isLoading ? (
-          <div className="flex h-full items-center justify-center">
+        {/* Map div is ALWAYS rendered so Leaflet can initialize */}
+        <div ref={mapRef} className="h-full w-full" />
+
+        {/* Loading overlay (shown on top of map) */}
+        {isLoading && (
+          <div className="absolute inset-0 z-[600] flex items-center justify-center bg-white/90">
             <div className="text-center">
               <RefreshCw className="mx-auto h-8 w-8 animate-spin text-primary-600" />
               <p className="mt-2 text-sm text-gray-500">Cargando mapa...</p>
             </div>
           </div>
-        ) : error ? (
-          <div className="flex h-full items-center justify-center">
+        )}
+
+        {/* Error overlay */}
+        {error && !isLoading && (
+          <div className="absolute inset-0 z-[600] flex items-center justify-center bg-white/90">
             <div className="text-center">
               <AlertCircle className="mx-auto h-8 w-8 text-red-500" />
               <p className="mt-2 text-sm text-gray-500">Error cargando ubicaciones</p>
@@ -1840,9 +1892,10 @@ export default function LiveMapPage() {
               </button>
             </div>
           </div>
-        ) : (
+        )}
+
+        {!isLoading && !error && (
           <>
-            <div ref={mapRef} className="h-full w-full" />
 
             {/* Empty state overlay */}
             {emptyState && (

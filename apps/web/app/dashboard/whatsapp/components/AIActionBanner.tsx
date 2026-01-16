@@ -29,6 +29,10 @@ import {
   Clock,
   MapPin,
   Wrench,
+  ThumbsUp,
+  ThumbsDown,
+  Globe,
+  Languages,
 } from 'lucide-react';
 
 export type AIActionType =
@@ -40,7 +44,9 @@ export type AIActionType =
   | 'suggestion'
   | 'transfer_to_human'
   | 'availability_checked'
-  | 'price_quoted';
+  | 'price_quoted'
+  | 'language_detected'      // Phase 5.3: Language detection
+  | 'translation_pending';   // Phase 5.3: Translation in progress
 
 export interface AIAction {
   id: string;
@@ -72,6 +78,9 @@ interface AIActionBannerProps {
   onApprove?: (actionId: string) => void;
   onDismiss?: (actionId: string) => void;
   onViewDetails?: (action: AIAction) => void;
+  // Phase 5.1: Feedback props
+  onFeedback?: (actionId: string, feedback: 'positive' | 'negative') => void;
+  showFeedback?: boolean;  // Whether to show feedback buttons (default: true for AI actions)
 }
 
 const ACTION_CONFIG: Record<AIActionType, {
@@ -154,6 +163,23 @@ const ACTION_CONFIG: Record<AIActionType, {
     iconColor: 'text-teal-600',
     textColor: 'text-teal-800',
   },
+  // Phase 5.3: Language detection action types
+  language_detected: {
+    icon: Globe,
+    bgColor: 'bg-sky-50',
+    borderColor: 'border-sky-200',
+    iconBg: 'bg-sky-100',
+    iconColor: 'text-sky-600',
+    textColor: 'text-sky-800',
+  },
+  translation_pending: {
+    icon: Languages,
+    bgColor: 'bg-violet-50',
+    borderColor: 'border-violet-200',
+    iconBg: 'bg-violet-100',
+    iconColor: 'text-violet-600',
+    textColor: 'text-violet-800',
+  },
 };
 
 export function AIActionBanner({
@@ -161,6 +187,8 @@ export function AIActionBanner({
   onApprove,
   onDismiss,
   onViewDetails,
+  onFeedback,
+  showFeedback = true,
 }: AIActionBannerProps) {
   const config = ACTION_CONFIG[action.type] || ACTION_CONFIG.suggestion;
   const Icon = config.icon;
@@ -313,6 +341,27 @@ export function AIActionBanner({
             Ver detalles
           </button>
         )}
+
+        {/* Phase 5.1: Feedback buttons */}
+        {showFeedback && onFeedback && (
+          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-200/50">
+            <span className="text-xs text-gray-500">¿Fue útil?</span>
+            <button
+              onClick={() => onFeedback(action.id, 'positive')}
+              className="p-1.5 rounded-full hover:bg-green-100 transition-colors group"
+              title="Útil"
+            >
+              <ThumbsUp className="h-4 w-4 text-gray-400 group-hover:text-green-600" />
+            </button>
+            <button
+              onClick={() => onFeedback(action.id, 'negative')}
+              className="p-1.5 rounded-full hover:bg-red-100 transition-colors group"
+              title="No útil"
+            >
+              <ThumbsDown className="h-4 w-4 text-gray-400 group-hover:text-red-600" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -390,6 +439,8 @@ function getActionLabel(type: AIActionType): string {
     transfer_to_human: 'transferido',
     availability_checked: 'disponibilidad',
     price_quoted: 'precio',
+    language_detected: 'idioma detectado',
+    translation_pending: 'traduciendo',
   };
   return labels[type] || type;
 }

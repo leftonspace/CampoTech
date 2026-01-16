@@ -17,6 +17,8 @@ import {
   CheckCircle,
   Sparkles,
   Loader2,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react';
 import type { Conversation, Message } from './index';
 
@@ -32,6 +34,8 @@ interface CopilotMessage {
   timestamp: Date;
   actions?: CopilotAction[];
   metadata?: Record<string, unknown>;
+  // Phase 5.1: Feedback tracking
+  feedback?: 'positive' | 'negative' | null;
 }
 
 interface CopilotAction {
@@ -341,6 +345,22 @@ export default function CopilotPanel({
             key={msg.id}
             message={msg}
             onActionClick={handleActionClick}
+            onFeedback={(messageId, feedback) => {
+              // Update feedback state locally
+              setCopilotMessages(prev => prev.map(m =>
+                m.id === messageId ? { ...m, feedback } : m
+              ));
+              // Send feedback to API (fire and forget)
+              fetch('/api/ai/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  conversationLogId: messageId,
+                  feedback,
+                  feedbackType: 'response',
+                }),
+              }).catch(err => console.error('Feedback error:', err));
+            }}
           />
         ))}
 
@@ -417,9 +437,10 @@ export default function CopilotPanel({
 interface CopilotMessageBubbleProps {
   message: CopilotMessage;
   onActionClick: (action: CopilotAction) => void;
+  onFeedback?: (messageId: string, feedback: 'positive' | 'negative') => void;
 }
 
-function CopilotMessageBubble({ message, onActionClick }: CopilotMessageBubbleProps) {
+function CopilotMessageBubble({ message, onActionClick, onFeedback }: CopilotMessageBubbleProps) {
   const isUser = message.role === 'user';
 
   // Get styling based on message type
@@ -458,9 +479,9 @@ function CopilotMessageBubble({ message, onActionClick }: CopilotMessageBubblePr
     <div className={`flex items-start gap-2 ${isUser ? 'flex-row-reverse' : ''}`}>
       {!isUser && (
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${message.type === 'suggestion' ? 'bg-blue-100' :
-            message.type === 'warning' ? 'bg-amber-100' :
-              message.type === 'action_result' ? 'bg-green-100' :
-                'bg-gray-100'
+          message.type === 'warning' ? 'bg-amber-100' :
+            message.type === 'action_result' ? 'bg-green-100' :
+              'bg-gray-100'
           }`}>
           {getIcon()}
         </div>
@@ -477,15 +498,43 @@ function CopilotMessageBubble({ message, onActionClick }: CopilotMessageBubblePr
                 key={action.id}
                 onClick={() => onActionClick(action)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${action.variant === 'primary'
-                    ? 'bg-teal-500 text-white hover:bg-teal-600'
-                    : action.variant === 'secondary'
-                      ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
-                      : 'text-teal-600 hover:bg-teal-50'
+                  ? 'bg-teal-500 text-white hover:bg-teal-600'
+                  : action.variant === 'secondary'
+                    ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                    : 'text-teal-600 hover:bg-teal-50'
                   }`}
               >
                 {action.label}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* Phase 5.1: Feedback buttons for AI messages */}
+        {!isUser && onFeedback && (
+          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200">
+            <span className="text-xs text-gray-500">¿Útil?</span>
+            <button
+              onClick={() => onFeedback(message.id, 'positive')}
+              className={`p-1 rounded transition-colors ${message.feedback === 'positive'
+                ? 'bg-green-100 text-green-600'
+                : 'text-gray-400 hover:text-green-600 hover:bg-green-50'}`}
+              title="Útil"
+            >
+              <ThumbsUp className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => onFeedback(message.id, 'negative')}
+              className={`p-1 rounded transition-colors ${message.feedback === 'negative'
+                ? 'bg-red-100 text-red-600'
+                : 'text-gray-400 hover:text-red-600 hover:bg-red-50'}`}
+              title="No útil"
+            >
+              <ThumbsDown className="h-3.5 w-3.5" />
+            </button>
+            {message.feedback && (
+              <span className="text-xs text-gray-400 ml-1">¡Gracias!</span>
+            )}
           </div>
         )}
       </div>

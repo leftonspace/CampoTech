@@ -28,6 +28,8 @@ import {
   Shield,
   Eye,
   EyeOff,
+  Globe,
+  Languages,
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -232,7 +234,7 @@ export default function AIAssistantSettingsPage() {
   // AI Assistant context - for synced toggle state
   const { isEnabled: aiIsEnabled, settings: aiSettings } = useAIAssistant();
 
-  const [activeTab, setActiveTab] = useState<'general' | 'company' | 'hours' | 'faq' | 'advanced' | 'permissions' | 'test'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'company' | 'hours' | 'faq' | 'advanced' | 'permissions' | 'languages' | 'test'>('general');
   const [config, setConfig] = useState<AIConfig>(DEFAULT_CONFIG);
   const [hasChanges, setHasChanges] = useState(false);
   const [error, setError] = useState('');
@@ -519,6 +521,7 @@ export default function AIAssistantSettingsPage() {
             { key: 'company', label: 'Empresa', icon: Building2 },
             { key: 'hours', label: 'Horarios', icon: Clock },
             { key: 'faq', label: 'Preguntas frecuentes', icon: HelpCircle },
+            { key: 'languages', label: 'Idiomas', icon: Globe },
             { key: 'advanced', label: 'Avanzado', icon: Sparkles },
             { key: 'permissions', label: 'Permisos IA', icon: Shield },
             { key: 'test', label: 'Probar', icon: Zap },
@@ -934,6 +937,119 @@ export default function AIAssistantSettingsPage() {
           </div>
         )}
 
+        {/* Languages Tab - Phase 5.2 */}
+        {activeTab === 'languages' && (
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                <Languages className="h-5 w-5 text-sky-500" />
+                Traducción Automática
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Configurá la detección y traducción automática de mensajes de clientes que hablan otros idiomas.
+              </p>
+            </div>
+
+            {/* Translation Toggle */}
+            <div className="flex items-center justify-between p-4 rounded-lg border bg-white">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <Globe className="h-5 w-5 text-sky-600" />
+                  <span className="font-medium text-gray-900">Habilitar traducción automática</span>
+                  <span className="text-xs bg-sky-100 text-sky-700 px-2 py-0.5 rounded">Fase 5</span>
+                </div>
+                <p className="text-sm text-gray-500 mt-1 ml-7">
+                  La IA detectará el idioma del cliente y traducirá mensajes automáticamente al español
+                </p>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={true}
+                  onChange={() => { }}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+              </label>
+            </div>
+
+            {/* Languages the business speaks */}
+            <div className="border-t pt-6">
+              <h4 className="font-medium text-gray-900 mb-2">Idiomas del equipo</h4>
+              <p className="text-sm text-gray-500 mb-4">
+                Seleccioná los idiomas que tu equipo puede manejar sin traducción.
+                Los mensajes en otros idiomas se traducirán automáticamente al español.
+              </p>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  { code: 'es', name: 'Español', flag: '🇦🇷', required: true },
+                  { code: 'en', name: 'English', flag: '🇬🇧' },
+                  { code: 'pt', name: 'Português', flag: '🇧🇷' },
+                  { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+                  { code: 'fr', name: 'Français', flag: '🇫🇷' },
+                  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+                ].map((lang) => (
+                  <label
+                    key={lang.code}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${lang.required
+                        ? 'bg-sky-50 border-sky-200 cursor-not-allowed'
+                        : 'hover:bg-gray-50'
+                      }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={lang.code === 'es'}
+                      disabled={lang.required}
+                      onChange={() => { }}
+                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500 disabled:opacity-50"
+                    />
+                    <span className="text-2xl">{lang.flag}</span>
+                    <span className={`font-medium ${lang.required ? 'text-sky-700' : 'text-gray-700'}`}>
+                      {lang.name}
+                    </span>
+                    {lang.required && (
+                      <span className="text-xs text-sky-600 ml-auto">Requerido</span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* How it works info */}
+            <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
+              <h4 className="font-medium text-blue-900 mb-2">¿Cómo funciona?</h4>
+              <ul className="text-sm text-blue-700 space-y-2">
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500">1.</span>
+                  Cuando llega un mensaje, la IA detecta automáticamente el idioma
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500">2.</span>
+                  Si el idioma no está en tu lista, el mensaje se traduce al español
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500">3.</span>
+                  Ves el mensaje original y la traducción en la conversación
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-blue-500">4.</span>
+                  Al responder, el Copilot sugiere respuestas en el idioma del cliente
+                </li>
+              </ul>
+            </div>
+
+            {/* Supported languages info */}
+            <div className="rounded-lg bg-gray-50 p-4">
+              <h4 className="font-medium text-gray-700 mb-2">Idiomas soportados</h4>
+              <p className="text-sm text-gray-600">
+                La IA puede detectar y traducir más de 50 idiomas, incluyendo: inglés, portugués,
+                francés, italiano, alemán, chino, japonés, coreano, árabe, hebreo, ruso, y más.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Advanced Tab */}
         {activeTab === 'advanced' && (
           <div className="space-y-6">
@@ -1127,7 +1243,7 @@ export default function AIAssistantSettingsPage() {
 
             {/* Summary */}
             <div className="rounded-lg bg-blue-50 p-4">
-              <h4 className="font-medium text-blue-900 mb-2">Resumen de Permisos</h4>
+              <h4 className="font-medium text-blue-900 mb-2">Resumen de Permisos de Datos</h4>
               <div className="flex flex-wrap gap-2">
                 {DATA_ACCESS_PERMISSIONS.map((p) => (
                   <span
@@ -1140,6 +1256,154 @@ export default function AIAssistantSettingsPage() {
                     {config.dataAccessPermissions[p.key as keyof DataAccessPermissions] ? '✓' : '✗'} {p.label}
                   </span>
                 ))}
+              </div>
+            </div>
+
+            {/* Phase 5.5: Workflow Permissions */}
+            <div className="border-t pt-6 space-y-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+                  <Zap className="h-5 w-5 text-amber-500" />
+                  Permisos de Acción de IA
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Controlá qué acciones puede realizar la IA de forma automática o con aprobación.
+                </p>
+              </div>
+
+              {/* Response & Translation Permissions */}
+              <div className="grid gap-4">
+                <div className="flex items-center justify-between p-4 rounded-lg border bg-white">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 text-blue-500" />
+                      <span className="font-medium text-gray-900">Sugerir respuestas</span>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1 ml-6">
+                      Permitir que la IA sugiera respuestas para mensajes de clientes
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={true}
+                      disabled
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-primary-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all opacity-50 cursor-not-allowed"></div>
+                    <span className="ml-2 text-xs text-gray-400">Siempre activo</span>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between p-4 rounded-lg border bg-white">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Bot className="h-4 w-4 text-violet-500" />
+                      <span className="font-medium text-gray-900">Traducir mensajes</span>
+                      <span className="text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded">Fase 5</span>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1 ml-6">
+                      Traducir automáticamente mensajes de clientes que hablan otros idiomas
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={true}
+                      onChange={() => { }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between p-4 rounded-lg border bg-white">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-purple-500" />
+                      <span className="font-medium text-gray-900">Sugerir acciones</span>
+                    </div>
+                    <p className="text-sm text-gray-500 mt-1 ml-6">
+                      Sugerir crear trabajos, asignar técnicos, ajustar precios, etc.
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={true}
+                      onChange={() => { }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Auto-Approval Settings */}
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <h4 className="font-medium text-amber-900 flex items-center gap-2 mb-4">
+                  <AlertTriangle className="h-4 w-4" />
+                  Auto-Aprobaciones (Avanzado)
+                </h4>
+                <p className="text-sm text-amber-700 mb-4">
+                  Estas opciones permiten que la IA realice ciertas acciones automáticamente sin esperar aprobación manual.
+                  <strong> Usar con precaución.</strong>
+                </p>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-white border">
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-900">Auto-aprobar ajustes de precio pequeños</span>
+                      <p className="text-sm text-gray-500">
+                        La IA puede aprobar descuentos o ajustes menores automáticamente
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={false}
+                        onChange={() => { }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-4 p-3 rounded-lg bg-gray-50 border">
+                    <label className="text-sm text-gray-700 flex-1">
+                      Límite máximo de ajuste automático:
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="1"
+                        max="20"
+                        defaultValue={5}
+                        className="input w-20 text-center"
+                        disabled
+                      />
+                      <span className="text-sm text-gray-500">%</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-white border">
+                    <div className="flex-1">
+                      <span className="font-medium text-gray-900">Auto-asignar técnicos</span>
+                      <p className="text-sm text-gray-500">
+                        La IA puede asignar técnicos disponibles automáticamente
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={false}
+                        onChange={() => { }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                    </label>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
