@@ -12,6 +12,13 @@ import {
   Briefcase,
   Quote,
 } from 'lucide-react';
+import {
+  CredentialBadge,
+  CredentialVerificationCard,
+  VerificationDisclaimer,
+  type CredentialBadgeData,
+  type VerificationMethod,
+} from '@/components/verification/CredentialBadge';
 
 interface PageProps {
   params: Promise<{ slug: string }>;
@@ -102,6 +109,55 @@ export default async function PublicBusinessProfilePage({ params }: PageProps) {
     },
   });
 
+  // Fetch approved matrícula badges (Tier 4 professional credentials)
+  const approvedBadges = await prisma.verificationSubmission.findMany({
+    where: {
+      organizationId: profile.organization.id,
+      status: 'approved',
+      requirement: {
+        tier: 4,
+        code: { in: ['gas_matricula', 'electrician_matricula', 'plumber_matricula', 'refrigeration_license'] },
+      },
+    },
+    select: {
+      id: true,
+      submittedValue: true,
+      verifiedAt: true,
+      expiresAt: true,
+      verificationData: true,
+      requirement: {
+        select: {
+          code: true,
+          name: true,
+          badgeLabel: true,
+        },
+      },
+    },
+  });
+
+  // Transform badges to CredentialBadgeData format
+  const credentials: CredentialBadgeData[] = approvedBadges.map((badge: typeof approvedBadges[number]) => {
+    const verificationData = badge.verificationData as Record<string, unknown> | null;
+    const verificationMethod = verificationData?.verificationMethod as string | undefined;
+    const source = verificationData?.source as string | undefined;
+
+    // Determine verification method
+    let method: VerificationMethod = 'manual';
+    if (verificationMethod === 'registry' || verificationMethod === 'registry_claim') {
+      method = 'registry';
+    }
+
+    return {
+      code: badge.requirement.code,
+      name: badge.requirement.badgeLabel || badge.requirement.name,
+      matricula: badge.submittedValue || undefined,
+      verificationMethod: method,
+      source: source,
+      verifiedAt: badge.verifiedAt?.toISOString(),
+      expiresAt: badge.expiresAt?.toISOString(),
+    };
+  });
+
   // Phase 3.2: Use tracked redirect link for attribution
   const whatsappLink = `/wa-redirect/${profile.slug || profile.organizationId}`;
 
@@ -161,6 +217,14 @@ export default async function PublicBusinessProfilePage({ params }: PageProps) {
                     Verificado
                   </span>
                 )}
+                {/* Inline credential badges */}
+                {credentials.slice(0, 3).map((credential) => (
+                  <CredentialBadge
+                    key={credential.code}
+                    credential={credential}
+                    size="sm"
+                  />
+                ))}
               </div>
 
               {/* Rating and stats */}
@@ -310,32 +374,64 @@ export default async function PublicBusinessProfilePage({ params }: PageProps) {
               )}
             </div>
 
-            {/* Badges */}
+            {/* Badges & Credentials */}
             <div className="bg-white rounded-xl p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Verificaciones</h2>
               <div className="space-y-3">
+                {/* Business verification status */}
+                {profile.organization.verificationStatus === 'verified' && (
+                  <div className="flex items-center gap-2 text-green-700 p-2 bg-green-50 rounded-lg">
+                    <CheckCircle className="h-5 w-5" />
+                    <span className="text-sm font-medium">Negocio verificado</span>
+                  </div>
+                )}
+
+                {/* CUIT Verified */}
                 {profile.cuitVerified && (
                   <div className="flex items-center gap-2 text-green-700">
                     <Shield className="h-5 w-5" />
                     <span className="text-sm">CUIT/CUIL verificado</span>
                   </div>
                 )}
+
+                {/* Insurance Verified */}
                 {profile.insuranceVerified && (
                   <div className="flex items-center gap-2 text-green-700">
                     <Shield className="h-5 w-5" />
                     <span className="text-sm">Seguro verificado</span>
                   </div>
                 )}
-                {profile.organization.verificationStatus === 'verified' && (
-                  <div className="flex items-center gap-2 text-green-700">
-                    <CheckCircle className="h-5 w-5" />
-                    <span className="text-sm">Negocio verificado</span>
+
+                {/* Professional Credentials (Matrículas) */}
+                {credentials.length > 0 && (
+                  <div className="pt-2">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">
+                      Credenciales Profesionales
+                    </p>
+                    <div className="space-y-2">
+                      {credentials.map((credential) => (
+                        <CredentialVerificationCard
+                          key={credential.code}
+                          credential={credential}
+                        />
+                      ))}
+                    </div>
                   </div>
                 )}
-                {!profile.cuitVerified && !profile.insuranceVerified && profile.organization.verificationStatus !== 'verified' && (
-                  <p className="text-sm text-gray-500">Sin verificaciones aún</p>
-                )}
+
+                {/* Empty state */}
+                {!profile.cuitVerified &&
+                  !profile.insuranceVerified &&
+                  profile.organization.verificationStatus !== 'verified' &&
+                  credentials.length === 0 && (
+                    <p className="text-sm text-gray-500">Sin verificaciones aún</p>
+                  )}
               </div>
+
+              {/* Verification disclaimer */}
+              {credentials.length > 0 && (
+                <VerificationDisclaimer className="mt-4" />
+              )}
             </div>
 
             {/* Categories */}

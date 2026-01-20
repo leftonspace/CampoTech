@@ -236,6 +236,15 @@ export function BadgesGrid({ badges, onObtain, onRenew, className }: BadgesGridP
         </div>
       </div>
 
+      {/* Verification Disclaimer */}
+      <div className="rounded-lg bg-blue-50 border border-blue-200 p-3">
+        <p className="text-xs text-blue-700">
+          <strong>¿Cómo funcionan los badges?</strong> CampoTech verifica matrículas contra
+          registros públicos oficiales de ERSEP, Gasnor, GasNea y CACAAV. Cuando ves el badge ✓,
+          significa que el número de matrícula figura en el registro oficial.
+        </p>
+      </div>
+
       {/* Earned badges section */}
       {earnedBadges.length > 0 && (
         <div>

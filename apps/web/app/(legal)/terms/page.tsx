@@ -35,7 +35,7 @@ export default function TermsPage() {
                 Términos de Servicio
               </h1>
               <p className="text-sm text-gray-500">
-                Última actualización: Diciembre 2025
+                Última actualización: Enero 2026
               </p>
             </div>
           </div>
@@ -46,10 +46,11 @@ export default function TermsPage() {
       <main className="max-w-4xl mx-auto px-4 py-8">
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8">
           <div className="prose prose-gray max-w-none">
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg mb-8">
-              <p className="text-amber-800 text-sm">
-                <strong>Nota:</strong> Este documento es un borrador. El
-                contenido final será redactado por el equipo legal.
+            <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-8">
+              <p className="text-blue-800 text-sm">
+                <strong>Aviso:</strong> Este documento establece los términos
+                generales de uso de la plataforma. Se recomienda revisión legal
+                profesional antes del lanzamiento comercial.
               </p>
             </div>
 
@@ -120,17 +121,74 @@ export default function TermsPage() {
 
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                7. Limitación de responsabilidad
+                7. Naturaleza del servicio y responsabilidades
+              </h2>
+              <div className="text-gray-600 space-y-4">
+                <p>
+                  <strong>7.1 CampoTech como herramienta de gestión:</strong>{' '}
+                  CampoTech es una plataforma de software (SaaS) que provee
+                  herramientas de gestión empresarial. CampoTech NO es un
+                  proveedor de servicios de campo, ni actúa como intermediario
+                  entre empresas y consumidores finales.
+                </p>
+                <p>
+                  <strong>7.2 Responsabilidad del usuario:</strong> El usuario
+                  de CampoTech (la empresa de servicios) es el único responsable de:
+                </p>
+                <ul className="list-disc pl-6 space-y-2">
+                  <li>
+                    Verificar las habilitaciones profesionales de su personal
+                    (matrículas de gasista, electricista, instalador, etc.)
+                  </li>
+                  <li>
+                    Cumplir con las normativas aplicables a su rubro (ENARGAS,
+                    ENRE, AEA, normativas provinciales y municipales)
+                  </li>
+                  <li>
+                    La relación laboral o contractual con sus empleados y
+                    contratistas
+                  </li>
+                  <li>
+                    La calidad, seguridad y legalidad de los servicios prestados
+                    a sus clientes finales
+                  </li>
+                  <li>
+                    La veracidad de los datos cargados en la plataforma,
+                    incluyendo matrículas y certificaciones
+                  </li>
+                </ul>
+                <p>
+                  <strong>7.3 No verificación de habilitaciones:</strong>{' '}
+                  CampoTech no verifica la validez de las matrículas profesionales
+                  ni las habilitaciones declaradas por los usuarios. Los campos
+                  de &quot;matrícula&quot; y &quot;especialidad&quot; son informativos y su
+                  veracidad es responsabilidad exclusiva del usuario.
+                </p>
+                <p>
+                  <strong>7.4 Facturación electrónica:</strong> Si el usuario
+                  utiliza CampoTech para generar facturas electrónicas, es
+                  responsable de la correcta configuración de sus datos fiscales
+                  ante AFIP y del cumplimiento de las normativas de facturación.
+                </p>
+              </div>
+            </section>
+
+            <section className="mb-8">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">
+                8. Limitación de responsabilidad
               </h2>
               <p className="text-gray-600">
                 CampoTech no será responsable por daños indirectos, incidentales
-                o consecuentes que resulten del uso de la plataforma.
+                o consecuentes que resulten del uso de la plataforma, incluyendo
+                pero no limitado a: daños derivados de servicios prestados por
+                usuarios a terceros, incumplimientos regulatorios de los usuarios,
+                o accidentes laborales.
               </p>
             </section>
 
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                8. Modificaciones
+                9. Modificaciones
               </h2>
               <p className="text-gray-600">
                 Nos reservamos el derecho de modificar estos términos en
@@ -141,7 +199,7 @@ export default function TermsPage() {
 
             <section className="mb-8">
               <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                9. Ley aplicable
+                10. Ley aplicable
               </h2>
               <p className="text-gray-600">
                 Estos términos se rigen por las leyes de la República Argentina.
@@ -152,7 +210,7 @@ export default function TermsPage() {
 
             <section>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                10. Contacto
+                11. Contacto
               </h2>
               <p className="text-gray-600">
                 Para consultas sobre estos términos, contactanos en{' '}

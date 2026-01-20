@@ -9,7 +9,7 @@
 import { appSchema, tableSchema } from '@nozbe/watermelondb';
 
 export const schema = appSchema({
-  version: 3, // Bumped for pending_stock_deductions table
+  version: 4, // Bumped for per-visit pricing fields (Phase 1 - Jan 2026)
   tables: [
     // Jobs table - core data for technicians
     tableSchema({
@@ -41,6 +41,14 @@ export const schema = appSchema({
         { name: 'updated_at', type: 'number' },
         { name: 'synced_at', type: 'number', isOptional: true },
         { name: 'is_dirty', type: 'boolean' }, // Local changes pending sync
+        // Per-visit pricing fields (Phase 1 - Jan 2026)
+        { name: 'pricing_mode', type: 'string', isOptional: true }, // FIXED_TOTAL, PER_VISIT, HYBRID
+        { name: 'default_visit_rate', type: 'number', isOptional: true },
+        { name: 'estimated_total', type: 'number', isOptional: true },
+        { name: 'current_visit_index', type: 'number', isOptional: true }, // Which visit is being completed
+        { name: 'visit_estimated_price', type: 'number', isOptional: true }, // Current visit's estimated price
+        { name: 'visit_actual_price', type: 'number', isOptional: true }, // Tech can propose actual price
+        { name: 'price_variance_reason', type: 'string', isOptional: true }, // Reason if price differs
       ],
     }),
 

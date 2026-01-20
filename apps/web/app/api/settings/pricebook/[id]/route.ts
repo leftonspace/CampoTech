@@ -103,14 +103,35 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { name, description, type, price, unit, taxRate, isActive } = body;
+    const { name, description, type, price, unit, taxRate, isActive, priceCurrency, priceInUsd } = body;
+
+    // Determine if this is a currency change
+    const isUsdPricing = priceCurrency === 'USD';
 
     // Build update data
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (type !== undefined) updateData.type = type.toUpperCase() as 'SERVICE' | 'PRODUCT';
-    if (price !== undefined) updateData.price = new Decimal(price);
+
+    // Handle currency-aware price updates
+    if (priceCurrency !== undefined) {
+      updateData.priceCurrency = priceCurrency;
+    }
+    if (isUsdPricing) {
+      // For USD: store priceInUsd, set price to 0
+      if (priceInUsd !== undefined) {
+        updateData.priceInUsd = new Decimal(priceInUsd);
+        updateData.price = new Decimal(0);
+      }
+    } else if (price !== undefined) {
+      // For ARS: store price directly, clear priceInUsd
+      updateData.price = new Decimal(price);
+      if (priceCurrency === 'ARS') {
+        updateData.priceInUsd = null;
+      }
+    }
+
     if (unit !== undefined) updateData.unit = unit;
     if (taxRate !== undefined) updateData.taxRate = new Decimal(taxRate);
     if (isActive !== undefined) updateData.isActive = isActive;

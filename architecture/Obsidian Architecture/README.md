@@ -47,17 +47,17 @@ Core application pages accessible after login.
 | Page | Route | Status | Description |
 |:---|:---|:---:|:---|
 | [[Dashboard Home]] | `/dashboard` | 🟢 | Main cockpit view |
-| [[Map View]] | `/dashboard/map` | 🟡 | Real-time technician map |
-| [[Calendar Page]] | `/dashboard/calendar` | 🟡 | Job scheduling |
+| [[Map View]] | `/dashboard/map` | � | Real-time technician map |
+| [[Calendar Page]] | `/dashboard/calendar` | � | Job scheduling |
 | [[Jobs Page]] | `/dashboard/jobs` | 🟢 | Work order management |
 | [[Customers Page]] | `/dashboard/customers` | 🟢 | Client management |
 | [[Team Page]] | `/dashboard/team` | 🟢 | Technician management |
-| [[Fleet Page]] | `/dashboard/fleet` | 🟡 | Vehicle management |
+| [[Fleet Page]] | `/dashboard/fleet` | � | Vehicle management |
 | [[Inventory Page]] | `/dashboard/inventory` | 🟢 | Parts & materials |
 | [[Invoices Page]] | `/dashboard/invoices` | 🟢 | Billing & AFIP |
 | [[Payments Page]] | `/dashboard/payments` | 🟢 | Payment tracking |
-| [[Analytics Page]] | `/dashboard/analytics` | 🟡 | Business intelligence |
-| [[Locations Page]] | `/dashboard/locations` | 🟡 | Service zones |
+| [[Analytics Page]] | `/dashboard/analytics` | � | Business intelligence |
+| [[Locations Page]] | `/dashboard/locations` | � | Service zones |
 | [[WhatsApp Page]] | `/dashboard/whatsapp` | 🟢 | AI messaging |
 
 ### Secondary Pages
@@ -68,6 +68,8 @@ Core application pages accessible after login.
 | [[Profile Page]] | `/dashboard/profile` | 🟢 | Personal settings |
 | [[New Job Page]] | `/dashboard/jobs/new` | 🟢 | Create work order |
 | [[Verification Flow]] | `/dashboard/verificacion` | 🟡 | Identity verification |
+| [[Client Data Folder]] | `/dashboard/customers/[id]/folder` | 🟢 | Customer data export & ARCO |
+| [[Job Completion Report]] | (Feature) | 🟢 | PDF job documentation |
 
 ### 🛡️ Platform Admin (Restricted)
 
@@ -76,6 +78,7 @@ Core application pages accessible after login.
 | Page | Route | Status | Description |
 |:---|:---|:---:|:---|
 | [[Growth Engine]] | `/dashboard/admin/growth-engine` | 🟢 | Professional acquisition system |
+| [[Support Queue]] | `/dashboard/admin/support-queue` | 🟢 | Public visitor escalations |
 
 ---
 
@@ -93,6 +96,20 @@ Multi-step processes and journeys.
 | [[Trial Lifecycle]] | 🟡 | Trial period management |
 | [[App Onboarding]] | 🟡 | Feature education |
 | [[Profile Claim Flow]] | 🟢 | Professional claims scraped profile |
+
+---
+
+## 🏗️ Feature Architectures
+
+Complex features with detailed implementation documentation.
+
+| Feature | Location | Status | Description |
+|:---|:---|:---:|:---|
+| [[Client Data Folder]] | `02_App/CRM/` | 🟢 | Customer data consolidation & ARCO compliance |
+| [[Job Completion Report]] | `02_App/Operations/` | 🟢 | PDF job documentation with snapshots |
+| [[Multi-Trade Pricing]] | `02_App/Admin/` | 🟡 | Universal pricing for all trades |
+| [[Support Queue]] | `02_App/Communication/` | 🟢 | AI-to-human escalation system |
+| [[WhatsApp AI Translation]] | `02_App/Communication/` | 🟢 | Multi-language AI capabilities |
 
 ---
 

@@ -112,6 +112,7 @@ const STATE_CHANGING_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
 const CSRF_BYPASS_PATHS = [
   '/api/webhooks/',
   '/api/cron/',
+  '/api/dev/',        // Development endpoints (CLI testing)
 ];
 
 /**
@@ -135,7 +136,9 @@ function getAllowedOrigins(): string[] {
   if (process.env.NODE_ENV === 'development') {
     origins.push('http://localhost:3000');
     origins.push('http://localhost:3001');
+    origins.push('http://localhost:8081');  // Expo web preview
     origins.push('http://127.0.0.1:3000');
+    origins.push('http://127.0.0.1:8081');  // Expo web preview (127.0.0.1)
   }
 
   return origins;
@@ -394,6 +397,25 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
     return NextResponse.next();
   }
 
+  // Handle CORS preflight requests (OPTIONS) for API routes in development
+  if (request.method === 'OPTIONS' && pathname.startsWith('/api/')) {
+    const origin = request.headers.get('origin');
+    const allowedOrigins = getAllowedOrigins();
+
+    if (origin && allowedOrigins.includes(origin)) {
+      return new NextResponse(null, {
+        status: 204,
+        headers: {
+          'Access-Control-Allow-Origin': origin,
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+          'Access-Control-Allow-Credentials': 'true',
+          'Access-Control-Max-Age': '86400',
+        },
+      });
+    }
+  }
+
   // CSRF Protection - validate Origin for state-changing requests
   const csrfResult = validateCsrf(request);
   if (!csrfResult.valid) {
@@ -488,6 +510,16 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  // Add CORS headers for API routes in development (for Expo web preview)
+  if (pathname.startsWith('/api/')) {
+    const origin = request.headers.get('origin');
+    const allowedOrigins = getAllowedOrigins();
+    if (origin && allowedOrigins.includes(origin)) {
+      response.headers.set('Access-Control-Allow-Origin', origin);
+      response.headers.set('Access-Control-Allow-Credentials', 'true');
+    }
+  }
 
   // Add API version header for API routes (Phase 6.3)
   if (shouldAddVersionHeader(pathname)) {

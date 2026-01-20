@@ -8,10 +8,12 @@
  * Supported sources:
  * - 'afip': CUIT/CUIL validation via AFIP
  * - 'sms': Phone verification via SMS code
+ * - 'registry': Matrícula verification against scraped public registries
  * - null: Manual review required
  */
 
 import { afipClient, validateCUITFormat } from '@/lib/afip/client';
+import { prisma } from '@/lib/prisma';
 import type { VerificationSubmissionStatus } from '@/lib/types';
 
 // Local interface definitions matching Prisma models
@@ -118,6 +120,9 @@ class AutoVerifierClass {
           needsReview: false,
           reason: 'Esperando confirmación de email',
         };
+
+      case 'registry':
+        return this.verifyAgainstRegistry(submission);
 
       default:
         console.warn(`[AutoVerifier] Unknown auto_verify_source: ${autoVerifySource}`);
@@ -455,6 +460,173 @@ class AutoVerifierClass {
       needsReview: true,
       reason: 'No se pudo verificar el domicilio fiscal',
     };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // REGISTRY VERIFICATION (Matrículas)
+  // ─────────────────────────────────────────────────────────────────────────────
+
+  /**
+   * Map requirement codes to specialties for registry lookup
+   */
+  private getSpecialtyFromRequirementCode(code: string): string {
+    const map: Record<string, string> = {
+      gas_matricula: 'GASISTA',
+      electrician_matricula: 'ELECTRICISTA',
+      plumber_matricula: 'PLOMERO',
+      refrigeration_license: 'REFRIGERACION',
+    };
+    return map[code] || 'UNKNOWN';
+  }
+
+  /**
+   * Get registry URL for display/verification
+   */
+  private getRegistryUrl(source: string): string {
+    const urls: Record<string, string> = {
+      GASNOR: 'https://www.gasnor.com/matriculados',
+      GASNEA: 'https://www.gasnea.com/matriculados',
+      ERSEP: 'https://ersep.cba.gov.ar/instaladores',
+      CACAAV: 'https://www.cacaav.com.ar/registro',
+    };
+    return urls[source] || '#';
+  }
+
+  /**
+   * Verify matrícula against scraped registry data
+   * Auto-approves if found in registry, otherwise requires manual review
+   */
+  private async verifyAgainstRegistry(
+    submission: VerificationSubmission & { requirement: VerificationRequirement }
+  ): Promise<AutoVerifyResult> {
+    const { requirement, submittedValue } = submission;
+
+    if (!submittedValue) {
+      return {
+        success: true,
+        shouldApprove: false,
+        needsReview: true,
+        reason: 'No se proporcionó número de matrícula',
+      };
+    }
+
+    // Normalize matricula (remove spaces, uppercase)
+    const normalizedMatricula = submittedValue.trim().toUpperCase();
+    const specialty = this.getSpecialtyFromRequirementCode(requirement.code);
+
+    console.log('[AutoVerifier] Registry lookup:', {
+      matricula: normalizedMatricula,
+      specialty,
+      requirementCode: requirement.code,
+    });
+
+    try {
+      // Search for exact match in verification registry
+      const exactMatch = await prisma.verificationRegistry.findFirst({
+        where: {
+          matricula: {
+            equals: normalizedMatricula,
+            mode: 'insensitive',
+          },
+          status: 'active',
+        },
+      });
+
+      if (exactMatch) {
+        // Found in registry - auto-approve!
+        console.log('[AutoVerifier] Registry match found:', {
+          matricula: exactMatch.matricula,
+          source: exactMatch.source,
+          specialty: exactMatch.specialty,
+          fullName: exactMatch.fullName,
+        });
+
+        return {
+          success: true,
+          shouldApprove: true,
+          needsReview: false,
+          reason: `Matrícula verificada en registro ${exactMatch.source}`,
+          verificationData: {
+            verificationMethod: 'registry',
+            source: exactMatch.source,
+            sourceUrl: this.getRegistryUrl(exactMatch.source),
+            matricula: exactMatch.matricula,
+            registryName: exactMatch.fullName,
+            registryProvince: exactMatch.province,
+            registrySpecialty: exactMatch.specialty,
+            verifiedAt: new Date().toISOString(),
+            lastScraped: exactMatch.scrapedAt?.toISOString(),
+          },
+        };
+      }
+
+      // Also check with specialty filter if exact match not found
+      const specialtyMatch = await prisma.verificationRegistry.findFirst({
+        where: {
+          matricula: {
+            equals: normalizedMatricula,
+            mode: 'insensitive',
+          },
+          specialty: specialty,
+          status: 'active',
+        },
+      });
+
+      if (specialtyMatch) {
+        console.log('[AutoVerifier] Specialty-specific registry match found:', {
+          matricula: specialtyMatch.matricula,
+          source: specialtyMatch.source,
+        });
+
+        return {
+          success: true,
+          shouldApprove: true,
+          needsReview: false,
+          reason: `Matrícula de ${specialty} verificada en ${specialtyMatch.source}`,
+          verificationData: {
+            verificationMethod: 'registry',
+            source: specialtyMatch.source,
+            sourceUrl: this.getRegistryUrl(specialtyMatch.source),
+            matricula: specialtyMatch.matricula,
+            registryName: specialtyMatch.fullName,
+            registryProvince: specialtyMatch.province,
+            registrySpecialty: specialtyMatch.specialty,
+            verifiedAt: new Date().toISOString(),
+            lastScraped: specialtyMatch.scrapedAt?.toISOString(),
+          },
+        };
+      }
+
+      // Not found in registry - send to manual review queue
+      console.log('[AutoVerifier] Matrícula not found in registry:', {
+        matricula: normalizedMatricula,
+        specialty,
+      });
+
+      return {
+        success: true,
+        shouldApprove: false,
+        needsReview: true,
+        reason: 'Matrícula no encontrada en registros públicos - requiere revisión manual',
+        verificationData: {
+          verificationMethod: 'registry',
+          searchedMatricula: normalizedMatricula,
+          searchedSpecialty: specialty,
+          searchedAt: new Date().toISOString(),
+          result: 'not_found',
+        },
+      };
+    } catch (error) {
+      console.error('[AutoVerifier] Registry lookup error:', error);
+
+      return {
+        success: false,
+        shouldApprove: false,
+        needsReview: true,
+        reason: 'Error al consultar registros - requiere revisión manual',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
   }
 
   // ─────────────────────────────────────────────────────────────────────────────

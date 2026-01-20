@@ -31,7 +31,7 @@ import {
 } from 'lucide-react-native';
 
 import { api } from '../../../lib/api/client';
-import { useOfflineData } from '../../../lib/hooks/use-offline-data';
+import { useIsOnline } from '../../../lib/hooks/use-offline';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -56,7 +56,7 @@ interface Customer {
 export default function CustomersScreen() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
-  const { isOnline } = useOfflineData();
+  const isOnline = useIsOnline();
 
   // Fetch customers
   const {

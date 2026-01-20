@@ -37,6 +37,9 @@ interface RecommendationRequest {
   useAI?: boolean; // Enable GPT-4o-mini powered recommendations
   customerName?: string;
   address?: string;
+  // Specialty filtering (optional convenience feature)
+  filterBySpecialty?: string; // e.g., 'PLOMERO', 'ELECTRICISTA', 'GASISTA', 'REFRIGERACION'
+  strictSpecialtyFilter?: boolean; // If true, exclude technicians without matching specialty
 }
 
 interface TechnicianRecommendation {
@@ -232,9 +235,16 @@ function generateReasons(
   skillScore: number,
   performanceScore: number,
   status: string,
-  distanceKm: number
+  distanceKm: number,
+  hasRequiredSpecialty?: boolean,
+  filterBySpecialty?: string | null
 ): string[] {
   const reasons: string[] = [];
+
+  // Specialty match (show first if filtering by specialty)
+  if (filterBySpecialty && hasRequiredSpecialty) {
+    reasons.push(`Especialidad: ${filterBySpecialty}`);
+  }
 
   if (proximityScore >= 80) {
     reasons.push(`Muy cerca del trabajo (${distanceKm.toFixed(1)} km)`);
@@ -252,7 +262,7 @@ function generateReasons(
     reasons.push('Carga de trabajo liviana');
   }
 
-  if (skillScore >= 70) {
+  if (skillScore >= 70 && !filterBySpecialty) {
     reasons.push('Especialidad adecuada');
   }
 
@@ -328,6 +338,8 @@ export async function POST(request: NextRequest) {
       useAI = false,
       customerName,
       address,
+      filterBySpecialty,
+      strictSpecialtyFilter = false,
     } = body;
 
     if (!jobLocation?.lat || !jobLocation?.lng) {
@@ -421,6 +433,25 @@ export async function POST(request: NextRequest) {
       // Skip if too far
       if (distanceKm > MAX_DISTANCE_KM) continue;
 
+      // ═══════════════════════════════════════════════════════════════════════════════
+      // SPECIALTY FILTERING (Optional convenience feature)
+      // ═══════════════════════════════════════════════════════════════════════════════
+      // Check if technician has the required specialty
+      // Uses both legacy `specialty` field and new `specialties[]` array
+      const techSpecialties = [
+        ...(tech.specialties || []),
+        ...(tech.specialty ? [tech.specialty] : []),
+      ].map((s: string) => s.toUpperCase());
+
+      const hasRequiredSpecialty = filterBySpecialty
+        ? techSpecialties.includes(filterBySpecialty.toUpperCase())
+        : true;
+
+      // If strict filtering, skip technicians without the specialty
+      if (strictSpecialtyFilter && filterBySpecialty && !hasRequiredSpecialty) {
+        continue;
+      }
+
       // Determine current status
       const currentJob = tech.assignedJobs.find(
         (j: { status: string }) => j.status === 'IN_PROGRESS' || j.status === 'EN_ROUTE'
@@ -452,6 +483,10 @@ export async function POST(request: NextRequest) {
         serviceType || null,
         requiredSkillLevel || null
       );
+
+      // Bonus for matching specialty filter (if provided)
+      const specialtyBonus = filterBySpecialty && hasRequiredSpecialty ? 15 : 0;
+
       const monthlyData = statsMap.get(tech.id);
       const avgRating = ratingsMap.get(tech.id) ?? null;
       const performanceScore = calculatePerformanceScore(
@@ -461,12 +496,14 @@ export async function POST(request: NextRequest) {
       );
 
       // Calculate weighted total score
-      const totalScore =
+      const totalScore = Math.min(100,
         proximityScore * SCORING_WEIGHTS.proximity +
         availabilityScore * SCORING_WEIGHTS.availability +
         workloadScore * SCORING_WEIGHTS.workload +
         skillScore * SCORING_WEIGHTS.skillMatch +
-        performanceScore * SCORING_WEIGHTS.performance;
+        performanceScore * SCORING_WEIGHTS.performance +
+        specialtyBonus // Extra boost for matching specialty
+      );
 
       const etaMinutes = estimateETA(distanceKm);
 
@@ -489,7 +526,9 @@ export async function POST(request: NextRequest) {
           skillScore,
           performanceScore,
           status,
-          distanceKm
+          distanceKm,
+          hasRequiredSpecialty,
+          filterBySpecialty
         ),
         warnings: generateWarnings(status, distanceKm, remainingJobs, hasLocation),
         currentLocation:

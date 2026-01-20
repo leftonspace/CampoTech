@@ -21,7 +21,7 @@ class MockObservable<T> {
 
   subscribe(callback: (value: T) => void) {
     callback(this.value);
-    return { unsubscribe: () => {} };
+    return { unsubscribe: () => { } };
   }
 
   pipe(...args: unknown[]) {
@@ -47,9 +47,9 @@ class WebQuery<T> {
   take(n: number): WebQuery<T> { return this; }
   skip(n: number): WebQuery<T> { return this; }
 
-  // Data fetching methods
+  // Data fetching methods - return wrapped records with Model methods
   async fetch(): Promise<T[]> {
-    return this.collection.getData();
+    return this.collection.getWrappedData();
   }
 
   async fetchCount(): Promise<number> {
@@ -60,9 +60,9 @@ class WebQuery<T> {
     return this.collection.getData().map((item: any) => item.id || '');
   }
 
-  // Observable methods
+  // Observable methods - return wrapped records
   observe(): MockObservable<T[]> {
-    return new MockObservable(this.collection.getData());
+    return new MockObservable(this.collection.getWrappedData());
   }
 
   observeCount(): MockObservable<number> {
@@ -104,16 +104,63 @@ class WebCollection<T = Record<string, unknown>> {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(this.getStorageKey(), JSON.stringify(data));
       }
-    } catch {}
+    } catch { }
   }
 
   query(...args: unknown[]): WebQuery<T> {
     return new WebQuery<T>(this);
   }
 
+  // Wrap a plain object with Model-like methods
+  wrapRecord(record: any): T {
+    const collection = this;
+    return {
+      ...record,
+      // Model methods that work with localStorage
+      async destroyPermanently() {
+        const data = collection.getData();
+        const filtered = data.filter((item: any) => item.id !== record.id);
+        collection.setData(filtered);
+      },
+      async markAsDeleted() {
+        const data = collection.getData();
+        const updated = data.map((item: any) =>
+          item.id === record.id ? { ...item, _status: 'deleted' } : item
+        );
+        collection.setData(updated);
+      },
+      async update(writer: (r: any) => void) {
+        const data = collection.getData();
+        const target = data.find((item: any) => item.id === record.id);
+        if (target) {
+          writer(target);
+          collection.setData(data);
+        }
+      },
+      observe() {
+        return new MockObservable(record);
+      },
+      prepareUpdate(writer: (r: any) => void) {
+        return record;
+      },
+      prepareMarkAsDeleted() {
+        return record;
+      },
+      prepareDestroyPermanently() {
+        return record;
+      },
+    } as T;
+  }
+
+  // Get wrapped data (for queries)
+  getWrappedData(): T[] {
+    return this.getData().map((record: any) => this.wrapRecord(record));
+  }
+
   async find(id: string): Promise<T | null> {
     const data = this.getData();
-    return data.find((item: any) => item.id === id) || null;
+    const record = data.find((item: any) => item.id === id);
+    return record ? this.wrapRecord(record) : null;
   }
 
   async create(writer: (record: any) => void): Promise<T> {
@@ -124,9 +171,9 @@ class WebCollection<T = Record<string, unknown>> {
     };
     writer(record);
     const data = this.getData();
-    data.push(record as T);
+    data.push(record);
     this.setData(data);
-    return record as T;
+    return this.wrapRecord(record);
   }
 
   prepareCreate(writer: (record: any) => void): T {
@@ -136,7 +183,7 @@ class WebCollection<T = Record<string, unknown>> {
       _changed: '',
     };
     writer(record);
-    return record as T;
+    return this.wrapRecord(record);
   }
 }
 
@@ -145,11 +192,11 @@ class WebCollection<T = Record<string, unknown>> {
 // ============================================================================
 
 class WebDatabase {
-  private _collections = new Map<string, WebCollection>();
+  private _collections = new Map<string, WebCollection<any>>();
 
   get<T>(tableName: string): WebCollection<T> {
     if (!this._collections.has(tableName)) {
-      this._collections.set(tableName, new WebCollection<T>(tableName));
+      this._collections.set(tableName, new WebCollection<T>(tableName) as WebCollection<any>);
     }
     return this._collections.get(tableName) as WebCollection<T>;
   }
@@ -162,7 +209,7 @@ class WebDatabase {
     return callback();
   }
 
-  async batch(...records: unknown[]): Promise<void> {}
+  async batch(...records: unknown[]): Promise<void> { }
 
   get collections() {
     return {
@@ -228,9 +275,9 @@ export class Model {
   static table: string = '';
   static associations: Record<string, unknown> = {};
 
-  async update(writer: (record: any) => void): Promise<void> {}
-  async markAsDeleted(): Promise<void> {}
-  async destroyPermanently(): Promise<void> {}
+  async update(writer: (record: any) => void): Promise<void> { }
+  async markAsDeleted(): Promise<void> { }
+  async destroyPermanently(): Promise<void> { }
   observe() { return new MockObservable(this); }
   prepareUpdate(writer: (record: any) => void) { return this; }
   prepareMarkAsDeleted() { return this; }
@@ -241,19 +288,19 @@ export class Model {
 // Mock decorators (no-op on web)
 // ============================================================================
 
-export const field = (columnName: string) => (target: any, key: string) => {};
-export const text = (columnName: string) => (target: any, key: string) => {};
-export const json = (columnName: string, sanitizer?: any) => (target: any, key: string) => {};
-export const date = (columnName: string) => (target: any, key: string) => {};
+export const field = (columnName: string) => (target: any, key: string) => { };
+export const text = (columnName: string) => (target: any, key: string) => { };
+export const json = (columnName: string, sanitizer?: any) => (target: any, key: string) => { };
+export const date = (columnName: string) => (target: any, key: string) => { };
 export const readonly = (target: any, key: string, descriptor?: any) => descriptor || {};
-export const relation = (table: string, columnName: string) => (target: any, key: string) => {};
-export const immutableRelation = (table: string, columnName: string) => (target: any, key: string) => {};
-export const children = (table: string) => (target: any, key: string) => {};
+export const relation = (table: string, columnName: string) => (target: any, key: string) => { };
+export const immutableRelation = (table: string, columnName: string) => (target: any, key: string) => { };
+export const children = (table: string) => (target: any, key: string) => { };
 export const lazy = (target: any, key: string, descriptor?: any) => descriptor || {};
 export const action = (target: any, key: string, descriptor?: any) => descriptor || {};
 export const writer = (target: any, key: string, descriptor?: any) => descriptor || {};
 export const reader = (target: any, key: string, descriptor?: any) => descriptor || {};
-export const nochange = (target: any, key: string) => {};
+export const nochange = (target: any, key: string) => { };
 
 // ============================================================================
 // Mock schema helpers
@@ -267,7 +314,7 @@ export const columnName = (name: string) => name;
 // Mock Database class export (for class extension)
 // ============================================================================
 
-export class Database extends WebDatabase {}
+export class Database extends WebDatabase { }
 
 // ============================================================================
 // Mock DatabaseProvider component

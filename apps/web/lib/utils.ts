@@ -283,7 +283,8 @@ export function formatPhone(phone: string): string {
 /**
  * Get initials from name
  */
-export function getInitials(name: string): string {
+export function getInitials(name: string | undefined | null): string {
+  if (!name) return '??';
   return name
     .split(' ')
     .map((n) => n[0])
@@ -433,10 +434,12 @@ export const IVA_CONDITION_LABELS: Record<string, string> = {
  */
 export const USER_ROLE_LABELS: Record<string, string> = {
   // Database enum values (uppercase)
+  SUPER_ADMIN: 'Super Admin',
   OWNER: 'Propietario',
   DISPATCHER: 'Administrador',
   TECHNICIAN: 'Técnico',
   // Lowercase keys for backwards compatibility
+  super_admin: 'Super Admin',
   owner: 'Propietario',
   dispatcher: 'Administrador',
   technician: 'Técnico',

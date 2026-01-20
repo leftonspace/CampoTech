@@ -296,7 +296,7 @@ const verificationRequirements: VerificationRequirementSeed[] = [
     isRequired: false,
     requiresDocument: true,
     requiresExpiration: true,
-    autoVerifySource: null,
+    autoVerifySource: 'registry',  // Auto-verify against scraped registry data
     renewalPeriodDays: 365,
     reminderDaysBefore: [30, 14, 7, 1],
     gracePeriodDays: 30,
@@ -314,7 +314,7 @@ const verificationRequirements: VerificationRequirementSeed[] = [
     isRequired: false,
     requiresDocument: true,
     requiresExpiration: true,
-    autoVerifySource: null,
+    autoVerifySource: 'registry',  // Auto-verify against scraped registry data
     renewalPeriodDays: 365,
     reminderDaysBefore: [30, 14, 7, 1],
     gracePeriodDays: 30,
@@ -332,7 +332,7 @@ const verificationRequirements: VerificationRequirementSeed[] = [
     isRequired: false,
     requiresDocument: true,
     requiresExpiration: true,
-    autoVerifySource: null,
+    autoVerifySource: 'registry',  // Auto-verify against scraped registry data
     renewalPeriodDays: 365,
     reminderDaysBefore: [30, 14, 7, 1],
     gracePeriodDays: 30,

@@ -3,41 +3,42 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")  // Required for Supabase - pooler doesn't support migrations
 }
 
 model Organization {
-  id                         String                      @id @default(cuid())
+  id                         String                       @id @default(cuid())
   name                       String
   phone                      String?
   email                      String?
   logo                       String?
-  settings                   Json                        @default("{}")
-  createdAt                  DateTime                    @default(now())
-  updatedAt                  DateTime                    @updatedAt
+  settings                   Json                         @default("{}")
+  createdAt                  DateTime                     @default(now())
+  updatedAt                  DateTime                     @updatedAt
   whatsappAccessToken        String?
   whatsappAppSecret          String?
   whatsappBusinessAccountId  String?
   whatsappPhoneNumberId      String?
   whatsappWebhookVerifyToken String?
-  subscriptionTier           SubscriptionTier            @default(FREE) @map("subscription_tier")
-  subscriptionStatus         SubscriptionStatus          @default(none) @map("subscription_status")
-  trialEndsAt                DateTime?                   @map("trial_ends_at")
-  marketplaceVisible         Boolean                     @default(false) @map("marketplace_visible")
-  verificationCompletedAt    DateTime?                   @map("verification_completed_at")
-  canReceiveJobs             Boolean                     @default(false) @map("can_receive_jobs")
-  complianceScore            Int                         @default(0) @map("compliance_score")
-  lastComplianceCheck        DateTime?                   @map("last_compliance_check")
+  subscriptionTier           SubscriptionTier             @default(FREE) @map("subscription_tier")
+  subscriptionStatus         SubscriptionStatus           @default(none) @map("subscription_status")
+  trialEndsAt                DateTime?                    @map("trial_ends_at")
+  marketplaceVisible         Boolean                      @default(false) @map("marketplace_visible")
+  verificationCompletedAt    DateTime?                    @map("verification_completed_at")
+  canReceiveJobs             Boolean                      @default(false) @map("can_receive_jobs")
+  complianceScore            Int                          @default(0) @map("compliance_score")
+  lastComplianceCheck        DateTime?                    @map("last_compliance_check")
   whatsappPersonalNumber     String?
-  whatsappIntegrationType    WhatsAppIntegrationType     @default(NONE)
-  verificationStatus         OrgVerificationStatus       @default(pending) @map("verification_status")
-  afipCertificateEncrypted   String?                     @map("afip_certificate_encrypted")
-  afipConnectedAt            DateTime?                   @map("afip_connected_at")
-  afipCuit                   String?                     @map("afip_cuit")
-  afipEnvironment            String?                     @map("afip_environment")
-  afipPrivateKeyEncrypted    String?                     @map("afip_private_key_encrypted")
-  afipPuntoVenta             String?                     @map("afip_punto_venta")
+  whatsappIntegrationType    WhatsAppIntegrationType      @default(NONE)
+  verificationStatus         OrgVerificationStatus        @default(pending) @map("verification_status")
+  afipCertificateEncrypted   String?                      @map("afip_certificate_encrypted")
+  afipConnectedAt            DateTime?                    @map("afip_connected_at")
+  afipCuit                   String?                      @map("afip_cuit")
+  afipEnvironment            String?                      @map("afip_environment")
+  afipPrivateKeyEncrypted    String?                      @map("afip_private_key_encrypted")
+  afipPuntoVenta             String?                      @map("afip_punto_venta")
   aiConfiguration            AIConfiguration?
   aiConversationLogs         AIConversationLog[]
   auditLogs                  AuditLog[]
@@ -47,28 +48,28 @@ model Organization {
   complianceBlocks           ComplianceBlock[]
   couponUsages               CouponUsage[]
   customers                  Customer[]
-  dashboardAlerts            DashboardAlert[]            @relation("OrgDashboardAlerts")
+  dashboardAlerts            DashboardAlert[]             @relation("OrgDashboardAlerts")
   employeeSchedules          EmployeeSchedule[]
   employeeVerificationTokens EmployeeVerificationToken[]
   events                     Event[]
-  failedJobs                 FailedJob[]                 @relation("FailedJobOrg")
+  failedJobs                 FailedJob[]                  @relation("FailedJobOrg")
   fallbackPayments           FallbackPayment[]
-  idempotencyKeys            IdempotencyKey[]            @relation("IdempotencyOrg")
+  idempotencyKeys            IdempotencyKey[]             @relation("IdempotencyOrg")
   inventoryCounts            InventoryCount[]
-  inventoryItems             InventoryItem[]             @relation("OrgInventoryItems")
-  inventoryLocations         InventoryLocation[]         @relation("OrgInventoryLocations")
-  inventoryTransactions      InventoryTransaction[]      @relation("OrgInventoryTransactions")
+  inventoryItems             InventoryItem[]              @relation("OrgInventoryItems")
+  inventoryLocations         InventoryLocation[]          @relation("OrgInventoryLocations")
+  inventoryTransactions      InventoryTransaction[]       @relation("OrgInventoryTransactions")
   invoices                   Invoice[]
   jobs                       Job[]
   locations                  Location[]
-  marketplaceClicks          MarketplaceClick[]          @relation("OrgMarketplaceClicks")
+  marketplaceClicks          MarketplaceClick[]           @relation("OrgMarketplaceClicks")
   notificationLogs           NotificationLogs[]
   notificationPreferences    NotificationPreferences[]
   onboardingProgress         OnboardingProgress[]
   subscription               OrganizationSubscription?
   panicModes                 PanicMode[]
   payments                   Payment[]
-  priceItems                 PriceItem[]                 @relation("OrgPriceItems")
+  priceItems                 PriceItem[]                  @relation("OrgPriceItems")
   productCategories          ProductCategory[]
   products                   Product[]
   purchaseOrders             PurchaseOrder[]
@@ -84,11 +85,11 @@ model Organization {
   suppliers                  Supplier[]
   supportTickets             SupportTicket[]
   technicianRoutes           TechnicianRoute[]
-  trackingSessions           TrackingSession[]           @relation("OrgTrackingSessions")
+  trackingSessions           TrackingSession[]            @relation("OrgTrackingSessions")
   users                      User[]
-  userMemberships            UserOrganization[]          @relation("OrgMemberships")
-  vehicleSchedules           VehicleSchedule[]           @relation("OrgVehicleSchedules")
-  vehicles                   Vehicle[]                   @relation("OrgVehicles")
+  userMemberships            UserOrganization[]           @relation("OrgMemberships")
+  vehicleSchedules           VehicleSchedule[]            @relation("OrgVehicleSchedules")
+  vehicles                   Vehicle[]                    @relation("OrgVehicles")
   verificationSubmissions    VerificationSubmission[]
   waConversations            WaConversation[]
   waMessages                 WaMessage[]
@@ -97,22 +98,24 @@ model Organization {
   waWebhookLogs              WaWebhookLog[]
   warehouses                 Warehouse[]
   whatsappBusinessAccount    WhatsAppBusinessAccount?
-  assignedWhatsAppNumber     WhatsAppNumberInventory?    @relation("OrgAssignedNumber")
+  assignedWhatsAppNumber     WhatsAppNumberInventory?     @relation("OrgAssignedNumber")
   whatsappCredits            WhatsAppCredits?
   pricingSettings            OrganizationPricingSettings?
+  laborRates                 OrganizationLaborRate[]
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // PHASE 5: TRANSLATION SETTINGS
   // Organization-level language preferences for AI translation
   // ═══════════════════════════════════════════════════════════════════════════════
-  translationEnabled    Boolean   @default(false) @map("translation_enabled")
-  languagesSpoken       String[]  @default(["es"]) @map("languages_spoken")  // Languages the team speaks
+  translationEnabled Boolean  @default(false) @map("translation_enabled")
+  languagesSpoken    String[] @default(["es"]) @map("languages_spoken") // Languages the team speaks
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // PHASE 3.4 & 4: EXPORT AND DATA ACCESS REQUESTS
   // ═══════════════════════════════════════════════════════════════════════════════
   exportRequests        ExportRequest[]
   dataAccessRequests    DataAccessRequest[]
+  priceAdjustmentEvents PriceAdjustmentEvent[] @relation("OrgPriceAdjustments")
 
   @@index([subscriptionStatus])
   @@index([subscriptionTier])
@@ -134,6 +137,17 @@ model User {
   // Legacy single specialty (for backwards compatibility)
   specialty               String?
   skillLevel              String?
+  
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // UOCRA WAGE RATES (Phase 6.2 - Technician Hourly Wages)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  
+  // UOCRA skill level determines base hourly rate from OrganizationPricingSettings
+  uocraLevel              UocraLevel             @default(NONE) @map("uocra_level")
+  
+  // Custom hourly rate override (null = use org UOCRA base rate)
+  // If set, this takes precedence over the UOCRA level rate
+  hourlyRateOverride      Decimal?               @map("hourly_rate_override") @db.Decimal(12, 2)
   // New multi-specialty support
   specialties             String[]               @default([])
   certifications          Json?                  @map("certifications") // { "GASISTA": { "matricula": "MG-1234", "category": "1RA" }, ... }
@@ -151,9 +165,9 @@ model User {
   // ═══════════════════════════════════════════════════════════════════════════════
   // SCHEDULE TYPE & ON-CALL SETTINGS
   // ═══════════════════════════════════════════════════════════════════════════════
-  
-  scheduleType         String  @default("base") @map("schedule_type") // 'base', 'rotating', 'ondemand', 'custom'
-  advanceNoticeHours   Int     @default(0) @map("advance_notice_hours") // Hours of advance notice required for on-call employees
+
+  scheduleType       String @default("base") @map("schedule_type") // 'base', 'rotating', 'ondemand', 'custom'
+  advanceNoticeHours Int    @default(0) @map("advance_notice_hours") // Hours of advance notice required for on-call employees
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // PHASE 4.3: DIGITAL ENTRY BADGE
@@ -224,10 +238,14 @@ model User {
   organizationMemberships    UserOrganization[]          @relation("UserMemberships")
   jobVisitDriverAssignments  JobVisitVehicleDriver[]     @relation("DriverVisitAssignments")
   createdLineItems           JobLineItem[]               @relation("LineItemCreator")
-  
+
   // Phase 3.4 & 4
-  exportRequests             ExportRequest[]             @relation("ExportRequestedBy")
-  assignedDataRequests       DataAccessRequest[]         @relation("DataRequestAssignee")
+  exportRequests       ExportRequest[]     @relation("ExportRequestedBy")
+  assignedDataRequests DataAccessRequest[] @relation("DataRequestAssignee")
+
+  // Dynamic Pricing (Phase 1)
+  priceChangesMade        PriceItemHistory[]     @relation("PriceChangesMade")
+  priceAdjustmentsApplied PriceAdjustmentEvent[] @relation("PriceAdjustmentsApplied")
 
   @@unique([email, organizationId])
   @@index([organizationId])
@@ -243,27 +261,27 @@ model User {
 }
 
 model Customer {
-  id              String           @id @default(cuid())
-  name            String
-  phone           String
-  email           String?
-  address         Json
-  notes           String?
-  organizationId  String
-  locationId      String?
-  zoneId          String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  customerNumber  String?
-  isVip           Boolean          @default(false)
-  location        Location?        @relation("CustomerLocation", fields: [locationId], references: [id])
-  organization    Organization     @relation(fields: [organizationId], references: [id])
-  zone            Zone?            @relation("CustomerZone", fields: [zoneId], references: [id])
-  invoices        Invoice[]
-  jobs            Job[]
-  reviews         Review[]
-  waConversations WaConversation[]
-  dataAccessRequests DataAccessRequest[]  // Phase 4 ARCO
+  id                 String              @id @default(cuid())
+  name               String
+  phone              String
+  email              String?
+  address            Json
+  notes              String?
+  organizationId     String
+  locationId         String?
+  zoneId             String?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  customerNumber     String?
+  isVip              Boolean             @default(false)
+  location           Location?           @relation("CustomerLocation", fields: [locationId], references: [id])
+  organization       Organization        @relation(fields: [organizationId], references: [id])
+  zone               Zone?               @relation("CustomerZone", fields: [zoneId], references: [id])
+  invoices           Invoice[]
+  jobs               Job[]
+  reviews            Review[]
+  waConversations    WaConversation[]
+  dataAccessRequests DataAccessRequest[] // Phase 4 ARCO
 
   @@index([phone])
   @@index([organizationId])
@@ -334,20 +352,27 @@ model Job {
   // MULTI-TRADE PRICING FIELDS (Phase 1.2)
   // Deposit (Seña) tracking, pricing totals, and lock mechanism for invoicing
   // ═══════════════════════════════════════════════════════════════════════════════
-  
+
   // Deposit/Advance Payment (Seña)
-  depositAmount          Decimal?   @db.Decimal(12, 2) @map("deposit_amount")
-  depositPaidAt          DateTime?  @map("deposit_paid_at")
-  depositPaymentMethod   String?    @map("deposit_payment_method")  // CASH, TRANSFER, CARD, MERCADOPAGO
-  
+  depositAmount        Decimal?  @map("deposit_amount") @db.Decimal(12, 2)
+  depositPaidAt        DateTime? @map("deposit_paid_at")
+  depositPaymentMethod String?   @map("deposit_payment_method") // CASH, TRANSFER, CARD, MERCADOPAGO
+
   // Pricing Totals
-  estimatedTotal         Decimal?   @db.Decimal(12, 2) @map("estimated_total")     // Quote total set by dispatcher
-  techProposedTotal      Decimal?   @db.Decimal(12, 2) @map("tech_proposed_total") // Technician's proposed total (may differ)
-  finalTotal             Decimal?   @db.Decimal(12, 2) @map("final_total")         // Approved final total for invoice
-  
+  estimatedTotal    Decimal? @map("estimated_total") @db.Decimal(12, 2) // Quote total set by dispatcher
+  techProposedTotal Decimal? @map("tech_proposed_total") @db.Decimal(12, 2) // Technician's proposed total (may differ)
+  finalTotal        Decimal? @map("final_total") @db.Decimal(12, 2) // Approved final total for invoice
+
   // Pricing Lock (immutable after invoice generation - AFIP compliance)
-  pricingLockedAt        DateTime?  @map("pricing_locked_at")
-  pricingLockedById      String?    @map("pricing_locked_by_id")
+  pricingLockedAt   DateTime? @map("pricing_locked_at")
+  pricingLockedById String?   @map("pricing_locked_by_id")
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // PER-VISIT PRICING (Phase 1 - Jan 2026)
+  // Supports: FIXED_TOTAL (current), PER_VISIT (each visit priced), HYBRID (first visit + recurring rate)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  pricingMode      JobPricingMode @default(FIXED_TOTAL) @map("pricing_mode")
+  defaultVisitRate Decimal?       @map("default_visit_rate") @db.Decimal(12, 2) // Used for PER_VISIT and HYBRID modes
 
   invoice          Invoice?
   assignments      JobAssignment[]    @relation("JobAssignments")
@@ -388,6 +413,7 @@ model ServiceTypeConfig {
   code           String
   name           String
   description    String?
+  specialty      String? // PLOMERO, ELECTRICISTA, GASISTA, REFRIGERACION, etc. (null = any trade)
   color          String?
   icon           String?
   isActive       Boolean      @default(true)
@@ -399,6 +425,7 @@ model ServiceTypeConfig {
 
   @@unique([organizationId, code])
   @@index([organizationId])
+  @@index([specialty])
   @@map("service_type_configs")
 }
 
@@ -431,15 +458,41 @@ model JobVisit {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   visitConfigIndex  Int       @default(1)
-  job               Job       @relation("JobVisits", fields: [jobId], references: [id], onDelete: Cascade)
-  technician        User?     @relation("TechnicianVisits", fields: [technicianId], references: [id])
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // PER-VISIT PRICING (Phase 1 - Jan 2026)
+  // Only populated when parent Job.pricingMode != FIXED_TOTAL
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  // Estimated price for this specific visit (set by dispatcher)
+  estimatedPrice Decimal? @map("estimated_price") @db.Decimal(12, 2)
+
+  // Actual price (set by technician after completion, may differ from estimate)
+  actualPrice Decimal? @map("actual_price") @db.Decimal(12, 2)
+
+  // Technician's proposed price (pending approval if exceeds limits)
+  techProposedPrice Decimal? @map("tech_proposed_price") @db.Decimal(12, 2)
+
+  // Reason for price difference (required if actual != estimated)
+  priceVarianceReason String? @map("price_variance_reason")
+
+  // Does this visit include a deposit requirement?
+  requiresDeposit Boolean   @default(false) @map("requires_deposit")
+  depositAmount   Decimal?  @map("deposit_amount") @db.Decimal(12, 2)
+  depositPaidAt   DateTime? @map("deposit_paid_at")
+
+  // Relations
+  job                Job               @relation("JobVisits", fields: [jobId], references: [id], onDelete: Cascade)
+  technician         User?             @relation("TechnicianVisits", fields: [technicianId], references: [id])
   vehicleAssignments JobVisitVehicle[] @relation("VisitVehicleAssignments")
+  lineItems          JobLineItem[]     @relation("VisitLineItems")
 
   @@unique([jobId, visitNumber])
   @@index([jobId])
   @@index([scheduledDate])
   @@index([status])
   @@index([visitConfigIndex])
+  @@index([estimatedPrice])
   @@map("job_visits")
 }
 
@@ -451,20 +504,20 @@ model JobVisit {
 // Implements "Visit-Level Snapshotting" pattern for immutable audit records.
 
 model JobVisitVehicle {
-  id          String   @id @default(cuid())
-  jobVisitId  String
-  vehicleId   String
-  createdAt   DateTime @default(now())
-  
-  jobVisit    JobVisit @relation("VisitVehicleAssignments", fields: [jobVisitId], references: [id], onDelete: Cascade)
-  vehicle     Vehicle  @relation("VehicleVisitAssignments", fields: [vehicleId], references: [id])
-  drivers     JobVisitVehicleDriver[] @relation("VehicleDriverAssignments")
-  
+  id         String   @id @default(cuid())
+  jobVisitId String
+  vehicleId  String
+  createdAt  DateTime @default(now())
+
+  jobVisit JobVisit                @relation("VisitVehicleAssignments", fields: [jobVisitId], references: [id], onDelete: Cascade)
+  vehicle  Vehicle                 @relation("VehicleVisitAssignments", fields: [vehicleId], references: [id])
+  drivers  JobVisitVehicleDriver[] @relation("VehicleDriverAssignments")
+
   // Snapshot fields (populated at job completion - "Lock on Complete" pattern)
-  vehiclePlateSnapshot    String?  @map("vehicle_plate_snapshot")
-  vehicleMakeSnapshot     String?  @map("vehicle_make_snapshot")
-  vehicleModelSnapshot    String?  @map("vehicle_model_snapshot")
-  
+  vehiclePlateSnapshot String? @map("vehicle_plate_snapshot")
+  vehicleMakeSnapshot  String? @map("vehicle_make_snapshot")
+  vehicleModelSnapshot String? @map("vehicle_model_snapshot")
+
   @@unique([jobVisitId, vehicleId])
   @@index([jobVisitId])
   @@index([vehicleId])
@@ -472,18 +525,18 @@ model JobVisitVehicle {
 }
 
 model JobVisitVehicleDriver {
-  id                 String   @id @default(cuid())
-  jobVisitVehicleId  String
-  userId             String
-  createdAt          DateTime @default(now())
-  
-  jobVisitVehicle    JobVisitVehicle @relation("VehicleDriverAssignments", fields: [jobVisitVehicleId], references: [id], onDelete: Cascade)
-  user               User            @relation("DriverVisitAssignments", fields: [userId], references: [id])
-  
+  id                String   @id @default(cuid())
+  jobVisitVehicleId String
+  userId            String
+  createdAt         DateTime @default(now())
+
+  jobVisitVehicle JobVisitVehicle @relation("VehicleDriverAssignments", fields: [jobVisitVehicleId], references: [id], onDelete: Cascade)
+  user            User            @relation("DriverVisitAssignments", fields: [userId], references: [id])
+
   // Snapshot fields (populated at job completion - "Lock on Complete" pattern)
-  driverNameSnapshot     String?  @map("driver_name_snapshot")
-  driverLicenseSnapshot  String?  @map("driver_license_snapshot")
-  
+  driverNameSnapshot    String? @map("driver_name_snapshot")
+  driverLicenseSnapshot String? @map("driver_license_snapshot")
+
   @@unique([jobVisitVehicleId, userId])
   @@index([jobVisitVehicleId])
   @@index([userId])
@@ -2029,21 +2082,36 @@ model PriceItem {
   isActive       Boolean       @default(true)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-  
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // MULTI-TRADE PRICING FIELDS (Phase 1.3)
   // Specialty for trade filtering, pricing model for calculation method
   // ═══════════════════════════════════════════════════════════════════════════════
-  specialty      String?                   // PLOMERO, ELECTRICISTA, GASISTA, etc.
-  pricingModel   PricingModel?             // FIXED, HOURLY, PER_UNIT, PER_M2, PER_DAY, QUOTE
-  
-  organization   Organization  @relation("OrgPriceItems", fields: [organizationId], references: [id], onDelete: Cascade)
-  jobLineItems   JobLineItem[] @relation("PriceItemLineItems")
+  specialty    String? // PLOMERO, ELECTRICISTA, GASISTA, etc.
+  pricingModel PricingModel? // FIXED, HOURLY, PER_UNIT, PER_M2, PER_DAY, QUOTE
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // DYNAMIC PRICING FIELDS (Phase 1 - Multi-Currency & Inflation)
+  // Support USD pricing with automatic ARS conversion and inflation tracking
+  // ═══════════════════════════════════════════════════════════════════════════════
+  priceCurrency     String   @default("ARS") @map("price_currency") // ARS or USD
+  priceInUsd        Decimal? @map("price_in_usd") @db.Decimal(12, 2) // If set in USD
+  exchangeRateAtSet Decimal? @map("exchange_rate_at_set") @db.Decimal(12, 4) // Rate when USD price was set
+
+  // Inflation tracking
+  autoInflationAdjust Boolean   @default(true) @map("auto_inflation_adjust")
+  lastAdjustedAt      DateTime? @map("last_adjusted_at")
+  originalPrice       Decimal?  @map("original_price") @db.Decimal(12, 2) // Before any adjustments
+
+  organization Organization       @relation("OrgPriceItems", fields: [organizationId], references: [id], onDelete: Cascade)
+  jobLineItems JobLineItem[]      @relation("PriceItemLineItems")
+  priceHistory PriceItemHistory[] @relation("PriceItemHistory")
 
   @@index([organizationId])
   @@index([type])
   @@index([isActive])
   @@index([specialty])
+  @@index([priceCurrency])
   @@map("price_items")
 }
 
@@ -2054,37 +2122,45 @@ model PriceItem {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model JobLineItem {
-  id              String          @id @default(cuid())
-  jobId           String          @map("job_id")
-  priceItemId     String?         @map("price_item_id")  // Optional link to PriceItem for catalog items
-  
+  id          String  @id @default(cuid())
+  jobId       String  @map("job_id")
+  priceItemId String? @map("price_item_id") // Optional link to PriceItem for catalog items
+
   // Item Details
-  description     String
-  quantity        Decimal         @db.Decimal(10, 3)
-  unit            String          @default("unidad")     // hora, m², punto, unidad, etc.
-  unitPrice       Decimal         @db.Decimal(12, 2)
-  total           Decimal         @db.Decimal(12, 2)     // quantity * unitPrice (denormalized for performance)
-  
+  description String
+  quantity    Decimal @db.Decimal(10, 3)
+  unit        String  @default("unidad") // hora, m², punto, unidad, etc.
+  unitPrice   Decimal @db.Decimal(12, 2)
+  total       Decimal @db.Decimal(12, 2) // quantity * unitPrice (denormalized for performance)
+
   // Tax Handling
-  taxRate         Decimal         @default(21.0) @db.Decimal(5, 2)  // IVA rate
-  taxAmount       Decimal?        @db.Decimal(12, 2)     // Calculated tax amount
-  
+  taxRate   Decimal  @default(21.0) @db.Decimal(5, 2) // IVA rate
+  taxAmount Decimal? @db.Decimal(12, 2) // Calculated tax amount
+
   // Audit Trail
-  source          LineItemSource  @default(QUOTE)
-  notes           String?                                 // Internal notes (e.g., "Client requested upgrade")
-  createdById     String          @map("created_by_id")
-  createdAt       DateTime        @default(now())        @map("created_at")
-  updatedAt       DateTime        @updatedAt             @map("updated_at")
-  
+  source      LineItemSource @default(QUOTE)
+  notes       String? // Internal notes (e.g., "Client requested upgrade")
+  createdById String         @map("created_by_id")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // PER-VISIT MATERIAL TRACKING (Phase 1 - Jan 2026)
+  // Optional link to specific visit for per-visit line item attribution
+  // ═══════════════════════════════════════════════════════════════════════════════
+  jobVisitId String? @map("job_visit_id")
+
   // Relations
-  job             Job             @relation("JobLineItems", fields: [jobId], references: [id], onDelete: Cascade)
-  priceItem       PriceItem?      @relation("PriceItemLineItems", fields: [priceItemId], references: [id])
-  createdBy       User            @relation("LineItemCreator", fields: [createdById], references: [id])
-  
+  job       Job        @relation("JobLineItems", fields: [jobId], references: [id], onDelete: Cascade)
+  priceItem PriceItem? @relation("PriceItemLineItems", fields: [priceItemId], references: [id])
+  createdBy User       @relation("LineItemCreator", fields: [createdById], references: [id])
+  jobVisit  JobVisit?  @relation("VisitLineItems", fields: [jobVisitId], references: [id], onDelete: SetNull)
+
   @@index([jobId])
   @@index([priceItemId])
   @@index([createdById])
   @@index([source])
+  @@index([jobVisitId])
   @@map("job_line_items")
 }
 
@@ -2095,63 +2171,184 @@ model JobLineItem {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model OrganizationPricingSettings {
-  id                        String   @id @default(cuid())
-  organizationId            String   @unique @map("organization_id")
-  
+  id             String @id @default(cuid())
+  organizationId String @unique @map("organization_id")
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // TECHNICIAN ADJUSTMENT CONTROLS
   // ═══════════════════════════════════════════════════════════════════════════════
-  
+
   // Can technicians modify pricing during jobs?
-  techCanModifyPricing      Boolean  @default(true) @map("tech_can_modify_pricing")
-  
+  techCanModifyPricing Boolean @default(true) @map("tech_can_modify_pricing")
+
   // Limits on technician adjustments (null = unlimited)
-  techMaxAdjustmentPercent  Decimal? @db.Decimal(5, 2) @map("tech_max_adjustment_percent")   // e.g., 20.00 = max 20% increase
-  techMaxAdjustmentAmount   Decimal? @db.Decimal(12, 2) @map("tech_max_adjustment_amount")  // e.g., 50000 = max $50,000 ARS
-  
+  techMaxAdjustmentPercent Decimal? @map("tech_max_adjustment_percent") @db.Decimal(5, 2) // e.g., 20.00 = max 20% increase
+  techMaxAdjustmentAmount  Decimal? @map("tech_max_adjustment_amount") @db.Decimal(12, 2) // e.g., 50000 = max $50,000 ARS
+
   // Approval required for adjustments over limit?
-  requireApprovalOverLimit  Boolean  @default(true) @map("require_approval_over_limit")
-  
+  requireApprovalOverLimit Boolean @default(true) @map("require_approval_over_limit")
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // INVOICE GENERATION CONTROLS
   // ═══════════════════════════════════════════════════════════════════════════════
-  
+
   // When to generate invoice?
-  invoiceGeneration         InvoiceGenerationMode @default(MANUAL) @map("invoice_generation")
-  
+  invoiceGeneration InvoiceGenerationMode @default(MANUAL) @map("invoice_generation")
+
   // Auto-lock pricing when invoice generated? (AFIP compliance - recommended true)
-  autoLockOnInvoice         Boolean  @default(true) @map("auto_lock_on_invoice")
-  
+  autoLockOnInvoice Boolean @default(true) @map("auto_lock_on_invoice")
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // DEPOSIT (SEÑA) SETTINGS
   // ═══════════════════════════════════════════════════════════════════════════════
-  
+
   // Enable deposit tracking?
-  enableDeposits            Boolean  @default(true) @map("enable_deposits")
-  
+  enableDeposits Boolean @default(true) @map("enable_deposits")
+
   // Default deposit percentage (null = no default suggestion)
-  defaultDepositPercent     Decimal? @db.Decimal(5, 2) @map("default_deposit_percent")      // e.g., 50.00 = 50%
-  
+  defaultDepositPercent Decimal? @map("default_deposit_percent") @db.Decimal(5, 2) // e.g., 50.00 = 50%
+
   // Require deposit before job start?
-  requireDepositToStart     Boolean  @default(false) @map("require_deposit_to_start")
-  
+  requireDepositToStart Boolean @default(false) @map("require_deposit_to_start")
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // PRICE BOOK SETTINGS
   // ═══════════════════════════════════════════════════════════════════════════════
-  
+
   // Use price book for suggestions?
-  usePriceBook              Boolean  @default(true) @map("use_price_book")
-  
+  usePriceBook Boolean @default(true) @map("use_price_book")
+
   // Price book is mandatory? (can't enter custom prices)
-  priceBookMandatory        Boolean  @default(false) @map("price_book_mandatory")
+  priceBookMandatory Boolean @default(false) @map("price_book_mandatory")
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // DYNAMIC PRICING - CURRENCY SETTINGS (Phase 1)
+  // Multi-currency support with USD as stable reference currency
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  // Default currency for new price items
+  defaultCurrency String @default("ARS") @map("default_currency") // ARS or USD
+
+  // Preferred exchange rate source (BLUE = "Cotización de Mercado" - legal shield)
+  exchangeRateSource ExchangeRateSource @default(BLUE) @map("exchange_rate_source")
+
+  // Custom exchange rate override (when source = CUSTOM)
+  customExchangeRate Decimal? @map("custom_exchange_rate") @db.Decimal(12, 4)
+
+  // Percentage markup on exchange rate (business margin on conversion)
+  exchangeRateMarkup Decimal @default(0) @map("exchange_rate_markup") @db.Decimal(5, 2)
+
+  // Custom label for exchange rate display (legal shield flexibility)
+  exchangeRateLabel String? @map("exchange_rate_label") // e.g., "Cotización de Referencia"
+
+  // Auto-update prices when exchange rate changes?
+  autoUpdateExchangeRate Boolean @default(true) @map("auto_update_exchange_rate")
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // EL REDONDEO (SMART ROUNDING) - Argentine Cash Handling
+  // Nobody charges $16,020 - rounding to $16,000 or $16,500 looks professional
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  roundingStrategy  RoundingStrategy  @default(ROUND_500) @map("rounding_strategy")
+  roundingDirection RoundingDirection @default(NEAREST) @map("rounding_direction")
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // JITTER CONTROL (ANCHOR LOGIC) - Price Stability
+  // Prevent daily micro-changes from exchange rate fluctuations
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  // Threshold for triggering price update notification (% change from anchor)
+  autoUpdateThreshold Decimal @default(5.0) @map("auto_update_threshold") @db.Decimal(5, 2)
+
+  // The exchange rate at the last price update (anchor point)
+  anchorExchangeRate Decimal? @map("anchor_exchange_rate") @db.Decimal(12, 4)
+
+  // When the anchor was last set
+  anchorSetAt DateTime? @map("anchor_set_at")
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // INFLATION ADJUSTMENT SETTINGS
+  // CAC/INDEC index tracking for periodic price adjustments
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  // Preferred inflation index source
+  inflationIndexSource InflationIndexSource? @map("inflation_index_source")
+
+  // Auto-apply inflation adjustments when new index available?
+  autoInflationAdjust Boolean @default(false) @map("auto_inflation_adjust")
+
+  // Extra percentage to add on top of index (margin protection)
+  inflationExtraPercent Decimal @default(0) @map("inflation_extra_percent") @db.Decimal(5, 2)
+
+  // Last time the organization was notified about new index
+  lastInflationCheck DateTime? @map("last_inflation_check")
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // UOCRA LABOR RATES (Phase 6.2 - Technician Hourly Wages)
+  // Base hourly rates by UOCRA skill level - updated manually per paritarias
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  // Base hourly rate for Oficial (highest skill)
+  uocraOficialRate Decimal? @map("uocra_oficial_rate") @db.Decimal(12, 2)
   
-  createdAt                 DateTime @default(now()) @map("created_at")
-  updatedAt                 DateTime @updatedAt @map("updated_at")
+  // Base hourly rate for Medio Oficial (mid skill)
+  uocraMedioOficialRate Decimal? @map("uocra_medio_oficial_rate") @db.Decimal(12, 2)
+  
+  // Base hourly rate for Ayudante (helper)
+  uocraAyudanteRate Decimal? @map("uocra_ayudante_rate") @db.Decimal(12, 2)
+  
+  // Last time UOCRA rates were updated (manual update, notify when stale)
+  uocraRatesUpdatedAt DateTime? @map("uocra_rates_updated_at")
+  
+  // Remind owner to check UOCRA paritarias? (every 3-4 months)
+  uocraReminderEnabled Boolean @default(true) @map("uocra_reminder_enabled")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@map("organization_pricing_settings")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 6.2: ORGANIZATION LABOR RATES
+// Per-specialty per-category hourly rates for technician wages
+// Supports all 12 trades with their respective category systems:
+// - UOCRA-based: ALBANIL, PINTOR, CARPINTERO, TECHISTA, HERRERO, PLOMERO
+// - Regulatory: GASISTA (1ra/2da/3ra), ELECTRICISTA (Cat A/B/C)
+// - Certification: REFRIGERACION (CACAAV), SOLDADOR (ASME/API/AWS)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model OrganizationLaborRate {
+  id             String   @id @default(cuid())
+  organizationId String   @map("organization_id")
+  
+  // Trade specialty (GASISTA, ELECTRICISTA, ALBANIL, etc.)
+  specialty      String   @map("specialty")
+  
+  // Category/level within the trade (1RA, CAT_A, OFICIAL, etc.)
+  category       String   @map("category")
+  
+  // Hourly rate in ARS
+  hourlyRate     Decimal  @map("hourly_rate") @db.Decimal(12, 2)
+  
+  // Optional notes (e.g., "Includes tools", "Minimum 4 hours")
+  notes          String?
+  
+  // Last updated (for wage revision tracking)
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  createdAt      DateTime @default(now()) @map("created_at")
   
   // Relations
-  organization              Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   
-  @@map("organization_pricing_settings")
+  // Unique constraint: one rate per specialty+category per org
+  @@unique([organizationId, specialty, category])
+  @@index([organizationId])
+  @@index([specialty])
+  @@map("organization_labor_rates")
 }
 
 model WhatsAppBusinessAccount {
@@ -2204,18 +2401,18 @@ model WaConversation {
   assignedToId         String?
   activeJobId          String?
   isActive             Boolean              @default(true)
-  
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // PHASE 5: SESSION LANGUAGE
   // Detected customer language for the conversation session
   // ═══════════════════════════════════════════════════════════════════════════════
-  sessionLanguage       String?              @map("session_language")
-  createdAt            DateTime             @default(now())
-  updatedAt            DateTime             @updatedAt
-  assignedTo           User?                @relation("WaConversationAssignee", fields: [assignedToId], references: [id])
-  customer             Customer?            @relation(fields: [customerId], references: [id])
-  organization         Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  messages             WaMessage[]
+  sessionLanguage String?      @map("session_language")
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  assignedTo      User?        @relation("WaConversationAssignee", fields: [assignedToId], references: [id])
+  customer        Customer?    @relation(fields: [customerId], references: [id])
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  messages        WaMessage[]
 
   @@unique([organizationId, customerPhone])
   @@index([organizationId, status])
@@ -2226,11 +2423,11 @@ model WaConversation {
 }
 
 model WaMessage {
-  id                    String         @id @default(cuid())
+  id                    String    @id @default(cuid())
   organizationId        String
   conversationId        String
   customerId            String?
-  waMessageId           String?        @unique
+  waMessageId           String?   @unique
   direction             String
   type                  String
   from                  String
@@ -2243,38 +2440,38 @@ model WaMessage {
   templateName          String?
   templateParams        Json?
   metadata              Json?
-  status                String         @default("pending")
+  status                String    @default("pending")
   statusUpdatedAt       DateTime?
   errorCode             String?
   errorMessage          String?
   sentById              String?
   replyToId             String?
-  createdAt             DateTime       @default(now())
+  createdAt             DateTime  @default(now())
   aiActionMetadata      Json?
   aiActionTaken         String?
   aiConfidence          Int?
-  isProactiveSuggestion Boolean        @default(false)
+  isProactiveSuggestion Boolean   @default(false)
   senderType            String?
-  
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // PHASE 5.1: AI FEEDBACK TRACKING
   // Collect user feedback on AI actions for training data
   // ═══════════════════════════════════════════════════════════════════════════════
-  aiFeedback            String?              @map("ai_feedback")           // "positive" | "negative" | null
-  aiFeedbackAt          DateTime?            @map("ai_feedback_at")
-  aiFeedbackUserId      String?              @map("ai_feedback_user_id")
-  
+  aiFeedback       String?   @map("ai_feedback") // "positive" | "negative" | null
+  aiFeedbackAt     DateTime? @map("ai_feedback_at")
+  aiFeedbackUserId String?   @map("ai_feedback_user_id")
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // PHASE 5.2: TRANSLATION TRACKING
   // Store original and translated content for multi-language support
   // ═══════════════════════════════════════════════════════════════════════════════
-  detectedLanguage      String?              @map("detected_language")     // ISO code: "en", "pt", "fr", etc.
-  originalContent       String?              @map("original_content")      // Customer's original message
-  translatedContent     String?              @map("translated_content")    // Spanish translation
-  languageConfirmed     Boolean              @default(false) @map("language_confirmed")
-  conversation          WaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  organization          Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  sentBy                User?          @relation("WaMessageSender", fields: [sentById], references: [id])
+  detectedLanguage  String?        @map("detected_language") // ISO code: "en", "pt", "fr", etc.
+  originalContent   String?        @map("original_content") // Customer's original message
+  translatedContent String?        @map("translated_content") // Spanish translation
+  languageConfirmed Boolean        @default(false) @map("language_confirmed")
+  conversation      WaConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  organization      Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sentBy            User?          @relation("WaMessageSender", fields: [sentById], references: [id])
 
   @@index([conversationId, createdAt])
   @@index([organizationId, createdAt])
@@ -2664,8 +2861,8 @@ model ScheduleException {
   date           DateTime     @db.Date
   isAvailable    Boolean      @default(false)
   reason         String?
-  startTime      String?      // Required for partial absences (e.g., "10:00")
-  endTime        String?      // Required for partial absences (e.g., "14:00")
+  startTime      String? // Required for partial absences (e.g., "10:00")
+  endTime        String? // Required for partial absences (e.g., "14:00")
   createdAt      DateTime     @default(now())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2716,46 +2913,46 @@ model BusinessPublicProfile {
 }
 
 model AIConfiguration {
-  id                       String       @id @default(cuid())
-  organizationId           String       @unique
-  isEnabled                Boolean      @default(false)
-  autoResponseEnabled      Boolean      @default(true)
-  minConfidenceToRespond   Int          @default(70)
-  minConfidenceToCreateJob Int          @default(85)
-  dataAccessPermissions    Json         @default("{\"faq\": true, \"pricing\": true, \"policies\": true, \"services\": true, \"companyInfo\": true, \"serviceAreas\": true, \"businessHours\": true, \"scheduleSlots\": true, \"technicianNames\": false, \"technicianAvailability\": true}")
+  id                       String  @id @default(cuid())
+  organizationId           String  @unique
+  isEnabled                Boolean @default(false)
+  autoResponseEnabled      Boolean @default(true)
+  minConfidenceToRespond   Int     @default(70)
+  minConfidenceToCreateJob Int     @default(85)
+  dataAccessPermissions    Json    @default("{\"faq\": true, \"pricing\": true, \"policies\": true, \"services\": true, \"companyInfo\": true, \"serviceAreas\": true, \"businessHours\": true, \"scheduleSlots\": true, \"technicianNames\": false, \"technicianAvailability\": true}")
   companyName              String?
   companyDescription       String?
-  servicesOffered          Json         @default("[]")
-  businessHours            Json         @default("{}")
+  servicesOffered          Json    @default("[]")
+  businessHours            Json    @default("{}")
   serviceAreas             String?
   pricingInfo              String?
   cancellationPolicy       String?
   paymentMethods           String?
   warrantyInfo             String?
-  faqItems                 Json         @default("[]")
+  faqItems                 Json    @default("[]")
   customInstructions       String?
-  aiTone                   String       @default("friendly_professional")
+  aiTone                   String  @default("friendly_professional")
   greetingMessage          String?
   awayMessage              String?
-  transferKeywords         Json         @default("[]")
+  transferKeywords         Json    @default("[]")
   escalationUserId         String?
-  
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // PHASE 5.5: WORKFLOW PERMISSIONS
   // Owner-configurable AI action permissions and auto-approval settings
   // ═══════════════════════════════════════════════════════════════════════════════
-  workflowPermissions      Json         @default("{\"suggestResponses\": true, \"translateMessages\": true, \"suggestActions\": true, \"accessDatabase\": true, \"accessSchedule\": true, \"autoApproveSmallPriceAdjustments\": false, \"autoApproveThresholdPercent\": 5, \"autoAssignTechnicians\": false}")
-  
-  createdAt                DateTime     @default(now())
-  updatedAt                DateTime     @updatedAt
-  escalationUser           User?        @relation("AIEscalationUser", fields: [escalationUserId], references: [id])
-  organization             Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workflowPermissions Json @default("{\"suggestResponses\": true, \"translateMessages\": true, \"suggestActions\": true, \"accessDatabase\": true, \"accessSchedule\": true, \"autoApproveSmallPriceAdjustments\": false, \"autoApproveThresholdPercent\": 5, \"autoAssignTechnicians\": false}")
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  escalationUser User?        @relation("AIEscalationUser", fields: [escalationUserId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@map("ai_configurations")
 }
 
 model AIConversationLog {
-  id                  String       @id @default(cuid())
+  id                  String    @id @default(cuid())
   organizationId      String
   conversationId      String
   messageId           String?
@@ -2767,7 +2964,7 @@ model AIConversationLog {
   confidenceScore     Int
   aiResponse          String?
   responseStatus      String
-  jobCreated          Boolean      @default(false)
+  jobCreated          Boolean   @default(false)
   jobId               String?
   transferredToUserId String?
   transferReason      String?
@@ -2776,16 +2973,16 @@ model AIConversationLog {
   feedbackNotes       String?
   reviewedAt          DateTime?
   reviewedById        String?
-  
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // PHASE 5.1: GRANULAR FEEDBACK FIELDS
   // More detailed feedback tracking for AI training
   // ═══════════════════════════════════════════════════════════════════════════════
-  feedbackType          String?              @map("feedback_type")         // "response" | "action" | "translation"
-  userModified          Boolean              @default(false) @map("user_modified")
-  modifiedContent       String?              @map("modified_content")
-  createdAt           DateTime     @default(now())
-  organization        Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  feedbackType    String?      @map("feedback_type") // "response" | "action" | "translation"
+  userModified    Boolean      @default(false) @map("user_modified")
+  modifiedContent String?      @map("modified_content")
+  createdAt       DateTime     @default(now())
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([conversationId])
@@ -3160,9 +3357,23 @@ model MarketplaceClick {
 }
 
 enum UserRole {
+  SUPER_ADMIN // CampoTech platform administrator (not tied to any org)
   OWNER
   DISPATCHER
   TECHNICIAN
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// UOCRA SKILL LEVELS (Phase 6.2 - Technician Wage Rates)
+// Based on UOCRA collective bargaining categories
+// ═══════════════════════════════════════════════════════════════════════════════
+enum UocraLevel {
+  OFICIAL        // Skilled worker (highest)
+  MEDIO_OFICIAL  // Semi-skilled worker
+  AYUDANTE       // Helper (lowest)
+  NONE           // Not applicable (e.g., electricians with their own union)
+
+  @@map("uocra_level")
 }
 
 enum SubscriptionTier {
@@ -3186,10 +3397,10 @@ enum WhatsAppIntegrationType {
 
 /// Status for public support conversations
 enum SupportStatus {
-  open              // AI handling, not escalated
-  pending_response  // Escalated, waiting for admin
-  responded         // Admin replied, waiting for visitor
-  new_reply         // Visitor replied to admin (needs attention!)
+  open // AI handling, not escalated
+  pending_response // Escalated, waiting for admin
+  responded // Admin replied, waiting for visitor
+  new_reply // Visitor replied to admin (needs attention!)
   closed
 
   @@map("support_status")
@@ -3674,12 +3885,12 @@ enum PriceItemType {
 // All supported pricing calculation methods for service items
 // ═══════════════════════════════════════════════════════════════════════════════
 enum PricingModel {
-  FIXED       // Precio cerrado - one fixed price
-  HOURLY      // Por hora
-  PER_UNIT    // Por unidad (punto, toma, etc)
-  PER_M2      // Por metro cuadrado
-  PER_DAY     // Por jornal (day rate)
-  QUOTE       // Presupuesto personalizado (custom quote)
+  FIXED // Precio cerrado - one fixed price
+  HOURLY // Por hora
+  PER_UNIT // Por unidad (punto, toma, etc)
+  PER_M2 // Por metro cuadrado
+  PER_DAY // Por jornal (day rate)
+  QUOTE // Presupuesto personalizado (custom quote)
 
   @@map("pricing_model")
 }
@@ -3689,10 +3900,10 @@ enum PricingModel {
 // Tracks the origin of each line item for pricing transparency and audit
 // ═══════════════════════════════════════════════════════════════════════════════
 enum LineItemSource {
-  QUOTE           // Created in original quote by dispatcher
-  TECH_ADDED      // Added by technician during job
-  TECH_ADJUSTED   // Modified by technician (tracks original)
-  SYSTEM          // Auto-generated (e.g., mileage charge, minimum service fee)
+  QUOTE // Created in original quote by dispatcher
+  TECH_ADDED // Added by technician during job
+  TECH_ADJUSTED // Modified by technician (tracks original)
+  SYSTEM // Auto-generated (e.g., mileage charge, minimum service fee)
 
   @@map("line_item_source")
 }
@@ -3702,11 +3913,95 @@ enum LineItemSource {
 // Controls when invoices are automatically generated based on job lifecycle
 // ═══════════════════════════════════════════════════════════════════════════════
 enum InvoiceGenerationMode {
-  MANUAL              // Dispatcher manually generates invoice
-  AUTO_ON_COMPLETION  // Auto-generate when job completed
-  AUTO_ON_APPROVAL    // Auto-generate when dispatcher approves technician report
+  MANUAL // Dispatcher manually generates invoice
+  AUTO_ON_COMPLETION // Auto-generate when job completed
+  AUTO_ON_APPROVAL // Auto-generate when dispatcher approves technician report
 
   @@map("invoice_generation_mode")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PER-VISIT PRICING MODE (Phase 1 - Jan 2026)
+// Controls how job totals are calculated: fixed price vs per-visit pricing
+// ═══════════════════════════════════════════════════════════════════════════════
+enum JobPricingMode {
+  FIXED_TOTAL // One price for entire job (current/default behavior)
+  PER_VISIT // Each visit priced separately
+  HYBRID // First visit different (diagnostic), then recurring rate
+
+  @@map("job_pricing_mode")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DYNAMIC PRICING ENUMS (Phase 1 - Jan 2026)
+// Multi-currency and inflation adjustment support for Argentine market
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Exchange rate sources for USD/ARS conversion
+/// Note: BLUE is displayed as "Cotización de Mercado" in UI (legal shield)
+enum ExchangeRateSource {
+  OFICIAL // BCRA official rate
+  BLUE // Informal market rate (UI: "Cotización de Mercado")
+  MEP // Dólar MEP (stock market derived)
+  CCL // Contado con Liquidación
+  CRYPTO // USDT/ARS rate
+  CUSTOM // Owner-defined rate
+
+  @@map("exchange_rate_source")
+}
+
+/// Smart rounding strategies for Argentine cash handling ("El Redondeo")
+/// Nobody charges $16,020 - rounding to $16,000/$16,500 looks professional
+enum RoundingStrategy {
+  ROUND_100 // Nearest 100
+  ROUND_500 // Nearest 500 (recommended - default)
+  ROUND_1000 // Nearest 1000
+  ROUND_5000 // Nearest 5000 (for high-value items)
+  NO_ROUNDING // Keep exact amount
+
+  @@map("rounding_strategy")
+}
+
+/// Rounding direction for smart rounding
+enum RoundingDirection {
+  NEAREST // Round to closest (default)
+  UP // Always round up (margin protection)
+  DOWN // Always round down (customer-friendly)
+
+  @@map("rounding_direction")
+}
+
+/// Inflation index sources for price adjustment
+enum InflationIndexSource {
+  CAC_ICC_GENERAL // ICC General construction
+  CAC_ICC_MATERIALS // ICC Materiales
+  CAC_ICC_LABOR // ICC Mano de Obra
+  INDEC_IPC_GENERAL // IPC Nacional
+  INDEC_IPC_HOUSING // IPC Vivienda
+  CUSTOM // Manual entry
+
+  @@map("inflation_index_source")
+}
+
+/// Reason for price change (audit trail)
+enum PriceChangeReason {
+  MANUAL // Owner manually changed
+  INFLATION_AUTO // Automatic inflation adjustment
+  INFLATION_MANUAL // Manual inflation adjustment
+  EXCHANGE_RATE // USD price converted at new rate
+  INITIAL // Initial price set
+
+  @@map("price_change_reason")
+}
+
+/// Adjustment scope for bulk price updates
+enum AdjustmentType {
+  ALL // All items
+  SERVICES // Only services
+  PRODUCTS // Only products
+  SPECIALTY // Specific specialty only
+
+  @@map("adjustment_type")
 }
 
 enum WhatsAppBSPProviderType {
@@ -4426,39 +4721,39 @@ model StatusIncident {
 
 /// Support conversation for public visitors (anonymous)
 model PublicSupportConversation {
-  id             String   @id @default(cuid())
-  sessionId      String   @unique @map("session_id")  // Browser session ID
-  
+  id        String @id @default(cuid())
+  sessionId String @unique @map("session_id") // Browser session ID
+
   // Contact info (collected before escalation)
-  visitorName    String?  @map("visitor_name")
-  visitorEmail   String?  @map("visitor_email")
-  visitorPhone   String?  @map("visitor_phone")
-  
+  visitorName  String? @map("visitor_name")
+  visitorEmail String? @map("visitor_email")
+  visitorPhone String? @map("visitor_phone")
+
   // Ticket info
-  ticketNumber   String   @unique @map("ticket_number")  // #12345
-  status         SupportStatus @default(open)
-  category       String?  // ventas, soporte, facturacion, etc.
-  
+  ticketNumber String        @unique @map("ticket_number") // #12345
+  status       SupportStatus @default(open)
+  category     String? // ventas, soporte, facturacion, etc.
+
   // Control flags
-  aiDisabled     Boolean  @default(false) @map("ai_disabled")  // True = human only mode
-  escalatedAt    DateTime? @map("escalated_at")  // When AI escalated
-  
+  aiDisabled  Boolean   @default(false) @map("ai_disabled") // True = human only mode
+  escalatedAt DateTime? @map("escalated_at") // When AI escalated
+
   // Push notification
-  pushSubscription String? @map("push_subscription") @db.Text  // Web push subscription JSON
-  
+  pushSubscription String? @map("push_subscription") @db.Text // Web push subscription JSON
+
   // Context
-  pageUrl        String?  @map("page_url")  // Where the chat was started
-  userAgent      String?  @map("user_agent")
-  
+  pageUrl   String? @map("page_url") // Where the chat was started
+  userAgent String? @map("user_agent")
+
   // Timestamps
-  createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  lastActivityAt DateTime @default(now()) @map("last_activity_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  lastActivityAt DateTime  @default(now()) @map("last_activity_at")
   closedAt       DateTime? @map("closed_at")
-  
+
   // Relations
-  messages       PublicSupportMessage[]
-  
+  messages PublicSupportMessage[]
+
   @@index([sessionId])
   @@index([status])
   @@index([ticketNumber])
@@ -4469,28 +4764,28 @@ model PublicSupportConversation {
 
 /// Messages within a public support conversation
 model PublicSupportMessage {
-  id             String   @id @default(cuid())
-  conversationId String   @map("conversation_id")
-  
-  role           String   // "user" | "assistant" | "admin"
-  content        String   @db.Text
-  metadata       Json?    // Additional context (AI intents, escalation reason, etc.)
-  
+  id             String @id @default(cuid())
+  conversationId String @map("conversation_id")
+
+  role     String // "user" | "assistant" | "admin"
+  content  String @db.Text
+  metadata Json? // Additional context (AI intents, escalation reason, etc.)
+
   // For admin responses
-  respondedBy    String?  @map("responded_by")  // Admin user ID who wrote this
-  
+  respondedBy String? @map("responded_by") // Admin user ID who wrote this
+
   // Notification tracking
-  notifiedVia    String[] @map("notified_via")  // ["email", "push", "whatsapp"]
-  notifiedAt     DateTime? @map("notified_at")
-  
+  notifiedVia String[]  @map("notified_via") // ["email", "push", "whatsapp"]
+  notifiedAt  DateTime? @map("notified_at")
+
   // Read tracking
-  readByAdmin    Boolean  @default(false) @map("read_by_admin")
-  readByVisitor  Boolean  @default(false) @map("read_by_visitor")
-  
-  createdAt      DateTime @default(now()) @map("created_at")
-  
-  conversation   PublicSupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  
+  readByAdmin   Boolean @default(false) @map("read_by_admin")
+  readByVisitor Boolean @default(false) @map("read_by_visitor")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  conversation PublicSupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
   @@index([conversationId])
   @@index([role])
   @@index([createdAt])
@@ -4513,48 +4808,48 @@ enum ExportStatus {
 
 /// Async export request for large data exports with email delivery
 model ExportRequest {
-  id             String       @id @default(cuid())
-  organizationId String       @map("organization_id")
-  
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+
   // What to export
-  exportType     String       @map("export_type")  // "customer_folder", "job_report", "whatsapp_history"
-  targetId       String       @map("target_id")    // customerId, jobId, etc.
-  targetName     String?      @map("target_name")  // Customer name for display
-  
+  exportType String  @map("export_type") // "customer_folder", "job_report", "whatsapp_history"
+  targetId   String  @map("target_id") // customerId, jobId, etc.
+  targetName String? @map("target_name") // Customer name for display
+
   // Options
-  options        Json         @default("{}") // { includeJobs, includeInvoices, includePhotos, etc. }
-  format         String       @default("pdf") // "pdf", "json", "csv"
-  
+  options Json   @default("{}") // { includeJobs, includeInvoices, includePhotos, etc. }
+  format  String @default("pdf") // "pdf", "json", "csv"
+
   // Status
-  status         ExportStatus @default(PENDING)
-  progress       Int          @default(0)  // 0-100
-  errorMessage   String?      @map("error_message")
-  
+  status       ExportStatus @default(PENDING)
+  progress     Int          @default(0) // 0-100
+  errorMessage String?      @map("error_message")
+
   // Delivery
-  deliveryMethod String       @default("download") @map("delivery_method") // "download", "email"
-  deliveryEmail  String?      @map("delivery_email")  // Email to send to
-  
+  deliveryMethod String  @default("download") @map("delivery_method") // "download", "email"
+  deliveryEmail  String? @map("delivery_email") // Email to send to
+
   // File info (after generation)
-  fileUrl        String?      @map("file_url")      // Signed URL for download
-  fileSize       Int?         @map("file_size")     // Bytes
-  fileName       String?      @map("file_name")
-  
+  fileUrl  String? @map("file_url") // Signed URL for download
+  fileSize Int?    @map("file_size") // Bytes
+  fileName String? @map("file_name")
+
   // Security
-  downloadToken  String?      @unique @map("download_token")  // Secure token for download link
-  downloadCount  Int          @default(0) @map("download_count")
-  maxDownloads   Int          @default(5) @map("max_downloads")
-  expiresAt      DateTime?    @map("expires_at")
-  
+  downloadToken String?   @unique @map("download_token") // Secure token for download link
+  downloadCount Int       @default(0) @map("download_count")
+  maxDownloads  Int       @default(5) @map("max_downloads")
+  expiresAt     DateTime? @map("expires_at")
+
   // Tracking
-  requestedById  String       @map("requested_by_id")
-  startedAt      DateTime?    @map("started_at")
-  completedAt    DateTime?    @map("completed_at")
-  createdAt      DateTime     @default(now()) @map("created_at")
-  
+  requestedById String    @map("requested_by_id")
+  startedAt     DateTime? @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
   // Relations
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  requestedBy    User         @relation("ExportRequestedBy", fields: [requestedById], references: [id])
-  
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requestedBy  User         @relation("ExportRequestedBy", fields: [requestedById], references: [id])
+
   @@index([organizationId])
   @@index([status])
   @@index([downloadToken])
@@ -4569,80 +4864,80 @@ model ExportRequest {
 
 /// ARCO request status
 enum DataRequestStatus {
-  SUBMITTED        // Customer submitted request
-  PENDING_VERIFICATION  // Waiting for email/phone verification
-  VERIFIED         // Customer verified identity
-  IN_PROGRESS      // Data being compiled
-  READY            // Data ready for download
-  DOWNLOADED       // Customer downloaded data
-  EXPIRED          // Link expired
-  REJECTED         // Request rejected (invalid identity, etc.)
+  SUBMITTED // Customer submitted request
+  PENDING_VERIFICATION // Waiting for email/phone verification
+  VERIFIED // Customer verified identity
+  IN_PROGRESS // Data being compiled
+  READY // Data ready for download
+  DOWNLOADED // Customer downloaded data
+  EXPIRED // Link expired
+  REJECTED // Request rejected (invalid identity, etc.)
 }
 
 /// ARCO request type
 enum DataRequestType {
-  ACCESS       // A - Acceso: Get copy of their data
+  ACCESS // A - Acceso: Get copy of their data
   RECTIFICATION // R - Rectificación: Correct data
-  CANCELLATION  // C - Cancelación: Delete data
-  OPPOSITION    // O - Oposición: Object to processing
+  CANCELLATION // C - Cancelación: Delete data
+  OPPOSITION // O - Oposición: Object to processing
 }
 
 /// Customer data access request (ARCO compliance)
 model DataAccessRequest {
-  id               String            @id @default(cuid())
-  organizationId   String            @map("organization_id")
-  
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+
   // Request type
-  requestType      DataRequestType   @default(ACCESS) @map("request_type")
-  
+  requestType DataRequestType @default(ACCESS) @map("request_type")
+
   // Requester identity
-  requesterName    String            @map("requester_name")
-  requesterEmail   String            @map("requester_email")
-  requesterPhone   String?           @map("requester_phone")
-  requesterDni     String?           @map("requester_dni")  // Argentine DNI for identity verification
-  
+  requesterName  String  @map("requester_name")
+  requesterEmail String  @map("requester_email")
+  requesterPhone String? @map("requester_phone")
+  requesterDni   String? @map("requester_dni") // Argentine DNI for identity verification
+
   // Linked customer (if found)
-  customerId       String?           @map("customer_id")
-  
+  customerId String? @map("customer_id")
+
   // Verification
-  verificationCode String?           @map("verification_code")  // 6-digit code
-  verificationSentAt DateTime?       @map("verification_sent_at")
-  verificationAttempts Int           @default(0) @map("verification_attempts")
-  verifiedAt       DateTime?         @map("verified_at")
-  
+  verificationCode     String?   @map("verification_code") // 6-digit code
+  verificationSentAt   DateTime? @map("verification_sent_at")
+  verificationAttempts Int       @default(0) @map("verification_attempts")
+  verifiedAt           DateTime? @map("verified_at")
+
   // Request details
-  requestReason    String?           @map("request_reason") @db.Text  // Why they need the data
-  dataScope        String[]          @map("data_scope")  // ["jobs", "invoices", "whatsapp", "all"]
-  
+  requestReason String?  @map("request_reason") @db.Text // Why they need the data
+  dataScope     String[] @map("data_scope") // ["jobs", "invoices", "whatsapp", "all"]
+
   // Status
-  status           DataRequestStatus @default(SUBMITTED)
-  statusHistory    Json              @default("[]") @map("status_history")  // Audit trail
-  
+  status        DataRequestStatus @default(SUBMITTED)
+  statusHistory Json              @default("[]") @map("status_history") // Audit trail
+
   // Processing
-  assignedToId     String?           @map("assigned_to_id")  // Staff handling the request
-  internalNotes    String?           @map("internal_notes") @db.Text
-  
+  assignedToId  String? @map("assigned_to_id") // Staff handling the request
+  internalNotes String? @map("internal_notes") @db.Text
+
   // Delivery (secure download link)
-  downloadToken    String?           @unique @map("download_token")
-  downloadUrl      String?           @map("download_url")
-  expiresAt        DateTime?         @map("expires_at")
-  downloadedAt     DateTime?         @map("downloaded_at")
-  
+  downloadToken String?   @unique @map("download_token")
+  downloadUrl   String?   @map("download_url")
+  expiresAt     DateTime? @map("expires_at")
+  downloadedAt  DateTime? @map("downloaded_at")
+
   // Legal/Compliance
-  legalDeadline    DateTime?         @map("legal_deadline")  // 10 business days per Ley 25.326
-  responseDate     DateTime?         @map("response_date")
-  rejectionReason  String?           @map("rejection_reason")
-  
+  legalDeadline   DateTime? @map("legal_deadline") // 10 business days per Ley 25.326
+  responseDate    DateTime? @map("response_date")
+  rejectionReason String?   @map("rejection_reason")
+
   // Timestamps
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
-  
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   // Relations
-  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  customer         Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
-  assignedTo       User?             @relation("DataRequestAssignee", fields: [assignedToId], references: [id])
-  auditLogs        DataRequestAuditLog[]
-  
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  assignedTo   User?                 @relation("DataRequestAssignee", fields: [assignedToId], references: [id])
+  auditLogs    DataRequestAuditLog[]
+
   @@index([organizationId])
   @@index([status])
   @@index([requesterEmail])
@@ -4654,25 +4949,171 @@ model DataAccessRequest {
 
 /// Audit log for data access requests (compliance requirement)
 model DataRequestAuditLog {
-  id             String   @id @default(cuid())
-  requestId      String   @map("request_id")
-  
-  action         String   // "created", "verified", "status_changed", "downloaded", "expired"
-  previousStatus String?  @map("previous_status")
-  newStatus      String?  @map("new_status")
-  details        Json     @default("{}")  // Additional context
-  
-  performedBy    String?  @map("performed_by")  // User ID or "system" or "customer"
-  ipAddress      String?  @map("ip_address")
-  userAgent      String?  @map("user_agent")
-  
-  createdAt      DateTime @default(now()) @map("created_at")
-  
-  request        DataAccessRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  
+  id        String @id @default(cuid())
+  requestId String @map("request_id")
+
+  action         String // "created", "verified", "status_changed", "downloaded", "expired"
+  previousStatus String? @map("previous_status")
+  newStatus      String? @map("new_status")
+  details        Json    @default("{}") // Additional context
+
+  performedBy String? @map("performed_by") // User ID or "system" or "customer"
+  ipAddress   String? @map("ip_address")
+  userAgent   String? @map("user_agent")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  request DataAccessRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
   @@index([requestId])
   @@index([action])
   @@index([createdAt])
   @@map("data_request_audit_logs")
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// VERIFICATION REGISTRY
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Verification registry - denormalized table for fast matrícula lookups
+/// Populated from UnclaimedProfile but optimized for verification queries
+model VerificationRegistry {
+  id String @id @default(cuid())
+
+  // Matrícula info
+  matricula String // Professional license number
+  specialty String // GASISTA, ELECTRICISTA, PLOMERO, REFRIGERACION
+  source    String // ERSEP, GASNOR, GASNEA, CACAAV
+
+  // Optional metadata for display
+  fullName String? @map("full_name")
+  province String?
+
+  // Status
+  status String @default("active") // active, expired, suspended
+
+  // Timestamps
+  scrapedAt    DateTime @default(now()) @map("scraped_at")
+  lastVerified DateTime @default(now()) @map("last_verified")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@unique([matricula, source])
+  @@index([matricula])
+  @@index([specialty])
+  @@index([source])
+  @@index([status])
+  @@map("verification_registry")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DYNAMIC PRICING MODELS (Phase 1 - Jan 2026)
+// Exchange rate tracking, price history, and inflation adjustment infrastructure
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// Cached exchange rates from various sources
+/// Updated hourly via scraper (BLUE, MEP) or API (OFICIAL, CRYPTO)
+model ExchangeRate {
+  id          String             @id @default(cuid())
+  source      ExchangeRateSource
+  buyRate     Decimal            @map("buy_rate") @db.Decimal(12, 4) // Compra
+  sellRate    Decimal            @map("sell_rate") @db.Decimal(12, 4) // Venta
+  averageRate Decimal            @map("average_rate") @db.Decimal(12, 4) // (buy + sell) / 2
+  fetchedAt   DateTime           @default(now()) @map("fetched_at")
+  validUntil  DateTime           @map("valid_until") // Cache expiry
+  isStale     Boolean            @default(false) @map("is_stale") // True if fetcher failed but using cached
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([source, fetchedAt])
+  @@index([validUntil])
+  @@map("exchange_rates")
+}
+
+/// Price change history for audit trail (AFIP compliance)
+/// Tracks every modification to price items with full context
+model PriceItemHistory {
+  id            String            @id @default(cuid())
+  priceItemId   String            @map("price_item_id")
+  previousPrice Decimal           @map("previous_price") @db.Decimal(12, 2)
+  newPrice      Decimal           @map("new_price") @db.Decimal(12, 2)
+  changeReason  PriceChangeReason @map("change_reason")
+  changePercent Decimal           @map("change_percent") @db.Decimal(5, 2)
+
+  // Context for the change
+  indexSource  String?  @map("index_source") // CAC_ICC_GENERAL, INDEC_IPC, etc.
+  indexPeriod  String?  @map("index_period") // "2025-12" format
+  indexRate    Decimal? @map("index_rate") @db.Decimal(6, 3)
+  exchangeRate Decimal? @map("exchange_rate") @db.Decimal(12, 4)
+
+  // Audit fields
+  changedById String   @map("changed_by_id")
+  changedAt   DateTime @default(now()) @map("changed_at")
+  notes       String?
+
+  // Relations
+  priceItem PriceItem @relation("PriceItemHistory", fields: [priceItemId], references: [id], onDelete: Cascade)
+  changedBy User      @relation("PriceChangesMade", fields: [changedById], references: [id])
+
+  @@index([priceItemId, changedAt])
+  @@index([changedById])
+  @@index([changeReason])
+  @@map("price_item_history")
+}
+
+/// Monthly inflation indices from CAC/INDEC
+/// Entered manually via apps/admin dashboard
+model InflationIndex {
+  id          String               @id @default(cuid())
+  source      InflationIndexSource
+  period      String // "2025-12" format
+  rate        Decimal              @db.Decimal(6, 3) // 4.250 = 4.25%
+  publishedAt DateTime             @map("published_at")
+  scrapedAt   DateTime             @default(now()) @map("scraped_at") // Or entered_at for manual
+  rawData     Json?                @map("raw_data") // Original scraped/source data
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([source, period])
+  @@index([source, period])
+  @@index([publishedAt])
+  @@map("inflation_indices")
+}
+
+/// Bulk price adjustment events (audit log)
+/// Tracks when an organization applies inflation/exchange adjustments
+model PriceAdjustmentEvent {
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+
+  // Index used for adjustment
+  indexSource InflationIndexSource @map("index_source")
+  indexPeriod String               @map("index_period")
+  indexRate   Decimal              @map("index_rate") @db.Decimal(6, 3)
+
+  // Adjustment applied
+  extraPercent    Decimal @map("extra_percent") @db.Decimal(5, 2)
+  totalAdjustment Decimal @map("total_adjustment") @db.Decimal(6, 3) // index + extra
+
+  // Scope of adjustment
+  adjustmentType  AdjustmentType @map("adjustment_type")
+  specialtyFilter String?        @map("specialty_filter") // Only adjust PLOMERO items, etc.
+
+  // Results
+  itemsAffected    Int     @map("items_affected")
+  totalValueBefore Decimal @map("total_value_before") @db.Decimal(14, 2)
+  totalValueAfter  Decimal @map("total_value_after") @db.Decimal(14, 2)
+
+  // Audit
+  appliedById String   @map("applied_by_id")
+  appliedAt   DateTime @default(now()) @map("applied_at")
+  notes       String?
+
+  // Relations
+  organization Organization @relation("OrgPriceAdjustments", fields: [organizationId], references: [id], onDelete: Cascade)
+  appliedBy    User         @relation("PriceAdjustmentsApplied", fields: [appliedById], references: [id])
+
+  @@index([organizationId, appliedAt])
+  @@index([appliedById])
+  @@map("price_adjustment_events")
+}

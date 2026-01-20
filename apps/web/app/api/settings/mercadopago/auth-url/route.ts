@@ -39,8 +39,13 @@ export async function GET() {
         const clientId = process.env.MP_CLIENT_ID;
         if (!clientId) {
             console.error('[MercadoPago OAuth] MP_CLIENT_ID not configured');
+            console.error('[MercadoPago OAuth] Get it from: MercadoPago Dashboard > Tu negocio > Aplicaciones');
             return NextResponse.json(
-                { success: false, error: 'MercadoPago no está configurado en el servidor' },
+                {
+                    success: false,
+                    error: 'MercadoPago no está configurado. Contacta al administrador.',
+                    hint: 'Falta MP_CLIENT_ID en variables de entorno',
+                },
                 { status: 500 }
             );
         }

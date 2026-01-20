@@ -119,6 +119,8 @@ export default function SignupPage() {
     name: '',
     phone: '',
     email: '',
+    dataTransferConsent: false,
+    termsAccepted: false,
   });
   const [countryCode, setCountryCode] = useState('+54'); // Default to Argentina
   const [customCountryCode, setCustomCountryCode] = useState(''); // For "Otro" option
@@ -218,6 +220,10 @@ export default function SignupPage() {
         adminName: formData.name,
         phone: fullPhone,
         email: formData.email || undefined,
+        // Ley 25.326 Consent Fields
+        dataTransferConsent: formData.dataTransferConsent,
+        termsAccepted: formData.termsAccepted,
+        consentTimestamp: new Date().toISOString(),
       });
 
       if (response.success && response.data) {
@@ -388,7 +394,57 @@ export default function SignupPage() {
                 <p className="text-sm text-danger-500">{error.message}</p>
               )}
 
-              <button type="submit" className="btn-primary w-full">
+              {/* Consent Checkboxes - Required by Ley 25.326 */}
+              <div className="mt-4 space-y-3 pt-4 border-t border-gray-200">
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={formData.dataTransferConsent}
+                    onChange={(e) =>
+                      setFormData({ ...formData, dataTransferConsent: e.target.checked })
+                    }
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    required
+                  />
+                  <span className="text-sm text-gray-600 group-hover:text-gray-900">
+                    Entiendo y acepto que mis datos personales serán alojados en{' '}
+                    servidores fuera de Argentina (EE.UU.) conforme a la{' '}
+                    <Link href="/privacidad" className="text-primary-600 hover:underline">
+                      Ley 25.326
+                    </Link>
+                    .
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <input
+                    type="checkbox"
+                    checked={formData.termsAccepted}
+                    onChange={(e) =>
+                      setFormData({ ...formData, termsAccepted: e.target.checked })
+                    }
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    required
+                  />
+                  <span className="text-sm text-gray-600 group-hover:text-gray-900">
+                    Acepto los{' '}
+                    <Link href="/terminos" className="text-primary-600 hover:underline">
+                      Términos y Condiciones
+                    </Link>{' '}
+                    y la{' '}
+                    <Link href="/privacidad" className="text-primary-600 hover:underline">
+                      Política de Privacidad
+                    </Link>
+                    .
+                  </span>
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={!formData.dataTransferConsent || !formData.termsAccepted}
+                className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Continuar
               </button>
             </form>

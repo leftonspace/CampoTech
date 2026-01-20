@@ -89,6 +89,11 @@ function TodayScreen({ jobs }: { jobs: Job[] }) {
       completed: [] as Job[],
     };
 
+    // Guard against undefined jobs (WatermelonDB may not be ready on web)
+    if (!jobs || !Array.isArray(jobs)) {
+      return groups;
+    }
+
     jobs.forEach((job) => {
       if (job.status === 'en_camino' || job.status === 'working') {
         groups.active.push(job);
@@ -137,7 +142,7 @@ function TodayScreen({ jobs }: { jobs: Job[] }) {
     <>
       <View style={styles.headerStats}>
         <View style={styles.stat}>
-          <Text style={styles.statNumber}>{jobs.length}</Text>
+          <Text style={styles.statNumber}>{jobs?.length || 0}</Text>
           <Text style={styles.statLabel}>Total</Text>
         </View>
         <View style={styles.stat}>

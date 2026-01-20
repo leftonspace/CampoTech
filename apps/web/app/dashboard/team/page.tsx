@@ -1135,7 +1135,7 @@ const SPECIALTY_OPTIONS = [
   { value: 'TECHISTA', label: 'Techista' },
   { value: 'HERRERO', label: 'Herrero' },
   { value: 'SOLDADOR', label: 'Soldador' },
-  { value: 'OTRO', label: 'Otro' },
+  { value: 'OTRO', label: 'Otro / Sin categoría formal' },
 ];
 
 const _SKILL_LEVEL_OPTIONS = [

@@ -680,24 +680,24 @@ function CustomerCard({
       }}
     >
       {/* Header Row */}
-      <div className="flex items-start justify-between mb-1">
-        <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-2 mb-1">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
           {/* Avatar */}
-          <div className="h-12 w-12 rounded-full bg-teal-500 flex items-center justify-center text-white font-semibold text-lg flex-shrink-0">
+          <div className="h-12 w-12 rounded-full bg-teal-500 flex items-center justify-center text-white font-semibold text-lg shrink-0">
             {getInitials(customer.name)}
           </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
               <h3 className="font-semibold text-gray-900 truncate">{customer.name}</h3>
               {/* Badges */}
               {isNew && (
-                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 border border-gray-200">
+                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 border border-gray-200 shrink-0">
                   Nuevo
                 </span>
               )}
               {/* VIP badge - disabled until migration is applied
               {customer.isVip && (
-                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1">
+                <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-amber-100 text-amber-700 border border-amber-200 flex items-center gap-1 shrink-0">
                   <Crown className="h-3 w-3" />
                   VIP
                 </span>
@@ -799,21 +799,21 @@ function CustomerCard({
       </div>
 
       {/* Footer Stats */}
-      <div className="flex items-center justify-between mt-4 pt-4 border-t">
-        <div className="flex items-center gap-1.5 text-sm text-gray-600">
-          <ClipboardList className="h-4 w-4 text-gray-400" />
+      <div className="flex items-center justify-between gap-2 mt-4 pt-4 border-t text-sm">
+        <div className="flex items-center gap-1 text-gray-600 whitespace-nowrap">
+          <ClipboardList className="h-4 w-4 text-gray-400 shrink-0" />
           <span>{customer.jobCount || 0} trabajos</span>
         </div>
-        <div className="flex items-center gap-1.5 text-sm">
+        <div className="flex items-center gap-1 whitespace-nowrap">
           <Star className={cn(
-            'h-4 w-4',
+            'h-4 w-4 shrink-0',
             customer.averageRating ? 'text-amber-400 fill-amber-400' : 'text-gray-300'
           )} />
           <span className={customer.averageRating ? 'font-medium' : 'text-gray-400'}>
             {customer.averageRating ? customer.averageRating.toFixed(1) : 'Sin rating'}
           </span>
         </div>
-        <div className="text-sm font-semibold text-gray-900">
+        <div className="font-semibold text-gray-900 whitespace-nowrap">
           {formatCurrency(customer.totalSpent || 0)}
         </div>
       </div>

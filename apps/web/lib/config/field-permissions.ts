@@ -10,7 +10,7 @@
  * - 'readonly': Visible but not editable
  */
 
-export type UserRole = 'OWNER' | 'DISPATCHER' | 'TECHNICIAN';
+export type UserRole = 'SUPER_ADMIN' | 'OWNER' | 'DISPATCHER' | 'TECHNICIAN';
 export type FieldStatus = 'locked' | 'restricted' | 'approval' | 'editable' | 'readonly';
 
 export interface FieldPermission {
@@ -685,36 +685,36 @@ export const JOB_FIELDS: Record<string, FieldPermission> = {
 export type ModuleAccess = 'full' | 'limited' | 'view' | 'own' | 'hidden';
 
 export const MODULE_ACCESS: Record<string, Record<UserRole, ModuleAccess>> = {
-  // Dashboard: Owner sees everything, Dispatcher sees operations summary, Technician sees own stats
-  dashboard: { OWNER: 'full', DISPATCHER: 'limited', TECHNICIAN: 'own' },
-  // Jobs: Owner & Dispatcher manage all jobs, Technician sees only assigned jobs
-  jobs: { OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'own' },
-  // Customers: Owner & Dispatcher manage customers, Technician sees own job customers
-  customers: { OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'own' },
-  // Invoices: Owner only (billing access)
-  invoices: { OWNER: 'full', DISPATCHER: 'hidden', TECHNICIAN: 'hidden' },
-  // Payments: Owner only (billing access)
-  payments: { OWNER: 'full', DISPATCHER: 'hidden', TECHNICIAN: 'hidden' },
-  // Fleet: Owner manages vehicles, Dispatcher views, Technician sees assigned vehicle
-  fleet: { OWNER: 'full', DISPATCHER: 'view', TECHNICIAN: 'own' },
-  // Inventory: Owner manages, Dispatcher views stock, Technician logs usage
-  inventory: { OWNER: 'full', DISPATCHER: 'view', TECHNICIAN: 'own' },
-  // Team: Owner only (manages employees)
-  team: { OWNER: 'full', DISPATCHER: 'view', TECHNICIAN: 'own' },
-  // Settings: Owner only (organization config)
-  settings: { OWNER: 'full', DISPATCHER: 'hidden', TECHNICIAN: 'hidden' },
-  // Analytics: Owner sees all, Dispatcher sees ops reports, Technician hidden
-  analytics: { OWNER: 'full', DISPATCHER: 'limited', TECHNICIAN: 'hidden' },
-  // Calendar: Owner & Dispatcher manage schedule, Technician sees own schedule
-  calendar: { OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'own' },
-  // Map: Owner & Dispatcher see live map, Technician hidden
-  map: { OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'hidden' },
-  // Locations: Owner manages zones, Dispatcher views, Technician hidden
-  locations: { OWNER: 'full', DISPATCHER: 'view', TECHNICIAN: 'hidden' },
-  // WhatsApp: Owner & Dispatcher manage inbox, Technician hidden
-  whatsapp: { OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'hidden' },
-  // Schedule: Owner & Dispatcher manage all schedules, Technician sees own (read-only)
-  schedule: { OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'own' },
+  // Dashboard: SUPER_ADMIN sees everything, Owner sees everything, Dispatcher sees operations summary, Technician sees own stats
+  dashboard: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'limited', TECHNICIAN: 'own' },
+  // Jobs: SUPER_ADMIN/Owner & Dispatcher manage all jobs, Technician sees only assigned jobs
+  jobs: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'own' },
+  // Customers: SUPER_ADMIN/Owner & Dispatcher manage customers, Technician sees own job customers
+  customers: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'own' },
+  // Invoices: SUPER_ADMIN/Owner only (billing access)
+  invoices: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'hidden', TECHNICIAN: 'hidden' },
+  // Payments: SUPER_ADMIN/Owner only (billing access)
+  payments: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'hidden', TECHNICIAN: 'hidden' },
+  // Fleet: SUPER_ADMIN/Owner manages vehicles, Dispatcher views, Technician sees assigned vehicle
+  fleet: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'view', TECHNICIAN: 'own' },
+  // Inventory: SUPER_ADMIN/Owner manages, Dispatcher views stock, Technician logs usage
+  inventory: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'view', TECHNICIAN: 'own' },
+  // Team: SUPER_ADMIN/Owner only (manages employees)
+  team: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'view', TECHNICIAN: 'own' },
+  // Settings: SUPER_ADMIN/Owner only (organization config)
+  settings: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'hidden', TECHNICIAN: 'hidden' },
+  // Analytics: SUPER_ADMIN/Owner sees all, Dispatcher sees ops reports, Technician hidden
+  analytics: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'limited', TECHNICIAN: 'hidden' },
+  // Calendar: SUPER_ADMIN/Owner & Dispatcher manage schedule, Technician sees own schedule
+  calendar: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'own' },
+  // Map: SUPER_ADMIN/Owner & Dispatcher see live map, Technician hidden
+  map: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'hidden' },
+  // Locations: SUPER_ADMIN/Owner manages zones, Dispatcher views, Technician hidden
+  locations: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'view', TECHNICIAN: 'hidden' },
+  // WhatsApp: SUPER_ADMIN/Owner & Dispatcher manage inbox, Technician hidden
+  whatsapp: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'hidden' },
+  // Schedule: SUPER_ADMIN/Owner & Dispatcher manage all schedules, Technician sees own (read-only)
+  schedule: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'own' },
 };
 
 // ===========================================

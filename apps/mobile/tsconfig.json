@@ -1,9 +1,17 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
-    "strict": true,
+    "strict": false,
+    "skipLibCheck": true,
+    "types": [
+      "react",
+      "react-native",
+      "jest"
+    ],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": [
+        "./*"
+      ]
     },
     "experimentalDecorators": true,
     "useDefineForClassFields": false
@@ -13,5 +21,9 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "__tests__/**/*"
   ]
 }

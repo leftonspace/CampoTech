@@ -251,11 +251,163 @@ export class UnclaimedProfileService {
             },
         });
 
+        // Phase 5: Auto-grant matrícula badge if profile has matrícula data
+        if (profile.matricula && profile.source) {
+            await this.autoGrantMatriculaBadge(
+                organizationId,
+                userId,
+                profile
+            );
+        }
+
         return {
             success: true,
             organizationId,
             userId,
         };
+    }
+
+    /**
+     * Auto-grant matrícula badge when profile is claimed
+     * Creates an approved VerificationSubmission with registry_claim verification method
+     */
+    private async autoGrantMatriculaBadge(
+        organizationId: string,
+        userId: string,
+        profile: {
+            matricula: string | null;
+            source: string;
+            profession: string | null;
+            specialty: string | null;
+            fullName: string;
+            province: string | null;
+        }
+    ): Promise<void> {
+        try {
+            // Map profession to requirement code
+            const requirementCode = this.getRequirementCodeFromProfession(profile.profession, profile.specialty);
+
+            if (!requirementCode) {
+                console.log(`[UnclaimedProfile] No matching requirement code for profession: ${profile.profession}`);
+                return;
+            }
+
+            // Find the requirement
+            const requirement = await prisma.verificationRequirement.findUnique({
+                where: { code: requirementCode },
+            });
+
+            if (!requirement) {
+                console.log(`[UnclaimedProfile] Requirement not found: ${requirementCode}`);
+                return;
+            }
+
+            // Create or update the verification submission as approved
+            await prisma.verificationSubmission.upsert({
+                where: {
+                    organizationId_requirementId_userId: {
+                        organizationId,
+                        requirementId: requirement.id,
+                        userId,
+                    },
+                },
+                create: {
+                    organizationId,
+                    requirementId: requirement.id,
+                    userId,
+                    submittedValue: profile.matricula,
+                    status: 'approved',
+                    submittedAt: new Date(),
+                    verifiedAt: new Date(),
+                    verifiedBy: 'system',
+                    autoVerifyResponse: {
+                        verificationMethod: 'registry_claim',
+                        source: profile.source,
+                        registryName: profile.fullName,
+                        registryProvince: profile.province,
+                        claimedAt: new Date().toISOString(),
+                        note: 'Auto-verified via profile claim - matrícula from official registry',
+                    },
+                    autoVerifyCheckedAt: new Date(),
+                    notes: `Auto-granted via profile claim from ${profile.source}`,
+                },
+                update: {
+                    submittedValue: profile.matricula,
+                    status: 'approved',
+                    verifiedAt: new Date(),
+                    verifiedBy: 'system',
+                    autoVerifyResponse: {
+                        verificationMethod: 'registry_claim',
+                        source: profile.source,
+                        registryName: profile.fullName,
+                        registryProvince: profile.province,
+                        claimedAt: new Date().toISOString(),
+                        note: 'Auto-verified via profile claim update',
+                    },
+                    autoVerifyCheckedAt: new Date(),
+                    notes: `Updated via profile claim from ${profile.source}`,
+                },
+            });
+
+            console.log(`[UnclaimedProfile] Auto-granted ${requirementCode} badge for org ${organizationId} - matrícula: ${profile.matricula}`);
+
+        } catch (error) {
+            // Don't fail the claim if badge auto-grant fails
+            console.error('[UnclaimedProfile] Error auto-granting badge:', error);
+        }
+    }
+
+    /**
+     * Map profession/specialty to verification requirement code
+     */
+    private getRequirementCodeFromProfession(
+        profession: string | null,
+        specialty: string | null
+    ): string | null {
+        const professionLower = (profession || '').toLowerCase();
+        const specialtyLower = (specialty || '').toLowerCase();
+
+        // Check for gas-related
+        if (
+            professionLower.includes('gas') ||
+            professionLower.includes('gasista') ||
+            specialtyLower.includes('gas')
+        ) {
+            return 'gas_matricula';
+        }
+
+        // Check for electrician
+        if (
+            professionLower.includes('electric') ||
+            professionLower.includes('electricista') ||
+            specialtyLower.includes('electric')
+        ) {
+            return 'electrician_matricula';
+        }
+
+        // Check for plumber
+        if (
+            professionLower.includes('plom') ||
+            professionLower.includes('plomero') ||
+            professionLower.includes('sanitario') ||
+            specialtyLower.includes('plom') ||
+            specialtyLower.includes('sanitario')
+        ) {
+            return 'plumber_matricula';
+        }
+
+        // Check for refrigeration
+        if (
+            professionLower.includes('refrig') ||
+            professionLower.includes('climatizacion') ||
+            professionLower.includes('aire') ||
+            specialtyLower.includes('refrig') ||
+            specialtyLower.includes('climatizacion')
+        ) {
+            return 'refrigeration_license';
+        }
+
+        return null;
     }
 
     /**

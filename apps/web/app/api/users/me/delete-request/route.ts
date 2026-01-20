@@ -11,7 +11,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 import { accountDeletion } from '@/lib/services/account-deletion';
+import { sendDeletionConfirmationEmail } from '@/lib/email/deletion-emails';
 
 /**
  * POST /api/users/me/delete-request
@@ -70,14 +72,38 @@ export async function POST(): Promise<NextResponse> {
       );
     }
 
-    // In a real implementation, send confirmation email with token link
-    // const confirmationUrl = `${process.env.APP_URL}/account/confirm-deletion?token=${result.confirmationToken}`;
-    // await sendEmail(user.email, 'Confirma la eliminación de tu cuenta', ...);
+    // Send confirmation email with token link
+    let emailSent = false;
+    try {
+      // Get user email
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { email: true, name: true },
+      });
+
+      if (user?.email && result.confirmationToken) {
+        const emailResult = await sendDeletionConfirmationEmail(
+          user.email,
+          user.name,
+          result.confirmationToken
+        );
+        emailSent = emailResult.success;
+        if (!emailSent) {
+          console.error('Failed to send deletion confirmation email:', emailResult.error);
+        }
+      }
+    } catch (emailError) {
+      console.error('Error sending deletion confirmation email:', emailError);
+      // Don't fail the request if email fails
+    }
 
     return NextResponse.json({
       success: true,
-      message: 'Solicitud de eliminación creada. Revisa tu email para confirmar.',
+      message: emailSent
+        ? 'Solicitud de eliminación creada. Revisa tu email para confirmar.'
+        : 'Solicitud de eliminación creada. Confirmá con el enlace enviado.',
       confirmationRequired: true,
+      emailSent,
       preview,
       // For testing, include token (remove in production)
       ...(process.env.NODE_ENV === 'development' && { _devToken: result.confirmationToken }),

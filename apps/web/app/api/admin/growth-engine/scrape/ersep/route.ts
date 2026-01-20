@@ -17,11 +17,11 @@ import { getERSEPPlaywrightScraper } from '@/lib/scrapers/ersep-playwright-scrap
 
 export async function POST(request: NextRequest) {
     try {
-        // Auth check - admin only
+        // Auth check - SUPER_ADMIN only (platform admin, not org owner)
         const session = await getSession();
-        if (!session || session.role !== 'OWNER') {
+        if (!session || session.role !== 'SUPER_ADMIN') {
             return NextResponse.json(
-                { error: 'Acceso no autorizado' },
+                { error: 'Acceso no autorizado - Solo administradores de plataforma' },
                 { status: 403 }
             );
         }
@@ -87,9 +87,9 @@ export async function POST(request: NextRequest) {
 export async function GET() {
     try {
         const session = await getSession();
-        if (!session || session.role !== 'OWNER') {
+        if (!session || session.role !== 'SUPER_ADMIN') {
             return NextResponse.json(
-                { error: 'Acceso no autorizado' },
+                { error: 'Acceso no autorizado - Solo administradores de plataforma' },
                 { status: 403 }
             );
         }

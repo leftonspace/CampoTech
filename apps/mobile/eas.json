@@ -28,6 +28,7 @@
     "preview": {
       "extends": "base",
       "distribution": "internal",
+      "channel": "preview",
       "android": {
         "buildType": "apk"
       },
@@ -35,7 +36,7 @@
         "resourceClass": "m-medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-staging.campo.tech"
+        "EXPO_PUBLIC_API_URL": "https://campo-tech-rho.vercel.app/api"
       }
     },
     "production": {

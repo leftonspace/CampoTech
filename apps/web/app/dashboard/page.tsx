@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { OnboardingChecklist } from '@/components/dashboard';
 import { useOnboardingStatus } from '@/hooks/useOnboardingStatus';
+import { InflationAlertWidget } from '@/components/pricing';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -80,7 +81,8 @@ function getGreeting(): string {
   return 'Buenas noches';
 }
 
-function getInitials(name: string): string {
+function getInitials(name: string | undefined | null): string {
+  if (!name) return '??';
   return name
     .split(' ')
     .map((n) => n[0])
@@ -181,6 +183,9 @@ export default function DashboardPage() {
       {!onboardingLoading && !isOnboardingComplete && (
         <OnboardingChecklist />
       )}
+
+      {/* Inflation Alert - Phase 6 */}
+      <InflationAlertWidget />
 
       {/* Stats Cards - Lovable Design with filled icon backgrounds */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

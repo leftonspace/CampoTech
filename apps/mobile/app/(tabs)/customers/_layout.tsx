@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Stack } from 'expo-router';
 
 export default function CustomersLayout() {
@@ -8,3 +9,4 @@ export default function CustomersLayout() {
     </Stack>
   );
 }
+

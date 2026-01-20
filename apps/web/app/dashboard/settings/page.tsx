@@ -15,6 +15,8 @@ import {
   Bell,
   Wrench,
   Bot,
+  Clock,
+  Shield,
 } from 'lucide-react';
 
 interface SettingCard {
@@ -39,6 +41,14 @@ export default function SettingsPage() {
       href: '/dashboard/settings/organization',
       icon: Building,
       status: 'configured',
+    },
+    {
+      title: 'Verificación',
+      description: 'Estado de verificación y documentación',
+      href: '/dashboard/settings/verification',
+      icon: Shield,
+      status: 'warning',
+      adminOnly: true,
     },
     {
       title: 'AFIP',
@@ -91,6 +101,13 @@ export default function SettingsPage() {
       description: 'Servicios y productos',
       href: '/dashboard/settings/pricebook',
       icon: DollarSign,
+    },
+    {
+      title: 'Tarifas de mano de obra',
+      description: 'Valor hora por especialidad y nivel',
+      href: '/dashboard/settings/labor-rates',
+      icon: Clock,
+      adminOnly: true,
     },
     {
       title: 'Notificaciones',

@@ -8,7 +8,7 @@
  * 3. Signature capture
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -58,6 +58,12 @@ export default function CompleteJobScreen() {
   const [useVoiceInput, setUseVoiceInput] = useState(false);
   const [voiceTranscription, setVoiceTranscription] = useState<string | null>(null);
   const [isExtractingInvoice, setIsExtractingInvoice] = useState(false);
+
+  // Per-visit pricing state (Phase 1 - Jan 2026)
+  const [jobPricingMode, setJobPricingMode] = useState<string | null>(null);
+  const [visitEstimatedPrice, setVisitEstimatedPrice] = useState<number | null>(null);
+  const [visitActualPrice, setVisitActualPrice] = useState('');
+  const [priceVarianceReason, setPriceVarianceReason] = useState('');
 
   // Voice-to-Invoice: Extract invoice data from transcription
   const handleVoiceInvoiceExtraction = async (transcription: string) => {
@@ -130,6 +136,29 @@ export default function CompleteJobScreen() {
       setIsExtractingInvoice(false);
     }
   };
+
+  // Load job pricing data (Phase 1 - Jan 2026)
+  const loadJobPricingData = useCallback(async () => {
+    if (!id) return;
+    try {
+      const job = await jobsCollection.find(id);
+      if (job) {
+        setJobPricingMode(job.pricingMode);
+        setVisitEstimatedPrice(job.visitEstimatedPrice);
+        // Pre-fill actual price with estimated if available
+        if (job.visitEstimatedPrice !== null) {
+          setVisitActualPrice(job.visitEstimatedPrice.toString());
+        }
+      }
+    } catch (error) {
+      console.error('Error loading job pricing data:', error);
+    }
+  }, [id]);
+
+  // Load job pricing on mount
+  useEffect(() => {
+    loadJobPricingData();
+  }, [loadJobPricingData]);
 
   const handleAddMaterial = () => {
     if (!newMaterial.name || !newMaterial.price) {
@@ -214,8 +243,16 @@ export default function CompleteJobScreen() {
       // Get the job
       const job = (await jobsCollection.find(id)) as Job;
 
-      // Complete the job
-      await job.completeJob(notes, materials, signature || undefined);
+      // Build per-visit pricing data (Phase 1 - Jan 2026)
+      const visitPricing = job.isPerVisitPricing && visitActualPrice
+        ? {
+          actualPrice: parseFloat(visitActualPrice),
+          priceVarianceReason: priceVarianceReason || undefined,
+        }
+        : undefined;
+
+      // Complete the job with per-visit pricing
+      await job.completeJob(notes, materials, signature || undefined, visitPricing);
 
       // Save photos to local database
       await database.write(async () => {
@@ -230,18 +267,26 @@ export default function CompleteJobScreen() {
         }
       });
 
-      // Queue for sync
+      // Queue for sync - include per-visit pricing (Phase 1 - Jan 2026)
+      const syncPayload: Record<string, any> = {
+        status: 'completed',
+        completionNotes: notes,
+        materialsUsed: materials,
+        signatureUrl: signature,
+        actualEnd: Date.now(),
+      };
+
+      // Add per-visit pricing to sync payload
+      if (visitPricing) {
+        syncPayload.visitActualPrice = visitPricing.actualPrice;
+        syncPayload.priceVarianceReason = visitPricing.priceVarianceReason;
+      }
+
       await enqueueOperation(
         'job',
         job.serverId,
         'update',
-        {
-          status: 'completed',
-          completionNotes: notes,
-          materialsUsed: materials,
-          signatureUrl: signature,
-          actualEnd: Date.now(),
-        },
+        syncPayload,
         10 // High priority
       );
 
@@ -452,6 +497,55 @@ export default function CompleteJobScreen() {
                       ${totals.total.toLocaleString('es-AR')}
                     </Text>
                   </View>
+                </View>
+              )}
+
+              {/* Per-Visit Pricing Section (Phase 1 - Jan 2026) */}
+              {jobPricingMode && jobPricingMode !== 'FIXED_TOTAL' && (
+                <View style={styles.pricingSection}>
+                  <Text style={styles.sectionTitle}>Precio de esta visita</Text>
+
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceLabel}>Estimado:</Text>
+                    <Text style={styles.priceValue}>
+                      ${visitEstimatedPrice?.toLocaleString('es-AR') ?? '-'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceLabel}>Precio real:</Text>
+                    <TextInput
+                      value={visitActualPrice}
+                      onChangeText={setVisitActualPrice}
+                      keyboardType="decimal-pad"
+                      placeholder={visitEstimatedPrice?.toString() ?? '0'}
+                      placeholderTextColor="#9ca3af"
+                      style={styles.priceInput}
+                    />
+                  </View>
+
+                  {visitActualPrice &&
+                    visitEstimatedPrice !== null &&
+                    parseFloat(visitActualPrice) !== visitEstimatedPrice && (
+                      <View style={styles.varianceSection}>
+                        <Text style={styles.varianceLabel}>
+                          ¿Por qué cambió el precio?
+                        </Text>
+                        <TextInput
+                          value={priceVarianceReason}
+                          onChangeText={setPriceVarianceReason}
+                          placeholder="Ej: Materiales adicionales, mayor complejidad..."
+                          placeholderTextColor="#9ca3af"
+                          multiline
+                          style={styles.reasonInput}
+                        />
+                        {Math.abs(parseFloat(visitActualPrice) - visitEstimatedPrice) / visitEstimatedPrice > 0.1 && (
+                          <Text style={styles.varianceWarning}>
+                            ⚠️ Variación mayor al 10% requiere justificación
+                          </Text>
+                        )}
+                      </View>
+                    )}
                 </View>
               )}
             </View>
@@ -914,5 +1008,71 @@ const styles = StyleSheet.create({
     color: '#374151',
     fontStyle: 'italic',
     lineHeight: 20,
+  },
+  // Per-visit pricing styles (Phase 1 - Jan 2026)
+  pricingSection: {
+    marginTop: 24,
+    padding: 16,
+    backgroundColor: '#ecfdf5',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  priceLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  priceValue: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#16a34a',
+  },
+  priceInput: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 10,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    minWidth: 120,
+    textAlign: 'right',
+  },
+  varianceSection: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#a7f3d0',
+  },
+  varianceLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  reasonInput: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    color: '#111827',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  varianceWarning: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#d97706',
+    fontWeight: '500',
   },
 });

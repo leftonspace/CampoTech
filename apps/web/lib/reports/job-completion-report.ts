@@ -46,6 +46,8 @@ export interface JobReportData {
         driverLicenseAtJob: string | null;
         vehicleMileageStart: number | null;
         vehicleMileageEnd: number | null;
+        // Per-visit pricing mode (Phase 1 - Jan 2026)
+        pricingMode: string | null;
     };
     customer: {
         name: string;
@@ -87,6 +89,10 @@ export interface JobReportData {
                 user: { name: string };
             }>;
         }>;
+        // Per-visit pricing (Phase 1 - Jan 2026)
+        estimatedPrice: number | null;
+        actualPrice: number | null;
+        priceVarianceReason: string | null;
     }>;
     lineItems: Array<{
         description: string;
@@ -221,6 +227,8 @@ export async function fetchJobReportData(
             driverLicenseAtJob: job.driverLicenseAtJob,
             vehicleMileageStart: job.vehicleMileageStart,
             vehicleMileageEnd: job.vehicleMileageEnd,
+            // Per-visit pricing mode (Phase 1 - Jan 2026)
+            pricingMode: job.pricingMode || null,
         },
         customer: {
             name: job.customer.name,
@@ -254,6 +262,10 @@ export async function fetchJobReportData(
                     user: d.user,
                 })),
             })),
+            // Per-visit pricing (Phase 1 - Jan 2026)
+            estimatedPrice: visit.estimatedPrice ? Number(visit.estimatedPrice) : null,
+            actualPrice: visit.actualPrice ? Number(visit.actualPrice) : null,
+            priceVarianceReason: visit.priceVarianceReason || null,
         })),
         lineItems: job.lineItems.map((item: typeof job.lineItems[number]) => ({
             description: item.description,
@@ -426,6 +438,75 @@ export function generateReportHTML(data: JobReportData, options: { includePhotos
       `).join('')}
     </div>
   ` : '';
+
+    // Per-visit pricing breakdown (Phase 1 - Jan 2026)
+    const perVisitPricingHTML = job.pricingMode && job.pricingMode !== 'FIXED_TOTAL' && visits.length > 0 ? (() => {
+        const totalEstimated = visits.reduce((sum, v) => sum + (v.estimatedPrice || 0), 0);
+        const totalActual = visits.reduce((sum, v) => sum + (v.actualPrice || 0), 0);
+        const hasActualPrices = visits.some(v => v.actualPrice !== null);
+
+        const getStatusLabel = (status: string) => {
+            const labels: Record<string, string> = {
+                'SCHEDULED': 'Programada',
+                'EN_CAMINO': 'En camino',
+                'WORKING': 'En progreso',
+                'COMPLETED': 'Completada',
+                'CANCELLED': 'Cancelada',
+            };
+            return labels[status] || status;
+        };
+
+        return `
+    <div class="section">
+      <div class="section-title">💵 Desglose de Precios por Visita</div>
+      <table class="visits-pricing-table">
+        <thead>
+          <tr>
+            <th>Visita</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+            <th style="text-align: right">Estimado</th>
+            ${hasActualPrices ? '<th style="text-align: right">Real</th>' : ''}
+            ${hasActualPrices ? '<th style="text-align: right">Variación</th>' : ''}
+          </tr>
+        </thead>
+        <tbody>
+          ${visits.map((v, i) => {
+            const variance = v.estimatedPrice && v.actualPrice
+                ? ((v.actualPrice - v.estimatedPrice) / v.estimatedPrice * 100).toFixed(1)
+                : null;
+            const varianceClass = variance
+                ? (parseFloat(variance) > 10 ? 'variance-high' : parseFloat(variance) > 0 ? 'variance-up' : 'variance-down')
+                : '';
+            return `
+            <tr class="${v.status === 'COMPLETED' ? 'row-completed' : ''}">
+              <td>${job.pricingMode === 'HYBRID' && i === 0 ? `${i + 1} (Diagnóstico)` : i + 1}</td>
+              <td>${formatDate(v.scheduledDate)}</td>
+              <td><span class="status-chip ${v.status.toLowerCase()}">${getStatusLabel(v.status)}</span></td>
+              <td style="text-align: right">${v.estimatedPrice ? formatCurrency(v.estimatedPrice) : '-'}</td>
+              ${hasActualPrices ? `<td style="text-align: right">${v.actualPrice ? formatCurrency(v.actualPrice) : '-'}</td>` : ''}
+              ${hasActualPrices ? `
+                <td style="text-align: right">
+                  ${variance ? `<span class="${varianceClass}">${parseFloat(variance) > 0 ? '+' : ''}${variance}%</span>` : '-'}
+                  ${v.priceVarianceReason ? `<br/><span class="variance-reason">${v.priceVarianceReason}</span>` : ''}
+                </td>
+              ` : ''}
+            </tr>
+          `;
+        }).join('')}
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td colspan="3"><strong>Total</strong></td>
+            <td style="text-align: right"><strong>${formatCurrency(totalEstimated)}</strong></td>
+            ${hasActualPrices ? `<td style="text-align: right"><strong>${formatCurrency(totalActual)}</strong></td>` : ''}
+            ${hasActualPrices ? '<td></td>' : ''}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  `;
+    })() : '';
 
     // Pricing summary
     const pricingHTML = (job.estimatedTotal || job.finalTotal) ? `
@@ -855,6 +936,94 @@ export function generateReportHTML(data: JobReportData, options: { includePhotos
       margin-left: 20px;
     }
     
+    /* Per-visit pricing table (Phase 1 - Jan 2026) */
+    .visits-pricing-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 10px;
+      margin-top: 10px;
+    }
+    
+    .visits-pricing-table th {
+      background: #f0fdf4;
+      padding: 8px;
+      text-align: left;
+      font-weight: 600;
+      border-bottom: 2px solid #10b981;
+      color: #065f46;
+    }
+    
+    .visits-pricing-table td {
+      padding: 8px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .visits-pricing-table .row-completed {
+      background: #f0fdf4;
+    }
+    
+    .visits-pricing-table .total-row {
+      background: #ecfdf5;
+      font-weight: 600;
+    }
+    
+    .visits-pricing-table .total-row td {
+      border-top: 2px solid #10b981;
+      border-bottom: none;
+    }
+    
+    .status-chip {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 9999px;
+      font-size: 9px;
+      font-weight: 500;
+    }
+    
+    .status-chip.completed {
+      background: #d1fae5;
+      color: #065f46;
+    }
+    
+    .status-chip.scheduled {
+      background: #e0e7ff;
+      color: #3730a3;
+    }
+    
+    .status-chip.en_camino {
+      background: #fef3c7;
+      color: #92400e;
+    }
+    
+    .status-chip.working {
+      background: #dbeafe;
+      color: #1e40af;
+    }
+    
+    .variance-up {
+      color: #f59e0b;
+      font-weight: 600;
+    }
+    
+    .variance-down {
+      color: #10b981;
+      font-weight: 600;
+    }
+    
+    .variance-high {
+      color: #ef4444;
+      font-weight: 700;
+      background: #fef2f2;
+      padding: 2px 4px;
+      border-radius: 4px;
+    }
+    
+    .variance-reason {
+      font-size: 8px;
+      color: #6b7280;
+      font-style: italic;
+    }
+    
     /* Footer */
     .footer {
       margin-top: 30px;
@@ -982,6 +1151,9 @@ export function generateReportHTML(data: JobReportData, options: { includePhotos
     
     <!-- Line Items -->
     ${lineItemsHTML}
+    
+    <!-- Per-Visit Pricing Breakdown (Phase 1 - Jan 2026) -->
+    ${perVisitPricingHTML}
     
     <!-- Pricing Summary -->
     ${pricingHTML}

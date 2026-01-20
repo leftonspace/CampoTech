@@ -26,7 +26,7 @@ import { prisma } from '@/lib/prisma';
 
 // Local type until prisma generate runs
 type MembershipStatus = 'INVITED' | 'ACTIVE' | 'SUSPENDED' | 'LEFT';
-type UserRole = 'OWNER' | 'DISPATCHER' | 'TECHNICIAN';
+type UserRole = 'SUPER_ADMIN' | 'OWNER' | 'DISPATCHER' | 'TECHNICIAN';
 
 export interface OrganizationMembership {
     id: string;

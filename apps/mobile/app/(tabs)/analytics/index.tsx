@@ -39,7 +39,7 @@ import {
   ArrowDownRight,
   AlertCircle,
 } from 'lucide-react-native';
-import { useAuth } from '../../../lib/providers/auth';
+import { useAuth } from '../../../lib/auth/auth-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -400,11 +400,10 @@ export default function AnalyticsDashboard() {
                     style={[
                       styles.ratingBar,
                       {
-                        width: `${
-                          (analytics.satisfaction.fiveStars /
+                        width: `${(analytics.satisfaction.fiveStars /
                             analytics.satisfaction.totalReviews) *
                           100
-                        }%`,
+                          }%`,
                       },
                     ]}
                   />
@@ -421,11 +420,10 @@ export default function AnalyticsDashboard() {
                       styles.ratingBar,
                       styles.ratingBarFour,
                       {
-                        width: `${
-                          (analytics.satisfaction.fourStars /
+                        width: `${(analytics.satisfaction.fourStars /
                             analytics.satisfaction.totalReviews) *
                           100
-                        }%`,
+                          }%`,
                       },
                     ]}
                   />
@@ -442,11 +440,10 @@ export default function AnalyticsDashboard() {
                       styles.ratingBar,
                       styles.ratingBarLow,
                       {
-                        width: `${
-                          (analytics.satisfaction.threeOrLess /
+                        width: `${(analytics.satisfaction.threeOrLess /
                             analytics.satisfaction.totalReviews) *
                           100
-                        }%`,
+                          }%`,
                       },
                     ]}
                   />

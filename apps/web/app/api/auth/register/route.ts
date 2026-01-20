@@ -9,7 +9,17 @@ const REGISTRATION_EXPIRY_MINUTES = 15;
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { cuit, businessName, adminName, phone, email } = body;
+    const {
+      cuit,
+      businessName,
+      adminName,
+      phone,
+      email,
+      // Ley 25.326 consent fields (captured for future compliance use)
+      dataTransferConsent: _dataTransferConsent,
+      termsAccepted: _termsAccepted,
+      consentTimestamp: _consentTimestamp,
+    } = body;
 
     // Validate required fields
     if (!cuit || !businessName || !adminName || !phone) {

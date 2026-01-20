@@ -32,8 +32,8 @@ import {
   QrCode,
 } from 'lucide-react-native';
 import { router } from 'expo-router';
-import { useAuth } from '../../lib/auth/auth-context';
-import { useSyncStatus, useForceSync } from '../../lib/hooks/use-sync-status';
+import { useAuth } from '../../../lib/auth/auth-context';
+import { useSyncStatus, useForceSync } from '../../../lib/hooks/use-sync-status';
 
 export default function ProfileScreen() {
   const { user, logout } = useAuth();

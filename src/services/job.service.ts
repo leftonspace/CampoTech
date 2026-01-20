@@ -132,6 +132,7 @@ export class JobService {
     /**
      * Create a job with assignments and visits
      * Phase 6: Now supports multiple vehicles per visit with multiple drivers
+     * Phase 1 (Jan 2026): Added per-visit pricing support
      */
     static async createJob(orgId: string, userId: string, data: any) {
         const {
@@ -145,6 +146,12 @@ export class JobService {
             vehicleId = null, // Legacy: single vehicle for job (Phase 2.1)
             visits = [],
             durationType: bodyDurationType,
+            // Phase 1: Per-visit pricing fields
+            pricingMode = 'FIXED_TOTAL',
+            defaultVisitRate = null,
+            estimatedTotal = null,
+            depositAmount = null,
+            depositPaymentMethod = null,
         } = data;
 
         // Generate job number
@@ -193,6 +200,12 @@ export class JobService {
                         visitCount,
                         recurrencePattern: hasRecurrence ? (visits.find((v: any) => v.isRecurring)?.recurrencePattern as any) : null,
                         recurrenceCount: hasRecurrence ? visits.find((v: any) => v.isRecurring)?.recurrenceCount : null,
+                        // Phase 1: Per-visit pricing fields
+                        pricingMode: pricingMode as any,
+                        defaultVisitRate: defaultVisitRate ? parseFloat(defaultVisitRate) : null,
+                        estimatedTotal: estimatedTotal ? parseFloat(estimatedTotal) : null,
+                        depositAmount: depositAmount ? parseFloat(depositAmount) : null,
+                        depositPaymentMethod: depositPaymentMethod || null,
                         assignments: {
                             create: technicianIds.map((techId: string) => ({
                                 technicianId: techId,
@@ -207,6 +220,10 @@ export class JobService {
                                     ? { start: visit.timeStart || '', end: visit.timeEnd || '' }
                                     : null,
                                 technicianId: visit.technicianIds?.[0] || technicianIds[0] || null,
+                                // Phase 1: Per-visit pricing fields
+                                estimatedPrice: visit.estimatedPrice ? parseFloat(visit.estimatedPrice) : null,
+                                requiresDeposit: visit.requiresDeposit || false,
+                                depositAmount: visit.depositAmount ? parseFloat(visit.depositAmount) : null,
                             })),
                         } : undefined,
                     },

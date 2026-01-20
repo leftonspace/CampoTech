@@ -13,8 +13,11 @@ const monorepoRoot = path.resolve(projectRoot, '../..');
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(projectRoot);
 
-// Watch folders in the monorepo
-config.watchFolders = [monorepoRoot];
+// Watch only root node_modules for shared packages, not the entire monorepo
+// This significantly speeds up Metro bundler initialization
+config.watchFolders = [
+  path.resolve(monorepoRoot, 'node_modules'),
+];
 
 // Configure module resolution for monorepo
 // Order matters: check app's node_modules first, then root
@@ -23,12 +26,14 @@ config.resolver.nodeModulesPaths = [
   path.resolve(monorepoRoot, 'node_modules'),
 ];
 
-// Exclude WatermelonDB from web builds completely
+// Platform-specific module resolution
+// - Web: Use mocks for WatermelonDB and react-native-maps (they require native code)
+// - Native (EAS builds): Use real WatermelonDB with SQLite
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  // WEB ONLY: Redirect WatermelonDB to mock
   if (platform === 'web') {
-    // Redirect ALL WatermelonDB imports to our web mock
     if (moduleName === '@nozbe/watermelondb' ||
-        moduleName.startsWith('@nozbe/watermelondb/')) {
+      moduleName.startsWith('@nozbe/watermelondb/')) {
       return {
         filePath: path.resolve(__dirname, 'watermelon/database.web.ts'),
         type: 'sourceFile',
@@ -37,10 +42,10 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
 
     // Redirect local watermelon model imports to web mock
     if (context.originModulePath &&
-        (moduleName.includes('/watermelon/models/') ||
-         moduleName.includes('/watermelon/schema') ||
-         moduleName.endsWith('/watermelon') ||
-         moduleName.endsWith('/watermelon/index'))) {
+      (moduleName.includes('/watermelon/models/') ||
+        moduleName.includes('/watermelon/schema') ||
+        moduleName.endsWith('/watermelon') ||
+        moduleName.endsWith('/watermelon/index'))) {
       return {
         filePath: path.resolve(__dirname, 'watermelon/database.web.ts'),
         type: 'sourceFile',
@@ -54,9 +59,18 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
         type: 'sourceFile',
       };
     }
+
+    // Redirect react-native-maps to web mock (native-only library)
+    if (moduleName === 'react-native-maps' ||
+      moduleName.startsWith('react-native-maps/')) {
+      return {
+        filePath: path.resolve(__dirname, 'web-mocks/react-native-maps.tsx'),
+        type: 'sourceFile',
+      };
+    }
   }
 
-  // Default resolution
+  // NATIVE: Use real WatermelonDB (default resolution)
   return context.resolveRequest(context, moduleName, platform);
 };
 

@@ -96,6 +96,14 @@ export async function POST(request: NextRequest) {
           settings: {
             cuit: pendingReg.cuit,
             cuitFormatted: formatCUIT(pendingReg.cuit),
+            // Ley 25.326 consent record
+            consent: {
+              dataTransferConsent: true,  // Required to register
+              termsAccepted: true,         // Required to register
+              consentTimestamp: new Date().toISOString(),
+              ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
+              userAgent: request.headers.get('user-agent') || 'unknown',
+            },
           },
         },
       });

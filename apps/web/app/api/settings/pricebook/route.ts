@@ -70,6 +70,8 @@ export async function GET(request: NextRequest) {
       description: string | null;
       type: string;
       price: Decimal;
+      priceCurrency: string;
+      priceInUsd: Decimal | null;
       unit: string | null;
       taxRate: Decimal;
       isActive: boolean;
@@ -104,6 +106,8 @@ export async function GET(request: NextRequest) {
       description: item.description,
       type: item.type.toLowerCase() as 'service' | 'product',
       price: Number(item.price),
+      priceCurrency: item.priceCurrency as 'ARS' | 'USD',
+      priceInUsd: item.priceInUsd ? Number(item.priceInUsd) : null,
       unit: item.unit,
       taxRate: Number(item.taxRate),
       isActive: item.isActive,
@@ -150,11 +154,24 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, description, type, price, unit, taxRate, isActive, specialty, pricingModel } = body;
+    const {
+      name, description, type, price, unit, taxRate, isActive, specialty, pricingModel,
+      priceCurrency, priceInUsd
+    } = body;
 
-    if (!name || price === undefined || price === null) {
+    // For USD items, priceInUsd should be provided; for ARS items, price should be provided
+    const isUsdPricing = priceCurrency === 'USD';
+    const hasValidPrice = isUsdPricing
+      ? (priceInUsd !== undefined && priceInUsd !== null && priceInUsd > 0)
+      : (price !== undefined && price !== null);
+
+    if (!name || !hasValidPrice) {
       return NextResponse.json(
-        { success: false, error: 'Nombre y precio son requeridos' },
+        {
+          success: false, error: isUsdPricing
+            ? 'Nombre y precio en USD son requeridos'
+            : 'Nombre y precio son requeridos'
+        },
         { status: 400 }
       );
     }
@@ -162,6 +179,11 @@ export async function POST(request: NextRequest) {
     // Valid pricing models
     const validPricingModels = ['FIXED', 'HOURLY', 'PER_UNIT', 'PER_M2', 'PER_DAY', 'QUOTE'];
     const normalizedPricingModel = pricingModel?.toUpperCase();
+
+    // For USD items, store the USD price and set ARS price to 0 (to be calculated dynamically)
+    // For ARS items, just store the ARS price directly
+    const finalPrice = isUsdPricing ? 0 : (price || 0);
+    const finalPriceInUsd = isUsdPricing ? priceInUsd : null;
 
     let item;
     try {
@@ -171,7 +193,9 @@ export async function POST(request: NextRequest) {
           name,
           description: description || null,
           type: (type?.toUpperCase() as 'SERVICE' | 'PRODUCT') || 'SERVICE',
-          price: new Decimal(price),
+          price: new Decimal(finalPrice),
+          priceCurrency: isUsdPricing ? 'USD' : 'ARS',
+          priceInUsd: finalPriceInUsd ? new Decimal(finalPriceInUsd) : null,
           unit: unit || null,
           taxRate: taxRate ? new Decimal(taxRate) : new Decimal(21),
           isActive: isActive !== false,

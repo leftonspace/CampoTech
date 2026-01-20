@@ -1,10 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
 import { formatCurrency } from '@/lib/utils';
+import { PriceCurrencyInput, Currency, InflationAdjustmentModal, AdjustmentSubmission, PriceAdjustmentHistory } from '@/components/pricing';
 import {
   ArrowLeft,
   Plus,
@@ -22,6 +24,8 @@ import {
   Calendar,
   FileText,
   Tag,
+  TrendingUp,
+  History,
 } from 'lucide-react';
 
 // Specialty options for multi-trade support
@@ -40,15 +44,20 @@ const SPECIALTY_OPTIONS = [
   { value: 'OTRO', label: 'Otro', color: 'bg-gray-100 text-gray-700' },
 ];
 
-// Pricing model options
+// Pricing model options with unit behavior
 const PRICING_MODEL_OPTIONS = [
-  { value: 'FIXED', label: 'Precio Fijo', icon: DollarSign, description: 'Un precio cerrado' },
-  { value: 'HOURLY', label: 'Por Hora', icon: Clock, description: 'Cobro por hora de trabajo' },
-  { value: 'PER_UNIT', label: 'Por Unidad', icon: Hash, description: 'Por punto, toma, etc.' },
-  { value: 'PER_M2', label: 'Por m²', icon: Ruler, description: 'Por metro cuadrado' },
-  { value: 'PER_DAY', label: 'Por Jornal', icon: Calendar, description: 'Tarifa diaria' },
-  { value: 'QUOTE', label: 'Presupuesto', icon: FileText, description: 'Cotización personalizada' },
+  { value: 'FIXED', label: 'Precio Fijo', icon: DollarSign, description: 'Un precio cerrado', unitBehavior: 'hidden' as const, defaultUnit: '' },
+  { value: 'HOURLY', label: 'Por Hora', icon: Clock, description: 'Cobro por hora de trabajo', unitBehavior: 'auto' as const, defaultUnit: 'hora' },
+  { value: 'PER_UNIT', label: 'Por Unidad', icon: Hash, description: 'Por punto, toma, etc.', unitBehavior: 'required' as const, defaultUnit: '' },
+  { value: 'PER_M2', label: 'Por m²', icon: Ruler, description: 'Por metro cuadrado', unitBehavior: 'auto' as const, defaultUnit: 'm²' },
+  { value: 'PER_DAY', label: 'Por Jornal', icon: Calendar, description: 'Tarifa diaria', unitBehavior: 'hidden' as const, defaultUnit: '' },
+  { value: 'QUOTE', label: 'Presupuesto', icon: FileText, description: 'Cotización personalizada', unitBehavior: 'hidden' as const, defaultUnit: '' },
 ];
+
+// Helper to get pricing model config
+const getPricingModelConfig = (model: string) => {
+  return PRICING_MODEL_OPTIONS.find(opt => opt.value === model) || null;
+};
 
 interface PriceItem {
   id: string;
@@ -61,6 +70,10 @@ interface PriceItem {
   isActive: boolean;
   specialty?: string | null;
   pricingModel?: string | null;
+  // Multi-currency fields (Phase 2)
+  priceCurrency?: 'ARS' | 'USD';
+  priceInUsd?: number | null;
+  exchangeRateAtSet?: number | null;
 }
 
 export default function PricebookPage() {
@@ -69,11 +82,46 @@ export default function PricebookPage() {
   const [editingItem, setEditingItem] = useState<PriceItem | null>(null);
   const [typeFilter, setTypeFilter] = useState<string>('');
   const [specialtyFilter, setSpecialtyFilter] = useState<string>('');
+  const [showInflationModal, setShowInflationModal] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ['pricebook'],
     queryFn: () => api.settings.pricebook.list(),
   });
+
+  // Fetch org pricing settings for preferred rate source
+  const { data: pricingSettings } = useQuery({
+    queryKey: ['pricing-settings'],
+    queryFn: async () => {
+      const res = await fetch('/api/settings/pricing');
+      const json = await res.json();
+      return json.success ? json.data : null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const defaultRateSource = pricingSettings?.exchangeRateSource || 'BLUE';
+
+  // Allow user to temporarily view in different rate (defaults to org preference)
+  const [selectedRateSource, setSelectedRateSource] = useState<string>('');
+  const activeRateSource = selectedRateSource || defaultRateSource;
+
+  // Fetch exchange rate for selected source (BLUE, MEP, and CCL work with Ambito)
+  const { data: exchangeRateData, isError: rateError } = useQuery({
+    queryKey: ['exchange-rate', activeRateSource],
+    queryFn: async () => {
+      const res = await fetch(`/api/exchange-rates/${activeRateSource.toLowerCase()}`);
+      const json = await res.json();
+      if (!json.success) throw new Error('Rate fetch failed');
+      return json.data;
+    },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 1, // Only retry once
+    enabled: !!activeRateSource && ['BLUE', 'MEP', 'CCL'].includes(activeRateSource),
+  });
+  const currentRate = exchangeRateData?.sellRate || 0;
+  const rateLabel = exchangeRateData?.label || activeRateSource;
+  const rateUnavailable = rateError || (!currentRate && activeRateSource);
 
   const items = (data?.data as PriceItem[]) || [];
 
@@ -112,6 +160,29 @@ export default function PricebookPage() {
     },
   });
 
+  // Inflation adjustment mutation (Phase 5)
+  const adjustMutation = useMutation({
+    mutationFn: async (data: AdjustmentSubmission) => {
+      const res = await fetch('/api/settings/pricebook/adjust', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+      return result;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['pricebook'] });
+      queryClient.invalidateQueries({ queryKey: ['price-adjustment-history'] });
+      setShowInflationModal(false);
+      alert(`✅ Se ajustaron ${result.data.itemsAdjusted} ítems (${result.data.summary.averageChange.toFixed(1)}% promedio)`);
+    },
+    onError: (error: Error) => {
+      alert(`Error: ${error.message}`);
+    },
+  });
+
   const handleOpenModal = (item?: PriceItem) => {
     setEditingItem(item || null);
     setShowModal(true);
@@ -147,10 +218,26 @@ export default function PricebookPage() {
           <h1 className="text-2xl font-bold text-gray-900">Lista de precios</h1>
           <p className="text-gray-500">Servicios y productos con soporte multi-oficio</p>
         </div>
-        <button onClick={() => handleOpenModal()} className="btn-primary">
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo item
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            <History className="h-4 w-4" />
+            Historial
+          </button>
+          <button
+            onClick={() => setShowInflationModal(true)}
+            className="flex items-center gap-2 rounded-lg border border-green-300 bg-green-50 px-4 py-2 text-sm font-medium text-green-700 hover:bg-green-100"
+          >
+            <TrendingUp className="h-4 w-4" />
+            Ajustar por Inflación
+          </button>
+          <button onClick={() => handleOpenModal()} className="btn-primary">
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo item
+          </button>
+        </div>
       </div>
 
       {/* Specialty Tabs */}
@@ -160,8 +247,8 @@ export default function PricebookPage() {
             <button
               onClick={() => setSpecialtyFilter('')}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${!specialtyFilter
-                  ? 'bg-primary-100 text-primary-700'
-                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                ? 'bg-primary-100 text-primary-700'
+                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                 }`}
             >
               Todos
@@ -173,8 +260,8 @@ export default function PricebookPage() {
                   key={specialty}
                   onClick={() => setSpecialtyFilter(specialty)}
                   className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${specialtyFilter === specialty
-                      ? info?.color || 'bg-primary-100 text-primary-700'
-                      : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    ? info?.color || 'bg-primary-100 text-primary-700'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                     }`}
                 >
                   {info?.label || specialty}
@@ -199,6 +286,28 @@ export default function PricebookPage() {
             <option value="service">Servicios</option>
             <option value="product">Productos</option>
           </select>
+
+          {/* Exchange rate selector for USD items */}
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-xs text-gray-500">Cotización USD:</span>
+            <select
+              value={selectedRateSource}
+              onChange={(e) => setSelectedRateSource(e.target.value)}
+              className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700"
+            >
+              <option value="">Por defecto ({defaultRateSource})</option>
+              <option value="BLUE">Dólar Blue</option>
+              <option value="MEP">Dólar MEP (Bolsa)</option>
+              <option value="CCL">Dólar CCL</option>
+            </select>
+            {currentRate > 0 ? (
+              <span className="text-xs font-medium text-green-600">
+                ${currentRate.toLocaleString('es-AR')}
+              </span>
+            ) : rateUnavailable ? (
+              <span className="text-xs text-amber-600">Sin cotización</span>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -271,8 +380,17 @@ export default function PricebookPage() {
 
                 <div className="mt-4 flex items-center justify-between">
                   <div className="flex items-center gap-2">
+                    {/* Currency indicator */}
+                    {item.priceCurrency === 'USD' ? (
+                      <span className="rounded bg-green-100 px-1.5 py-0.5 text-xs font-bold text-green-700">
+                        US$
+                      </span>
+                    ) : null}
                     <span className="text-lg font-bold text-gray-900">
-                      {formatCurrency(item.price)}
+                      {item.priceCurrency === 'USD'
+                        ? `$${item.priceInUsd?.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+                        : formatCurrency(item.price)
+                      }
                     </span>
                     {item.unit && (
                       <span className="text-sm text-gray-500">/ {item.unit}</span>
@@ -285,6 +403,19 @@ export default function PricebookPage() {
                     </div>
                   )}
                 </div>
+
+                {/* Show ARS equivalent for USD items */}
+                {item.priceCurrency === 'USD' && item.priceInUsd && currentRate > 0 && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    ≈ {formatCurrency(item.priceInUsd * currentRate)} ARS
+                    <span className="ml-1 text-gray-400">({rateLabel})</span>
+                  </p>
+                )}
+                {item.priceCurrency === 'USD' && (!currentRate || currentRate === 0) && (
+                  <p className="mt-1 text-xs text-gray-400 italic">
+                    Cargando cotización...
+                  </p>
+                )}
 
                 {item.taxRate !== undefined && item.taxRate > 0 && (
                   <p className="mt-1 text-xs text-gray-500">
@@ -324,6 +455,28 @@ export default function PricebookPage() {
           isLoading={createMutation.isPending || updateMutation.isPending}
         />
       )}
+
+      {/* History Section (Phase 5) */}
+      {showHistory && (
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <History className="h-5 w-5" />
+            Historial de Ajustes
+          </h3>
+          <PriceAdjustmentHistory limit={10} />
+        </div>
+      )}
+
+      {/* Inflation Adjustment Modal (Phase 5) */}
+      <InflationAdjustmentModal
+        isOpen={showInflationModal}
+        onClose={() => setShowInflationModal(false)}
+        items={items}
+        onApply={async (data) => {
+          await adjustMutation.mutateAsync(data);
+        }}
+        isLoading={adjustMutation.isPending}
+      />
     </div>
   );
 }
@@ -336,25 +489,49 @@ interface PriceItemModalProps {
 }
 
 function PriceItemModal({ item, onClose, onSave, isLoading }: PriceItemModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
     name: item?.name || '',
     description: item?.description || '',
     type: item?.type || 'service',
-    price: item?.price?.toString() || '',
+    price: item?.priceCurrency === 'USD'
+      ? (item?.priceInUsd?.toString() || '')
+      : (item?.price?.toString() || ''),
     unit: item?.unit || '',
     taxRate: item?.taxRate?.toString() || '21',
     isActive: item?.isActive ?? true,
     specialty: item?.specialty || '',
     pricingModel: item?.pricingModel || '',
+    // Multi-currency fields
+    priceCurrency: (item?.priceCurrency || 'ARS') as Currency,
   });
+
+  // SSR safety - only render portal after component mounts
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+
+    const priceValue = parseFloat(formData.price) || 0;
+
     onSave({
       name: formData.name,
       description: formData.description || undefined,
       type: formData.type as 'service' | 'product',
-      price: parseFloat(formData.price) || 0,
+      // For USD, priceInUsd holds the USD value, price will be calculated by backend
+      price: formData.priceCurrency === 'USD' ? 0 : priceValue,
+      priceInUsd: formData.priceCurrency === 'USD' ? priceValue : undefined,
+      priceCurrency: formData.priceCurrency,
       unit: formData.unit || undefined,
       taxRate: parseFloat(formData.taxRate) || 0,
       isActive: formData.isActive,
@@ -363,10 +540,12 @@ function PriceItemModal({ item, onClose, onSave, isLoading }: PriceItemModalProp
     });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-lg rounded-lg bg-white shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="sticky top-0 flex items-center justify-between border-b bg-white p-4">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[95vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between border-b bg-white p-4 rounded-t-2xl">
           <h2 className="text-lg font-medium text-gray-900">
             {item ? 'Editar item' : 'Nuevo item'}
           </h2>
@@ -378,7 +557,7 @@ function PriceItemModal({ item, onClose, onSave, isLoading }: PriceItemModalProp
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4">
+        <form onSubmit={handleSubmit} className="p-4 overflow-y-auto flex-1">
           <div className="space-y-4">
             {/* Type Selection */}
             <div>
@@ -481,7 +660,20 @@ function PriceItemModal({ item, onClose, onSave, isLoading }: PriceItemModalProp
               <select
                 id="pricingModel"
                 value={formData.pricingModel}
-                onChange={(e) => setFormData({ ...formData, pricingModel: e.target.value })}
+                onChange={(e) => {
+                  const newModel = e.target.value;
+                  const config = getPricingModelConfig(newModel);
+                  // Auto-set unit based on model
+                  let newUnit = '';
+                  if (config?.unitBehavior === 'auto') {
+                    newUnit = config.defaultUnit; // hora, m², etc.
+                  } else if (config?.unitBehavior === 'required') {
+                    newUnit = ''; // Clear for PER_UNIT so user must enter
+                  } else if (config?.unitBehavior === 'hidden') {
+                    newUnit = ''; // No unit for FIXED, PER_DAY, QUOTE
+                  }
+                  setFormData({ ...formData, pricingModel: newModel, unit: newUnit });
+                }}
                 className="input"
               >
                 <option value="">Seleccionar...</option>
@@ -493,43 +685,60 @@ function PriceItemModal({ item, onClose, onSave, isLoading }: PriceItemModalProp
               </select>
             </div>
 
-            {/* Price and Unit */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="price" className="label mb-1 block">
-                  Precio *
-                </label>
-                <input
-                  id="price"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={formData.price}
-                  onChange={(e) =>
-                    setFormData({ ...formData, price: e.target.value })
-                  }
-                  placeholder="0.00"
-                  className="input"
-                  required
-                  onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el precio')}
-                  onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
-                />
-              </div>
-              <div>
-                <label htmlFor="unit" className="label mb-1 block">
-                  Unidad
-                </label>
-                <input
-                  id="unit"
-                  type="text"
-                  value={formData.unit}
-                  onChange={(e) =>
-                    setFormData({ ...formData, unit: e.target.value })
-                  }
-                  placeholder="hora, unidad, m²..."
-                  className="input"
-                />
-              </div>
+            {/* Price and Unit with Currency Toggle */}
+            <div className="space-y-4">
+              <PriceCurrencyInput
+                id="price"
+                label="Precio"
+                value={formData.price}
+                onChange={(value) => setFormData(prev => ({ ...prev, price: value }))}
+                currency={formData.priceCurrency}
+                onCurrencyChange={(currency) => setFormData(prev => ({ ...prev, priceCurrency: currency }))}
+                unit={formData.unit}
+                required
+              />
+
+              {/* Only show unit field for PER_UNIT, show readonly for auto (HOURLY, PER_M2) */}
+              {(() => {
+                const modelConfig = getPricingModelConfig(formData.pricingModel);
+                if (modelConfig?.unitBehavior === 'hidden') return null;
+
+                if (modelConfig?.unitBehavior === 'auto') {
+                  return (
+                    <div>
+                      <label className="label mb-1 block text-gray-500">
+                        Unidad (automática)
+                      </label>
+                      <div className="input bg-gray-50 text-gray-600 cursor-not-allowed">
+                        {modelConfig.defaultUnit}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Required (PER_UNIT) or no model selected
+                return (
+                  <div>
+                    <label htmlFor="unit" className="label mb-1 block">
+                      Unidad {modelConfig?.unitBehavior === 'required' && <span className="text-red-500">*</span>}
+                    </label>
+                    <input
+                      id="unit"
+                      type="text"
+                      value={formData.unit}
+                      onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                      placeholder="punto, toma, metro, pieza..."
+                      className="input"
+                      required={modelConfig?.unitBehavior === 'required'}
+                    />
+                    {modelConfig?.unitBehavior === 'required' && (
+                      <p className="mt-1 text-xs text-gray-500">
+                        Ej: punto de luz, toma, metro de caño, etc.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Tax Rate */}
@@ -579,6 +788,7 @@ function PriceItemModal({ item, onClose, onSave, isLoading }: PriceItemModalProp
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

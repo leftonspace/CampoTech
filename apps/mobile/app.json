@@ -3,6 +3,12 @@
     "name": "CampoTech",
     "slug": "campotech",
     "version": "1.0.0",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/82fcb876-14ba-4ea2-9f84-c666b9af6888"
+    },
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "campotech",
@@ -28,7 +34,10 @@
         "NSLocationWhenInUseUsageDescription": "CampoTech usa tu ubicación para mostrar trabajos cercanos y permitir que los clientes rastreen tu llegada.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "CampoTech necesita acceso continuo a tu ubicación para que los clientes puedan rastrear tu llegada en tiempo real.",
         "NSLocationAlwaysUsageDescription": "CampoTech necesita acceso continuo a tu ubicación para que los clientes puedan rastrear tu llegada en tiempo real.",
-        "UIBackgroundModes": ["location", "fetch"]
+        "UIBackgroundModes": [
+          "location",
+          "fetch"
+        ]
       }
     },
     "android": {

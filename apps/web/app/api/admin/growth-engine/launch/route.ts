@@ -20,8 +20,8 @@ import { getLaunchGateService, LaunchChecklist } from '@/lib/services/launch-gat
 export async function GET() {
     try {
         const session = await getSession();
-        if (!session || session.role !== 'OWNER') {
-            return NextResponse.json({ error: 'Owner access required' }, { status: 403 });
+        if (!session || session.role !== 'SUPER_ADMIN') {
+            return NextResponse.json({ error: 'SUPER_ADMIN access required' }, { status: 403 });
         }
 
         const launchGateService = getLaunchGateService();
@@ -47,8 +47,8 @@ export async function GET() {
 export async function PATCH(request: NextRequest) {
     try {
         const session = await getSession();
-        if (!session || session.role !== 'OWNER') {
-            return NextResponse.json({ error: 'Owner access required' }, { status: 403 });
+        if (!session || session.role !== 'SUPER_ADMIN') {
+            return NextResponse.json({ error: 'SUPER_ADMIN access required' }, { status: 403 });
         }
 
         const body = await request.json();
@@ -87,8 +87,8 @@ export async function PATCH(request: NextRequest) {
 export async function POST(request: NextRequest) {
     try {
         const session = await getSession();
-        if (!session || session.role !== 'OWNER') {
-            return NextResponse.json({ error: 'Owner access required' }, { status: 403 });
+        if (!session || session.role !== 'SUPER_ADMIN') {
+            return NextResponse.json({ error: 'SUPER_ADMIN access required' }, { status: 403 });
         }
 
         const body = await request.json();

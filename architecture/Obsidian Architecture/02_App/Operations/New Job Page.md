@@ -45,7 +45,32 @@ path: apps/web/app/dashboard/jobs/new/page.tsx
 
 ---
 
-### 3. Scheduling
+### 3. Pricing Mode (Per-Visit Pricing - Jan 2026)
+
+> [!SUCCESS] **Implemented**
+> 3-way pricing mode selector supporting fixed total, per-visit, and hybrid pricing.
+
+| Mode | Label | Description |
+|:---|:---|:---|
+| `FIXED_TOTAL` | Precio cerrado | Single price for entire job (default) |
+| `PER_VISIT` | Por visita | Each visit priced separately |
+| `HYBRID` | Híbrido | Diagnóstico + recurring rate |
+
+**Mode-Specific Fields:**
+
+| Field | FIXED_TOTAL | PER_VISIT | HYBRID |
+|:---|:---:|:---:|:---:|
+| Total estimado | ✓ | - | - |
+| Tarifa por defecto | - | ✓ | - |
+| Tarifa recurrente | - | - | ✓ |
+| Seña/Anticipo | ✓ | ✓ | ✓ |
+| Per-visit price input | - | ✓ | ✓ |
+
+**See:** [[Multi-Trade Pricing]] | [[Per-Visit Pricing]]
+
+---
+
+### 4. Scheduling
 | Field | Type | Notes |
 |:---|:---|:---|
 | Fecha | Date Picker | Default: today |
@@ -55,16 +80,12 @@ path: apps/web/app/dashboard/jobs/new/page.tsx
 
 ---
 
-### 4. Assignment
+### 5. Assignment
 | Field | Type | Notes |
 |:---|:---|:---|
 | Técnico | Dropdown | Filter by availability, skills |
-| Vehículo | Dropdown | Optional |
+| Vehículo | Dropdown | Optional, per-visit assignment |
 | Notas Internas | Textarea | Team-only notes |
-
----
-
-### 5. Address
 | Field | Type | Required |
 |:---|:---|:---:|
 | Usar dirección del cliente | Toggle | Default: on |
@@ -158,6 +179,18 @@ POST /api/jobs
   technicianId?: string;
   address: { ... };
   materials?: { itemId: string; quantity: number }[];
+  // Per-Visit Pricing (Jan 2026)
+  pricingMode?: 'FIXED_TOTAL' | 'PER_VISIT' | 'HYBRID';
+  defaultVisitRate?: number;
+  estimatedTotal?: number;
+  depositAmount?: number;
+  visits?: Array<{
+    date: string;
+    technicianIds: string[];
+    estimatedPrice?: number;  // Per-visit price
+    requiresDeposit?: boolean;
+    depositAmount?: number;
+  }>;
 }
 ```
 
@@ -172,13 +205,20 @@ POST /api/jobs
   - [[New Customer Page]] (Inline create)
   - [[Calendar Page]] (Alternative entry)
   - [[Inventory Page]] (Materials)
+  - [[Per-Visit Pricing]] (Pricing modes)
+  - [[Multi-Trade Pricing]] (Pricing system)
 
 ---
 
 ## 📝 Notes
 
 - [ ] TODO: Job templates for quick creation
-- [ ] TODO: Recurring job setup
-- [ ] TODO: Multi-day job support
+- [x] ~~TODO: Recurring job setup~~ ✅ Implemented
+- [x] ~~TODO: Multi-day job support~~ ✅ Implemented
 - [ ] TODO: File attachments (photos)
-- [ ] Consider: Voice-to-text for description
+- [x] ~~Consider: Voice-to-text for description~~ ✅ Voice-to-Invoice implemented
+
+---
+
+*Last updated: January 16, 2026*
+

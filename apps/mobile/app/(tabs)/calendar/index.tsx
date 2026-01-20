@@ -39,10 +39,10 @@ import {
 } from 'lucide-react-native';
 import { withObservables } from '@nozbe/watermelondb/react';
 import { Q } from '@nozbe/watermelondb';
-import { database } from '../../../lib/db';
-import { Job } from '../../../lib/db/models/Job';
-import { useAuth } from '../../../lib/providers/auth';
-import { useSyncQueue } from '../../../lib/hooks/use-offline';
+import { database } from '../../../watermelon/database';
+import { Job } from '../../../watermelon/models';
+import { useAuth } from '../../../lib/auth/auth-context';
+import { useOffline } from '../../../lib/hooks/use-offline';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -91,7 +91,8 @@ interface ScheduleScreenProps {
 function ScheduleScreen({ jobs }: ScheduleScreenProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const { enqueueOperation } = useSyncQueue();
+  const { actions: offlineActions } = useOffline();
+  const enqueueOperation = offlineActions.queueOperation;
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>('day');
@@ -233,12 +234,12 @@ function ScheduleScreen({ jobs }: ScheduleScreenProps) {
         });
       });
 
-      enqueueOperation({
-        type: 'UPDATE',
-        table: 'jobs',
-        recordId: selectedJob.id,
-        data: { assigned_to_id: technicianId },
-      });
+      enqueueOperation(
+        'jobs',
+        selectedJob.id,
+        'update',
+        { assigned_to_id: technicianId },
+      );
     } catch (error) {
       console.error('Failed to assign technician:', error);
     }
@@ -435,11 +436,11 @@ function ScheduleScreen({ jobs }: ScheduleScreenProps) {
             const jobDate = new Date(job.scheduledDate);
             return isSelected(jobDate);
           }).length === 0 && (
-            <View style={styles.noJobsDay}>
-              <Clock size={32} color="#d1d5db" />
-              <Text style={styles.noJobsDayText}>Sin trabajos este día</Text>
-            </View>
-          )}
+              <View style={styles.noJobsDay}>
+                <Clock size={32} color="#d1d5db" />
+                <Text style={styles.noJobsDayText}>Sin trabajos este día</Text>
+              </View>
+            )}
         </ScrollView>
       </View>
     );

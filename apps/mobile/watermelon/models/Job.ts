@@ -6,7 +6,7 @@
  */
 
 import { Model } from '@nozbe/watermelondb';
-import { field, date, readonly, children, relation } from '@nozbe/watermelondb/decorators';
+import { field, date, children, relation } from '@nozbe/watermelondb/decorators';
 
 export default class Job extends Model {
   static table = 'jobs';
@@ -47,6 +47,15 @@ export default class Job extends Model {
   @date('updated_at') updatedAt!: Date;
   @field('synced_at') syncedAt!: number | null;
   @field('is_dirty') isDirty!: boolean;
+
+  // Per-visit pricing fields (Phase 1 - Jan 2026)
+  @field('pricing_mode') pricingMode!: string | null; // FIXED_TOTAL, PER_VISIT, HYBRID
+  @field('default_visit_rate') defaultVisitRate!: number | null;
+  @field('estimated_total') estimatedTotal!: number | null;
+  @field('current_visit_index') currentVisitIndex!: number | null;
+  @field('visit_estimated_price') visitEstimatedPrice!: number | null;
+  @field('visit_actual_price') visitActualPrice!: number | null;
+  @field('price_variance_reason') priceVarianceReason!: string | null;
 
   @relation('customers', 'customer_id') customer!: any;
   @children('job_photos') photos!: any;
@@ -97,6 +106,19 @@ export default class Job extends Model {
     return this.status === 'working';
   }
 
+  // Per-visit pricing computed properties (Phase 1 - Jan 2026)
+  get isPerVisitPricing(): boolean {
+    return this.pricingMode === 'PER_VISIT' || this.pricingMode === 'HYBRID';
+  }
+
+  get effectiveVisitPrice(): number {
+    // Use actual price if set, otherwise estimated, otherwise default rate
+    if (this.visitActualPrice !== null) return this.visitActualPrice;
+    if (this.visitEstimatedPrice !== null) return this.visitEstimatedPrice;
+    if (this.defaultVisitRate !== null) return this.defaultVisitRate;
+    return 0;
+  }
+
   // Status transition methods
   async startJob() {
     await this.update((job) => {
@@ -113,10 +135,21 @@ export default class Job extends Model {
     });
   }
 
+  /**
+   * Complete job with support for per-visit pricing
+   * @param notes - Completion notes
+   * @param materials - Materials used
+   * @param signatureUrl - Optional signature URL
+   * @param visitPricing - Optional per-visit pricing data (Phase 1 - Jan 2026)
+   */
   async completeJob(
     notes: string,
     materials: Array<{ name: string; quantity: number; price: number }>,
-    signatureUrl?: string
+    signatureUrl?: string,
+    visitPricing?: {
+      actualPrice?: number;
+      priceVarianceReason?: string;
+    }
   ) {
     const subtotal = materials.reduce((sum, m) => sum + m.quantity * m.price, 0);
     const tax = subtotal * 0.21; // 21% IVA
@@ -132,6 +165,16 @@ export default class Job extends Model {
       job.tax = tax;
       job.total = total;
       job.isDirty = true;
+
+      // Per-visit pricing (Phase 1 - Jan 2026)
+      if (visitPricing) {
+        if (visitPricing.actualPrice !== undefined) {
+          job.visitActualPrice = visitPricing.actualPrice;
+        }
+        if (visitPricing.priceVarianceReason) {
+          job.priceVarianceReason = visitPricing.priceVarianceReason;
+        }
+      }
     });
   }
 

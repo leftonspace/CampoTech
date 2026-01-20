@@ -191,7 +191,13 @@ function AdminContent() {
       </div>
 
       {/* Admin links */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <AdminLink
+          href="/dashboard/admin/verification-queue"
+          icon={Shield}
+          title="Verificación de Matrículas"
+          description="Aprobar/rechazar badges profesionales"
+        />
         <AdminLink
           href="/dashboard/admin/health"
           icon={Activity}

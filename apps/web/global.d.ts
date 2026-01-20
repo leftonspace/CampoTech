@@ -102,6 +102,7 @@ declare module '@prisma/client' {
   export type TransferStatus = (typeof TransferStatus)[keyof typeof TransferStatus];
 
   export const UserRole: {
+    SUPER_ADMIN: 'SUPER_ADMIN';
     OWNER: 'OWNER';
     DISPATCHER: 'DISPATCHER';
     TECHNICIAN: 'TECHNICIAN';

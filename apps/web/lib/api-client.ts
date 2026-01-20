@@ -192,6 +192,10 @@ export const api = {
       adminName: string;
       phone: string;
       email?: string;
+      // Ley 25.326 consent fields
+      dataTransferConsent?: boolean;
+      termsAccepted?: boolean;
+      consentTimestamp?: string;
     }) =>
       apiRequest<{ sent: boolean; devMode?: boolean; expiresInMinutes: number }>(
         '/auth/register',
@@ -403,6 +407,22 @@ export const api = {
         apiRequest(`/settings/pricebook/${id}`, { method: 'PUT', body: data }),
       delete: (id: string) =>
         apiRequest(`/settings/pricebook/${id}`, { method: 'DELETE' }),
+    },
+    // Dynamic Pricing Settings (Phase 2)
+    pricing: {
+      get: () => apiRequest<unknown>('/settings/pricing'),
+      update: (data: unknown) =>
+        apiRequest('/settings/pricing', { method: 'PUT', body: data }),
+    },
+    // Inflation Index (Phase 4)
+    inflation: {
+      get: (params?: { source?: string; periods?: number }) => {
+        const query = new URLSearchParams();
+        if (params?.source) query.set('source', params.source);
+        if (params?.periods) query.set('periods', String(params.periods));
+        const qs = query.toString();
+        return apiRequest<unknown>(`/inflation${qs ? `?${qs}` : ''}`);
+      },
     },
   },
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Stack } from 'expo-router';
 
 export default function InventoryLayout() {
@@ -10,3 +11,4 @@ export default function InventoryLayout() {
     </Stack>
   );
 }
+

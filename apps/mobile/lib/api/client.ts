@@ -5,15 +5,21 @@
  * HTTP client for server communication with automatic token refresh.
  */
 
+import { Platform } from 'react-native';
 import * as SecureStore from '../storage/secure-store';
 
-// For development: Use your computer's local IP address
+// For development: Use localhost for web, LAN IP for native devices
 // Find your IP with: ipconfig (Windows) or ifconfig (Mac/Linux)
-const DEV_API_URL = 'http://192.168.0.14:3000/api';
+const DEV_API_URL_NATIVE = 'http://192.168.0.19:3000/api';  // Update this to your computer's IP
+const DEV_API_URL_WEB = 'http://localhost:3000/api';
+
+// Auto-detect: use localhost for web browsers, LAN IP for native
+const DEV_API_URL = Platform.OS === 'web' ? DEV_API_URL_WEB : DEV_API_URL_NATIVE;
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || DEV_API_URL;
 
 // Debug: Log the API URL on startup
+console.log('[API Client] Platform:', Platform.OS);
 console.log('[API Client] Using API_BASE_URL:', API_BASE_URL);
 console.log('[API Client] EXPO_PUBLIC_API_URL env:', process.env.EXPO_PUBLIC_API_URL);
 

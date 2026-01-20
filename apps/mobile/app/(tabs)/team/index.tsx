@@ -53,8 +53,8 @@ import {
 import * as Linking from 'expo-linking';
 import { withObservables } from '@nozbe/watermelondb/react';
 import { Q } from '@nozbe/watermelondb';
-import { database } from '../../../lib/db';
-import { useAuth } from '../../../lib/providers/auth';
+import { database } from '../../../watermelon/database';
+import { useAuth } from '../../../lib/auth/auth-context';
 
 // Role definitions
 const ROLES = ['OWNER', 'ADMIN', 'DISPATCHER', 'TECHNICIAN', 'VIEWER'] as const;

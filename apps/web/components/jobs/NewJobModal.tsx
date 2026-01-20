@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
-import { Search, Calendar, Clock, Users, X, Check, Wrench, Repeat, Plus, Truck, DollarSign, CreditCard } from 'lucide-react';
+import { Search, Calendar, Clock, Users, X, Check, Wrench, Repeat, Plus, Truck, DollarSign, CreditCard, Package, Layers } from 'lucide-react';
 import AddressAutocomplete, { ParsedAddress } from '@/components/ui/AddressAutocomplete';
 import NewCustomerModal from '@/app/dashboard/customers/NewCustomerModal';
 import { AssignmentConflictBanner } from '@/components/schedule/AssignmentConflictBanner';
@@ -53,7 +53,14 @@ interface JobVisit {
   isRecurring: boolean;
   recurrencePattern: string;
   recurrenceCount: number;
+  // Per-visit pricing (Phase 1 - Jan 2026)
+  estimatedPrice: string;
+  requiresDeposit: boolean;
+  depositAmount: string;
 }
+
+// Pricing mode type (Phase 1 - Jan 2026)
+type PricingMode = 'FIXED_TOTAL' | 'PER_VISIT' | 'HYBRID';
 
 const createEmptyVisit = (): JobVisit => ({
   id: Math.random().toString(36).substring(7),
@@ -69,6 +76,10 @@ const createEmptyVisit = (): JobVisit => ({
   isRecurring: false,
   recurrencePattern: 'MONTHLY',
   recurrenceCount: 6,
+  // Per-visit pricing (Phase 1 - Jan 2026)
+  estimatedPrice: '',
+  requiresDeposit: false,
+  depositAmount: '',
 });
 
 // Helper to expand a date range into individual dates
@@ -128,6 +139,10 @@ export default function NewJobModal({
   const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
   const descriptionRef = useRef<HTMLDivElement>(null);
 
+  // Per-visit pricing mode (Phase 1 - Jan 2026)
+  const [pricingMode, setPricingMode] = useState<PricingMode>('FIXED_TOTAL');
+  const [defaultVisitRate, setDefaultVisitRate] = useState('');
+
   // Reset form when modal opens (to clear any stale data from previous sessions)
   useEffect(() => {
     if (isOpen) {
@@ -154,6 +169,9 @@ export default function NewJobModal({
       setVisitConflicts({});
       setIsDescriptionExpanded(false);
       setDefaultVehicles({});
+      // Reset pricing mode (Phase 1 - Jan 2026)
+      setPricingMode('FIXED_TOTAL');
+      setDefaultVisitRate('');
     }
   }, [isOpen]);
 
@@ -627,6 +645,7 @@ export default function NewJobModal({
     // Convert visits to API format, expanding date ranges and including recurrence
     // Include visitConfigIndex so the backend knows which expanded dates belong to the same "Visita" config
     // Include vehicleId for vehicle/driver tracking (Phase 2.1)
+    // Include per-visit pricing (Phase 1 - Jan 2026)
     const formattedVisits: Array<{
       date: string;
       timeStart: string;
@@ -638,6 +657,10 @@ export default function NewJobModal({
       isRecurring?: boolean;
       recurrencePattern?: string;
       recurrenceCount?: number;
+      // Per-visit pricing (Phase 1 - Jan 2026)
+      estimatedPrice?: number;
+      requiresDeposit?: boolean;
+      depositAmount?: number;
     }> = [];
 
     visits
@@ -655,16 +678,23 @@ export default function NewJobModal({
           recurrenceCount: v.recurrenceCount,
         } : {};
 
+        // Per-visit pricing (Phase 1 - Jan 2026)
+        const pricingInfo = pricingMode !== 'FIXED_TOTAL' && v.estimatedPrice ? {
+          estimatedPrice: parseFloat(v.estimatedPrice),
+          requiresDeposit: v.requiresDeposit,
+          depositAmount: v.depositAmount ? parseFloat(v.depositAmount) : undefined,
+        } : {};
+
         // If there's an end date, expand to individual visits for each day
         // All expanded dates share the same visitConfigIndex and vehicleId
         if (v.endDate && v.endDate !== v.date) {
           const dates = expandDateRange(v.date, v.endDate);
           dates.forEach(date => {
-            formattedVisits.push({ date, timeStart, timeEnd, technicianIds, vehicleId, vehicleAssignments, visitConfigIndex, ...recurrenceInfo });
+            formattedVisits.push({ date, timeStart, timeEnd, technicianIds, vehicleId, vehicleAssignments, visitConfigIndex, ...recurrenceInfo, ...pricingInfo });
           });
         } else {
           // Single date visit
-          formattedVisits.push({ date: v.date, timeStart, timeEnd, technicianIds, vehicleId, vehicleAssignments, visitConfigIndex, ...recurrenceInfo });
+          formattedVisits.push({ date: v.date, timeStart, timeEnd, technicianIds, vehicleId, vehicleAssignments, visitConfigIndex, ...recurrenceInfo, ...pricingInfo });
         }
       });
 
@@ -721,8 +751,13 @@ export default function NewJobModal({
       // All visits for multi-visit jobs (now includes per-visit recurrence and vehicleId)
       visits: formattedVisits,
       // Pricing fields (Phase 1.11)
-      estimatedTotal: formData.estimatedTotal ? parseFloat(formData.estimatedTotal) : undefined,
+      estimatedTotal: pricingMode === 'FIXED_TOTAL' && formData.estimatedTotal
+        ? parseFloat(formData.estimatedTotal)
+        : undefined,
       depositAmount: formData.depositAmount ? parseFloat(formData.depositAmount) : undefined,
+      // Per-visit pricing mode (Phase 1 - Jan 2026)
+      pricingMode,
+      defaultVisitRate: defaultVisitRate ? parseFloat(defaultVisitRate) : undefined,
     };
 
     const response = await api.jobs.create(jobData);
@@ -1023,52 +1058,183 @@ export default function NewJobModal({
               </div>
             </div>
 
-            {/* Row 4: Pricing Section (Phase 1.11) */}
-            <div className="rounded-lg border border-green-100 bg-green-50/30 p-4 space-y-3">
+            {/* Row 4: Pricing Section (Phase 1 - Jan 2026 - Per-Visit Pricing) */}
+            <div className="rounded-lg border border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50 p-4 space-y-4">
+              {/* Header */}
               <div className="flex items-center gap-2">
-                <DollarSign className="h-4 w-4 text-green-600" />
-                <span className="text-sm font-medium text-gray-900">Presupuesto (opcional)</span>
+                <DollarSign className="h-5 w-5 text-emerald-600" />
+                <span className="text-sm font-medium text-gray-900">Modo de presupuesto</span>
               </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="estimatedTotal" className="label mb-1 block text-sm">
-                    Total estimado
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-                    <input
-                      id="estimatedTotal"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.estimatedTotal}
-                      onChange={(e) => setFormData({ ...formData, estimatedTotal: e.target.value })}
-                      placeholder="0.00"
-                      className="input pl-8"
-                    />
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">Precio total estimado del trabajo</p>
-                </div>
-                <div>
-                  <label htmlFor="depositAmount" className="label mb-1 block text-sm">
-                    Seña/Anticipo
-                  </label>
-                  <div className="relative">
-                    <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                    <input
-                      id="depositAmount"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.depositAmount}
-                      onChange={(e) => setFormData({ ...formData, depositAmount: e.target.value })}
-                      placeholder="0.00"
-                      className="input pl-10"
-                    />
-                  </div>
-                  <p className="mt-1 text-xs text-gray-500">Monto de seña requerida</p>
-                </div>
+
+              {/* Pricing Mode Selector */}
+              <div className="grid grid-cols-3 gap-2">
+                {/* Fixed Total Option */}
+                <button
+                  type="button"
+                  onClick={() => setPricingMode('FIXED_TOTAL')}
+                  className={cn(
+                    "p-3 rounded-lg border-2 text-left transition-all",
+                    pricingMode === 'FIXED_TOTAL'
+                      ? "border-emerald-500 bg-emerald-50"
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  )}
+                >
+                  <Package className="h-5 w-5 mb-1 text-emerald-600" />
+                  <div className="text-sm font-medium">Precio cerrado</div>
+                  <div className="text-xs text-gray-500">Un total para todo el trabajo</div>
+                </button>
+
+                {/* Per Visit Option */}
+                <button
+                  type="button"
+                  onClick={() => setPricingMode('PER_VISIT')}
+                  className={cn(
+                    "p-3 rounded-lg border-2 text-left transition-all",
+                    pricingMode === 'PER_VISIT'
+                      ? "border-emerald-500 bg-emerald-50"
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  )}
+                >
+                  <Calendar className="h-5 w-5 mb-1 text-emerald-600" />
+                  <div className="text-sm font-medium">Por visita</div>
+                  <div className="text-xs text-gray-500">Cada visita tiene su precio</div>
+                </button>
+
+                {/* Hybrid Option */}
+                <button
+                  type="button"
+                  onClick={() => setPricingMode('HYBRID')}
+                  className={cn(
+                    "p-3 rounded-lg border-2 text-left transition-all",
+                    pricingMode === 'HYBRID'
+                      ? "border-emerald-500 bg-emerald-50"
+                      : "border-gray-200 hover:border-gray-300 bg-white"
+                  )}
+                >
+                  <Layers className="h-5 w-5 mb-1 text-emerald-600" />
+                  <div className="text-sm font-medium">Híbrido</div>
+                  <div className="text-xs text-gray-500">Diagnóstico + tarifa recurrente</div>
+                </button>
               </div>
+
+              {/* Fixed Total Pricing Fields */}
+              {pricingMode === 'FIXED_TOTAL' && (
+                <div className="grid gap-4 sm:grid-cols-2 pt-2">
+                  <div>
+                    <label htmlFor="estimatedTotal" className="label mb-1 block text-sm">
+                      Total estimado
+                    </label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                      <input
+                        id="estimatedTotal"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.estimatedTotal}
+                        onChange={(e) => setFormData({ ...formData, estimatedTotal: e.target.value })}
+                        placeholder="0.00"
+                        className="input pl-8"
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">Precio total estimado del trabajo</p>
+                  </div>
+                  <div>
+                    <label htmlFor="depositAmount" className="label mb-1 block text-sm">
+                      Seña/Anticipo
+                    </label>
+                    <div className="relative">
+                      <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        id="depositAmount"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={formData.depositAmount}
+                        onChange={(e) => setFormData({ ...formData, depositAmount: e.target.value })}
+                        placeholder="0.00"
+                        className="input pl-10"
+                      />
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">Monto de seña requerida</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Per-Visit/Hybrid Pricing Fields */}
+              {pricingMode !== 'FIXED_TOTAL' && (
+                <div className="pt-2 space-y-3">
+                  <div className="flex items-start gap-4">
+                    {pricingMode === 'HYBRID' && (
+                      <div className="flex-1">
+                        <label htmlFor="defaultVisitRate" className="label mb-1 block text-sm">
+                          Tarifa recurrente
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                          <input
+                            id="defaultVisitRate"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={defaultVisitRate}
+                            onChange={(e) => setDefaultVisitRate(e.target.value)}
+                            placeholder="0.00"
+                            className="input pl-8"
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">Precio para visitas después del diagnóstico</p>
+                      </div>
+                    )}
+                    {pricingMode === 'PER_VISIT' && (
+                      <div className="flex-1">
+                        <label htmlFor="defaultVisitRate" className="label mb-1 block text-sm">
+                          Tarifa por defecto
+                        </label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                          <input
+                            id="defaultVisitRate"
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={defaultVisitRate}
+                            onChange={(e) => setDefaultVisitRate(e.target.value)}
+                            placeholder="0.00"
+                            className="input pl-8"
+                          />
+                        </div>
+                        <p className="mt-1 text-xs text-gray-500">Precio por defecto para cada visita (ajustable)</p>
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <label htmlFor="depositAmountPerVisit" className="label mb-1 block text-sm">
+                        Seña/Anticipo
+                      </label>
+                      <div className="relative">
+                        <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <input
+                          id="depositAmountPerVisit"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formData.depositAmount}
+                          onChange={(e) => setFormData({ ...formData, depositAmount: e.target.value })}
+                          placeholder="0.00"
+                          className="input pl-10"
+                        />
+                      </div>
+                      <p className="mt-1 text-xs text-gray-500">Seña requerida para el trabajo</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-amber-600 bg-amber-50 px-2 py-1.5 rounded-lg flex items-center gap-1">
+                    <DollarSign className="h-3 w-3" />
+                    {pricingMode === 'HYBRID'
+                      ? 'Los precios de cada visita se definen abajo. La primera visita (diagnóstico) tiene precio propio.'
+                      : 'Definí el precio de cada visita en las tarjetas de programación abajo.'}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Visits Section - Multi-visit support */}
@@ -1455,6 +1621,37 @@ export default function NewJobModal({
                       </>
                     )}
                   </div>
+
+                  {/* Per-Visit Pricing Input (Phase 1 - Jan 2026) */}
+                  {pricingMode !== 'FIXED_TOTAL' && (
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                      <label className="label text-sm mb-1 flex items-center gap-1">
+                        <DollarSign className="h-3 w-3" />
+                        Precio visita {index + 1}
+                        {pricingMode === 'HYBRID' && index === 0 && (
+                          <span className="text-xs text-amber-600 ml-1 bg-amber-50 px-1 rounded">(Diagnóstico)</span>
+                        )}
+                        {pricingMode === 'HYBRID' && index > 0 && !visit.estimatedPrice && defaultVisitRate && (
+                          <span className="text-xs text-gray-400 ml-1">(Tarifa: ${defaultVisitRate})</span>
+                        )}
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                        <input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={visit.estimatedPrice}
+                          onChange={(e) => updateVisit(visit.id, 'estimatedPrice', e.target.value)}
+                          placeholder={pricingMode === 'HYBRID' && index > 0 && defaultVisitRate
+                            ? `${defaultVisitRate} (tarifa recurrente)`
+                            : '0.00'
+                          }
+                          className="input pl-8"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
 
@@ -1467,6 +1664,53 @@ export default function NewJobModal({
                 <Plus className="h-4 w-4" />
                 Agregar otra visita
               </button>
+
+              {/* Per-Visit Pricing Total Summary (Phase 1 - Jan 2026) */}
+              {pricingMode !== 'FIXED_TOTAL' && (
+                <div className="bg-gray-50 p-4 rounded-lg border mt-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">
+                      Total estimado ({visits.filter(v => v.date).length} visitas)
+                    </span>
+                    <span className="text-lg font-bold text-gray-900">
+                      ${(() => {
+                        let total = 0;
+                        visits.forEach((v, idx) => {
+                          if (v.estimatedPrice) {
+                            total += parseFloat(v.estimatedPrice) || 0;
+                          } else if (pricingMode === 'HYBRID' && idx > 0 && defaultVisitRate) {
+                            total += parseFloat(defaultVisitRate) || 0;
+                          } else if (pricingMode === 'PER_VISIT' && defaultVisitRate) {
+                            total += parseFloat(defaultVisitRate) || 0;
+                          }
+                        });
+                        return total.toLocaleString('es-AR', { minimumFractionDigits: 2 });
+                      })()}
+                    </span>
+                  </div>
+                  {formData.depositAmount && (
+                    <div className="flex justify-between items-center mt-2 pt-2 border-t border-gray-200">
+                      <span className="text-sm text-gray-600">Saldo pendiente</span>
+                      <span className="text-sm font-medium text-emerald-600">
+                        ${(() => {
+                          let total = 0;
+                          visits.forEach((v, idx) => {
+                            if (v.estimatedPrice) {
+                              total += parseFloat(v.estimatedPrice) || 0;
+                            } else if (pricingMode === 'HYBRID' && idx > 0 && defaultVisitRate) {
+                              total += parseFloat(defaultVisitRate) || 0;
+                            } else if (pricingMode === 'PER_VISIT' && defaultVisitRate) {
+                              total += parseFloat(defaultVisitRate) || 0;
+                            }
+                          });
+                          const deposit = parseFloat(formData.depositAmount) || 0;
+                          return (total - deposit).toLocaleString('es-AR', { minimumFractionDigits: 2 });
+                        })()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {error && <p className="text-sm text-danger-500">{error}</p>}

@@ -111,6 +111,8 @@ PENDING → ASSIGNED → EN_ROUTE → IN_PROGRESS → COMPLETED
   - [[Calendar Page]] (Job scheduling)
   - [[Customers Page]] (Customer link)
   - [[Team Page]] (Technician assignment)
+  - [[Per-Visit Pricing]] (Pricing modes)
+  - [[Job Completion Report]] (PDF reports)
 
 ---
 
@@ -119,3 +121,8 @@ PENDING → ASSIGNED → EN_ROUTE → IN_PROGRESS → COMPLETED
 - [ ] TODO: Add bulk actions (assign, reschedule)
 - [ ] TODO: Export to CSV/PDF
 - [ ] TODO: Job templates for common services
+- [x] ~~Per-visit pricing filtering~~ (Jan 2026)
+
+---
+
+*Last updated: January 16, 2026*
