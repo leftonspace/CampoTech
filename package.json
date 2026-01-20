@@ -55,6 +55,10 @@
   "overrides": {
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "@babel/runtime": "^7.26.10"
+    "@babel/runtime": "^7.26.10",
+    "preact": "^10.28.2",
+    "tar": "^7.5.3",
+    "diff": "^8.0.3",
+    "undici": "^6.23.0"
   }
 }

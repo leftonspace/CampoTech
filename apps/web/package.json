@@ -62,7 +62,7 @@
     "path-parse": "^1.0.7",
     "pdf-parse": "^2.4.5",
     "pdf2json": "^4.0.0",
-    "pdfjs-dist": "4.0.379",
+    "pdfjs-dist": "^4.10.38",
     "pdfkit": "^0.17.2",
     "playwright": "^1.57.0",
     "prom-client": "^15.1.3",
