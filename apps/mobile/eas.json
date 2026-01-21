@@ -36,7 +36,7 @@
         "resourceClass": "m-medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://campo-tech-rho.vercel.app/api"
+        "EXPO_PUBLIC_API_URL": "https://campotechweb-production.up.railway.app/api"
       }
     },
     "production": {
