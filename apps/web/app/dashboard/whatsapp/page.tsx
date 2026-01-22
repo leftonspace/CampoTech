@@ -12,13 +12,13 @@ import {
   ContactInfo,
   NewConversationModal,
   CopilotPanel,
+  SimulationPanel,
   Conversation,
   ConversationFilter,
   ConversationStats,
   Message,
 } from './components';
 import ContactsPanel from './components/ContactsPanel';
-import { Sparkles } from 'lucide-react';
 
 export default function WhatsAppPage() {
   const queryClient = useQueryClient();
@@ -34,8 +34,10 @@ export default function WhatsAppPage() {
   const [showContactInfo, setShowContactInfo] = useState(false);
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [showContacts, setShowContacts] = useState(false);
-  const [showCopilot, setShowCopilot] = useState(false);
+  // Phase 1: CopilotPanel is now always visible - no toggle needed
   const [messageInputValue, setMessageInputValue] = useState('');
+  // Phase 3: Simulation panel for testing AI
+  const [showSimulation, setShowSimulation] = useState(false);
 
   // Fetch conversations
   const { data: conversationsData, isLoading: loadingConversations } = useQuery({
@@ -221,8 +223,8 @@ export default function WhatsAppPage() {
           stats={stats}
         />
 
-        {/* Chat window */}
-        <div className="flex-1 flex flex-col relative">
+        {/* Chat window - takes remaining space */}
+        <div className="flex-1 flex flex-col min-w-0">
           <ChatWindow
             conversation={selectedConversation}
             messages={messages}
@@ -240,21 +242,17 @@ export default function WhatsAppPage() {
             inputValue={messageInputValue}
             onInputChange={setMessageInputValue}
           />
-
-          {/* Copilot toggle button */}
-          {selectedConversation && !showCopilot && (
-            <button
-              onClick={() => setShowCopilot(true)}
-              className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-teal-500 text-white rounded-l-lg shadow-lg hover:bg-teal-600 transition-all flex items-center justify-center group"
-              title="Abrir Asistente AI"
-            >
-              <Sparkles className="h-5 w-5" />
-              <span className="absolute right-full mr-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                Asistente AI
-              </span>
-            </button>
-          )}
         </div>
+
+        {/* AI Copilot Panel - Always visible as 3rd column */}
+        <CopilotPanel
+          isOpen={true}
+          onClose={() => { }} // No-op since always visible
+          conversation={selectedConversation}
+          messages={messages}
+          onSuggestReply={handleCopilotSuggestReply}
+          onSimulate={() => setShowSimulation(true)}
+        />
 
         {/* Contacts panel (sliding) */}
         {showContacts && (
@@ -273,16 +271,6 @@ export default function WhatsAppPage() {
           />
         )}
 
-        {/* Copilot panel */}
-        {showCopilot && (
-          <CopilotPanel
-            isOpen={showCopilot}
-            onClose={() => setShowCopilot(false)}
-            conversation={selectedConversation}
-            messages={messages}
-            onSuggestReply={handleCopilotSuggestReply}
-          />
-        )}
       </div>
 
       {/* Template selector modal */}
@@ -300,6 +288,16 @@ export default function WhatsAppPage() {
         onSelectConversation={(id) => {
           setSelectedConversationId(id);
           setShowNewConversation(false);
+        }}
+      />
+
+      {/* Phase 3: Simulation panel for testing AI */}
+      <SimulationPanel
+        isOpen={showSimulation}
+        onClose={() => setShowSimulation(false)}
+        onConversationCreated={(id) => {
+          setSelectedConversationId(id);
+          setShowSimulation(false);
         }}
       />
     </div>

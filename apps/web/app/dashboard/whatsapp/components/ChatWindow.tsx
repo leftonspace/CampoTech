@@ -9,12 +9,11 @@ import {
   Archive,
   XCircle,
   UserPlus,
+  User,
   Info,
   Phone,
   Bot,
-  User,
   Settings,
-  Power,
 } from 'lucide-react';
 import { formatDisplayTime } from '@/lib/timezone';
 import MessageBubble, { Message } from './MessageBubble';
@@ -257,59 +256,29 @@ export default function ChatWindow({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* AI Status Bar */}
-      <div className="px-4 py-2 border-t bg-teal-50 border-teal-100">
-        {aiEnabled && aiHandlingConversation && !aiDisabledUntil ? (
-          // AI is active and handling this conversation
+      {/* AI Status Bar - only show if AI is enabled */}
+      {aiEnabled ? (
+        <div className="px-4 py-2 border-t bg-teal-50 border-teal-100">
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-2 text-teal-700">
               <Bot className="h-4 w-4" />
-              <span>AI está activo y respondiendo automáticamente</span>
+              <span>AI Copilot activo</span>
             </div>
-            {onDisableAI && (
+            {aiDisabledUntil ? (
+              <span className="text-xs text-gray-500">
+                Pausado hasta {formatDisabledUntil(aiDisabledUntil)}
+              </span>
+            ) : onDisableAI && (
               <button
                 onClick={() => onDisableAI(30)}
-                className="text-teal-600 hover:text-teal-800 hover:underline font-medium"
+                className="text-xs text-teal-600 hover:text-teal-800 hover:underline"
               >
-                Desactivar AI temporalmente
+                Pausar 30 min
               </button>
             )}
           </div>
-        ) : aiEnabled && aiDisabledUntil ? (
-          // AI is enabled globally but disabled for this conversation
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2 text-gray-600">
-              <User className="h-4 w-4" />
-              <span>AI desactivado para esta conversación hasta {formatDisabledUntil(aiDisabledUntil)}</span>
-            </div>
-            {onEnableAI && (
-              <button
-                onClick={onEnableAI}
-                className="text-teal-600 hover:text-teal-800 hover:underline font-medium"
-              >
-                Reactivar AI
-              </button>
-            )}
-          </div>
-        ) : (
-          // AI is disabled globally
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2 text-gray-500">
-              <Power className="h-4 w-4" />
-              <span>AI desactivado globalmente</span>
-            </div>
-            {onGoToSettings && (
-              <button
-                onClick={onGoToSettings}
-                className="text-teal-600 hover:text-teal-800 hover:underline font-medium flex items-center gap-1"
-              >
-                <Settings className="h-3 w-3" />
-                Activar en Configuración
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+        </div>
+      ) : null}
 
       {/* Message input */}
       <MessageInput

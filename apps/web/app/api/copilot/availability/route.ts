@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
     for (const tech of technicians) {
       const jobs = await prisma.job.findMany({
         where: {
-          assignedToId: tech.id,
+          technicianId: tech.id,
           scheduledDate: {
             gte: date,
             lte: endOfDay,
@@ -67,7 +67,8 @@ export async function GET(request: NextRequest) {
         },
         select: {
           id: true,
-          title: true,
+          serviceType: true,
+          description: true,
           scheduledDate: true,
           estimatedDuration: true,
         },
@@ -87,7 +88,7 @@ export async function GET(request: NextRequest) {
         slotEnd.setHours(hour + durationHours, 0, 0, 0);
 
         // Check if slot overlaps with any job
-        const overlappingJob = jobs.find((job: { id: string; title: string; scheduledDate: Date | null; estimatedDuration: number | null }) => {
+        const overlappingJob = jobs.find((job: { id: string; serviceType: string; description: string | null; scheduledDate: Date | null; estimatedDuration: number | null }) => {
           if (!job.scheduledDate) return false;
           const jobStart = new Date(job.scheduledDate);
           const jobEnd = new Date(job.scheduledDate);
@@ -101,7 +102,7 @@ export async function GET(request: NextRequest) {
           end: `${(hour + durationHours).toString().padStart(2, '0')}:00`,
           available: !overlappingJob,
           jobId: overlappingJob?.id,
-          jobTitle: overlappingJob?.title,
+          jobTitle: overlappingJob?.serviceType,
         });
       }
 

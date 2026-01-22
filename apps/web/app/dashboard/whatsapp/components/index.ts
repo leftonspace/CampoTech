@@ -9,6 +9,7 @@ export { default as QuickActions } from './QuickActions';
 export { default as NewConversationModal } from './NewConversationModal';
 export { default as EmojiPicker, EmojiButton } from './EmojiPicker';
 export { default as CopilotPanel } from './CopilotPanel';
+export { default as SimulationPanel } from './SimulationPanel';
 
 export type { Conversation, ConversationFilter, ConversationStats } from './ConversationList';
 export type { Message } from './MessageBubble';

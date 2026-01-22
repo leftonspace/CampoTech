@@ -113,6 +113,20 @@ Complex features with detailed implementation documentation.
 
 ---
 
+## 🤖 AI Systems
+
+CampoTech implements three distinct AI systems:
+
+| System | Location | Status | Description |
+|:---|:---|:---:|:---|
+| [[AI Systems Overview]] | `02_App/AI/` | 🟢 | Master index for all AI systems |
+| [[Public AI Chat]] | `02_App/AI/` | 🟢 | Landing page visitor support |
+| [[Staff Help AI]] | `02_App/AI/` | 🟢 | Dashboard help (any tab) |
+| [[WhatsApp AI Copilot]] | `02_App/AI/` | 🟡 | Customer WhatsApp automation |
+| [[AI Settings Page]] | `02_App/AI/` | 🟢 | Configuration for WhatsApp AI |
+
+---
+
 ## 🧩 Components
 
 Reusable UI components documented.
@@ -155,6 +169,7 @@ architecture/Obsidian Architecture/
 ├── 📁 00_Flows/           # User Journeys (e.g., Signup, Checkout)
 ├── 📁 01_Website/         # Public Marketing & Legal Pages
 ├── 📁 02_App/             # The Authenticated Web Application
+│   ├── AI/             # AI Systems (3 types)
 │   ├── Core/           # General Dashboard Pages
 │   ├── CRM/            # Customer & Lead Management
 │   ├── Operations/     # Jobs, Fleet, Inventory

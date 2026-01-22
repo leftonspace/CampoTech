@@ -5080,6 +5080,33 @@ model InflationIndex {
   @@map("inflation_indices")
 }
 
+/// Scrape schedule for automated index retrieval
+/// Tracks when to next scrape each source and the last known period
+model ScrapeSchedule {
+  id     String               @id @default(cuid())
+  source InflationIndexSource @unique
+
+  // Last successful scrape info
+  lastScrapedAt    DateTime? @map("last_scraped_at")
+  lastScrapedPeriod String?  @map("last_scraped_period") // "2025-12" format
+
+  // Next expected report date (from INDEC "Próximo informe técnico")
+  nextReportDate DateTime? @map("next_report_date")
+
+  // Scrape status tracking
+  scrapeAttempts    Int       @default(0) @map("scrape_attempts") // Attempts on current report day
+  lastAttemptAt     DateTime? @map("last_attempt_at")
+  lastError         String?   @map("last_error")
+
+  // Flags
+  isWaitingForUpdate Boolean @default(false) @map("is_waiting_for_update") // True on report day until new data found
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("scrape_schedules")
+}
+
 /// Bulk price adjustment events (audit log)
 /// Tracks when an organization applies inflation/exchange adjustments
 model PriceAdjustmentEvent {

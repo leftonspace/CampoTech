@@ -19,8 +19,13 @@ import {
   Loader2,
   ThumbsUp,
   ThumbsDown,
+  Activity,
+  MessageCircle,
+  Zap,
+  Plus,
 } from 'lucide-react';
 import type { Conversation, Message } from './index';
+import AIActivityFeed, { ActivityItem, generateDemoActivities } from './AIActivityFeed';
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES
@@ -52,6 +57,7 @@ interface CopilotPanelProps {
   conversation: Conversation | null;
   messages: Message[];
   onSuggestReply?: (text: string) => void;
+  onSimulate?: () => void;
 }
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -75,13 +81,38 @@ export default function CopilotPanel({
   conversation,
   messages,
   onSuggestReply,
+  onSimulate,
 }: CopilotPanelProps) {
   const queryClient = useQueryClient();
+  // Tab state: 'activity' or 'chat'
+  const [activeTab, setActiveTab] = useState<'activity' | 'chat'>('activity');
+  // Activity feed state
+  const [activities, setActivities] = useState<ActivityItem[]>([]);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [showDemoMode, setShowDemoMode] = useState(false);
+  // Chat state (legacy, kept for chat tab)
   const [input, setInput] = useState('');
   const [copilotMessages, setCopilotMessages] = useState<CopilotMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
+  const [showActions, setShowActions] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load demo activities when demo mode is toggled
+  useEffect(() => {
+    if (showDemoMode && conversation) {
+      setActivities(generateDemoActivities());
+    } else if (!showDemoMode) {
+      setActivities([]);
+    }
+  }, [showDemoMode, conversation]);
+
+  // Reset activities when conversation changes
+  useEffect(() => {
+    setActivities([]);
+    setShowDemoMode(false);
+    setIsAnalyzing(false);
+  }, [conversation?.id]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
@@ -284,148 +315,313 @@ export default function CopilotPanel({
   // Count voice memos in messages
   const voiceMemoCount = messages.filter((m) => m.type === 'audio').length;
 
-  return (
-    <div className="w-[380px] border-l bg-white flex flex-col h-full">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-teal-500 to-teal-600 text-white p-4">
-        <div className="flex items-center justify-between">
+  // Show empty state when no conversation is selected
+  if (!conversation) {
+    return (
+      <div className="w-[380px] border-l flex flex-col bg-white">
+        {/* Header - matching left panel style */}
+        <div className="p-4 border-b">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
-              <Bot className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="font-semibold">Asistente</h3>
-              <div className="flex items-center gap-1 text-xs text-white/80">
-                <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse" />
-                <span>Activo</span>
-              </div>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <button
-              onClick={handleReset}
-              className="p-1.5 hover:bg-white/20 rounded transition-colors"
-              title="Reiniciar conversación"
-            >
-              <RefreshCw className="h-4 w-4" />
-            </button>
-            <button
-              className="p-1.5 hover:bg-white/20 rounded transition-colors"
-              title="Configurar asistente"
-            >
-              <Settings className="h-4 w-4" />
-            </button>
-            <button
-              onClick={onClose}
-              className="p-1.5 hover:bg-white/20 rounded transition-colors"
-              title="Cerrar panel"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <h1 className="text-lg font-semibold text-gray-900">Asistente IA</h1>
+            <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700">
+              Listo
+            </span>
           </div>
         </div>
-      </div>
 
-      {/* Context bar */}
-      {conversation && (
-        <div className="px-4 py-2 border-b bg-gray-50 flex items-center gap-2 text-sm text-gray-600">
-          <Eye className="h-4 w-4 text-gray-400" />
-          <span>Viendo: Conversación con {conversation.customerName}</span>
-          <span className="text-gray-400">•</span>
-          <span className="text-gray-500">
-            {messages.length} mensajes{voiceMemoCount > 0 ? `, ${voiceMemoCount} audios` : ''}
+        {/* Empty state content */}
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+            <Bot className="h-6 w-6 text-gray-400" />
+          </div>
+          <p className="font-medium text-gray-900 mb-1">
+            Asistente IA
+          </p>
+          <p className="text-sm text-gray-500 mb-4">
+            Seleccioná una conversación para que te ayude con:
+          </p>
+          <ul className="text-sm text-gray-600 space-y-2 text-left">
+            <li className="flex items-center gap-2">
+              <span className="text-teal-600">✓</span>
+              Sugerir respuestas
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-teal-600">✓</span>
+              Crear turnos automáticamente
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-teal-600">✓</span>
+              Detectar conflictos de agenda
+            </li>
+            <li className="flex items-center gap-2">
+              <span className="text-teal-600">✓</span>
+              Transcribir mensajes de voz
+            </li>
+          </ul>
+          {/* Phase 3: Simulation button in empty state */}
+          {process.env.NODE_ENV !== 'production' && onSimulate && (
+            <button
+              onClick={onSimulate}
+              className="mt-4 flex items-center gap-2 px-4 py-2 text-sm font-medium bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
+            >
+              <Zap className="h-4 w-4" />
+              Simular mensaje
+            </button>
+          )}
+        </div>
+
+        {/* Footer note */}
+        <div className="px-4 py-3 border-t bg-gray-50">
+          <p className="text-xs text-gray-500 text-center">
+            🎵 La IA transcribe audios de voz automáticamente pero siempre responde por texto
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-[380px] border-l flex flex-col bg-white">
+      {/* Header */}
+      <div className="px-4 py-3 border-b flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Bot className="h-5 w-5 text-teal-600" />
+          <span className="text-base font-semibold text-gray-900">Asistente IA</span>
+          <span className="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-700 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+            Activo
           </span>
         </div>
-      )}
-
-      {/* Chat area */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {copilotMessages.map((msg) => (
-          <CopilotMessageBubble
-            key={msg.id}
-            message={msg}
-            onActionClick={handleActionClick}
-            onFeedback={(messageId, feedback) => {
-              // Update feedback state locally
-              setCopilotMessages(prev => prev.map(m =>
-                m.id === messageId ? { ...m, feedback } : m
-              ));
-              // Send feedback to API (fire and forget)
-              fetch('/api/ai/feedback', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  conversationLogId: messageId,
-                  feedback,
-                  feedbackType: 'response',
-                }),
-              }).catch(err => console.error('Feedback error:', err));
-            }}
-          />
-        ))}
-
-        {/* Typing indicator */}
-        {isTyping && (
-          <div className="flex items-start gap-2">
-            <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
-              <Bot className="h-4 w-4 text-gray-600" />
-            </div>
-            <div className="bg-gray-100 rounded-lg rounded-tl-none px-4 py-2">
-              <div className="flex gap-1">
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Quick actions */}
-      <div className="px-4 py-2 border-t bg-gray-50">
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {QUICK_ACTIONS.map((action) => (
-            <button
-              key={action.id}
-              onClick={() => handleQuickAction(action.id)}
-              disabled={chatMutation.isPending}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded-full hover:bg-gray-50 hover:border-gray-300 transition-colors whitespace-nowrap disabled:opacity-50"
-            >
-              <action.icon className="h-3.5 w-3.5" />
-              {action.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Input area */}
-      <div className="p-4 border-t bg-gray-50">
-        <div className="flex gap-2">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKeyPress}
-            placeholder="Preguntame algo sobre esta conversación..."
-            className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-            rows={1}
-            disabled={chatMutation.isPending}
-          />
+        <div className="flex items-center gap-1">
           <button
-            onClick={handleSend}
-            disabled={!input.trim() || chatMutation.isPending}
-            className="px-3 py-2 bg-teal-500 text-white rounded-lg hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            onClick={handleReset}
+            className="p-1.5 text-gray-400 hover:bg-gray-100 rounded transition-colors"
+            title="Reiniciar"
           >
-            {chatMutation.isPending ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Send className="h-5 w-5" />
-            )}
+            <RefreshCw className="h-4 w-4" />
+          </button>
+          <button
+            className="p-1.5 text-gray-400 hover:bg-gray-100 rounded transition-colors"
+            title="Configurar"
+          >
+            <Settings className="h-4 w-4" />
+          </button>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-gray-400 hover:bg-gray-100 rounded transition-colors"
+            title="Cerrar"
+          >
+            <X className="h-4 w-4" />
           </button>
         </div>
       </div>
+
+      {/* Tabs + Context */}
+      {conversation && (
+        <div className="border-b bg-gray-50">
+          {/* Tabs row */}
+          <div className="flex items-center border-b">
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${activeTab === 'activity'
+                ? 'text-teal-600 border-b-2 border-teal-500 bg-white'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              <Activity className="h-4 w-4" />
+              Actividad
+              {activities.length > 0 && (
+                <span className="px-1.5 text-xs bg-teal-100 text-teal-700 rounded-full">
+                  {activities.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${activeTab === 'chat'
+                ? 'text-teal-600 border-b-2 border-teal-500 bg-white'
+                : 'text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              <MessageCircle className="h-4 w-4" />
+              Chat
+            </button>
+          </div>
+          {/* Context row */}
+          <div className="px-3 py-1.5 flex items-center justify-between text-xs text-gray-500">
+            <div className="flex items-center gap-1.5 truncate">
+              <Eye className="h-3.5 w-3.5 flex-shrink-0" />
+              <span className="truncate font-medium">{conversation.customerName}</span>
+              <span className="text-gray-300">•</span>
+              <span>{messages.length} msgs</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              {process.env.NODE_ENV !== 'production' && onSimulate && (
+                <button
+                  onClick={onSimulate}
+                  className="px-2 py-1 rounded bg-amber-500 text-white hover:bg-amber-600 text-xs font-medium flex items-center gap-1"
+                  title="Simular mensaje"
+                >
+                  <Zap className="h-3.5 w-3.5" />
+                  Simular
+                </button>
+              )}
+              <button
+                onClick={() => setShowDemoMode(!showDemoMode)}
+                className={`p-1.5 rounded ${showDemoMode
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                title={showDemoMode ? 'Demo activo' : 'Activar demo'}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activity Tab Content */}
+      {activeTab === 'activity' && conversation && (
+        <AIActivityFeed
+          activities={activities}
+          isLoading={isAnalyzing}
+          onUseResponse={(response) => {
+            if (onSuggestReply) {
+              onSuggestReply(response);
+            }
+          }}
+          onViewJob={(jobId) => {
+            // TODO: Navigate to job page
+            console.log('View job:', jobId);
+          }}
+          onViewCustomer={(customerId) => {
+            // TODO: Navigate to customer page
+            console.log('View customer:', customerId);
+          }}
+          onViewCalendar={(date) => {
+            // TODO: Open calendar
+            console.log('View calendar:', date);
+          }}
+        />
+      )}
+
+      {/* Chat Tab Content */}
+      {activeTab === 'chat' && (
+        <>
+          {/* Chat area - scrollbar hidden for cleaner look */}
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {copilotMessages.map((msg) => (
+              <CopilotMessageBubble
+                key={msg.id}
+                message={msg}
+                onActionClick={handleActionClick}
+                onFeedback={(messageId, feedback) => {
+                  // Update feedback state locally
+                  setCopilotMessages(prev => prev.map(m =>
+                    m.id === messageId ? { ...m, feedback } : m
+                  ));
+                  // Send feedback to API (fire and forget)
+                  fetch('/api/ai/feedback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      conversationLogId: messageId,
+                      feedback,
+                      feedbackType: 'response',
+                    }),
+                  }).catch(err => console.error('Feedback error:', err));
+                }}
+              />
+            ))}
+
+            {/* Typing indicator */}
+            {isTyping && (
+              <div className="flex items-start gap-2">
+                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <Bot className="h-4 w-4 text-gray-600" />
+                </div>
+                <div className="bg-gray-100 rounded-lg rounded-tl-none px-4 py-2">
+                  <div className="flex gap-1">
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Footer: Collapsible Actions + Auto-growing Input */}
+          <div className="border-t bg-gray-50">
+            {/* Expandable actions panel */}
+            {showActions && (
+              <div className="px-3 py-2 border-b bg-white flex flex-wrap items-center gap-2 animate-in slide-in-from-bottom-2 duration-200">
+                {QUICK_ACTIONS.map((action) => (
+                  <button
+                    key={action.id}
+                    onClick={() => {
+                      handleQuickAction(action.id);
+                      setShowActions(false);
+                    }}
+                    disabled={chatMutation.isPending}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 hover:border-gray-300 transition-colors disabled:opacity-50"
+                  >
+                    <action.icon className="h-4 w-4" />
+                    {action.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {/* Auto-growing input area with + button */}
+            <div className="p-3 flex gap-2 items-end">
+              {/* Plus button to toggle actions */}
+              <button
+                onClick={() => setShowActions(!showActions)}
+                className={`p-2.5 rounded-lg transition-all flex-shrink-0 ${showActions
+                  ? 'bg-teal-100 text-teal-700 rotate-45'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                title={showActions ? 'Cerrar acciones' : 'Acciones rápidas'}
+              >
+                <Plus className="h-5 w-5 transition-transform" />
+              </button>
+              {/* Auto-growing textarea */}
+              <div className="flex-1 relative">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={(e) => {
+                    setInput(e.target.value);
+                    // Auto-resize the textarea
+                    e.target.style.height = 'auto';
+                    e.target.style.height = Math.min(e.target.scrollHeight, 160) + 'px';
+                  }}
+                  onKeyDown={handleKeyPress}
+                  placeholder="Preguntame algo sobre esta conversación..."
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent overflow-hidden transition-all"
+                  style={{ minHeight: '40px', maxHeight: '160px' }}
+                  rows={1}
+                  disabled={chatMutation.isPending}
+                />
+              </div>
+              <button
+                onClick={handleSend}
+                disabled={!input.trim() || chatMutation.isPending}
+                className="p-2.5 bg-teal-500 text-white rounded-lg hover:bg-teal-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+              >
+                {chatMutation.isPending ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Send className="h-5 w-5" />
+                )}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -487,12 +683,12 @@ function CopilotMessageBubble({ message, onActionClick, onFeedback }: CopilotMes
         </div>
       )}
 
-      <div className={`max-w-[85%] rounded-lg px-4 py-2 ${getMessageStyle()}`}>
-        <div className="text-sm whitespace-pre-wrap">{message.content}</div>
+      <div className={`max-w-[85%] rounded-lg px-3 py-2 ${getMessageStyle()}`}>
+        <div className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</div>
 
         {/* Action buttons */}
         {message.actions && message.actions.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-3">
+          <div className="flex flex-wrap gap-2 mt-2">
             {message.actions.map((action) => (
               <button
                 key={action.id}
@@ -510,10 +706,10 @@ function CopilotMessageBubble({ message, onActionClick, onFeedback }: CopilotMes
           </div>
         )}
 
-        {/* Phase 5.1: Feedback buttons for AI messages */}
+        {/* Feedback buttons for AI messages */}
         {!isUser && onFeedback && (
-          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200">
-            <span className="text-xs text-gray-500">¿Útil?</span>
+          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200/50">
+            <span className="text-xs text-gray-400">¿Útil?</span>
             <button
               onClick={() => onFeedback(message.id, 'positive')}
               className={`p-1 rounded transition-colors ${message.feedback === 'positive'
@@ -532,9 +728,6 @@ function CopilotMessageBubble({ message, onActionClick, onFeedback }: CopilotMes
             >
               <ThumbsDown className="h-3.5 w-3.5" />
             </button>
-            {message.feedback && (
-              <span className="text-xs text-gray-400 ml-1">¡Gracias!</span>
-            )}
           </div>
         )}
       </div>

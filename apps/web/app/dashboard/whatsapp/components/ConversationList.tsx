@@ -94,7 +94,7 @@ export default function ConversationList({
   ];
 
   return (
-    <div className="w-[350px] border-r flex flex-col bg-white">
+    <div className="w-[380px] border-r flex flex-col bg-white">
       {/* Header */}
       <div className="p-4 border-b">
         <div className="flex items-center justify-between mb-3">
@@ -102,11 +102,10 @@ export default function ConversationList({
             <h1 className="text-lg font-semibold text-gray-900">WhatsApp</h1>
             {/* Connection Status Badge */}
             <span
-              className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                isConnected
+              className={`px-2 py-0.5 text-xs font-medium rounded-full ${isConnected
                   ? 'bg-green-100 text-green-700'
                   : 'bg-red-100 text-red-700'
-              }`}
+                }`}
             >
               {isConnected ? 'Conectado' : 'Desconectado'}
             </span>
@@ -160,11 +159,10 @@ export default function ConversationList({
             <button
               key={f.value}
               onClick={() => onFilterChange(f.value)}
-              className={`px-3 py-1 text-xs rounded-full transition-colors ${
-                filter === f.value
+              className={`px-3 py-1 text-xs rounded-full transition-colors ${filter === f.value
                   ? 'bg-teal-100 text-teal-700 font-medium'
                   : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
+                }`}
             >
               {f.label}
             </button>

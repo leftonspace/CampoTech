@@ -39,7 +39,7 @@
     },
     {
       "path": "/api/cron/inflation-indices",
-      "schedule": "0 13 * * *"
+      "schedule": "0 * * * *"
     }
   ]
 }
