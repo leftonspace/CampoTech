@@ -233,7 +233,7 @@ export async function scheduleJobReminder(
     },
     {
       date: reminderTime,
-    }
+    } as Notifications.NotificationTriggerInput
   );
 }
 

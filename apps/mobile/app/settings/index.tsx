@@ -116,14 +116,14 @@ export default function SettingsScreen() {
               iconColor="#059669"
               label="Información del negocio"
               description="Nombre, logo, datos fiscales"
-              onPress={() => router.push('/settings/business')}
+              onPress={() => router.push('/settings/business' as any)}
             />
             <SettingsRow
               icon={Clock}
               iconColor="#3b82f6"
               label="Horario de atención"
               description="Días y horarios de trabajo"
-              onPress={() => router.push('/settings/business-hours')}
+              onPress={() => router.push('/settings/business-hours' as any)}
             />
           </View>
         </View>
@@ -152,7 +152,7 @@ export default function SettingsScreen() {
               iconColor="#f59e0b"
               label="Preferencias de notificación"
               description="Qué notificaciones recibir"
-              onPress={() => router.push('/settings/notifications')}
+              onPress={() => router.push('/settings/notifications' as any)}
             />
           </View>
         </View>
@@ -166,14 +166,14 @@ export default function SettingsScreen() {
               iconColor="#25D366"
               label="WhatsApp Business"
               description="Configurar mensajes automáticos"
-              onPress={() => router.push('/settings/whatsapp')}
+              onPress={() => router.push('/settings/whatsapp' as any)}
             />
             <SettingsRow
               icon={CreditCard}
               iconColor="#0099e5"
               label="MercadoPago"
               description="Configurar cobros online"
-              onPress={() => router.push('/settings/mercadopago')}
+              onPress={() => router.push('/settings/mercadopago' as any)}
             />
           </View>
         </View>
@@ -202,7 +202,7 @@ export default function SettingsScreen() {
               iconColor="#8b5cf6"
               label="Idioma"
               description="Español (Argentina)"
-              onPress={() => {}}
+              onPress={() => { }}
             />
           </View>
         </View>
@@ -216,14 +216,14 @@ export default function SettingsScreen() {
               iconColor="#059669"
               label="Suscripción"
               description="Plan Profesional"
-              onPress={() => router.push('/settings/subscription')}
+              onPress={() => router.push('/settings/subscription' as any)}
             />
             <SettingsRow
               icon={Shield}
               iconColor="#64748b"
               label="Seguridad"
               description="Contraseña y acceso"
-              onPress={() => router.push('/settings/security')}
+              onPress={() => router.push('/settings/security' as any)}
             />
           </View>
         </View>
@@ -237,14 +237,14 @@ export default function SettingsScreen() {
               iconColor="#0ea5e9"
               label="Centro de ayuda"
               description="Preguntas frecuentes"
-              onPress={() => {}}
+              onPress={() => { }}
             />
             <SettingsRow
               icon={MessageCircle}
               iconColor="#0ea5e9"
               label="Contactar soporte"
               description="Chatear con nosotros"
-              onPress={() => {}}
+              onPress={() => { }}
             />
           </View>
         </View>

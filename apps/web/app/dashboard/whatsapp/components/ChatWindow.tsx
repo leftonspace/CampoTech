@@ -13,7 +13,6 @@ import {
   Info,
   Phone,
   Bot,
-  Settings,
 } from 'lucide-react';
 import { formatDisplayTime } from '@/lib/timezone';
 import MessageBubble, { Message } from './MessageBubble';
@@ -53,11 +52,11 @@ export default function ChatWindow({
   hasMoreMessages,
   onAction,
   aiEnabled = false,
-  aiHandlingConversation = false,
+  aiHandlingConversation: _aiHandlingConversation = false,
   aiDisabledUntil = null,
   onDisableAI,
-  onEnableAI,
-  onGoToSettings,
+  onEnableAI: _onEnableAI,
+  onGoToSettings: _onGoToSettings,
   inputValue,
   onInputChange,
 }: ChatWindowProps) {

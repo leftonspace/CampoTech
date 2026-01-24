@@ -28,8 +28,9 @@ import SignatureCanvas from 'react-native-signature-canvas';
 
 import { jobsCollection, jobPhotosCollection, database } from '../../../watermelon/database';
 import { Job } from '../../../watermelon/models';
+import * as SecureStore from 'expo-secure-store';
 import { enqueueOperation } from '../../../lib/sync/sync-engine';
-import { VoiceInput } from '../../../components/voice/VoiceInput';
+import VoiceInput from '../../../components/voice/VoiceInput';
 import { useAuth } from '../../../lib/auth/auth-context';
 
 type Step = 'notes' | 'photos' | 'signature';
@@ -44,7 +45,8 @@ export default function CompleteJobScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const signatureRef = useRef<any>(null);
-  const { organizationId, token } = useAuth();
+  const { user } = useAuth();
+  const organizationId = user?.organizationId;
 
   const [step, setStep] = useState<Step>('notes');
   const [notes, setNotes] = useState('');
@@ -78,7 +80,7 @@ export default function CompleteJobScreen() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${await SecureStore.getItemAsync('auth_token')}`,
         },
         body: JSON.stringify({
           transcription,
@@ -141,7 +143,7 @@ export default function CompleteJobScreen() {
   const loadJobPricingData = useCallback(async () => {
     if (!id) return;
     try {
-      const job = await jobsCollection.find(id);
+      const job = await jobsCollection.find(id) as Job;
       if (job) {
         setJobPricingMode(job.pricingMode);
         setVisitEstimatedPrice(job.visitEstimatedPrice);

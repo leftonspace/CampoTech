@@ -34,7 +34,7 @@ const MAX_RETRIES = 5;
 
 let isSyncing = false;
 let lastSyncTime: number | null = null;
-let syncTimeout: NodeJS.Timeout | null = null;
+let syncTimeout: ReturnType<typeof setTimeout> | null = null;
 let listeners: Array<(status: SyncStatus) => void> = [];
 
 export interface SyncStatus {
@@ -227,9 +227,10 @@ async function pullServerChanges(): Promise<{ count: number }> {
  * Sync a single job from server
  */
 async function syncJob(serverJob: any): Promise<void> {
-  const existing = await jobsCollection
+  const results = await jobsCollection
     .query(Q.where('server_id', serverJob.id))
-    .fetchFirst() as Job | null;
+    .fetch() as Job[];
+  const existing = results.length > 0 ? results[0] : null;
 
   if (existing) {
     // Check for conflicts
@@ -244,13 +245,13 @@ async function syncJob(serverJob: any): Promise<void> {
     }
 
     // Update local record
-    await existing.update((job) => {
+    await existing.update((job: any) => {
       Object.assign(job, mapServerJobToLocal(serverJob));
       job.syncedAt = Date.now();
     });
   } else {
     // Create new local record
-    await jobsCollection.create((job) => {
+    await jobsCollection.create((job: any) => {
       Object.assign(job, mapServerJobToLocal(serverJob));
       job.serverId = serverJob.id;
       job.syncedAt = Date.now();
@@ -263,17 +264,18 @@ async function syncJob(serverJob: any): Promise<void> {
  * Sync a single customer from server
  */
 async function syncCustomer(serverCustomer: any): Promise<void> {
-  const existing = await customersCollection
+  const results = await customersCollection
     .query(Q.where('server_id', serverCustomer.id))
-    .fetchFirst() as Customer | null;
+    .fetch() as Customer[];
+  const existing = results.length > 0 ? results[0] : null;
 
   if (existing) {
-    await existing.update((customer) => {
+    await existing.update((customer: any) => {
       Object.assign(customer, mapServerCustomerToLocal(serverCustomer));
       customer.syncedAt = Date.now();
     });
   } else {
-    await customersCollection.create((customer) => {
+    await customersCollection.create((customer: any) => {
       Object.assign(customer, mapServerCustomerToLocal(serverCustomer));
       customer.serverId = serverCustomer.id;
       customer.syncedAt = Date.now();
@@ -285,9 +287,10 @@ async function syncCustomer(serverCustomer: any): Promise<void> {
  * Sync a single price book item from server
  */
 async function syncPriceBookItem(serverItem: any): Promise<void> {
-  const existing = await priceBookCollection
+  const results = await priceBookCollection
     .query(Q.where('server_id', serverItem.id))
-    .fetchFirst();
+    .fetch();
+  const existing = results.length > 0 ? results[0] : null;
 
   if (existing) {
     await existing.update((item: any) => {
@@ -334,12 +337,10 @@ export async function enqueueOperation(
   const queueSize = await syncQueueCollection.query().fetchCount();
   if (queueSize >= MAX_QUEUE_SIZE) {
     // Remove oldest low-priority items
-    const oldestOps = await syncQueueCollection
-      .query()
-      .sortBy('priority', 'asc')
-      .sortBy('created_at', 'asc')
-      .limit(10)
-      .fetch();
+    const allOps = await syncQueueCollection.query().fetch();
+    const oldestOps = allOps
+      .sort((a: any, b: any) => a.priority - b.priority || a.createdAt - b.createdAt)
+      .slice(0, 10);
 
     await database.write(async () => {
       for (const op of oldestOps) {
@@ -376,9 +377,10 @@ async function createConflict(data: {
   // Get local data
   let localData: unknown = null;
   if (data.entityType === 'job') {
-    const job = await jobsCollection
+    const jobResults = await jobsCollection
       .query(Q.where('server_id', data.entityId))
-      .fetchFirst();
+      .fetch();
+    const job = jobResults.length > 0 ? jobResults[0] : null;
     localData = job?._raw;
   }
 

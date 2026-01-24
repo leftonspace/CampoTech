@@ -45,7 +45,8 @@ const MOCK_TECHNICIANS = [
 function JobsManagementScreen({ jobs }: { jobs: Job[] }) {
   const router = useRouter();
   const { user } = useAuth();
-  const { isSyncing } = useSyncStatus();
+  const syncStatus = useSyncStatus();
+  const isSyncing = syncStatus.isSyncing;
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [technicianFilter, setTechnicianFilter] = useState<string | null>(null);
@@ -86,7 +87,7 @@ function JobsManagementScreen({ jobs }: { jobs: Job[] }) {
           });
         });
 
-        await enqueueOperation('job', job.serverId, 'update', {
+        await enqueueOperation('job', (job as Job).serverId, 'update', {
           assignedToId: technicianId,
         });
 
@@ -270,7 +271,6 @@ function JobsManagementScreen({ jobs }: { jobs: Job[] }) {
             )}
           </View>
         )}
-        estimatedItemSize={140}
         refreshControl={
           <RefreshControl
             refreshing={isSyncing}

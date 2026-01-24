@@ -261,7 +261,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                     organizationId = session.organizationId;
                     console.log('[SIMULATION GET] Using session org:', organizationId);
                 }
-            } catch (e) {
+            } catch (_e) {
                 console.log('[SIMULATION GET] No session found');
             }
         }

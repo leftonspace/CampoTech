@@ -241,7 +241,7 @@ export default function ProfileScreen() {
             <TouchableOpacity style={styles.infoRow}>
               <Text style={styles.infoLabel}>Organizacion</Text>
               <View style={styles.infoRight}>
-                <Text style={styles.infoValue}>{user?.organizationName || 'CampoTech'}</Text>
+                <Text style={styles.infoValue}>{user?.organizationId || 'CampoTech'}</Text>
                 <ChevronRight size={18} color="#9ca3af" />
               </View>
             </TouchableOpacity>

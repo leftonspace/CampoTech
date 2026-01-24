@@ -56,7 +56,7 @@ export default function VoiceInput({
 
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // ═══════════════════════════════════════════════════════════════════════════

@@ -20,6 +20,8 @@ export default class Job extends Model {
   @field('customer_id') customerId!: string;
   @field('organization_id') organizationId!: string;
   @field('assigned_to_id') assignedToId!: string | null;
+  @field('job_number') jobNumber!: string | null;
+  @field('title') title!: string | null;
   @field('service_type') serviceType!: string;
   @field('status') status!: string;
   @field('priority') priority!: string;
@@ -28,6 +30,7 @@ export default class Job extends Model {
   @field('scheduled_end') scheduledEnd!: number | null;
   @field('actual_start') actualStart!: number | null;
   @field('actual_end') actualEnd!: number | null;
+  @field('estimated_duration') estimatedDuration!: number | null;
 
   @field('address') address!: string;
   @field('latitude') latitude!: number | null;
@@ -60,6 +63,9 @@ export default class Job extends Model {
   @relation('customers', 'customer_id') customer!: any;
   @children('job_photos') photos!: any;
 
+  // Computed property for customer name (cached from server sync)
+  @field('customer_name') customerName!: string | null;
+
   // Computed properties
   get scheduledStartDate(): Date | null {
     return this.scheduledStart ? new Date(this.scheduledStart) : null;
@@ -67,6 +73,11 @@ export default class Job extends Model {
 
   get scheduledEndDate(): Date | null {
     return this.scheduledEnd ? new Date(this.scheduledEnd) : null;
+  }
+
+  // Alias for backward compatibility
+  get scheduledDate(): number | null {
+    return this.scheduledStart;
   }
 
   get parsedMaterialsUsed(): Array<{ name: string; quantity: number; price: number }> {

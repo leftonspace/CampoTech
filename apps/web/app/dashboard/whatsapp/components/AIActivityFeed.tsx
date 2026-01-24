@@ -247,7 +247,7 @@ function ActivityCard({
                 <div className="ml-11 mt-2">
                     <div className="bg-white border border-gray-200 rounded-lg p-3">
                         <p className="text-sm text-gray-700 line-clamp-3">
-                            "{activity.metadata.suggestedResponse}"
+                            &quot;{activity.metadata.suggestedResponse}&quot;
                         </p>
                         <div className="flex items-center gap-2 mt-2">
                             <button
@@ -273,7 +273,7 @@ function ActivityCard({
                 <div className="ml-11 mt-2">
                     <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
                         <p className="text-sm text-gray-700 italic">
-                            "{activity.metadata.transcription}"
+                            &quot;{activity.metadata.transcription}&quot;
                         </p>
                     </div>
                 </div>
@@ -351,7 +351,7 @@ function ActivityCard({
                         <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                             <div
                                 className={`h-full rounded-full ${activity.metadata.confidence >= 80 ? 'bg-green-500' :
-                                        activity.metadata.confidence >= 60 ? 'bg-amber-500' : 'bg-red-500'
+                                    activity.metadata.confidence >= 60 ? 'bg-amber-500' : 'bg-red-500'
                                     }`}
                                 style={{ width: `${activity.metadata.confidence}%` }}
                             />

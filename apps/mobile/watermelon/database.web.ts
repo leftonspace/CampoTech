@@ -170,9 +170,9 @@ class WebCollection<T = Record<string, unknown>> {
       _changed: '',
     };
     writer(record);
-    const data = this.getData();
+    const data = this.getData() as any[];
     data.push(record);
-    this.setData(data);
+    this.setData(data as T[]);
     return this.wrapRecord(record);
   }
 

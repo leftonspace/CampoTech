@@ -13,9 +13,10 @@ const monorepoRoot = path.resolve(projectRoot, '../..');
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(projectRoot);
 
-// Watch only root node_modules for shared packages, not the entire monorepo
-// This significantly speeds up Metro bundler initialization
+// Extend Expo's default watchFolders to include root node_modules for shared packages
+// This preserves expo/metro-config defaults while adding monorepo support
 config.watchFolders = [
+  ...(config.watchFolders || []),
   path.resolve(monorepoRoot, 'node_modules'),
 ];
 

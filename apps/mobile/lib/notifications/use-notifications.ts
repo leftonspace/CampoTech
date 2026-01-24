@@ -32,8 +32,8 @@ export function useNotifications(): UseNotificationsReturn {
   const [isRegistered, setIsRegistered] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const notificationListener = useRef<Notifications.EventSubscription>();
-  const responseListener = useRef<Notifications.EventSubscription>();
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
   useEffect(() => {
     // Register for push notifications
@@ -56,8 +56,10 @@ export function useNotifications(): UseNotificationsReturn {
 
     // Handle notification taps
     responseListener.current = addNotificationResponseListener((response) => {
-      const data = response.notification.request.content.data as NotificationData;
-      handleNotificationNavigation(data);
+      const data = response.notification.request.content.data as unknown as NotificationData;
+      if (data?.type) {
+        handleNotificationNavigation(data);
+      }
     });
 
     return () => {

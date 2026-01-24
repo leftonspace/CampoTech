@@ -130,7 +130,7 @@ export default function InvoicesScreen() {
     return (
       <TouchableOpacity
         style={styles.invoiceCard}
-        onPress={() => router.push(`/invoices/${invoice.id}`)}
+        onPress={() => router.push(`/invoices/${invoice.id}` as any)}
       >
         <View style={[styles.statusIndicator, { backgroundColor: status.color }]} />
 
@@ -171,7 +171,7 @@ export default function InvoicesScreen() {
           </View>
           <TouchableOpacity
             style={styles.addButton}
-            onPress={() => router.push('/invoices/create')}
+            onPress={() => router.push('/invoices/create' as any)}
           >
             <Plus size={20} color="#fff" />
             <Text style={styles.addButtonText}>Nueva</Text>
@@ -242,7 +242,6 @@ export default function InvoicesScreen() {
           data={filteredInvoices}
           renderItem={renderInvoice}
           keyExtractor={(item) => item.id}
-          estimatedItemSize={100}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}

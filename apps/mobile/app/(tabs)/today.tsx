@@ -214,7 +214,6 @@ function TodayScreen({ jobs }: { jobs: Job[] }) {
             {renderSection('Completados', groupedJobs.completed, 'check-circle', '#16a34a')}
           </>
         )}
-        estimatedItemSize={200}
         refreshControl={
           <RefreshControl
             refreshing={isSyncing}

@@ -70,7 +70,7 @@ export default function VoiceReport({
 
   const recordingRef = useRef<Audio.Recording | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -228,7 +228,7 @@ export default function VoiceReport({
         // Fallback: Allow manual text entry if transcription fails
         setError(
           response.error?.message ||
-            'No se pudo transcribir. Escribí el texto manualmente.'
+          'No se pudo transcribir. Escribí el texto manualmente.'
         );
         setTranscribedText('');
         setEditedText('');

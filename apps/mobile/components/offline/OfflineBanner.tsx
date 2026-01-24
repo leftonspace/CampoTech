@@ -22,7 +22,7 @@ interface OfflineBannerProps {
 }
 
 export function OfflineBanner({ onDismiss, showPendingCount = true }: OfflineBannerProps) {
-  const { status } = useSyncStatus();
+  const status = useSyncStatus();
   const slideAnim = useRef(new Animated.Value(-100)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -102,7 +102,7 @@ export function OfflineBanner({ onDismiss, showPendingCount = true }: OfflineBan
  * Compact version for inline use
  */
 export function OfflineIndicator() {
-  const { status } = useSyncStatus();
+  const status = useSyncStatus();
 
   if (status.isOnline) {
     return null;
@@ -120,7 +120,7 @@ export function OfflineIndicator() {
  * Sync pending indicator
  */
 export function PendingSyncIndicator() {
-  const { status } = useSyncStatus();
+  const status = useSyncStatus();
   const rotateAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {

@@ -37,7 +37,7 @@ interface QueueStatusProps {
 }
 
 export function QueueStatus({ compact = false }: QueueStatusProps) {
-  const { status } = useSyncStatus();
+  const status = useSyncStatus();
   const [showModal, setShowModal] = useState(false);
   const [queueItems, setQueueItems] = useState<SyncQueue[]>([]);
   const [syncing, setSyncing] = useState(false);

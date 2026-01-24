@@ -263,7 +263,7 @@ export function useScrollDebounce(
   callback: (offset: number) => void,
   delay: number = 100
 ) {
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   return useCallback(
     (event: { nativeEvent: { contentOffset: { y: number } } }) => {

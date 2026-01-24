@@ -34,7 +34,8 @@ const vehicleStockCollection = database.get<VehicleStock>('vehicle_stock');
 
 function InventoryScreen({ stock }: { stock: VehicleStock[] }) {
   const router = useRouter();
-  const { isSyncing } = useSyncStatus();
+  const syncStatus = useSyncStatus();
+  const isSyncing = syncStatus.isSyncing;
   const [search, setSearch] = useState('');
   const [pendingCount, setPendingCount] = useState(0);
   const [failedCount, setFailedCount] = useState(0);
@@ -109,7 +110,7 @@ function InventoryScreen({ stock }: { stock: VehicleStock[] }) {
   const renderItem = ({ item }: { item: VehicleStock }) => (
     <TouchableOpacity
       style={styles.stockCard}
-      onPress={() => router.push(`/(tabs)/inventory/${item.id}`)}
+      onPress={() => router.push({ pathname: '/(tabs)/inventory/[id]', params: { id: item.id } } as any)}
     >
       <View style={styles.stockInfo}>
         <Text style={styles.productName}>{item.productName}</Text>
@@ -248,7 +249,6 @@ function InventoryScreen({ stock }: { stock: VehicleStock[] }) {
           }
           return renderItem({ item });
         }}
-        estimatedItemSize={80}
         refreshControl={
           <RefreshControl
             refreshing={isSyncing}

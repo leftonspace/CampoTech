@@ -313,7 +313,7 @@ export default function CopilotPanel({
   if (!isOpen) return null;
 
   // Count voice memos in messages
-  const voiceMemoCount = messages.filter((m) => m.type === 'audio').length;
+  const _voiceMemoCount = messages.filter((m) => m.type === 'audio').length;
 
   // Show empty state when no conversation is selected
   if (!conversation) {

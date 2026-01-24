@@ -112,7 +112,7 @@ function getStatusConfig(status: string) {
 // Enhance with customer data
 const enhance = withObservables(['job'], ({ job }: { job: Job }) => ({
   job,
-  customer: customersCollection.findAndObserve(job.customerId).catch(() => null),
+  customer: job.customerId ? customersCollection.findAndObserve(job.customerId) : null,
 }));
 
 export default enhance(JobCard);

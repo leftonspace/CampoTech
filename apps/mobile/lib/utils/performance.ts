@@ -6,7 +6,7 @@
  * Optimizations for older devices (Android 8+, iOS 14+)
  */
 
-import { useCallback, useRef, useMemo, useEffect } from 'react';
+import { useCallback, useRef, useMemo, useEffect, useState } from 'react';
 import { InteractionManager, Platform } from 'react-native';
 
 /**
@@ -125,7 +125,8 @@ export function useBatchedUpdates<T>(
   const stateRef = useRef<T>(initialState);
   const pendingUpdates = useRef<Partial<T>>({});
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [, forceUpdate] = useCallback(() => ({}), []);
+  const [, forceUpdate] = useState({});
+  const triggerRender = useCallback(() => forceUpdate({}), []);
 
   const scheduleUpdate = useCallback(
     (updates: Partial<T>) => {
@@ -138,10 +139,10 @@ export function useBatchedUpdates<T>(
       timeoutRef.current = setTimeout(() => {
         stateRef.current = { ...stateRef.current, ...pendingUpdates.current };
         pendingUpdates.current = {};
-        forceUpdate();
+        triggerRender();
       }, batchDelay);
     },
-    [batchDelay, forceUpdate]
+    [batchDelay, triggerRender]
   );
 
   const flushUpdates = useCallback(() => {
@@ -150,8 +151,8 @@ export function useBatchedUpdates<T>(
     }
     stateRef.current = { ...stateRef.current, ...pendingUpdates.current };
     pendingUpdates.current = {};
-    forceUpdate();
-  }, [forceUpdate]);
+    triggerRender();
+  }, [triggerRender]);
 
   return [stateRef.current, scheduleUpdate, flushUpdates];
 }
@@ -235,18 +236,22 @@ export function getOptimizedListProps() {
 export function useRenderTime(componentName: string) {
   const startTime = useRef<number>(0);
 
+  // Store start time in dev mode
   if (__DEV__) {
     startTime.current = performance.now();
-
-    useEffect(() => {
-      const endTime = performance.now();
-      const renderTime = endTime - startTime.current;
-      if (renderTime > 16) {
-        // More than 1 frame
-        console.warn(
-          `[Performance] ${componentName} took ${renderTime.toFixed(2)}ms to render`
-        );
-      }
-    });
   }
+
+  // useEffect must be called unconditionally
+  useEffect(() => {
+    if (!__DEV__) return;
+
+    const endTime = performance.now();
+    const renderTime = endTime - startTime.current;
+    if (renderTime > 16) {
+      // More than 1 frame
+      console.warn(
+        `[Performance] ${componentName} took ${renderTime.toFixed(2)}ms to render`
+      );
+    }
+  });
 }

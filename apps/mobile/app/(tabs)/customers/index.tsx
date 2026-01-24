@@ -76,7 +76,7 @@ export default function CustomersScreen() {
     staleTime: 30000, // 30 seconds
   });
 
-  const customers: Customer[] = data?.data || [];
+  const customers: Customer[] = (data?.data as Customer[]) || [];
 
   const handleRefresh = useCallback(() => {
     refetch();

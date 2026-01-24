@@ -95,7 +95,7 @@ function ReplenishScreen({ stock }: { stock: VehicleStock[] }) {
 
       // Create local replenishment request
       await database.write(async () => {
-        await replenishmentCollection.create((request) => {
+        await replenishmentCollection.create((request: any) => {
           request.vehicleId = stock[0]?.vehicleId || '';
           request.status = 'pending';
           request.priority = priority;

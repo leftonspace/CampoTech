@@ -105,7 +105,7 @@ export function useAppMode(): UseAppModeReturn {
     await saveMode('consumer');
 
     // Navigate to consumer tabs
-    router.replace('/(consumer)/');
+    router.replace('/(consumer)/' as any);
   }, [router]);
 
   return {

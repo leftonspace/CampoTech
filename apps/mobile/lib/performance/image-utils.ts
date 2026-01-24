@@ -12,7 +12,8 @@ import * as FileSystem from 'expo-file-system';
 // CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const IMAGE_CACHE_DIR = `${FileSystem.cacheDirectory}images/`;
+// Note: FileSystem.cacheDirectory may not be available at module load time on all platforms
+const IMAGE_CACHE_DIR = ((FileSystem as any).cacheDirectory || '') + 'images/';
 const MAX_IMAGE_SIZE = 1920; // Max dimension in pixels
 const JPEG_QUALITY = 0.8;
 const THUMBNAIL_SIZE = 200;
@@ -67,8 +68,8 @@ export async function compressImage(
       format === 'jpeg'
         ? ImageManipulator.SaveFormat.JPEG
         : format === 'png'
-        ? ImageManipulator.SaveFormat.PNG
-        : ImageManipulator.SaveFormat.WEBP,
+          ? ImageManipulator.SaveFormat.PNG
+          : ImageManipulator.SaveFormat.WEBP,
   });
 
   // Get final size

@@ -484,7 +484,6 @@ export default function TeamManagementScreen() {
           data={filteredTeam}
           renderItem={renderMember}
           keyExtractor={(item) => item.id}
-          estimatedItemSize={100}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -706,7 +705,7 @@ export default function TeamManagementScreen() {
                 <View style={styles.memberActions2}>
                   <TouchableOpacity
                     style={styles.memberActionButton}
-                    onPress={() => router.push(`/team/${selectedMember.id}/edit`)}
+                    onPress={() => router.push(`/team/${selectedMember.id}/edit` as any)}
                   >
                     <Edit2 size={18} color="#374151" />
                     <Text style={styles.memberActionText}>Editar perfil</Text>

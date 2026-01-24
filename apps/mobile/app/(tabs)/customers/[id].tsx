@@ -90,8 +90,8 @@ export default function CustomerDetailScreen() {
     enabled: !!id,
   });
 
-  const customer: Customer | null = customerData?.data || null;
-  const jobs: CustomerJob[] = jobsData?.data || [];
+  const customer: Customer | null = customerData?.data as Customer || null;
+  const jobs: CustomerJob[] = (jobsData?.data as CustomerJob[]) || [];
 
   // Delete mutation
   const deleteMutation = useMutation({

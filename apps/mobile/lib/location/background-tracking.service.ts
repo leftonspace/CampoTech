@@ -137,8 +137,18 @@ class BackgroundTrackingService {
         }
       }
 
-      // Call API to start tracking session
-      const response = await api.tracking.start(jobId);
+      // Get initial location for API start call
+      const initialLocation = await this.getCurrentLocation();
+      if (!initialLocation) {
+        return { success: false, error: 'No se pudo obtener la ubicación inicial' };
+      }
+
+      // Call API to start tracking session with initial location
+      const response = await api.tracking.start(
+        jobId,
+        initialLocation.latitude,
+        initialLocation.longitude
+      );
       if (!response.success) {
         return { success: false, error: response.error?.message || 'Error iniciando rastreo' };
       }
@@ -341,8 +351,8 @@ class BackgroundTrackingService {
       for (const loc of queue) {
         try {
           await api.tracking.updateLocation(loc.sessionId, {
-            latitude: loc.latitude,
-            longitude: loc.longitude,
+            lat: loc.latitude,
+            lng: loc.longitude,
             accuracy: loc.accuracy,
             speed: loc.speed,
             heading: loc.heading,
@@ -374,8 +384,8 @@ async function processLocationUpdate(location: LocationUpdate): Promise<void> {
     // Try to send to server
     try {
       await api.tracking.updateLocation(session.sessionId, {
-        latitude: location.latitude,
-        longitude: location.longitude,
+        lat: location.latitude,
+        lng: location.longitude,
         accuracy: location.accuracy,
         speed: location.speed,
         heading: location.heading,

@@ -178,13 +178,28 @@ export const api = {
         role: string;
         organizationId: string;
       }>('/auth/me'),
+
+    registerPushToken: (data: { token: string; platform: string; deviceId: string }) =>
+      apiRequest('/auth/push-token', {
+        method: 'POST',
+        body: data,
+      }),
+
+    unregisterPushToken: (deviceId: string) =>
+      apiRequest(`/auth/push-token/${deviceId}`, {
+        method: 'DELETE',
+      }),
   },
 
   // Jobs
   jobs: {
-    list: (params?: { status?: string; date?: string }) => {
+    list: (params?: { status?: string; date?: string; customerId?: string; limit?: number }) => {
       const query = params
-        ? `?${new URLSearchParams(params as Record<string, string>)}`
+        ? `?${new URLSearchParams(
+          Object.entries(params)
+            .filter(([, v]) => v !== undefined)
+            .map(([k, v]) => [k, String(v)]) as [string, string][]
+        )}`
         : '';
       return apiRequest<unknown[]>(`/jobs${query}`);
     },
@@ -218,9 +233,21 @@ export const api = {
 
   // Customers
   customers: {
+    list: (params?: { limit?: number; offset?: number; search?: string }) => {
+      const query = params
+        ? `?${new URLSearchParams(
+          Object.entries(params)
+            .filter(([, v]) => v !== undefined)
+            .map(([k, v]) => [k, String(v)]) as [string, string][]
+        )}`
+        : '';
+      return apiRequest<unknown[]>(`/customers${query}`);
+    },
     get: (id: string) => apiRequest<unknown>(`/customers/${id}`),
     search: (query: string) =>
       apiRequest<unknown[]>(`/customers/search?q=${encodeURIComponent(query)}`),
+    delete: (id: string) =>
+      apiRequest('/customers/${id}', { method: 'DELETE' }),
   },
 
   // Price Book
@@ -406,6 +433,28 @@ export const api = {
       apiRequest('/tracking/status', {
         method: 'POST',
         body: { sessionId, status: 'COMPLETED' },
+      }),
+
+    getSession: (sessionId: string) =>
+      apiRequest<{
+        sessionId: string;
+        jobId: string;
+        status: string;
+        startedAt: string;
+        coordinates: Array<{ lat: number; lng: number; timestamp: string }>;
+      }>(`/tracking/session/${sessionId}`),
+
+    updateLocation: (sessionId: string, data: {
+      lat: number;
+      lng: number;
+      speed?: number | null;
+      heading?: number | null;
+      accuracy?: number | null;
+      timestamp?: string;
+    }) =>
+      apiRequest('/tracking/location', {
+        method: 'POST',
+        body: { sessionId, ...data },
       }),
   },
 

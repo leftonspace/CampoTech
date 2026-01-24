@@ -85,8 +85,6 @@ export async function getScrapeSchedule(): Promise<ScheduledScrapeConfig[]> {
 
     try {
         for (const source of SOURCES) {
-            // Try to get existing schedule record
-            // @ts-ignore - ScrapeSchedule might not exist in generated types yet
             let schedule = await prisma.scrapeSchedule?.findUnique({
                 where: { source },
             }) as ScrapeScheduleRecord | null;
@@ -100,7 +98,6 @@ export async function getScrapeSchedule(): Promise<ScheduledScrapeConfig[]> {
 
                 // Try to create schedule record if table exists
                 try {
-                    // @ts-ignore - ScrapeSchedule might not exist in generated types yet
                     schedule = await prisma.scrapeSchedule?.create({
                         data: {
                             source,
@@ -136,7 +133,7 @@ export async function getScrapeSchedule(): Promise<ScheduledScrapeConfig[]> {
                 isWaitingForUpdate: schedule.isWaitingForUpdate,
             });
         }
-    } catch (error) {
+    } catch (_error) {
         // Complete fallback if ScrapeSchedule doesn't exist at all
         console.log('[InflationCron] ScrapeSchedule not available, using InflationIndex fallback');
 
@@ -258,7 +255,6 @@ async function updateScheduleAfterScrape(
         ipcUpdated = isNewData;
 
         try {
-            // @ts-ignore - ScrapeSchedule might not exist in generated types yet
             await prisma.scrapeSchedule?.upsert({
                 where: { source: 'INDEC_IPC_GENERAL' },
                 update: {
@@ -291,7 +287,6 @@ async function updateScheduleAfterScrape(
         iccUpdated = isNewData;
 
         try {
-            // @ts-ignore - ScrapeSchedule might not exist in generated types yet
             await prisma.scrapeSchedule?.upsert({
                 where: { source: 'CAC_ICC_GENERAL' },
                 update: {
@@ -325,7 +320,6 @@ async function updateScheduleAfterScrape(
  */
 async function recordScrapeError(source: typeof SOURCES[number], error: string): Promise<void> {
     try {
-        // @ts-ignore - ScrapeSchedule might not exist in generated types yet
         await prisma.scrapeSchedule?.upsert({
             where: { source },
             update: {
@@ -541,7 +535,6 @@ export async function getInflationIndexStatus() {
     // Get schedules (with fallback if table doesn't exist)
     let schedules: ScrapeScheduleRecord[] = [];
     try {
-        // @ts-ignore - ScrapeSchedule might not exist in generated types yet
         schedules = await prisma.scrapeSchedule?.findMany() as ScrapeScheduleRecord[] || [];
     } catch {
         console.log('[InflationCron] ScrapeSchedule table not available for status query');

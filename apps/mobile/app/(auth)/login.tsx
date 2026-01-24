@@ -291,7 +291,7 @@ export default function LoginScreen() {
                 {otp.map((digit, index) => (
                   <TextInput
                     key={index}
-                    ref={(ref) => (otpInputs.current[index] = ref)}
+                    ref={(ref) => { otpInputs.current[index] = ref; }}
                     style={[
                       styles.otpInput,
                       digit && styles.otpInputFilled,
