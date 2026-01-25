@@ -36,7 +36,8 @@
         "resourceClass": "m-medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://campotechweb-production.up.railway.app/api"
+        "EXPO_PUBLIC_API_URL": "https://campotechweb-production.up.railway.app/api",
+        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
       }
     },
     "production": {
