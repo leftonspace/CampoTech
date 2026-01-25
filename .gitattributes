@@ -1,0 +1,7 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Force these files to use LF line endings (important for cross-platform)
+.pnpmfile.cjs text eol=lf
+pnpm-lock.yaml text eol=lf
+*.sh text eol=lf
