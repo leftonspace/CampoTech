@@ -113,6 +113,7 @@ const CSRF_BYPASS_PATHS = [
   '/api/webhooks/',
   '/api/cron/',
   '/api/dev/',        // Development endpoints (CLI testing)
+  '/api/auth/',       // Auth endpoints (login, register, OTP) - mobile apps don't have Origin headers
 ];
 
 /**
