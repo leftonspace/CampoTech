@@ -110,10 +110,29 @@ function getStatusConfig(status: string) {
 }
 
 // Enhance with customer data
-const enhance = withObservables(['job'], ({ job }: { job: Job }) => ({
-  job,
-  customer: job.customerId ? customersCollection.findAndObserve(job.customerId) : null,
-}));
+// Use job.customer relation but catch errors when customer doesn't exist locally
+import { of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+
+const enhance = withObservables(['job'], ({ job }: { job: Job }) => {
+  // Safely observe the customer relationship
+  // If customer doesn't exist locally, return null instead of crashing
+  let customerObservable = null;
+  try {
+    if (job.customerId) {
+      customerObservable = job.customer.observe().pipe(
+        catchError(() => of(null))
+      );
+    }
+  } catch {
+    customerObservable = of(null);
+  }
+
+  return {
+    job,
+    customer: customerObservable,
+  };
+});
 
 export default enhance(JobCard);
 
