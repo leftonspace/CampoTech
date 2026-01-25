@@ -43,6 +43,21 @@ function isDevBypassAllowed(): boolean {
 // Dev bypass code
 const DEV_OTP_CODE = '123456';
 
+// Test phone numbers that always work with DEV_OTP_CODE (123456)
+// These numbers will never send real SMS - great for testing!
+const TEST_PHONE_PREFIXES = [
+  '+543516000',    // Test numbers starting with +543516000XXX
+  '+5400000',      // Test numbers starting with +5400000XXXX
+  '+1555000',      // US test numbers +1555000XXXX
+  '+549000',       // Another AR test pattern
+];
+
+// Check if a phone number is a test number
+function isTestPhoneNumber(phone: string): boolean {
+  const normalizedPhone = phone.replace(/[^+\d]/g, '');
+  return TEST_PHONE_PREFIXES.some(prefix => normalizedPhone.startsWith(prefix));
+}
+
 export interface OTPRequestResult {
   success: boolean;
   error?: string;
@@ -116,6 +131,12 @@ export async function requestOTP(phone: string, channel: OTPChannel = 'sms'): Pr
       });
     }
 
+    // Test phone numbers - skip SMS, use code 123456
+    if (isTestPhoneNumber(normalizedPhone)) {
+      console.log(`🧪 TEST PHONE: ${normalizedPhone} - Use code ${DEV_OTP_CODE} to login (no SMS sent)`);
+      return { success: true, devMode: true };
+    }
+
     // In dev mode with bypass enabled, log the OTP
     if (isDevBypassAllowed()) {
       console.log(`🔐 DEV MODE OTP for ${normalizedPhone}: ${otp} (or use ${DEV_OTP_CODE})`);
@@ -170,6 +191,12 @@ export async function requestOTP(phone: string, channel: OTPChannel = 'sms'): Pr
 export async function verifyOTP(phone: string, code: string): Promise<OTPVerifyResult> {
   try {
     const normalizedPhone = normalizePhone(phone);
+
+    // Test phone numbers - always accept 123456
+    if (isTestPhoneNumber(normalizedPhone) && code === DEV_OTP_CODE) {
+      console.log(`🧪 TEST PHONE: Accepting code ${DEV_OTP_CODE} for ${normalizedPhone}`);
+      return { success: true };
+    }
 
     // Dev bypass check
     if (isDevBypassAllowed() && code === DEV_OTP_CODE) {
