@@ -36,6 +36,7 @@ export async function GET(request: NextRequest) {
     const technicianId = searchParams.get('technicianId');
     const customerId = searchParams.get('customerId');
     const search = searchParams.get('search') || searchParams.get('q');
+    const hasPendingVariance = searchParams.get('hasPendingVariance') === 'true';
     const limit = parseInt(searchParams.get('limit') || '20');
     const page = parseInt(searchParams.get('page') || '1');
     const sort = searchParams.get('sort') || 'scheduledDate';
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
       technicianId: technicianId && technicianId !== 'all' ? technicianId : undefined,
       customerId: customerId || undefined,
       search: search || undefined,
+      hasPendingVariance: hasPendingVariance || undefined,
     }, {
       page,
       limit,

@@ -13,6 +13,7 @@ export {
   addNotificationResponseListener,
   handleNotificationNavigation,
   scheduleLocalNotification,
+  scheduleEmergencyNotification,
   scheduleJobReminder,
   cancelScheduledNotification,
   cancelAllScheduledNotifications,

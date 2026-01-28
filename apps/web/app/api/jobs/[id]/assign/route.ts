@@ -63,7 +63,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         {
           success: false,
           error: verificationCheck.reason || 'Este empleado no puede recibir trabajos. Verificación pendiente.',
-          verificationLink: `/dashboard/settings/team?employee=${userId}&tab=verification`,
+          verificationLink: `/dashboard/team?employee=${userId}&tab=verification`,
         },
         { status: 403 }
       );

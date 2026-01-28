@@ -180,6 +180,23 @@ export interface Job {
   driverLicenseAtJob?: string;
   vehicleMileageStart?: number;
   vehicleMileageEnd?: number;
+  // Phase 1.2: Multi-trade pricing fields
+  pricingMode?: 'FIXED_TOTAL' | 'PER_VISIT' | 'HYBRID';
+  estimatedTotal?: number;
+  techProposedTotal?: number;
+  finalTotal?: number;
+  depositAmount?: number;
+  depositPaidAt?: string;
+  depositPaymentMethod?: string;
+  defaultVisitRate?: number;
+  pricingLockedAt?: string | null;
+  pricingLockedById?: string;
+  // Variance approval audit
+  varianceApprovedAt?: string | null;
+  varianceApprovedById?: string;
+  varianceRejectedAt?: string | null;
+  varianceRejectedById?: string;
+  priceVarianceReason?: string | null;
   createdAt: string;
   updatedAt: string;
 }

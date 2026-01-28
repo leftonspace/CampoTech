@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const invoice = await InvoiceService.createInvoice(session.organizationId, body);
+    const invoice = await InvoiceService.createInvoice(session.organizationId, body, session.userId);
 
     // Trigger WhatsApp notification for new invoice (non-blocking, only if not draft)
     if (!asDraft) {

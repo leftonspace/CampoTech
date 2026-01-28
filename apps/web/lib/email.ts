@@ -11,12 +11,22 @@ export interface EmailProvider {
   sendEmail(options: EmailOptions): Promise<EmailResult>;
 }
 
+export interface EmailAttachment {
+  /** Filename to display */
+  filename: string;
+  /** URL to fetch the file from (Resend will download it) */
+  path?: string;
+  /** Base64 encoded content (alternative to path) */
+  content?: string;
+}
+
 export interface EmailOptions {
   to: string | string[];
   subject: string;
   html: string;
   text?: string;
   replyTo?: string;
+  attachments?: EmailAttachment[];
 }
 
 export interface EmailResult {
@@ -59,6 +69,12 @@ class ResendEmailProvider implements EmailProvider {
           html: options.html,
           text: options.text,
           reply_to: options.replyTo,
+          // Resend supports attachments via URL (path) or base64 (content)
+          attachments: options.attachments?.map((att) => ({
+            filename: att.filename,
+            path: att.path,
+            content: att.content,
+          })),
         }),
       });
 

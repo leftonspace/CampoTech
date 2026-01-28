@@ -6,7 +6,6 @@ import {
   Building,
   FileCheck,
   CreditCard,
-  Users,
   DollarSign,
   ChevronRight,
   CheckCircle,
@@ -80,13 +79,6 @@ export default function SettingsPage() {
       href: '/dashboard/settings/ai-assistant',
       icon: Bot,
       status: 'not_configured',
-      adminOnly: true,
-    },
-    {
-      title: 'Equipo',
-      description: 'Gestión de usuarios y roles',
-      href: '/dashboard/settings/team',
-      icon: Users,
       adminOnly: true,
     },
     {

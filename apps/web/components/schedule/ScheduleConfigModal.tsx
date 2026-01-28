@@ -835,7 +835,7 @@ export default function ScheduleConfigModal({
             <div className="flex h-full items-center justify-center p-4">
                 <div
                     className={cn(
-                        "relative w-full max-w-xl bg-white rounded-xl shadow-2xl overflow-hidden",
+                        "relative w-full max-w-xl max-h-[92vh] flex flex-col bg-white rounded-xl shadow-2xl overflow-hidden",
                         "transition-all duration-200 ease-out",
                         isVisible
                             ? "opacity-100 scale-100 translate-y-0"
@@ -914,7 +914,7 @@ export default function ScheduleConfigModal({
                     </div>
 
                     {/* Schedule Details */}
-                    <div className="max-h-[35vh] overflow-y-auto border-t">
+                    <div className="flex-1 min-h-0 overflow-y-auto border-t">
                         {isLoading ? (
                             <div className="flex items-center justify-center py-8">
                                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-600" />

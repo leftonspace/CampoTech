@@ -216,7 +216,7 @@ export default function NotificationCenter() {
         job: `/dashboard/jobs/${notification.entityId}`,
         invoice: `/dashboard/invoices/${notification.entityId}`,
         customer: `/dashboard/customers/${notification.entityId}`,
-        user: `/dashboard/settings/team`,
+        user: `/dashboard/team`,
       };
       const route = routes[notification.entityType];
       if (route) {

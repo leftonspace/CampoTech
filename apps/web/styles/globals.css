@@ -206,6 +206,141 @@
   .card-footer {
     @apply flex items-center p-6 pt-0;
   }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * TYPOGRAPHY SYSTEM - CampoTech Design Language
+   * Use these semantic classes instead of ad-hoc text-* classes
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* Page Titles - Main heading at top of each page */
+  .page-title {
+    @apply text-2xl font-bold text-gray-900 tracking-tight;
+  }
+
+  /* Page Subtitle - Optional description under page title */
+  .page-subtitle {
+    @apply text-sm text-muted-foreground mt-1;
+  }
+
+  /* Section Title - Major sections within a page */
+  .section-title {
+    @apply text-lg font-semibold text-gray-900;
+  }
+
+  /* Section Subtitle - Description under section titles */
+  .section-subtitle {
+    @apply text-sm text-gray-500 mt-0.5;
+  }
+
+  /* Modal/Dialog Title */
+  .modal-title {
+    @apply text-lg font-semibold text-gray-900;
+  }
+
+  /* Card Section Title - Headers inside cards */
+  .card-section-title {
+    @apply text-base font-semibold text-gray-900;
+  }
+
+  /* Stat Value - Large numbers in stat cards */
+  .stat-value {
+    @apply text-2xl font-bold text-gray-900;
+  }
+
+  /* Stat Value Small - Smaller stat numbers */
+  .stat-value-sm {
+    @apply text-xl font-bold text-gray-900;
+  }
+
+  /* Stat Label - Label under stat values */
+  .stat-label {
+    @apply text-xs text-gray-500 font-medium;
+  }
+
+  /* Form Label - Labels for form fields */
+  .form-label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+
+  /* Form Hint - Help text under form fields */
+  .form-hint {
+    @apply text-xs text-gray-500 mt-1;
+  }
+
+  /* Form Error - Error messages for form fields */
+  .form-error {
+    @apply text-xs text-red-600 mt-1;
+  }
+
+  /* Table Header */
+  .table-header {
+    @apply text-xs font-medium text-gray-500 uppercase tracking-wider;
+  }
+
+  /* Table Cell */
+  .table-cell {
+    @apply text-sm text-gray-900;
+  }
+
+  /* Table Cell Muted */
+  .table-cell-muted {
+    @apply text-sm text-gray-500;
+  }
+
+  /* Badge/Chip Text */
+  .badge-text {
+    @apply text-xs font-medium;
+  }
+
+  /* Empty State Title */
+  .empty-title {
+    @apply text-lg font-semibold text-gray-900;
+  }
+
+  /* Empty State Description */
+  .empty-description {
+    @apply text-sm text-gray-500 mt-1;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * ICON SIZE SYSTEM - Consistent icon sizing
+   * Use these classes for icons to maintain visual harmony
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* Icon XS - For inline with small text, badges */
+  .icon-xs {
+    @apply h-3 w-3;
+  }
+
+  /* Icon SM - For buttons, form fields, lists */
+  .icon-sm {
+    @apply h-4 w-4;
+  }
+
+  /* Icon MD - Default size, navigation, cards */
+  .icon-md {
+    @apply h-5 w-5;
+  }
+
+  /* Icon LG - Prominent UI elements, empty states */
+  .icon-lg {
+    @apply h-6 w-6;
+  }
+
+  /* Icon XL - Feature icons, large empty states */
+  .icon-xl {
+    @apply h-8 w-8;
+  }
+
+  /* Icon 2XL - Hero sections, onboarding */
+  .icon-2xl {
+    @apply h-10 w-10;
+  }
+
+  /* Icon Hero - Splash screens, major empty states */
+  .icon-hero {
+    @apply h-12 w-12;
+  }
 }
 
 @layer utilities {

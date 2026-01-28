@@ -31,6 +31,7 @@ import { Job } from '../../../watermelon/models';
 import * as SecureStore from 'expo-secure-store';
 import { enqueueOperation } from '../../../lib/sync/sync-engine';
 import VoiceInput from '../../../components/voice/VoiceInput';
+import { PricebookSearch, type SelectedPriceItem } from '../../../components/pricebook';
 import { useAuth } from '../../../lib/auth/auth-context';
 
 type Step = 'notes' | 'photos' | 'signature';
@@ -66,6 +67,9 @@ export default function CompleteJobScreen() {
   const [visitEstimatedPrice, setVisitEstimatedPrice] = useState<number | null>(null);
   const [visitActualPrice, setVisitActualPrice] = useState('');
   const [priceVarianceReason, setPriceVarianceReason] = useState('');
+
+  // Pricebook search state
+  const [showPricebook, setShowPricebook] = useState(false);
 
   // Voice-to-Invoice: Extract invoice data from transcription
   const handleVoiceInvoiceExtraction = async (transcription: string) => {
@@ -181,6 +185,18 @@ export default function CompleteJobScreen() {
 
   const handleRemoveMaterial = (index: number) => {
     setMaterials(materials.filter((_, i) => i !== index));
+  };
+
+  // Handler for pricebook item selection
+  const handlePricebookSelect = (item: SelectedPriceItem) => {
+    setMaterials([
+      ...materials,
+      {
+        name: item.name,
+        quantity: 1,
+        price: item.unitPrice,
+      },
+    ]);
   };
 
   const handleTakePhoto = async () => {
@@ -479,6 +495,15 @@ export default function CompleteJobScreen() {
                 </TouchableOpacity>
               </View>
 
+              {/* Pricebook Search Button */}
+              <TouchableOpacity
+                style={styles.searchCatalogButton}
+                onPress={() => setShowPricebook(true)}
+              >
+                <Feather name="search" size={18} color="#16a34a" />
+                <Text style={styles.searchCatalogText}>Buscar en Catálogo</Text>
+              </TouchableOpacity>
+
               {materials.length > 0 && (
                 <View style={styles.totals}>
                   <View style={styles.totalRow}>
@@ -666,6 +691,13 @@ export default function CompleteJobScreen() {
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Pricebook Search Modal */}
+      <PricebookSearch
+        visible={showPricebook}
+        onClose={() => setShowPricebook(false)}
+        onSelect={handlePricebookSelect}
+      />
     </>
   );
 }
@@ -796,6 +828,24 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  searchCatalogButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    backgroundColor: '#f0fdf4',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#bbf7d0',
+  },
+  searchCatalogText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#16a34a',
   },
   totals: {
     marginTop: 16,

@@ -29,6 +29,7 @@ export interface JobFilter {
     search?: string;
     startDate?: Date;
     endDate?: Date;
+    hasPendingVariance?: boolean; // Filter for jobs with tech-proposed prices awaiting approval
 }
 
 export class JobService {
@@ -36,12 +37,24 @@ export class JobService {
      * List jobs with filtering and pagination
      */
     static async listJobs(orgId: string, filters: JobFilter = {}, pagination: { page?: number; limit?: number; sort?: string; order?: 'asc' | 'desc' } = {}) {
-        const { status, technicianId, durationType, customerId, search, startDate, endDate } = filters;
+        const { status, technicianId, durationType, customerId, search, startDate, endDate, hasPendingVariance } = filters;
         const { page = 1, limit = 20, sort = 'scheduledDate', order = 'asc' } = pagination;
 
         const where: Prisma.JobWhereInput = {
             organizationId: orgId,
         };
+
+        // Filter for jobs with pending variance approval
+        if (hasPendingVariance) {
+            where.techProposedTotal = { not: null };
+            where.varianceApprovedAt = null;
+            where.varianceRejectedAt = null;
+            where.pricingLockedAt = null;
+            // Ensure techProposedTotal differs from estimatedTotal
+            where.NOT = {
+                techProposedTotal: { equals: prisma.job.fields.estimatedTotal },
+            };
+        }
 
         if (status) {
             if (Array.isArray(status)) {

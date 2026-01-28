@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   Repeat,
   CalendarDays,
+  Lock,
 } from 'lucide-react';
 import { Job } from '@/types';
 import NewJobModal from '@/components/jobs/NewJobModal';
@@ -171,6 +172,19 @@ export default function JobsPage() {
       return res.json();
     },
   });
+
+  // Fetch pending variance count for header badge
+  const { data: pendingVarianceData } = useQuery({
+    queryKey: ['jobs-pending-variance-count'],
+    queryFn: async () => {
+      const res = await fetch('/api/jobs?hasPendingVariance=true&limit=1');
+      if (!res.ok) return { meta: { total: 0 } };
+      return res.json();
+    },
+    staleTime: 1000 * 60, // Cache for 1 minute
+  });
+
+  const pendingVarianceCount = pendingVarianceData?.meta?.total || 0;
 
   const allJobs = jobsData?.data as Job[] | undefined;
   const stats: JobStats = statsData?.data || {
@@ -456,10 +470,24 @@ export default function JobsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Trabajos</h1>
           <p className="text-gray-500">Gestiona los trabajos de tu equipo</p>
         </div>
-        <button onClick={() => setIsNewJobModalOpen(true)} className="btn-primary">
-          <Plus className="mr-2 h-4 w-4" />
-          Nuevo trabajo
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/jobs/pending-variance"
+            className="btn-outline flex items-center gap-2 text-amber-600 border-amber-300 hover:bg-amber-50 relative"
+          >
+            <AlertTriangle className="h-4 w-4" />
+            Variaciones de Precio
+            {pendingVarianceCount > 0 && (
+              <span className="absolute -top-2 -right-2 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-amber-500 rounded-full">
+                {pendingVarianceCount > 9 ? '9+' : pendingVarianceCount}
+              </span>
+            )}
+          </Link>
+          <button onClick={() => setIsNewJobModalOpen(true)} className="btn-primary">
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo trabajo
+          </button>
+        </div>
       </div>
 
       {/* Stat Cards */}
@@ -986,6 +1014,13 @@ function JobCard({ job, visitConfig, isVisitRow, totalConfigs, openMenuId, onMen
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full bg-purple-100 text-purple-700 border border-purple-200">
                 <Repeat className="h-3 w-3" />
                 Recurrente
+              </span>
+            )}
+            {/* Pricing locked badge (AFIP compliance) */}
+            {job.pricingLockedAt && (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-medium rounded-full bg-gray-100 text-gray-600 border border-gray-200" title="Precio bloqueado - ya se generó factura">
+                <Lock className="h-3 w-3" />
+                Bloqueado
               </span>
             )}
           </div>

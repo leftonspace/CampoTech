@@ -218,4 +218,59 @@ export const WhatsAppMessageTemplates = {
     followUp: (customerName: string) =>
       `Hola ${customerName}, ¿cómo resultó nuestro servicio? Nos encantaría conocer su opinión.`,
   },
+  quote: (params: {
+    customerName: string;
+    jobNumber: string;
+    lineItems: Array<{ description: string; quantity: number; unitPrice: number; total: number }>;
+    subtotal: number;
+    tax: number;
+    total: number;
+    businessName: string;
+  }) => {
+    const formatCurrency = (amount: number) =>
+      new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(amount);
+
+    const itemsText = params.lineItems
+      .map(item => `• ${item.description} (x${item.quantity}): ${formatCurrency(item.total)}`)
+      .join('\n');
+
+    return `Hola ${params.customerName}, te enviamos el presupuesto de ${params.businessName}:
+
+📋 Trabajo: #${params.jobNumber}
+
+💰 Detalle:
+${itemsText}
+
+────────────────
+Subtotal: ${formatCurrency(params.subtotal)}
+IVA (21%): ${formatCurrency(params.tax)}
+*Total: ${formatCurrency(params.total)}*
+
+¿Querés que lo agendemos?`;
+  },
 } as const;
+
+/**
+ * Generate a WhatsApp link for sending a quote/presupuesto to a customer
+ */
+export function generateQuoteWhatsAppLink(
+  customerPhone: string,
+  customerName: string,
+  jobNumber: string,
+  lineItems: Array<{ description: string; quantity: number; unitPrice: number; total: number }>,
+  subtotal: number,
+  tax: number,
+  total: number,
+  businessName: string
+): string {
+  const message = WhatsAppMessageTemplates.quote({
+    customerName,
+    jobNumber,
+    lineItems,
+    subtotal,
+    tax,
+    total,
+    businessName,
+  });
+  return generateWhatsAppLink(customerPhone, message);
+}

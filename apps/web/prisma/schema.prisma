@@ -117,6 +117,12 @@ model Organization {
   dataAccessRequests    DataAccessRequest[]
   priceAdjustmentEvents PriceAdjustmentEvent[] @relation("OrgPriceAdjustments")
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // WHATSAPP MESSAGE TEMPLATES (Custom)
+  // Stores organization's custom WhatsApp message templates as JSON
+  // ═══════════════════════════════════════════════════════════════════════════════
+  whatsappTemplates Json? @map("whatsapp_templates") @db.JsonB
+
   @@index([subscriptionStatus])
   @@index([subscriptionTier])
   @@index([trialEndsAt])
@@ -246,6 +252,7 @@ model User {
   // Dynamic Pricing (Phase 1)
   priceChangesMade        PriceItemHistory[]     @relation("PriceChangesMade")
   priceAdjustmentsApplied PriceAdjustmentEvent[] @relation("PriceAdjustmentsApplied")
+  priceRelationsCreated   PriceItemRelation[]    @relation("PriceRelationCreator")
 
   @@unique([email, organizationId])
   @@index([organizationId])
@@ -366,6 +373,12 @@ model Job {
   // Pricing Lock (immutable after invoice generation - AFIP compliance)
   pricingLockedAt   DateTime? @map("pricing_locked_at")
   pricingLockedById String?   @map("pricing_locked_by_id")
+
+  // Variance Approval Audit (tracks dispatcher approval of technician-proposed prices)
+  varianceApprovedAt   DateTime? @map("variance_approved_at")
+  varianceApprovedById String?   @map("variance_approved_by_id")
+  varianceRejectedAt   DateTime? @map("variance_rejected_at")
+  varianceRejectedById String?   @map("variance_rejected_by_id")
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // PER-VISIT PRICING (Phase 1 - Jan 2026)
@@ -2107,12 +2120,47 @@ model PriceItem {
   jobLineItems JobLineItem[]      @relation("PriceItemLineItems")
   priceHistory PriceItemHistory[] @relation("PriceItemHistory")
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // RELATED ITEMS (For item suggestions when adding to jobs)
+  // Bidirectional many-to-many for "frequently added together" suggestions
+  // ═══════════════════════════════════════════════════════════════════════════════
+  relatedItems   PriceItemRelation[] @relation("SourceItem")
+  relatedToItems PriceItemRelation[] @relation("RelatedItem")
+
   @@index([organizationId])
   @@index([type])
   @@index([isActive])
   @@index([specialty])
   @@index([priceCurrency])
   @@map("price_items")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// RELATED PRICE ITEMS
+// Links between items that are frequently added together (e.g., faucet + installation)
+// Used to show suggestions like "Items frecuentemente agregados juntos"
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model PriceItemRelation {
+  id            String   @id @default(cuid())
+  sourceItemId  String   @map("source_item_id")
+  relatedItemId String   @map("related_item_id")
+  
+  // Relation strength (can be used for ordering suggestions)
+  weight        Int      @default(1) // Higher = stronger relationship
+  
+  createdAt     DateTime @default(now()) @map("created_at")
+  createdById   String?  @map("created_by_id")
+
+  // Relations
+  sourceItem  PriceItem @relation("SourceItem", fields: [sourceItemId], references: [id], onDelete: Cascade)
+  relatedItem PriceItem @relation("RelatedItem", fields: [relatedItemId], references: [id], onDelete: Cascade)
+  createdBy   User?     @relation("PriceRelationCreator", fields: [createdById], references: [id])
+
+  @@unique([sourceItemId, relatedItemId])
+  @@index([sourceItemId])
+  @@index([relatedItemId])
+  @@map("price_item_relations")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

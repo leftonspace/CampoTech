@@ -442,7 +442,7 @@ export default function NewJobPage() {
       }
     } else if (action === 'modify_schedule') {
       // Redirect to team schedule page
-      window.open(`/dashboard/settings/team?employee=${warning.details.technicianId}&tab=schedule`, '_blank');
+      window.open(`/dashboard/team?employee=${warning.details.technicianId}&tab=schedule`, '_blank');
     }
   };
 
@@ -1093,7 +1093,7 @@ export default function NewJobPage() {
                       </div>
                       <div className="border-t px-3 py-2 space-y-1">
                         <Link
-                          href="/dashboard/settings/team"
+                          href="/dashboard/team"
                           className="block w-full text-center text-xs text-primary-600 hover:underline"
                         >
                           + Agregar nuevo miembro al equipo

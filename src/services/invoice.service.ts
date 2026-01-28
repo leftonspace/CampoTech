@@ -73,8 +73,9 @@ export class InvoiceService {
 
     /**
      * Create an invoice with line items
+     * When linked to a job, automatically locks the job's pricing for AFIP compliance
      */
-    static async createInvoice(orgId: string, data: any) {
+    static async createInvoice(orgId: string, data: any, userId?: string) {
         const {
             customerId,
             invoiceType = 'C',
@@ -113,7 +114,7 @@ export class InvoiceService {
         };
         const mappedInvoiceType = invoiceTypeMap[invoiceType.toUpperCase()] || 'FACTURA_C';
 
-        // Generate invoice number
+        // Generate invoice number (outside transaction to avoid serialization issues)
         const lastInvoice = await prisma.invoice.findFirst({
             where: { organizationId: orgId },
             orderBy: { createdAt: 'desc' },
@@ -125,26 +126,44 @@ export class InvoiceService {
             : 1;
         const invoiceNumber = `${invoiceType}-${String(nextNumber).padStart(8, '0')}`;
 
-        return prisma.invoice.create({
-            data: {
-                organizationId: orgId,
-                customerId,
-                invoiceNumber,
-                type: mappedInvoiceType as any,
-                status: asDraft ? 'DRAFT' : 'PENDING',
-                issuedAt: issueDate ? parseDateTimeAsArgentina(issueDate) : new Date(),
-                dueDate: dueDate ? parseDateTimeAsArgentina(dueDate) : null,
-                jobId: jobId || null,
-                subtotal,
-                taxAmount: totalIva,
-                total: subtotal + totalIva,
-                items: processedLineItems,
-                lineItems: { create: processedLineItems },
-            },
-            include: {
-                customer: true,
-                lineItems: true,
-            },
+        // Use transaction to create invoice AND lock job pricing atomically
+        return prisma.$transaction(async (tx) => {
+            // Create the invoice
+            const invoice = await tx.invoice.create({
+                data: {
+                    organizationId: orgId,
+                    customerId,
+                    invoiceNumber,
+                    type: mappedInvoiceType as any,
+                    status: asDraft ? 'DRAFT' : 'PENDING',
+                    issuedAt: issueDate ? parseDateTimeAsArgentina(issueDate) : new Date(),
+                    dueDate: dueDate ? parseDateTimeAsArgentina(dueDate) : null,
+                    jobId: jobId || null,
+                    subtotal,
+                    taxAmount: totalIva,
+                    total: subtotal + totalIva,
+                    items: processedLineItems,
+                    lineItems: { create: processedLineItems },
+                },
+                include: {
+                    customer: true,
+                    lineItems: true,
+                },
+            });
+
+            // If linked to a job and not a draft, lock the job's pricing for AFIP compliance
+            if (jobId && !asDraft) {
+                await tx.job.update({
+                    where: { id: jobId },
+                    data: {
+                        pricingLockedAt: new Date(),
+                        pricingLockedById: userId || null,
+                        invoiceId: invoice.id,
+                    },
+                });
+            }
+
+            return invoice;
         });
     }
 

@@ -43,6 +43,11 @@ import {
 import { Job, User as UserType, Customer, JobPriority } from '@/types';
 import { JobMaterialUsagePanel } from '@/components/inventory/JobMaterialUsagePanel';
 import { CompletionForm } from '@/components/jobs/CompletionForm';
+import { PricebookLineItems } from '@/components/jobs/PricebookLineItems';
+import { PriceVarianceAlert } from '@/components/jobs/PriceVarianceAlert';
+import { MultiVisitProgress } from '@/components/jobs/MultiVisitProgress';
+import { PerVisitQuoteBreakdown } from '@/components/jobs/PerVisitQuoteBreakdown';
+import { generateQuoteWhatsAppLink } from '@/lib/whatsapp-links';
 
 // Form-specific interface for editing jobs
 // Uses separate time fields for UX, converted to scheduledTimeSlot on save
@@ -150,6 +155,19 @@ export default function JobDetailPage() {
       return res.json();
     },
   });
+
+  // Fetch line items for quote generation and variance alert
+  const { data: lineItemsData } = useQuery({
+    queryKey: ['job-line-items', jobId],
+    queryFn: async () => {
+      const res = await fetch(`/api/jobs/${jobId}/line-items`);
+      return res.json();
+    },
+    enabled: !!jobId,
+  });
+
+  const lineItems = lineItemsData?.data?.items || [];
+  const lineItemsSummary = lineItemsData?.data?.summary || { subtotal: 0, tax: 0, total: 0, itemCount: 0 };
 
   // Cast job data for type safety
   const jobData = data?.data as Job | undefined;
@@ -483,9 +501,21 @@ export default function JobDetailPage() {
         </div>
       )}
 
+      {/* Multi-Visit Progress (for MULTI_VISIT jobs) */}
+      {(job as Job & { durationType?: string; visits?: unknown[] }).durationType === 'MULTIPLE_VISITS' &&
+        (job as Job & { visits?: unknown[] }).visits &&
+        (job as Job & { visits?: unknown[] }).visits!.length > 1 && (
+          <MultiVisitProgress jobId={job.id} />
+        )}
+
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main content */}
         <div className="lg:col-span-2 space-y-6">
+          {/* Per-Visit Quote Breakdown (for MULTI_VISIT jobs) */}
+          {(job as Job & { durationType?: string }).durationType === 'MULTIPLE_VISITS' && (
+            <PerVisitQuoteBreakdown jobId={job.id} />
+          )}
+
           {/* Job details */}
           <div className="card p-6">
             <h2 className="mb-4 font-medium text-gray-900">Detalles del trabajo</h2>
@@ -1041,6 +1071,26 @@ export default function JobDetailPage() {
             )}
           </div>
 
+          {/* Pricing / Pricebook Items - Phase 2 */}
+          <div className="card p-6">
+            <PricebookLineItems
+              jobId={job.id}
+              isLocked={!!job.pricingLockedAt || job.status === 'COMPLETED' || job.status === 'CANCELLED'}
+            />
+          </div>
+
+          {/* Price Variance Alert - Shows when technician proposes different price */}
+          <PriceVarianceAlert
+            jobId={job.id}
+            estimatedTotal={Number(job.estimatedTotal || 0)}
+            techProposedTotal={Number(job.techProposedTotal || 0)}
+            finalTotal={Number(job.finalTotal || 0)}
+            varianceApprovedAt={job.varianceApprovedAt}
+            varianceRejectedAt={job.varianceRejectedAt}
+            pricingLockedAt={job.pricingLockedAt}
+            priceVarianceReason={job.priceVarianceReason}
+          />
+
           {/* Quick actions */}
           <div className="card p-6">
             <h2 className="mb-4 font-medium text-gray-900">Acciones rápidas</h2>
@@ -1053,6 +1103,33 @@ export default function JobDetailPage() {
                   <FileText className="mr-2 h-4 w-4" />
                   Crear factura
                 </Link>
+              )}
+
+              {/* Send Quote via WhatsApp - Only show when there are line items and job is pending */}
+              {job.customer?.phone && lineItemsSummary.itemCount > 0 && job.status === 'PENDING' && (
+                <a
+                  href={generateQuoteWhatsAppLink(
+                    job.customer.phone,
+                    job.customer.name || 'Cliente',
+                    job.jobNumber,
+                    lineItems.map((item: { description: string; quantity: number; unitPrice: number; total: number }) => ({
+                      description: item.description,
+                      quantity: item.quantity,
+                      unitPrice: item.unitPrice,
+                      total: item.total,
+                    })),
+                    lineItemsSummary.subtotal,
+                    lineItemsSummary.tax,
+                    lineItemsSummary.total,
+                    'CampoTech' // TODO: Replace with organization name from context
+                  )}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-primary w-full justify-center bg-green-600 hover:bg-green-700"
+                >
+                  <MessageCircle className="mr-2 h-4 w-4" />
+                  Enviar Presupuesto
+                </a>
               )}
 
               {/* WhatsApp button */}

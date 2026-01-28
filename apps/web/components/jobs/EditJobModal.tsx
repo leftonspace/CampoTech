@@ -12,6 +12,7 @@ import { AssignmentConflictBanner } from '@/components/schedule/AssignmentConfli
 import EmployeeDayModal from '@/components/schedule/EmployeeDayModal';
 import type { ValidationWarning } from '@/hooks/useAssignmentValidation';
 import { cn } from '@/lib/utils';
+import { PricebookLineItems } from '@/components/jobs/PricebookLineItems';
 
 // Modal props interface
 interface EditJobModalProps {
@@ -185,10 +186,31 @@ export default function EditJobModal({
 
   const handleClose = () => {
     setIsVisible(false);
+    // Reset form state immediately when closing
+    setIsJobLoaded(false);
+    setFormData({
+      title: '',
+      description: '',
+      address: '',
+      serviceType: '',
+      priority: 'normal',
+      estimatedTotal: '',
+      depositAmount: '',
+      techProposedTotal: '',
+      finalTotal: '',
+      pricingLockedAt: null,
+    });
+    setSelectedCustomer(null);
+    setVisits([createEmptyVisit()]);
+    setError('');
+    // Clear the cache for this specific job so fresh data is fetched next time
+    queryClient.removeQueries({ queryKey: ['job-edit', jobId] });
     setTimeout(onClose, 300);
   };
 
   // Fetch the job data
+  // Use staleTime: 0 to always refetch fresh data when modal opens
+  // This prevents showing stale cached data from previous editing sessions
   const { data: jobData, isLoading: isLoadingJob, error: jobError } = useQuery({
     queryKey: ['job-edit', jobId],
     queryFn: async () => {
@@ -197,6 +219,9 @@ export default function EditJobModal({
       return res.json();
     },
     enabled: !!jobId && isOpen,
+    staleTime: 0, // Always consider data stale
+    refetchOnMount: 'always', // Force refetch when modal mounts
+    gcTime: 0, // Don't cache between sessions (garbage collect immediately when unused)
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -720,7 +745,7 @@ export default function EditJobModal({
       }
     } else if (action === 'modify_schedule') {
       // Redirect to team schedule page
-      window.open(`/dashboard/settings/team?employee=${warning.details.technicianId}&tab=schedule`, '_blank');
+      window.open(`/dashboard/team?employee=${warning.details.technicianId}&tab=schedule`, '_blank');
     }
   };
 
@@ -1328,6 +1353,13 @@ export default function EditJobModal({
                   </p>
                 )}
               </div>
+
+              {/* Pricebook Line Items - Add services/products after diagnosis */}
+              <PricebookLineItems
+                jobId={jobId}
+                isLocked={!!formData.pricingLockedAt}
+                className="rounded-lg border border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50 p-4"
+              />
 
               {/* Visits Section - Multi-visit support */}
               <div className="space-y-4">

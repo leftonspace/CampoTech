@@ -312,7 +312,7 @@ function DispatchContent() {
               <UserPlus className="h-12 w-12 text-gray-400" />
               <p className="mt-4 text-gray-500">No hay técnicos registrados</p>
               <Link
-                href="/dashboard/settings/team"
+                href="/dashboard/team"
                 className="btn-primary mt-4"
               >
                 Agregar técnicos

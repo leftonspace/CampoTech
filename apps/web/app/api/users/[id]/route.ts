@@ -40,6 +40,10 @@ export async function GET(
         certifications: true,
         avatar: true,
         isActive: true,
+        // Driver's license fields
+        driverLicenseNumber: true,
+        driverLicenseExpiry: true,
+        driverLicenseCategory: true,
       },
     });
 

@@ -62,6 +62,44 @@ export default function InvoiceDetailPage() {
     },
   });
 
+  // Email sending mutation
+  const [emailSending, setEmailSending] = useState(false);
+  const [emailSuccess, setEmailSuccess] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+
+  const handleSendEmail = async () => {
+    if (!invoice?.customer?.email) {
+      alert('El cliente no tiene email registrado');
+      return;
+    }
+
+    if (!confirm(`¿Enviar factura por email a ${invoice.customer.email}?`)) {
+      return;
+    }
+
+    setEmailSending(true);
+    setEmailError(null);
+    setEmailSuccess(false);
+
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}/send-email`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Error al enviar email');
+      }
+
+      setEmailSuccess(true);
+      setTimeout(() => setEmailSuccess(false), 5000);
+    } catch (err) {
+      setEmailError(err instanceof Error ? err.message : 'Error al enviar email');
+    } finally {
+      setEmailSending(false);
+    }
+  };
+
   const invoice = data?.data as Invoice | undefined;
 
   const handleSend = () => {
@@ -159,7 +197,18 @@ export default function InvoiceDetailPage() {
               className="btn-outline"
             >
               <Send className="mr-2 h-4 w-4" />
-              {sendMutation.isPending ? 'Enviando...' : 'Enviar'}
+              {sendMutation.isPending ? 'Enviando...' : 'Enviar WhatsApp'}
+            </button>
+          )}
+          {/* Email button */}
+          {canSend && invoice.customer?.email && (
+            <button
+              onClick={handleSendEmail}
+              disabled={emailSending}
+              className={`btn-outline ${emailSuccess ? 'bg-green-50 text-green-600 border-green-200' : ''}`}
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              {emailSending ? 'Enviando...' : emailSuccess ? '✓ Enviado' : 'Enviar Email'}
             </button>
           )}
           <button onClick={handlePrint} className="btn-outline">
@@ -176,6 +225,23 @@ export default function InvoiceDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Email error alert */}
+      {emailError && (
+        <div className="flex items-center gap-3 rounded-md bg-red-50 p-4 text-red-700">
+          <AlertCircle className="h-5 w-5 shrink-0" />
+          <div>
+            <p className="font-medium">Error al enviar email</p>
+            <p className="text-sm">{emailError}</p>
+          </div>
+          <button
+            onClick={() => setEmailError(null)}
+            className="ml-auto text-red-500 hover:text-red-700"
+          >
+            <XCircle className="h-5 w-5" />
+          </button>
+        </div>
+      )}
 
       {/* CAE pending alert */}
       {isCAEPending && (

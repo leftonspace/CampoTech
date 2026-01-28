@@ -32,12 +32,13 @@ Notifications.setNotificationHandler({
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export interface NotificationData {
-  type: 'job_assigned' | 'job_updated' | 'job_reminder' | 'sync_conflict' | 'message';
+  type: 'job_assigned' | 'job_updated' | 'job_reminder' | 'sync_conflict' | 'message' | 'emergency';
   jobId?: string;
   customerId?: string;
   conversationId?: string;
   title?: string;
   body?: string;
+  priority?: 'low' | 'normal' | 'high' | 'urgent';
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -91,6 +92,18 @@ export async function registerForPushNotifications(): Promise<string | null> {
         vibrationPattern: [0, 250, 250, 250],
         lightColor: '#059669',
         description: 'Notificaciones de trabajos asignados y recordatorios',
+      });
+
+      // Emergency channel for URGENT jobs - high priority with special vibration
+      await Notifications.setNotificationChannelAsync('emergency', {
+        name: 'Emergencias',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 500, 200, 500, 200, 500], // Long urgent pattern
+        lightColor: '#DC2626', // Red for emergency
+        description: 'Trabajos URGENTES que requieren atención inmediata',
+        sound: 'default', // Use default system sound
+        enableVibrate: true,
+        bypassDnd: true, // Bypass Do Not Disturb
       });
 
       await Notifications.setNotificationChannelAsync('sync', {
@@ -205,6 +218,42 @@ export async function scheduleLocalNotification(
       sound: 'default',
     },
     trigger,
+  });
+}
+
+/**
+ * Schedule an URGENT/EMERGENCY notification with special treatment
+ * - Uses 🚨 emoji in title
+ * - Uses emergency channel on Android (bypasses DND)
+ * - High priority vibration pattern
+ */
+export async function scheduleEmergencyNotification(
+  jobId: string,
+  title: string,
+  body: string
+): Promise<string> {
+  const content: Notifications.NotificationContentInput = {
+    title: `🚨 EMERGENCIA: ${title}`,
+    body,
+    data: {
+      type: 'emergency',
+      jobId,
+      priority: 'urgent',
+    } as unknown as Record<string, unknown>,
+    sound: 'default', // Use default system sound
+    priority: Notifications.AndroidNotificationPriority.MAX,
+    vibrate: [0, 500, 200, 500, 200, 500], // Urgent pattern
+    color: '#DC2626', // Red
+  };
+
+  // On Android, use the emergency channel
+  if (Platform.OS === 'android') {
+    (content as { channelId?: string }).channelId = 'emergency';
+  }
+
+  return Notifications.scheduleNotificationAsync({
+    content,
+    trigger: null, // Immediate notification
   });
 }
 

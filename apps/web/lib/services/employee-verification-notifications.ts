@@ -385,7 +385,7 @@ export async function notifyOwnerAboutEmployee(
     };
 
     const provider = getOrCreateEmailProvider();
-    const actionUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://campotech.com'}/dashboard/settings/team`;
+    const actionUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'https://campotech.com'}/dashboard/team`;
 
     return await provider.sendEmail({
       to: owner.email,

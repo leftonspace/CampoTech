@@ -575,7 +575,7 @@ function TeamStatus({ technicians, jobs }: TeamStatusProps) {
       })}
       {technicians.length > 4 && (
         <Link
-          href="/dashboard/settings/team"
+          href="/dashboard/team"
           className="block text-center text-sm text-primary-600 hover:underline py-2"
         >
           Ver {technicians.length - 4} más
