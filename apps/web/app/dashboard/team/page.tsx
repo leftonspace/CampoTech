@@ -2,9 +2,11 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { cn } from '@/lib/utils';
 import { Plus } from 'lucide-react';
+import { normalizeForSearch } from '@/lib/text.utils';
 
 // Import extracted components from components/team
 import {
@@ -25,6 +27,9 @@ import {
 export default function TeamPage() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get('search') || '';
+
   const [activeTab, setActiveTab] = useState<TabType>('employees');
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null);
@@ -47,10 +52,25 @@ export default function TeamPage() {
   });
 
   // Split members into active and inactive for display
-  const allMembers = (teamData?.data as TeamMember[]) || [];
+  const allMembers = useMemo(() => {
+    return (teamData?.data as TeamMember[]) || [];
+  }, [teamData?.data]);
+
+  // Apply search filter with accent-insensitive matching
+  const filteredBySearch = useMemo(() => {
+    if (!searchQuery || searchQuery.length < 2) return allMembers;
+    const normalizedQuery = normalizeForSearch(searchQuery);
+    return allMembers.filter(m => {
+      const searchableTexts = [m.name || '', m.email || ''];
+      return searchableTexts.some(text =>
+        normalizeForSearch(text).includes(normalizedQuery)
+      );
+    });
+  }, [allMembers, searchQuery]);
+
   const members = showInactive
-    ? allMembers.filter(m => !m.isActive)
-    : allMembers.filter(m => m.isActive !== false);
+    ? filteredBySearch.filter(m => !m.isActive)
+    : filteredBySearch.filter(m => m.isActive !== false);
 
   // Fetch team stats
   const { data: statsData, isLoading: _statsLoading } = useQuery({

@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { Prisma } from '@prisma/client';
+import { normalizeForSearch } from '../shared/utils/text.utils';
 
 export interface CustomerFilter {
     search?: string;
@@ -21,7 +22,8 @@ export interface PaginationOptions {
 
 export class CustomerService {
     /**
-     * List customers with flexible filtering and pagination
+     * List customers with flexible filtering and pagination.
+     * Supports accent-insensitive search for Argentine names (Pérez, González, etc.)
      */
     static async listCustomers(orgId: string, filters: CustomerFilter = {}, pagination: PaginationOptions = {}) {
         const { search, email, phone, tag, filter, createdAfter, createdBefore } = filters;
@@ -31,13 +33,9 @@ export class CustomerService {
             organizationId: orgId,
         };
 
-        if (search) {
-            where.OR = [
-                { name: { contains: search, mode: 'insensitive' } },
-                { phone: { contains: search } },
-                { email: { contains: search, mode: 'insensitive' } },
-            ];
-        }
+        // Note: We intentionally don't apply search filter in the DB query
+        // to enable accent-insensitive matching (e.g., "perez" finds "Pérez")
+        // Client-side filtering is applied later
 
         if (email) where.email = email;
         if (phone) where.phone = phone;
@@ -55,14 +53,28 @@ export class CustomerService {
             where.createdAt = { ...(typeof existingCreatedAt === 'object' ? existingCreatedAt : {}), gte: thirtyDaysAgo };
         }
 
+        // Client-side accent-insensitive filter function
+        const normalizedSearch = search ? normalizeForSearch(search) : null;
+        const matchesSearch = (customer: any): boolean => {
+            if (!normalizedSearch) return true;
+            const searchableTexts = [
+                customer.name || '',
+                customer.email || '',
+                customer.phone || '',
+            ];
+            return searchableTexts.some(text =>
+                normalizeForSearch(text).includes(normalizedSearch)
+            );
+        };
+
         // Determine if we need complex aggregation (frequent filter, or sorting by jobs/revenue)
         const needsAggregation = filter === 'frequent' || sort === 'jobCount' || sort === 'totalSpent';
 
         let items: any[];
         let total: number;
 
-        if (needsAggregation) {
-            // Aggregation-heavy query
+        if (needsAggregation || search) {
+            // Aggregation-heavy query or search query (both need client-side filtering)
             const allCustomers = await prisma.customer.findMany({
                 where,
                 include: {
@@ -107,6 +119,11 @@ export class CustomerService {
                 averageRating: ratingMap.get(c.id) || null,
             }));
 
+            // Apply accent-insensitive search filter
+            if (search) {
+                items = items.filter(matchesSearch);
+            }
+
             if (filter === 'frequent') {
                 items = items.filter(c => c.jobCount >= 5);
             }
@@ -129,7 +146,7 @@ export class CustomerService {
             total = items.length;
             items = items.slice((page - 1) * limit, page * limit);
         } else {
-            // Standard paginated query
+            // Standard paginated query (no search, no aggregation needed)
             const orderBy: any = {
                 [sort]: order,
             };
@@ -349,17 +366,14 @@ export class CustomerService {
     }
 
     /**
-     * Search customers for autocomplete/quick search
+     * Search customers for autocomplete/quick search.
+     * Supports accent-insensitive matching for Argentine names.
      */
     static async searchCustomers(orgId: string, query: string, limit: number = 10) {
-        return prisma.customer.findMany({
+        // Fetch more results to allow for client-side accent-insensitive filtering
+        const allCustomers = await prisma.customer.findMany({
             where: {
                 organizationId: orgId,
-                OR: [
-                    { name: { contains: query, mode: 'insensitive' } },
-                    { phone: { contains: query } },
-                    { email: { contains: query, mode: 'insensitive' } },
-                ],
             },
             select: {
                 id: true,
@@ -367,9 +381,24 @@ export class CustomerService {
                 phone: true,
                 email: true,
                 address: true,
+                customerType: true,
             },
             orderBy: { name: 'asc' },
-            take: limit,
+            take: limit * 10, // Fetch extra for filtering
         });
+
+        // Apply accent-insensitive filtering
+        type CustomerResult = typeof allCustomers[0];
+        const normalizedQuery = normalizeForSearch(query);
+        return allCustomers.filter((customer: CustomerResult) => {
+            const searchableTexts = [
+                customer.name || '',
+                customer.phone || '',
+                customer.email || '',
+            ];
+            return searchableTexts.some(text =>
+                normalizeForSearch(text).includes(normalizedQuery)
+            );
+        }).slice(0, limit);
     }
 }

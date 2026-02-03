@@ -45,7 +45,6 @@ describe('Feature Flags', () => {
       });
 
       it('should NOT have access to EMPRESA features', () => {
-        expect(hasFeatureAccess('FREE', 'multi_location')).toBe(false);
         expect(hasFeatureAccess('FREE', 'advanced_analytics')).toBe(false);
         expect(hasFeatureAccess('FREE', 'public_api')).toBe(false);
       });
@@ -87,7 +86,6 @@ describe('Feature Flags', () => {
       });
 
       it('should NOT have access to EMPRESA features', () => {
-        expect(hasFeatureAccess('PROFESIONAL', 'multi_location')).toBe(false);
         expect(hasFeatureAccess('PROFESIONAL', 'advanced_analytics')).toBe(false);
         expect(hasFeatureAccess('PROFESIONAL', 'customer_portal')).toBe(false);
       });
@@ -98,7 +96,6 @@ describe('Feature Flags', () => {
         expect(hasFeatureAccess('EMPRESA', 'basic_jobs')).toBe(true);
         expect(hasFeatureAccess('EMPRESA', 'afip_integration')).toBe(true);
         expect(hasFeatureAccess('EMPRESA', 'whatsapp_ai')).toBe(true);
-        expect(hasFeatureAccess('EMPRESA', 'multi_location')).toBe(true);
         expect(hasFeatureAccess('EMPRESA', 'advanced_analytics')).toBe(true);
         expect(hasFeatureAccess('EMPRESA', 'customer_portal')).toBe(true);
         expect(hasFeatureAccess('EMPRESA', 'public_api')).toBe(true);
@@ -167,7 +164,7 @@ describe('Feature Flags', () => {
     });
 
     it('should return EMPRESA for EMPRESA features', () => {
-      expect(getMinimumTierForFeature('multi_location')).toBe('EMPRESA');
+      expect(getMinimumTierForFeature('advanced_analytics')).toBe('EMPRESA');
       expect(getMinimumTierForFeature('public_api')).toBe('EMPRESA');
     });
 

@@ -89,6 +89,7 @@ export async function POST(request: NextRequest) {
       name: body.name,
       phone: body.phone,
       email: body.email,
+      customerType: body.customerType || 'PARTICULAR',
       address: body.address || {},
       notes: body.notes,
     });

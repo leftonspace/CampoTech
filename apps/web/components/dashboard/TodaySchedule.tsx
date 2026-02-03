@@ -136,10 +136,10 @@ export function TodaySchedule() {
         <Calendar className="mx-auto h-8 w-8 text-gray-400" />
         <p className="mt-2 text-sm text-gray-500">No hay trabajos agendados para hoy</p>
         <Link
-          href="/dashboard/jobs/new"
+          href="/dashboard/calendar"
           className="mt-3 inline-flex items-center gap-1 text-sm text-primary-600 hover:underline"
         >
-          Crear trabajo
+          Agendar trabajo
           <ArrowRight className="h-4 w-4" />
         </Link>
       </div>

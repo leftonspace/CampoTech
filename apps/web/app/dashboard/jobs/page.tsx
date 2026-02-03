@@ -4,11 +4,9 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { api } from '@/lib/api-client';
-import { cn, formatDate, formatAddress, JOB_STATUS_LABELS, searchMatchesAny, getInitials } from '@/lib/utils';
+import { cn, formatDate, formatAddress, JOB_STATUS_LABELS, getInitials } from '@/lib/utils';
 import {
   Plus,
-  Search,
   Filter,
   Calendar,
   List,
@@ -29,20 +27,38 @@ import {
   Repeat,
   CalendarDays,
   Lock,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Job } from '@/types';
 import NewJobModal from '@/components/jobs/NewJobModal';
 import EditJobModal from '@/components/jobs/EditJobModal';
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES & CONSTANTS
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 interface JobStats {
   totalCount: number;
   inProgressCount: number;
   scheduledTodayCount: number;
   completedThisMonthCount: number;
+  pendingVarianceCount?: number;
+  activeCount?: number;
+  cancelledCount?: number;
+}
+
+// Response type for v2 API endpoint
+interface JobsApiResponse {
+  success: boolean;
+  data: Job[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+  _optimized?: boolean;
 }
 
 interface TechnicianOption {
@@ -102,29 +118,64 @@ const SERVICE_TYPE_LABELS: Record<string, string> = {
   OTRO: 'Otro',
 };
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // MAIN COMPONENT
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 export default function JobsPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+
 
   // State
   const [activeTab, setActiveTab] = useState<'todos' | 'activos' | 'cancelados'>('activos'); // Job folder tabs
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || '');
+  const [statusFilter, setStatusFilter] = useState<string>('');
   const [priorityFilter, setPriorityFilter] = useState<string>('');
   const [technicianFilter, setTechnicianFilter] = useState<string>('');
   const [durationTypeFilter, setDurationTypeFilter] = useState<string>('');
-  const [sortBy, setSortBy] = useState<string>('newest'); // Default: newest first by creation date
+  const [sortBy, setSortBy] = useState<string>('scheduled_desc'); // Default: most recent scheduled date first
   const [showMoreFilters, setShowMoreFilters] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [assignModalJob, setAssignModalJob] = useState<Job | null>(null);
   const [cancelConfirmJob, setCancelConfirmJob] = useState<Job | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [isNewJobModalOpen, setIsNewJobModalOpen] = useState(false);
+  const [page, setPage] = useState(1); // Pagination state for v2 API
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, statusFilter, technicianFilter, durationTypeFilter, activeTab]);
+
+  // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+  // GLOBAL SEARCH INTEGRATION
+  // Handle URL params for search pre-fill and auto-open modal
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  // Sync search state with URL 'search' param (for inline global search)
+  useEffect(() => {
+    const searchParam = searchParams.get('search') || '';
+    // Only update if different to avoid loops
+    if (searchParam !== search) {
+      setSearch(searchParam);
+    }
+  }, [searchParams, search]);
+
+  // Handle job modal open from URL param
+  useEffect(() => {
+    const jobParam = searchParams.get('job');
+
+    if (jobParam) {
+      setSelectedJobId(jobParam);
+      // Clean up URL after opening (remove the job param, keep search)
+      const url = new URL(window.location.href);
+      url.searchParams.delete('job');
+      router.replace(url.pathname + (url.searchParams.toString() ? `?${url.searchParams}` : ''), { scroll: false });
+    }
+  }, [searchParams, router]);
+
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -142,22 +193,82 @@ export default function JobsPage() {
     return () => document.removeEventListener('click', handleClickOutside);
   }, [openMenuId]);
 
-  // Fetch jobs
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // OPTIMIZED DATA FETCHING (Phase 4 - Feb 2026)
+  // Uses v2 API endpoints with SQL views for sub-500ms response times
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  // Fetch jobs using optimized v2 endpoint
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
-    queryKey: ['jobs', { status: statusFilter, durationType: durationTypeFilter }],
-    queryFn: () => {
-      const params: Record<string, string> = {};
-      if (statusFilter) params.status = statusFilter;
-      if (durationTypeFilter) params.durationType = durationTypeFilter;
-      return api.jobs.list(params);
+    queryKey: ['jobs-v2', {
+      status: statusFilter,
+      durationType: durationTypeFilter,
+      technician: technicianFilter,
+      search, // Server-side search
+      sortBy,
+      page,
+      activeTab, // Include tab filter in query key
+    }],
+    queryFn: async () => {
+      // Map frontend sort options to API sort/order params
+      let sort = 'scheduledDate';
+      let order = 'desc';
+
+      switch (sortBy) {
+        case 'scheduled_desc':
+          sort = 'scheduledDate';
+          order = 'desc';
+          break;
+        case 'scheduled_asc':
+          sort = 'scheduledDate';
+          order = 'asc';
+          break;
+        case 'created_desc':
+          sort = 'createdAt';
+          order = 'desc';
+          break;
+        case 'created_asc':
+          sort = 'createdAt';
+          order = 'asc';
+          break;
+      }
+
+      // Build query params for v2 endpoint
+      const params = new URLSearchParams({
+        limit: '50', // Paginated - 50 per page
+        page: String(page),
+        sort,
+        order,
+      });
+
+      // Apply tab-based status filter
+      if (activeTab === 'cancelados') {
+        params.set('status', 'CANCELLED');
+      } else if (activeTab === 'activos') {
+        // Activos = jobs in progress (excludes CANCELLED and COMPLETED)
+        // PENDING, ASSIGNED, EN_ROUTE, IN_PROGRESS
+        params.set('status', 'PENDING,ASSIGNED,EN_ROUTE,IN_PROGRESS');
+      }
+      // 'todos' = no status filter (show all)
+
+      // Additional filters
+      if (statusFilter) params.set('status', statusFilter);
+      if (durationTypeFilter) params.set('durationType', durationTypeFilter);
+      if (technicianFilter) params.set('technicianId', technicianFilter);
+      if (search) params.set('search', search); // Server-side search!
+
+      const res = await fetch(`/api/jobs/v2?${params}`);
+      if (!res.ok) throw new Error('Error fetching jobs');
+      return res.json() as Promise<JobsApiResponse>;
     },
+    placeholderData: (previousData) => previousData, // Smooth pagination transitions (React Query v5)
   });
 
-  // Fetch stats
+  // Fetch stats using optimized v2 endpoint (single query for all counts)
   const { data: statsData, isLoading: statsLoading } = useQuery({
-    queryKey: ['jobs-stats'],
+    queryKey: ['jobs-stats-v2'],
     queryFn: async () => {
-      const res = await fetch('/api/jobs/stats');
+      const res = await fetch('/api/jobs/stats/v2');
       if (!res.ok) throw new Error('Error fetching stats');
       return res.json();
     },
@@ -173,55 +284,35 @@ export default function JobsPage() {
     },
   });
 
-  // Fetch pending variance count for header badge
-  const { data: pendingVarianceData } = useQuery({
-    queryKey: ['jobs-pending-variance-count'],
-    queryFn: async () => {
-      const res = await fetch('/api/jobs?hasPendingVariance=true&limit=1');
-      if (!res.ok) return { meta: { total: 0 } };
-      return res.json();
-    },
-    staleTime: 1000 * 60, // Cache for 1 minute
-  });
-
-  const pendingVarianceCount = pendingVarianceData?.meta?.total || 0;
+  // Pending variance count now comes from v2 stats endpoint
+  const pendingVarianceCount = statsData?.data?.pendingVarianceCount || 0;
 
   const allJobs = jobsData?.data as Job[] | undefined;
+  const pagination = jobsData?.pagination || { page: 1, limit: 50, total: 0, totalPages: 1 };
   const stats: JobStats = statsData?.data || {
     totalCount: 0,
     inProgressCount: 0,
     scheduledTodayCount: 0,
     completedThisMonthCount: 0,
+    pendingVarianceCount: 0,
+    activeCount: 0,
+    cancelledCount: 0,
   };
   const technicians: TechnicianOption[] = techniciansData?.data || [];
 
-  // Client-side filtering and grouping visits by their original "Visita" config
+  // Client-side processing: grouping visits by their original "Visita" config
+  // NOTE: Tab, search, and technician filtering is now handled server-side by v2 API
   const jobRows = useMemo((): JobOrVisitRow[] => {
     if (!allJobs) return [];
 
     const rows: JobOrVisitRow[] = [];
 
     for (const job of allJobs) {
-      // Tab filter: Todos shows all, Activos excludes cancelled, Cancelados shows only cancelled
-      if (activeTab === 'activos' && job.status === 'CANCELLED') continue;
-      if (activeTab === 'cancelados' && job.status !== 'CANCELLED') continue;
-      // 'todos' shows all jobs (no filter)
+      // NOTE: Tab filtering (activos/cancelados/todos) is now server-side
+      // NOTE: Search filtering is now server-side (accent-insensitive!)
+      // NOTE: Technician filtering is now server-side
 
-      // Search filter
-      if (search) {
-        const searchFields = [
-          job.jobNumber,
-          job.serviceType,
-          job.description,
-          job.customer?.name,
-          job.customer?.phone,
-          job.address,
-          ...(job.assignments?.map((a) => a.technician?.name) || []),
-        ];
-        if (!searchMatchesAny(searchFields, search)) continue;
-      }
-
-      // Priority filter
+      // Priority filter (still client-side - not in v2 view)
       if (priorityFilter && job.priority !== priorityFilter) continue;
 
       // Check if job has visits
@@ -263,14 +354,7 @@ export default function JobsPage() {
           const firstVisit = configVisits[0];
           const lastVisit = configVisits[configVisits.length - 1];
 
-          // Technician filter - check if any visit in this config matches
-          if (technicianFilter) {
-            const hasMatchingTech = configVisits.some(v => {
-              const visitTechId = v.technician?.id || v.technicianId;
-              return visitTechId === technicianFilter;
-            });
-            if (!hasMatchingTech) continue;
-          }
+          // NOTE: Technician filter now handled server-side
 
           rows.push({
             job,
@@ -296,13 +380,7 @@ export default function JobsPage() {
         }
       } else {
         // Single-visit job - show as regular row
-        // Technician filter for non-visit jobs
-        if (technicianFilter) {
-          const hasAssignment = job.assignments?.some(
-            (a) => a.technician?.id === technicianFilter
-          );
-          if (!hasAssignment && job.assignedTo?.id !== technicianFilter) continue;
-        }
+        // NOTE: Technician filter now handled server-side
 
         rows.push({
           job,
@@ -320,25 +398,26 @@ export default function JobsPage() {
       const createdB = b.job.createdAt || '';
 
       switch (sortBy) {
-        case 'newest':
+        case 'scheduled_desc':
+          // Most recent scheduled date first
+          return new Date(dateB).getTime() - new Date(dateA).getTime();
+        case 'scheduled_asc':
+          // Oldest scheduled date first
+          return new Date(dateA).getTime() - new Date(dateB).getTime();
+        case 'created_desc':
           // Newest created first
           return new Date(createdB).getTime() - new Date(createdA).getTime();
-        case 'oldest':
+        case 'created_asc':
           // Oldest created first
           return new Date(createdA).getTime() - new Date(createdB).getTime();
-        case 'scheduled_asc':
-          // Soonest scheduled first
-          return new Date(dateA).getTime() - new Date(dateB).getTime();
-        case 'scheduled_desc':
-          // Latest scheduled first
-          return new Date(dateB).getTime() - new Date(dateA).getTime();
         default:
-          return new Date(createdB).getTime() - new Date(createdA).getTime();
+          // Default to most recent scheduled date
+          return new Date(dateB).getTime() - new Date(dateA).getTime();
       }
     });
 
     return rows;
-  }, [allJobs, search, priorityFilter, technicianFilter, sortBy, activeTab]);
+  }, [allJobs, priorityFilter, sortBy]); // Removed server-side filters from dependencies
 
   const hasActiveFilters = search || statusFilter || priorityFilter || technicianFilter || durationTypeFilter;
 
@@ -348,7 +427,7 @@ export default function JobsPage() {
     setPriorityFilter('');
     setTechnicianFilter('');
     setDurationTypeFilter('');
-    setSortBy('newest');
+    setSortBy('scheduled_desc');
   };
 
   // Duplicate job mutation
@@ -369,8 +448,8 @@ export default function JobsPage() {
       return res.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
-      queryClient.invalidateQueries({ queryKey: ['jobs-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs-v2'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs-stats-v2'] });
       // Navigate to edit the new job
       router.push(`/dashboard/jobs/${data.data.id}?edit=true`);
     },
@@ -388,8 +467,8 @@ export default function JobsPage() {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['jobs'] });
-      queryClient.invalidateQueries({ queryKey: ['jobs-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs-v2'] });
+      queryClient.invalidateQueries({ queryKey: ['jobs-stats-v2'] });
       setCancelConfirmJob(null);
     },
   });
@@ -525,7 +604,7 @@ export default function JobsPage() {
       <div className="flex flex-col gap-4">
         {/* Main row: Tabs + Filters */}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          {/* Tabs */}
+          {/* Tabs - Use stats counts which are always accurate */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setActiveTab('todos')}
@@ -538,14 +617,12 @@ export default function JobsPage() {
             >
               <List className="h-4 w-4" />
               Todos
-              {allJobs && (
-                <span className={cn(
-                  'px-2 py-0.5 text-xs rounded-full',
-                  activeTab === 'todos' ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-600'
-                )}>
-                  {allJobs.length}
-                </span>
-              )}
+              <span className={cn(
+                'px-2 py-0.5 text-xs rounded-full',
+                activeTab === 'todos' ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-600'
+              )}>
+                {stats.totalCount}
+              </span>
             </button>
             <button
               onClick={() => setActiveTab('activos')}
@@ -558,14 +635,12 @@ export default function JobsPage() {
             >
               <Briefcase className="h-4 w-4" />
               Activos
-              {allJobs && (
-                <span className={cn(
-                  'px-2 py-0.5 text-xs rounded-full',
-                  activeTab === 'activos' ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'
-                )}>
-                  {allJobs.filter(j => j.status !== 'CANCELLED').length}
-                </span>
-              )}
+              <span className={cn(
+                'px-2 py-0.5 text-xs rounded-full',
+                activeTab === 'activos' ? 'bg-primary-100 text-primary-700' : 'bg-gray-100 text-gray-600'
+              )}>
+                {stats.activeCount || (stats.totalCount - (stats.cancelledCount || 0))}
+              </span>
             </button>
             <button
               onClick={() => setActiveTab('cancelados')}
@@ -578,14 +653,12 @@ export default function JobsPage() {
             >
               <XCircle className="h-4 w-4" />
               Cancelados
-              {allJobs && (
-                <span className={cn(
-                  'px-2 py-0.5 text-xs rounded-full',
-                  activeTab === 'cancelados' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
-                )}>
-                  {allJobs.filter(j => j.status === 'CANCELLED').length}
-                </span>
-              )}
+              <span className={cn(
+                'px-2 py-0.5 text-xs rounded-full',
+                activeTab === 'cancelados' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+              )}>
+                {stats.cancelledCount || 0}
+              </span>
             </button>
           </div>
 
@@ -615,9 +688,9 @@ export default function JobsPage() {
             >
               <Filter className="mr-2 h-4 w-4" />
               Más Filtros
-              {(priorityFilter || technicianFilter || durationTypeFilter || sortBy !== 'newest') && (
+              {(priorityFilter || technicianFilter || durationTypeFilter || sortBy !== 'scheduled_desc') && (
                 <span className="ml-2 rounded-full bg-primary-500 px-2 py-0.5 text-xs text-white">
-                  {[priorityFilter, technicianFilter, durationTypeFilter, sortBy !== 'newest' ? 'sort' : ''].filter(Boolean).length}
+                  {[priorityFilter, technicianFilter, durationTypeFilter, sortBy !== 'scheduled_desc' ? 'sort' : ''].filter(Boolean).length}
                 </span>
               )}
             </button>
@@ -700,10 +773,10 @@ export default function JobsPage() {
                 onChange={(e) => setSortBy(e.target.value)}
                 className="input w-auto py-1.5 text-sm"
               >
-                <option value="newest">Más recientes</option>
-                <option value="oldest">Más antiguos</option>
-                <option value="scheduled_asc">Fecha próxima</option>
-                <option value="scheduled_desc">Fecha lejana</option>
+                <option value="scheduled_desc">Fecha más reciente</option>
+                <option value="scheduled_asc">Fecha más antigua</option>
+                <option value="created_desc">Creado más reciente</option>
+                <option value="created_asc">Creado más antiguo</option>
               </select>
             </div>
 
@@ -719,18 +792,6 @@ export default function JobsPage() {
             )}
           </div>
         )}
-
-        {/* Search bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por cliente, técnico, descripción, dirección..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="input pl-10 w-full"
-          />
-        </div>
       </div>
 
       {/* Jobs list */}
@@ -795,6 +856,85 @@ export default function JobsPage() {
             )}
           </div>
         )}
+
+        {/* Pagination Controls (Phase 4) */}
+        {pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between border-t border-gray-200 bg-white px-4 py-3 sm:px-6 rounded-b-lg">
+            <div className="flex flex-1 justify-between sm:hidden">
+              <button
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page === 1}
+                className="relative inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Anterior
+              </button>
+              <button
+                onClick={() => setPage(Math.min(pagination.totalPages, page + 1))}
+                disabled={page === pagination.totalPages}
+                className="relative ml-3 inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Siguiente
+              </button>
+            </div>
+            <div className="hidden sm:flex sm:flex-1 sm:items-center sm:justify-between">
+              <div>
+                <p className="text-sm text-gray-700">
+                  Mostrando <span className="font-medium">{(page - 1) * pagination.limit + 1}</span> a{' '}
+                  <span className="font-medium">{Math.min(page * pagination.limit, pagination.total)}</span> de{' '}
+                  <span className="font-medium">{pagination.total}</span> resultados
+                </p>
+              </div>
+              <div>
+                <nav className="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+                  <button
+                    onClick={() => setPage(Math.max(1, page - 1))}
+                    disabled={page === 1}
+                    className="relative inline-flex items-center rounded-l-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Anterior</span>
+                    <ChevronLeft className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                  {/* Page numbers */}
+                  {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+                    // Show pages around current page
+                    let pageNum: number;
+                    if (pagination.totalPages <= 5) {
+                      pageNum = i + 1;
+                    } else if (page <= 3) {
+                      pageNum = i + 1;
+                    } else if (page >= pagination.totalPages - 2) {
+                      pageNum = pagination.totalPages - 4 + i;
+                    } else {
+                      pageNum = page - 2 + i;
+                    }
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => setPage(pageNum)}
+                        className={cn(
+                          'relative inline-flex items-center px-4 py-2 text-sm font-semibold ring-1 ring-inset ring-gray-300 focus:z-20 focus:outline-offset-0',
+                          page === pageNum
+                            ? 'z-10 bg-primary-600 text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600'
+                            : 'text-gray-900 hover:bg-gray-50'
+                        )}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  <button
+                    onClick={() => setPage(Math.min(pagination.totalPages, page + 1))}
+                    disabled={page === pagination.totalPages}
+                    className="relative inline-flex items-center rounded-r-md px-2 py-2 text-gray-400 ring-1 ring-inset ring-gray-300 hover:bg-gray-50 focus:z-20 focus:outline-offset-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span className="sr-only">Siguiente</span>
+                    <ChevronRight className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                </nav>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Technician Assignment Modal */}
@@ -805,7 +945,7 @@ export default function JobsPage() {
           onClose={() => setAssignModalJob(null)}
           onSuccess={() => {
             setAssignModalJob(null);
-            queryClient.invalidateQueries({ queryKey: ['jobs'] });
+            queryClient.invalidateQueries({ queryKey: ['jobs-v2'] });
           }}
         />
       )}
@@ -827,8 +967,8 @@ export default function JobsPage() {
           jobId={selectedJobId}
           onClose={() => setSelectedJobId(null)}
           onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ['jobs'] });
-            queryClient.invalidateQueries({ queryKey: ['jobs-stats'] });
+            queryClient.invalidateQueries({ queryKey: ['jobs-v2'] });
+            queryClient.invalidateQueries({ queryKey: ['jobs-stats-v2'] });
             setSelectedJobId(null);
           }}
         />

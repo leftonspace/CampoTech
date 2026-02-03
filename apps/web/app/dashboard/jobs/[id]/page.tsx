@@ -1149,7 +1149,7 @@ export default function JobDetailPage() {
 
               {/* Duplicate job */}
               <Link
-                href={`/dashboard/jobs/new?customerId=${job.customerId}&serviceType=${job.serviceType}&description=${encodeURIComponent(job.description || '')}`}
+                href="/dashboard/jobs"
                 className="btn-outline w-full justify-center"
               >
                 <Copy className="mr-2 h-4 w-4" />
@@ -1166,7 +1166,7 @@ export default function JobDetailPage() {
               </button>
 
               <Link
-                href={`/dashboard/jobs/new?customerId=${job.customerId}`}
+                href="/dashboard/jobs"
                 className="btn-outline w-full justify-center"
               >
                 <Plus className="mr-2 h-4 w-4" />

@@ -272,7 +272,7 @@ async function checkPrivacyPolicy(): Promise<CheckResult> {
   // Check if privacy policy page exists
   try {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const response = await fetch(`${appUrl}/legal/privacidad`, { method: 'HEAD' });
+    const response = await fetch(`${appUrl}/privacy`, { method: 'HEAD' });
 
     if (response.ok) {
       return {
@@ -290,7 +290,7 @@ async function checkPrivacyPolicy(): Promise<CheckResult> {
   return {
     name: 'Privacy Policy',
     status: 'warning',
-    message: 'Privacy policy page not found at /legal/privacidad',
+    message: 'Privacy policy page not found at /privacy',
     category: 'legal',
     blocking: false,
   };
@@ -299,7 +299,7 @@ async function checkPrivacyPolicy(): Promise<CheckResult> {
 async function checkTermsOfService(): Promise<CheckResult> {
   try {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-    const response = await fetch(`${appUrl}/legal/terminos`, { method: 'HEAD' });
+    const response = await fetch(`${appUrl}/terms`, { method: 'HEAD' });
 
     if (response.ok) {
       return {
@@ -317,7 +317,7 @@ async function checkTermsOfService(): Promise<CheckResult> {
   return {
     name: 'Terms of Service',
     status: 'warning',
-    message: 'Terms of service page not found at /legal/terminos',
+    message: 'Terms of service page not found at /terms',
     category: 'legal',
     blocking: false,
   };

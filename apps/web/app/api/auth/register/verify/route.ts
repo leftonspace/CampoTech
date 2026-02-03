@@ -64,38 +64,46 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Double-check CUIT not taken (race condition protection)
-    const existingOrg = await prisma.organization.findFirst({
-      where: {
-        settings: {
-          path: ['cuit'],
-          equals: pendingReg.cuit,
+    // Double-check CUIT not taken (race condition protection) - only if CUIT was provided
+    if (pendingReg.cuit) {
+      const existingOrg = await prisma.organization.findFirst({
+        where: {
+          settings: {
+            path: ['cuit'],
+            equals: pendingReg.cuit,
+          },
         },
-      },
-    });
+      });
 
-    if (existingOrg) {
-      await prisma.pendingRegistration.delete({ where: { id: pendingReg.id } });
-      return NextResponse.json(
-        {
-          success: false,
-          error: { message: 'Este CUIT ya fue registrado. Intentá iniciar sesión.' }
-        },
-        { status: 409 }
-      );
+      if (existingOrg) {
+        await prisma.pendingRegistration.delete({ where: { id: pendingReg.id } });
+        return NextResponse.json(
+          {
+            success: false,
+            error: { message: 'Este CUIT ya fue registrado. Intentá iniciar sesión.' }
+          },
+          { status: 409 }
+        );
+      }
     }
 
     // Create organization and user in a transaction
     const { organization, user } = await prisma.$transaction(async (tx: TransactionClient) => {
+      // Use businessName if provided, otherwise use adminName as org name
+      const orgName = pendingReg.businessName || pendingReg.adminName;
+
       // Create organization
       const org = await tx.organization.create({
         data: {
-          name: pendingReg.businessName,
+          name: orgName,
           phone: cleanPhone,
           email: pendingReg.email,
           settings: {
-            cuit: pendingReg.cuit,
-            cuitFormatted: formatCUIT(pendingReg.cuit),
+            // Only include CUIT fields if provided
+            ...(pendingReg.cuit ? {
+              cuit: pendingReg.cuit,
+              cuitFormatted: formatCUIT(pendingReg.cuit),
+            } : {}),
             // Ley 25.326 consent record
             consent: {
               dataTransferConsent: true,  // Required to register
@@ -108,8 +116,10 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Generate email from CUIT if not provided
-      const email = pendingReg.email || `admin-${pendingReg.cuit}@campotech.app`;
+      // Generate email from CUIT if available, otherwise from phone
+      const email = pendingReg.email || (pendingReg.cuit
+        ? `admin-${pendingReg.cuit}@campotech.app`
+        : `admin-${cleanPhone.replace(/\+/g, '')}@campotech.app`);
 
       // Create admin user
       const adminUser = await tx.user.create({

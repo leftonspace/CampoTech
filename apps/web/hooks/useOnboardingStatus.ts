@@ -226,7 +226,7 @@ export function useOnboardingStatus(): OnboardingStatus {
       description: 'Opcional',
       isComplete: false, // Would need to fetch this from jobs API
       isRequired: false,
-      actionUrl: '/dashboard/jobs/new',
+      actionUrl: '/dashboard/jobs',
       priority: 10,
       category: 'optional',
     });
@@ -240,9 +240,9 @@ export function useOnboardingStatus(): OnboardingStatus {
     if (isTrialing || !hasPaidPlan) {
       const trialEndDate = trialEndsAt
         ? new Date(trialEndsAt).toLocaleDateString('es-AR', {
-            day: 'numeric',
-            month: 'long',
-          })
+          day: 'numeric',
+          month: 'long',
+        })
         : 'la fecha límite';
 
       steps.push({

@@ -7,9 +7,8 @@
  * and technician-proposed prices. Allows dispatchers to approve/reject.
  */
 
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-    AlertTriangle,
     CheckCircle,
     XCircle,
     ArrowUpRight,
@@ -58,7 +57,7 @@ export function PriceVarianceAlert({
     const isLocked = !!pricingLockedAt;
     const isApproved = !!varianceApprovedAt;
     const isRejected = !!varianceRejectedAt;
-    const isPending = hasVariance && !isApproved && !isRejected && !isLocked;
+    const _isPending = hasVariance && !isApproved && !isRejected && !isLocked;
 
     // Mutation for approving/rejecting
     const varianceMutation = useMutation({
@@ -177,7 +176,7 @@ export function PriceVarianceAlert({
             {priceVarianceReason && (
                 <div className="mt-3 rounded-lg bg-white/50 p-3">
                     <p className="text-sm font-medium text-gray-700 mb-1">💬 Motivo del técnico:</p>
-                    <p className="text-sm text-gray-600">"{priceVarianceReason}"</p>
+                    <p className="text-sm text-gray-600">&ldquo;{priceVarianceReason}&rdquo;</p>
                 </div>
             )}
 

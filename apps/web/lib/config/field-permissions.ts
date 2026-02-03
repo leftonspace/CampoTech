@@ -709,8 +709,6 @@ export const MODULE_ACCESS: Record<string, Record<UserRole, ModuleAccess>> = {
   calendar: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'own' },
   // Map: SUPER_ADMIN/Owner & Dispatcher see live map, Technician hidden
   map: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'hidden' },
-  // Locations: SUPER_ADMIN/Owner manages zones, Dispatcher views, Technician hidden
-  locations: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'view', TECHNICIAN: 'hidden' },
   // WhatsApp: SUPER_ADMIN/Owner & Dispatcher manage inbox, Technician hidden
   whatsapp: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'hidden' },
   // Schedule: SUPER_ADMIN/Owner & Dispatcher manage all schedules, Technician sees own (read-only)

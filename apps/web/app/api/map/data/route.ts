@@ -37,7 +37,7 @@ interface TechnicianLocation {
   currentCustomerName: string | null;
   etaMinutes: number | null;
   heading: number | null;
-  locationSource: 'current' | 'home' | 'office';
+  locationSource: 'current' | 'office';
   nextJob: {
     id: string;
     jobNumber: string;
@@ -291,12 +291,6 @@ export async function GET(request: NextRequest) {
           avatar: true,
           specialty: true,
           currentLocation: true,
-          homeLocation: {
-            select: {
-              coordinates: true,
-              address: true,
-            },
-          },
           assignedJobs: {
             where: {
               status: {
@@ -350,13 +344,8 @@ export async function GET(request: NextRequest) {
             lng = Number(location.longitude);
             lastUpdated = location.lastSeen?.toISOString() || null;
             locationSource = 'current';
-          } else if (tech.homeLocation?.coordinates) {
-            const coords = tech.homeLocation.coordinates as { lat?: number; lng?: number };
-            lat = coords.lat ?? null;
-            lng = coords.lng ?? null;
-            locationSource = 'home';
           } else if (officeLocation) {
-            // Fallback to office location
+            // Fallback to office location when no current GPS position
             lat = officeLocation.lat;
             lng = officeLocation.lng;
             locationSource = 'office';

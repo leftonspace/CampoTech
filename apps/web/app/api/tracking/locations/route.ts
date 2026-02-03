@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const onlineOnly = searchParams.get('onlineOnly') !== 'false';
-    const locationId = searchParams.get('locationId');
+    const _locationId = searchParams.get('locationId');
 
     // Get all technicians with their current locations
     const technicians = await prisma.user.findMany({
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
         organizationId: session.organizationId,
         role: 'TECHNICIAN',
         isActive: true,
-        ...(locationId ? { homeLocationId: locationId } : {}),
+        // Note: locationId filter removed - homeLocationId no longer exists in schema
       },
       select: {
         id: true,
@@ -47,7 +47,6 @@ export async function GET(request: NextRequest) {
         avatar: true,
         specialty: true,
         skillLevel: true,
-        homeLocationId: true,
         currentLocation: true,
         assignedJobs: {
           where: {
@@ -115,32 +114,32 @@ export async function GET(request: NextRequest) {
           lastSeen: location?.lastSeen || null,
           location: location
             ? {
-                lat: Number(location.latitude),
-                lng: Number(location.longitude),
-                accuracy: location.accuracy ? Number(location.accuracy) : null,
-                heading: location.heading ? Number(location.heading) : null,
-                speed: location.speed ? Number(location.speed) : null,
-              }
+              lat: Number(location.latitude),
+              lng: Number(location.longitude),
+              accuracy: location.accuracy ? Number(location.accuracy) : null,
+              heading: location.heading ? Number(location.heading) : null,
+              speed: location.speed ? Number(location.speed) : null,
+            }
             : null,
           currentJob: currentJob
             ? {
-                id: currentJob.id,
-                jobNumber: currentJob.jobNumber,
-                status: currentJob.status,
-                description: currentJob.description,
-                scheduledDate: currentJob.scheduledDate,
-                scheduledTimeSlot: currentJob.scheduledTimeSlot,
-                customerName: currentJob.customer?.name,
-                address: currentJob.customer?.address,
-              }
+              id: currentJob.id,
+              jobNumber: currentJob.jobNumber,
+              status: currentJob.status,
+              description: currentJob.description,
+              scheduledDate: currentJob.scheduledDate,
+              scheduledTimeSlot: currentJob.scheduledTimeSlot,
+              customerName: currentJob.customer?.name,
+              address: currentJob.customer?.address,
+            }
             : null,
           tracking: activeSession
             ? {
-                sessionId: activeSession.id,
-                status: activeSession.status,
-                etaMinutes: activeSession.etaMinutes,
-                movementMode: activeSession.movementMode,
-              }
+              sessionId: activeSession.id,
+              status: activeSession.status,
+              etaMinutes: activeSession.etaMinutes,
+              movementMode: activeSession.movementMode,
+            }
             : null,
         };
       })

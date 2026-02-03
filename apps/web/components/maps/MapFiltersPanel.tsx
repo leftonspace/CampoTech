@@ -11,7 +11,6 @@ import {
 export interface MapFilters {
   search: string;
   technicianId: string | null;
-  zone: string | null;
   customerHasActiveJob: boolean;
   customerNoRecentJob: boolean;
   showCustomersOnly: boolean;
@@ -24,17 +23,10 @@ interface Technician {
   name: string;
 }
 
-interface Zone {
-  id: string;
-  name: string;
-  code: string;
-}
-
 interface MapFiltersPanelProps {
   filters: MapFilters;
   onFiltersChange: (filters: MapFilters) => void;
   technicians: Technician[];
-  zones: Zone[];
   onClearFilters: () => void;
 }
 
@@ -42,7 +34,6 @@ export function MapFiltersPanel({
   filters,
   onFiltersChange,
   technicians,
-  zones,
   onClearFilters,
 }: MapFiltersPanelProps) {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -57,7 +48,6 @@ export function MapFiltersPanel({
   const hasActiveFilters =
     filters.search ||
     filters.technicianId ||
-    filters.zone ||
     filters.customerHasActiveJob ||
     filters.customerNoRecentJob ||
     filters.showCustomersOnly ||
@@ -79,9 +69,8 @@ export function MapFiltersPanel({
           )}
         </div>
         <ChevronDown
-          className={`h-4 w-4 text-gray-400 transition-transform ${
-            isExpanded ? 'rotate-180' : ''
-          }`}
+          className={`h-4 w-4 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''
+            }`}
         />
       </button>
 
@@ -132,27 +121,6 @@ export function MapFiltersPanel({
               ))}
             </select>
           </div>
-
-          {/* Zone Filter */}
-          {zones.length > 0 && (
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">
-                Zona
-              </label>
-              <select
-                value={filters.zone || ''}
-                onChange={(e) => updateFilter('zone', e.target.value || null)}
-                className="w-full py-1.5 px-2 text-sm border border-gray-300 rounded-md focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="">Todas las zonas</option>
-                {zones.map((zone) => (
-                  <option key={zone.id} value={zone.id}>
-                    {zone.name} ({zone.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
 
           {/* Quick Filters */}
           <div>

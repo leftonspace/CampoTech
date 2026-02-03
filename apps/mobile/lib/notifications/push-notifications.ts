@@ -32,7 +32,7 @@ Notifications.setNotificationHandler({
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export interface NotificationData {
-  type: 'job_assigned' | 'job_updated' | 'job_reminder' | 'sync_conflict' | 'message' | 'emergency';
+  type: 'job_assigned' | 'job_updated' | 'job_reminder' | 'sync_conflict' | 'message' | 'emergency' | 'badge_reminder';
   jobId?: string;
   customerId?: string;
   conversationId?: string;
@@ -183,6 +183,11 @@ export function handleNotificationNavigation(data: NotificationData): void {
 
     case 'sync_conflict':
       router.push('/profile'); // Profile has sync status
+      break;
+
+    case 'badge_reminder':
+      // Navigate to digital badge screen
+      router.push('/(tabs)/profile/badge');
       break;
 
     case 'message':

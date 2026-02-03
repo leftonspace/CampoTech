@@ -39,6 +39,8 @@ import {
   isTrackingActive,
 } from '../../../lib/services/location';
 import StatusButton from '../../../components/job/StatusButton';
+import { ConfirmationCodeEntry } from '../../../components/jobs';
+import { api } from '../../../lib/api/client';
 
 interface JobPhoto {
   id: string;
@@ -51,11 +53,34 @@ function JobDetailScreen({ job, customer }: { job: Job; customer: Customer | nul
   const [isUpdating, setIsUpdating] = useState(false);
   const [photos, setPhotos] = useState<JobPhoto[]>([]);
   const [showPhotos, setShowPhotos] = useState(false);
+  const [showCodeEntry, setShowCodeEntry] = useState(false);
+  const [codeVerified, setCodeVerified] = useState(false);
 
   // Load existing photos for this job
   useEffect(() => {
     loadPhotos();
-  }, [job.id]);
+    // Check if we need to show code entry (job is en_camino)
+    if (job.status === 'en_camino') {
+      checkCodeStatus();
+    }
+  }, [job.id, job.status]);
+
+  // Check confirmation code status
+  const checkCodeStatus = async () => {
+    try {
+      const response = await api.jobs.confirmationCode.status(job.serverId);
+      if (response.success && response.data) {
+        if (response.data.codeRequired && response.data.codeSent && !response.data.codeVerified) {
+          setShowCodeEntry(true);
+        }
+        if (response.data.codeVerified) {
+          setCodeVerified(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking code status:', error);
+    }
+  };
 
   const loadPhotos = async () => {
     try {
@@ -89,9 +114,35 @@ function JobDetailScreen({ job, customer }: { job: Job; customer: Customer | nul
               [{ text: 'OK' }]
             );
           }
+
+          // Send confirmation code to customer
+          try {
+            const codeResponse = await api.jobs.confirmationCode.send(job.serverId);
+            if (codeResponse.success) {
+              Alert.alert(
+                '📱 Código Enviado',
+                'Se envió un código de confirmación al cliente por WhatsApp. Pedíselo cuando llegues.',
+                [{ text: 'Entendido' }]
+              );
+              setShowCodeEntry(true);
+            }
+          } catch (error) {
+            console.error('Error sending confirmation code:', error);
+          }
+
           await job.startJob();
         } else if (newStatus === 'working') {
+          // Check if code verification is required and not yet done
+          if (!codeVerified && showCodeEntry) {
+            Alert.alert(
+              '🔐 Código Requerido',
+              'Primero ingresá el código de confirmación que el cliente recibió por WhatsApp.',
+              [{ text: 'OK' }]
+            );
+            return;
+          }
           await job.arriveAtJob();
+          setShowCodeEntry(false);
         } else if (newStatus === 'completed') {
           // Stop GPS tracking when completing
           if (isTrackingActive()) {
@@ -282,7 +333,7 @@ function JobDetailScreen({ job, customer }: { job: Job; customer: Customer | nul
           headerStyle: { backgroundColor: '#16a34a' },
           headerTintColor: '#fff',
           headerRight: () => (
-            <TouchableOpacity onPress={() => {}} style={styles.headerButton}>
+            <TouchableOpacity onPress={() => { }} style={styles.headerButton}>
               <Feather name="more-vertical" size={20} color="#fff" />
             </TouchableOpacity>
           ),
@@ -298,6 +349,23 @@ function JobDetailScreen({ job, customer }: { job: Job; customer: Customer | nul
             isLoading={isUpdating}
           />
         </View>
+
+        {/* Confirmation Code Entry - shown when en_camino and code not yet verified */}
+        {showCodeEntry && !codeVerified && job.status === 'en_camino' && (
+          <ConfirmationCodeEntry
+            jobId={job.serverId}
+            customerName={customer?.name || 'Cliente'}
+            onVerified={() => {
+              setCodeVerified(true);
+              setShowCodeEntry(false);
+              Alert.alert(
+                '✅ Verificado',
+                'Código confirmado. Ya podés marcar que llegaste.',
+                [{ text: 'OK' }]
+              );
+            }}
+          />
+        )}
 
         {/* Photo capture card - shown during work */}
         {canAddPhotos && (
@@ -400,26 +468,32 @@ function JobDetailScreen({ job, customer }: { job: Job; customer: Customer | nul
           </View>
         )}
 
-        {/* Customer card */}
-        <View style={styles.card}>
+        {/* Customer card - tappable to view full details */}
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => customer?.serverId && router.push(`/(tabs)/customers/${customer.serverId}`)}
+          activeOpacity={0.7}
+        >
           <View style={styles.cardHeader}>
             <Feather name="user" size={18} color="#16a34a" />
             <Text style={styles.cardTitle}>Cliente</Text>
+            <Feather name="chevron-right" size={18} color="#9ca3af" />
           </View>
           <Text style={styles.customerName}>{customer?.name || 'Cliente'}</Text>
           {customer?.phone && (
             <View style={styles.contactButtons}>
-              <TouchableOpacity style={styles.contactButton} onPress={handleCall}>
+              <TouchableOpacity style={styles.contactButton} onPress={(e) => { e.stopPropagation(); handleCall(); }}>
                 <Feather name="phone" size={18} color="#16a34a" />
                 <Text style={styles.contactButtonText}>Llamar</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.contactButton} onPress={handleWhatsApp}>
+              <TouchableOpacity style={styles.contactButton} onPress={(e) => { e.stopPropagation(); handleWhatsApp(); }}>
                 <Feather name="message-circle" size={18} color="#25d366" />
                 <Text style={styles.contactButtonText}>WhatsApp</Text>
               </TouchableOpacity>
             </View>
           )}
-        </View>
+          <Text style={styles.viewDetailsHint}>Tocar para ver detalles del cliente</Text>
+        </TouchableOpacity>
 
         {/* Schedule card */}
         <View style={styles.card}>
@@ -640,6 +714,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '500',
     color: '#374151',
+  },
+  viewDetailsHint: {
+    fontSize: 12,
+    color: '#9ca3af',
+    marginTop: 12,
+    textAlign: 'center',
   },
   scheduleDate: {
     fontSize: 16,

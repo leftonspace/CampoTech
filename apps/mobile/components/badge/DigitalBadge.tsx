@@ -7,6 +7,11 @@
  * Displays a QR code badge for technicians to show when entering
  * gated communities (Countries). Shows ART insurance and
  * background check verification status.
+ * 
+ * Enhanced with:
+ * - Actual QR code generation (react-native-qrcode-svg)
+ * - Technician photo display
+ * - Customer-type aware prompts
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -18,9 +23,9 @@ import {
     ActivityIndicator,
     Alert,
     Dimensions,
+    Image,
 } from 'react-native';
 import {
-    QrCode,
     Shield,
     FileCheck,
     AlertCircle,
@@ -28,13 +33,11 @@ import {
     XCircle,
     Clock,
     RefreshCw,
+    User,
 } from 'lucide-react-native';
+import QRCode from 'react-native-qrcode-svg';
 import { api } from '../../lib/api/client';
 import { useAuth } from '../../lib/auth/auth-context';
-
-// Note: You'll need to install react-native-qrcode-svg:
-// pnpm add react-native-qrcode-svg react-native-svg
-// For now, we'll show a placeholder
 
 interface BadgeVerification {
     artStatus: 'valid' | 'expiring' | 'expired' | 'missing';
@@ -201,9 +204,13 @@ export function DigitalBadge({ onClose }: DigitalBadgeProps) {
 
             {/* QR Code */}
             <View style={styles.qrContainer}>
-                <View style={styles.qrPlaceholder}>
-                    <QrCode size={120} color="#111827" />
-                    <Text style={styles.qrHint}>QR Code</Text>
+                <View style={styles.qrWrapper}>
+                    <QRCode
+                        value={badge.qrPayload}
+                        size={qrSize}
+                        color="#111827"
+                        backgroundColor="#ffffff"
+                    />
                 </View>
                 <Text style={styles.qrInstruction}>
                     Mostrá este código al ingresar a countries o barrios cerrados
@@ -212,11 +219,16 @@ export function DigitalBadge({ onClose }: DigitalBadgeProps) {
 
             {/* Technician Info */}
             <View style={styles.infoSection}>
-                <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>
-                        {badge.technician.name[0].toUpperCase()}
-                    </Text>
-                </View>
+                {badge.technician.photo ? (
+                    <Image
+                        source={{ uri: badge.technician.photo }}
+                        style={styles.avatarImage}
+                    />
+                ) : (
+                    <View style={styles.avatar}>
+                        <User size={28} color="#fff" />
+                    </View>
+                )}
                 <Text style={styles.techName}>{badge.technician.name}</Text>
                 {badge.technician.specialty && (
                     <Text style={styles.techSpecialty}>{badge.technician.specialty}</Text>
@@ -361,20 +373,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingVertical: 24,
     },
-    qrPlaceholder: {
-        width: qrSize,
-        height: qrSize,
-        backgroundColor: '#f9fafb',
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    qrHint: {
-        marginTop: 8,
-        fontSize: 12,
-        color: '#9ca3af',
+    qrWrapper: {
+        padding: 16,
+        backgroundColor: '#ffffff',
+        borderRadius: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+        elevation: 4,
     },
     qrInstruction: {
         marginTop: 16,
@@ -391,13 +398,21 @@ const styles = StyleSheet.create({
         marginHorizontal: 16,
     },
     avatar: {
-        width: 56,
-        height: 56,
-        borderRadius: 28,
+        width: 72,
+        height: 72,
+        borderRadius: 36,
         backgroundColor: '#059669',
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 12,
+    },
+    avatarImage: {
+        width: 72,
+        height: 72,
+        borderRadius: 36,
+        marginBottom: 12,
+        borderWidth: 3,
+        borderColor: '#059669',
     },
     avatarText: {
         fontSize: 24,

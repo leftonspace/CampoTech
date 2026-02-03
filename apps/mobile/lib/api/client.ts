@@ -229,6 +229,36 @@ export const api = {
     today: () => apiRequest<unknown[]>('/jobs/today'),
 
     assigned: () => apiRequest<unknown[]>('/jobs/assigned'),
+
+    // Confirmation Code System (Phase 4.4)
+    confirmationCode: {
+      // Send confirmation code to customer
+      send: (jobId: string) =>
+        apiRequest<{
+          codeSent: boolean;
+          sentAt: string;
+        }>(`/jobs/${jobId}/confirmation-code`, {
+          method: 'POST',
+        }),
+
+      // Verify code entered by technician
+      verify: (jobId: string, code: string) =>
+        apiRequest<{
+          verified: boolean;
+        }>(`/jobs/${jobId}/confirmation-code`, {
+          method: 'PUT',
+          body: { code },
+        }),
+
+      // Get code status
+      status: (jobId: string) =>
+        apiRequest<{
+          codeRequired: boolean;
+          codeSent: boolean;
+          codeVerified: boolean;
+          attemptsRemaining: number;
+        }>(`/jobs/${jobId}/confirmation-code`),
+    },
   },
 
   // Customers

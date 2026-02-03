@@ -243,7 +243,7 @@ export default function PendingVariancePage() {
                                                 💬 Motivo del técnico:
                                             </p>
                                             <p className="text-sm text-gray-600">
-                                                "{varianceReason}"
+                                                &ldquo;{varianceReason}&rdquo;
                                             </p>
                                         </div>
                                     )}
@@ -271,8 +271,8 @@ export default function PendingVariancePage() {
                                         </div>
                                     </div>
                                     <div className={`mt-2 inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ${isIncrease
-                                            ? 'bg-red-100 text-red-700'
-                                            : 'bg-green-100 text-green-700'
+                                        ? 'bg-red-100 text-red-700'
+                                        : 'bg-green-100 text-green-700'
                                         }`}>
                                         {isIncrease ? '+' : ''}
                                         {percent.toFixed(1)}%

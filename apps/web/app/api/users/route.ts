@@ -67,6 +67,10 @@ export async function GET(request: NextRequest) {
           avatar: true,
           isActive: true,
           createdAt: true,
+          // Driver's license fields
+          driverLicenseNumber: true,
+          driverLicenseCategory: true,
+          driverLicenseExpiry: true,
           // Count jobs assigned to this user (both legacy and new assignment model)
           _count: {
             select: {

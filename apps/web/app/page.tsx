@@ -44,6 +44,9 @@ import {
   BarChart3,
   Receipt,
   Package,
+  QrCode,
+  Smartphone,
+  Lock,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -497,8 +500,8 @@ function MoreFeaturesModal({ onClose }: {
               <div
                 key={idx}
                 className={`rounded-lg p-4 border ${feat.free
-                    ? 'bg-success/5 border-success/30'
-                    : 'bg-muted/30 border-border'
+                  ? 'bg-success/5 border-success/30'
+                  : 'bg-muted/30 border-border'
                   }`}
               >
                 <div className="flex items-center gap-2 mb-2">
@@ -749,8 +752,8 @@ function AIFeatureSection() {
               key={s.id}
               onClick={() => setCurrentSlide(idx)}
               className={`transition-all ${idx === currentSlide
-                  ? 'w-8 h-2 bg-primary rounded-full'
-                  : 'w-2 h-2 bg-muted-foreground/30 rounded-full hover:bg-muted-foreground/50'
+                ? 'w-8 h-2 bg-primary rounded-full'
+                : 'w-2 h-2 bg-muted-foreground/30 rounded-full hover:bg-muted-foreground/50'
                 }`}
               aria-label={`Ir a escenario ${idx + 1}`}
             />
@@ -807,8 +810,8 @@ function AIFeatureSection() {
                   <div
                     key={contact.id}
                     className={`p-3 cursor-pointer transition-colors ${contact.id === scenario.activeContactId
-                        ? 'bg-primary/10 border-l-2 border-l-primary'
-                        : 'hover:bg-muted/50'
+                      ? 'bg-primary/10 border-l-2 border-l-primary'
+                      : 'hover:bg-muted/50'
                       }`}
                   >
                     <div className="flex items-start gap-2">
@@ -825,8 +828,8 @@ function AIFeatureSection() {
                           <span className="text-[10px] text-muted-foreground">{contact.phone}</span>
                           {contact.aiConfidence && (
                             <span className={`text-[10px] px-1.5 py-0.5 rounded ${contact.aiConfidence >= 90 ? 'bg-success/20 text-success' :
-                                contact.aiConfidence >= 80 ? 'bg-warning/20 text-warning' :
-                                  'bg-muted text-muted-foreground'
+                              contact.aiConfidence >= 80 ? 'bg-warning/20 text-warning' :
+                                'bg-muted text-muted-foreground'
                               }`}>
                               IA {contact.aiConfidence}%
                             </span>
@@ -866,10 +869,10 @@ function AIFeatureSection() {
                   >
                     <div
                       className={`max-w-[85%] rounded-lg px-3 py-2 ${msg.type === 'inbound'
-                          ? 'bg-white border border-border rounded-tl-none'
-                          : msg.type === 'ai-response'
-                            ? 'bg-success/20 border border-success/30 rounded-tr-none'
-                            : 'bg-primary/10 border border-primary/20 rounded-tr-none'
+                        ? 'bg-white border border-border rounded-tl-none'
+                        : msg.type === 'ai-response'
+                          ? 'bg-success/20 border border-success/30 rounded-tr-none'
+                          : 'bg-primary/10 border border-primary/20 rounded-tr-none'
                         }`}
                     >
                       {msg.type === 'ai-response' && (
@@ -935,15 +938,15 @@ function AIFeatureSection() {
                   <div
                     key={idx}
                     className={`rounded-lg p-3 border ${action.type === 'alert'
-                        ? 'bg-warning/10 border-warning/30'
-                        : action.type === 'success'
-                          ? 'bg-success/10 border-success/30'
-                          : 'bg-muted/50 border-border'
+                      ? 'bg-warning/10 border-warning/30'
+                      : action.type === 'success'
+                        ? 'bg-success/10 border-success/30'
+                        : 'bg-muted/50 border-border'
                       }`}
                   >
                     <div className={`text-sm font-medium mb-1 ${action.type === 'alert' ? 'text-warning' :
-                        action.type === 'success' ? 'text-success' :
-                          'text-foreground'
+                      action.type === 'success' ? 'text-success' :
+                        'text-foreground'
                       }`}>
                       {action.title}
                     </div>
@@ -1176,6 +1179,166 @@ function VerificationSection() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// SECURITY SECTION - Confirmation Code + QR Badge
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function SecuritySection() {
+  return (
+    <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-primary/5 to-background">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 bg-success/10 text-success px-4 py-2 rounded-full text-sm font-medium mb-6">
+            <Lock className="w-4 h-4" />
+            Seguridad como Rappi o Uber
+          </div>
+          <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
+            La tranquilidad de saber quién entra a tu casa
+          </h2>
+          <p className="text-lg text-muted-foreground max-w-3xl mx-auto">
+            Cada visita técnica es verificada. Tu cliente recibe un código de confirmación y puede escanear la credencial digital del técnico. Sin sorpresas, sin desconocidos.
+          </p>
+        </div>
+
+        {/* Two-column features */}
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* Confirmation Code */}
+          <div className="bg-card rounded-2xl border border-border p-8 shadow-lg">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-14 h-14 bg-success/10 rounded-xl flex items-center justify-center">
+                <Smartphone className="w-7 h-7 text-success" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-foreground">Código de Confirmación</h3>
+                <p className="text-sm text-muted-foreground">Obligatorio en cada visita</p>
+              </div>
+            </div>
+
+            {/* Steps */}
+            <div className="space-y-4 mb-6">
+              <div className="flex items-start gap-4">
+                <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">1</div>
+                <div>
+                  <div className="font-medium text-foreground">Técnico sale hacia el trabajo</div>
+                  <div className="text-sm text-muted-foreground">Se genera un código único de 4 dígitos</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">2</div>
+                <div>
+                  <div className="font-medium text-foreground">Cliente recibe WhatsApp</div>
+                  <div className="text-sm text-muted-foreground">&quot;Tu código es: 4728. Pedíselo al técnico.&quot;</div>
+                </div>
+              </div>
+              <div className="flex items-start gap-4">
+                <div className="w-8 h-8 bg-success/10 rounded-full flex items-center justify-center text-sm font-bold text-success flex-shrink-0">3</div>
+                <div>
+                  <div className="font-medium text-foreground">Técnico ingresa el código</div>
+                  <div className="text-sm text-muted-foreground">Confirma llegada y el cliente recibe aviso</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Mock WhatsApp message */}
+            <div className="bg-muted/50 rounded-xl p-4 border border-border">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="w-8 h-8 bg-success rounded-full flex items-center justify-center">
+                  <MessageSquare className="w-4 h-4 text-white" />
+                </div>
+                <span className="text-sm font-medium text-foreground">WhatsApp</span>
+              </div>
+              <div className="bg-white rounded-lg p-3 text-sm text-foreground shadow-sm">
+                <p>Hola María! 👋</p>
+                <p className="mt-2">Juan de <strong>Tecno Servicio</strong> está en camino.</p>
+                <p className="mt-2">Tu código de confirmación es:</p>
+                <p className="text-2xl font-bold text-center my-3">🔐 4728</p>
+                <p className="text-muted-foreground text-xs">Pedíselo al técnico cuando llegue.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* QR Digital Badge */}
+          <div className="bg-card rounded-2xl border border-border p-8 shadow-lg">
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-14 h-14 bg-primary/10 rounded-xl flex items-center justify-center">
+                <QrCode className="w-7 h-7 text-primary" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-foreground">Credencial Digital QR</h3>
+                <p className="text-sm text-muted-foreground">Verificación en tiempo real</p>
+              </div>
+            </div>
+
+            {/* Badge preview */}
+            <div className="bg-gradient-to-br from-muted/50 to-muted rounded-xl p-6 mb-6">
+              <div className="bg-white rounded-xl p-4 shadow-lg max-w-[280px] mx-auto">
+                <div className="text-center mb-3">
+                  <div className="w-16 h-16 bg-muted rounded-full mx-auto mb-2 flex items-center justify-center">
+                    <User className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <div className="font-bold text-foreground">Juan Pérez</div>
+                  <div className="text-sm text-muted-foreground">Gasista Matriculado</div>
+                </div>
+                <div className="flex justify-center mb-3">
+                  <div className="w-24 h-24 bg-muted rounded-lg flex items-center justify-center">
+                    <QrCode className="w-16 h-16 text-muted-foreground/50" />
+                  </div>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  <span className="text-xs bg-success/20 text-success px-2 py-1 rounded-full flex items-center gap-1">
+                    <Check className="w-3 h-3" /> Verificado
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Features list */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <Check className="w-5 h-5 text-success flex-shrink-0" />
+                <span className="text-sm text-foreground">Foto verificada del técnico</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Check className="w-5 h-5 text-success flex-shrink-0" />
+                <span className="text-sm text-foreground">Estado de ART y seguros vigentes</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Check className="w-5 h-5 text-success flex-shrink-0" />
+                <span className="text-sm text-foreground">Antecedentes verificados</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <Check className="w-5 h-5 text-success flex-shrink-0" />
+                <span className="text-sm text-foreground">Escaneá con cualquier celular</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom stats */}
+        <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-card rounded-lg p-4 border border-border text-center">
+            <div className="text-2xl font-bold text-success mb-1">100%</div>
+            <div className="text-sm text-muted-foreground">Visitas verificadas</div>
+          </div>
+          <div className="bg-card rounded-lg p-4 border border-border text-center">
+            <div className="text-2xl font-bold text-primary mb-1">4 dígitos</div>
+            <div className="text-sm text-muted-foreground">Código único</div>
+          </div>
+          <div className="bg-card rounded-lg p-4 border border-border text-center">
+            <div className="text-2xl font-bold text-warning mb-1">WhatsApp</div>
+            <div className="text-sm text-muted-foreground">Notificación automática</div>
+          </div>
+          <div className="bg-card rounded-lg p-4 border border-border text-center">
+            <div className="text-2xl font-bold text-accent mb-1">QR</div>
+            <div className="text-sm text-muted-foreground">Verificación en tiempo real</div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // PRICING DATA
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1257,8 +1420,8 @@ function PricingSection() {
             <div
               key={plan.name}
               className={`relative bg-card rounded-xl p-8 border flex flex-col ${plan.popular
-                  ? 'border-primary ring-2 ring-primary shadow-lg'
-                  : 'border-border'
+                ? 'border-primary ring-2 ring-primary shadow-lg'
+                : 'border-border'
                 }`}
             >
               {plan.popular && (
@@ -1296,8 +1459,8 @@ function PricingSection() {
               <Link
                 href="/signup"
                 className={`mt-8 block w-full text-center py-3 px-4 rounded-lg font-medium transition-colors ${plan.popular
-                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    : 'bg-muted text-foreground hover:bg-muted/80'
+                  ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  : 'bg-muted text-foreground hover:bg-muted/80'
                   }`}
               >
                 {plan.cta}
@@ -1363,6 +1526,7 @@ export default function LandingPage() {
         <FeaturesSection />
         <AIFeatureSection />
         <VerificationSection />
+        <SecuritySection />
         <PricingSection />
         <CTASection />
       </main>

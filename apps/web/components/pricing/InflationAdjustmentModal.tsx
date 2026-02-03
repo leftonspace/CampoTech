@@ -89,6 +89,21 @@ export interface AdjustmentSubmission {
 
 type AdjustmentScope = 'all' | 'services' | 'products' | 'specialty';
 
+// Cumulative drift tracking from API
+interface CumulativeDrift {
+    adjustmentCount: number;
+    officialInflation: number; // Sum of all index rates applied
+    actualAdjustment: number;  // Sum of all actual adjustments (includes rounding)
+    drift: number;             // actualAdjustment - officialInflation
+    firstAdjustmentAt: string;
+    lastAdjustmentAt: string;
+}
+
+interface InflationApiResponse {
+    latest: InflationIndex[];
+    cumulativeDrift: CumulativeDrift | null;
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -163,14 +178,14 @@ export function InflationAdjustmentModal({
 }: InflationAdjustmentModalProps) {
     // Index selection
     const [selectedIndex, setSelectedIndex] = useState<InflationIndex | null>(null);
-    const [customPercent, setCustomPercent] = useState(5); // Default custom percentage
+    const [customPercent, setCustomPercent] = useState(0); // Start at 0 - user must enter their own %
 
     // Scope selection
     const [scope, setScope] = useState<AdjustmentScope>('all');
     const [specialtyFilter, setSpecialtyFilter] = useState<string>('');
 
     // Rounding settings
-    const [roundingStrategy, setRoundingStrategy] = useState('ROUND_500');
+    const [roundingStrategy, setRoundingStrategy] = useState('NO_ROUNDING');
     const [roundingDirection, setRoundingDirection] = useState('NEAREST');
 
     // Preview state
@@ -186,10 +201,13 @@ export function InflationAdjustmentModal({
         queryKey: ['inflation-indices'],
         queryFn: async () => {
             const res = await api.settings.inflation.get();
-            return res.data as { latest: InflationIndex[] };
+            return res.data as InflationApiResponse;
         },
         enabled: isOpen,
     });
+
+    // Get cumulative drift from API
+    const cumulativeDrift = inflationData?.cumulativeDrift;
 
     // Calculate previews when settings change
     useEffect(() => {
@@ -322,6 +340,13 @@ export function InflationAdjustmentModal({
         ? itemsWithPrices.reduce((sum, p) => sum + p.percentChange, 0) / itemsWithPrices.length
         : 0;
 
+    // Calculate the selected index rate and rounding drift
+    const selectedIndexRate = selectedIndex
+        ? (selectedIndex.source === 'CUSTOM' ? customPercent : selectedIndex.rate)
+        : 0;
+    const roundingDrift = avgPercentChange - selectedIndexRate;
+    const hasSignificantDrift = Math.abs(roundingDrift) > 0.1; // Show when drift exceeds 0.1%
+
     // Handle apply
     const handleApply = async () => {
         if (!selectedIndex) return;
@@ -345,7 +370,7 @@ export function InflationAdjustmentModal({
     // Use portal to render at document root for proper backdrop coverage
     const modalContent = (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
-            <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg bg-white shadow-xl mx-8">
+            <div className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-xl mx-8">
                 {/* Header */}
                 <div className="flex items-center justify-between border-b px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -437,7 +462,8 @@ export function InflationAdjustmentModal({
                                                     min="0"
                                                     max="100"
                                                     step="0.5"
-                                                    value={customPercent}
+                                                    value={customPercent === 0 ? '' : customPercent}
+                                                    placeholder="0"
                                                     onChange={(e) => {
                                                         const val = parseFloat(e.target.value) || 0;
                                                         setCustomPercent(val);
@@ -499,47 +525,87 @@ export function InflationAdjustmentModal({
 
                         {/* Preview Column */}
                         <div className="lg:col-span-2">
-                            {/* Summary Stats */}
-                            {selectedIndex && (
-                                <>
-                                    <h3 className="text-sm font-medium text-gray-700 mb-3">Resumen del Ajuste</h3>
-                                    <div className="mb-4 rounded-lg border bg-gray-50 p-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <p className="text-xs text-gray-500">Ítems a ajustar</p>
-                                                <p className="text-lg font-bold text-gray-900">{includedItems.length}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-xs text-gray-500">Cambio promedio</p>
-                                                <p className="text-lg font-bold text-green-600">+{avgPercentChange.toFixed(1)}%</p>
-                                            </div>
-                                        </div>
-                                        {usdItems.length > 0 && (
-                                            <div className="mt-3 flex items-center gap-2 text-blue-600 text-sm">
-                                                <Info className="h-4 w-4" />
-                                                <span>{usdItems.length} ítem(s) en USD (se ajustan vía tipo de cambio)</span>
-                                            </div>
-                                        )}
-                                        {otherExcludedItems.length > 0 && (
-                                            <div className="mt-2 flex items-center gap-2 text-amber-600 text-sm">
-                                                <AlertCircle className="h-4 w-4" />
-                                                <span>{otherExcludedItems.length} ítem(s) excluidos por filtro</span>
-                                            </div>
-                                        )}
-                                        {zeroPricedItems.length > 0 && (
-                                            <div className="mt-2 flex items-center gap-2 text-gray-500 text-sm">
-                                                <Info className="h-4 w-4" />
-                                                <span>{zeroPricedItems.length} ítem(s) sin precio (no afectan el promedio)</span>
-                                            </div>
-                                        )}
-                                        {overrideCount > 0 && (
-                                            <div className="mt-2 flex items-center gap-2 text-blue-600 text-sm">
-                                                <CheckCircle className="h-4 w-4" />
-                                                <span>{overrideCount} precio(s) ajustado(s) manualmente</span>
-                                            </div>
+                            {/* Summary Header - Inline */}
+                            <div className="flex items-center justify-between mb-3">
+                                <h3 className="text-sm font-medium text-gray-700">Resumen del Ajuste</h3>
+                                {selectedIndex && (
+                                    <div className="flex items-center gap-4 text-sm">
+                                        <span className="text-gray-500">
+                                            <strong className="text-gray-900">{includedItems.length}</strong> ítems
+                                        </span>
+                                        <span className="text-gray-500">
+                                            Índice: <strong className="text-gray-700">{selectedIndexRate.toFixed(1)}%</strong>
+                                        </span>
+                                        <span className="text-gray-500">
+                                            Real: <strong className="text-green-600">+{avgPercentChange.toFixed(1)}%</strong>
+                                        </span>
+                                        {hasSignificantDrift && (
+                                            <span className={`flex items-center gap-1 ${roundingDrift > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+                                                <AlertCircle className="h-3 w-3" />
+                                                {roundingDrift > 0 ? '+' : ''}{roundingDrift.toFixed(1)}% por redondeo
+                                            </span>
                                         )}
                                     </div>
-                                </>
+                                )}
+                            </div>
+
+                            {/* Info messages (only show when there are special cases) */}
+                            {selectedIndex && (usdItems.length > 0 || otherExcludedItems.length > 0 || zeroPricedItems.length > 0 || overrideCount > 0) && (
+                                <div className="mb-3 text-xs space-y-1">
+                                    {usdItems.length > 0 && (
+                                        <div className="flex items-center gap-1 text-blue-600">
+                                            <Info className="h-3 w-3" />
+                                            <span>{usdItems.length} ítem(s) en USD</span>
+                                        </div>
+                                    )}
+                                    {otherExcludedItems.length > 0 && (
+                                        <div className="flex items-center gap-1 text-amber-600">
+                                            <AlertCircle className="h-3 w-3" />
+                                            <span>{otherExcludedItems.length} ítem(s) excluidos por filtro</span>
+                                        </div>
+                                    )}
+                                    {zeroPricedItems.length > 0 && (
+                                        <div className="flex items-center gap-1 text-gray-500">
+                                            <Info className="h-3 w-3" />
+                                            <span>{zeroPricedItems.length} ítem(s) sin precio</span>
+                                        </div>
+                                    )}
+                                    {overrideCount > 0 && (
+                                        <div className="flex items-center gap-1 text-blue-600">
+                                            <CheckCircle className="h-3 w-3" />
+                                            <span>{overrideCount} precio(s) ajustado(s) manualmente</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Cumulative Drift Tracking - Historical data */}
+                            {cumulativeDrift && cumulativeDrift.adjustmentCount > 0 && (
+                                <div className={`mb-3 px-3 py-2 rounded-lg text-xs ${cumulativeDrift.drift > 1
+                                    ? 'bg-amber-50 border border-amber-200'
+                                    : cumulativeDrift.drift < -1
+                                        ? 'bg-green-50 border border-green-200'
+                                        : 'bg-gray-50 border border-gray-200'
+                                    }`}>
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-gray-600 flex items-center gap-1">
+                                            <TrendingUp className="h-3 w-3" />
+                                            Historial de ajustes ({cumulativeDrift.adjustmentCount} aplicados)
+                                        </span>
+                                        <span className={`font-medium ${cumulativeDrift.drift > 1
+                                            ? 'text-amber-600'
+                                            : cumulativeDrift.drift < -1
+                                                ? 'text-green-600'
+                                                : 'text-gray-600'
+                                            }`}>
+                                            {cumulativeDrift.drift > 0 ? '+' : ''}{cumulativeDrift.drift.toFixed(1)}% diferencia acumulada
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center justify-between mt-1 text-gray-500">
+                                        <span>Índices oficiales: {cumulativeDrift.officialInflation.toFixed(1)}%</span>
+                                        <span>Ajustes aplicados: {cumulativeDrift.actualAdjustment.toFixed(1)}%</span>
+                                    </div>
+                                </div>
                             )}
 
                             {/* Preview Table */}

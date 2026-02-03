@@ -130,7 +130,7 @@ export default function CustomerProfileModal({
   };
 
   const handleNewJob = () => {
-    router.push(`/dashboard/jobs/new?customerId=${customerId}`);
+    router.push('/dashboard/jobs');
     onClose();
   };
 

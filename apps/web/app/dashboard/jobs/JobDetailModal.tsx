@@ -213,7 +213,7 @@ export default function JobDetailModal({
 
   const _handleDuplicate = () => {
     if (job) {
-      router.push(`/dashboard/jobs/new?customerId=${job.customerId}&serviceType=${job.serviceType}&description=${encodeURIComponent(job.description || '')}`);
+      router.push('/dashboard/jobs');
       handleClose();
     }
   };

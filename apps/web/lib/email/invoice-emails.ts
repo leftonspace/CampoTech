@@ -53,7 +53,7 @@ export interface PaymentConfirmationParams {
 // CONSTANTS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://campotech.com';
+const _APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://campotech.com';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // EMAIL BASE STYLES

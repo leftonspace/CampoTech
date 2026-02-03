@@ -17,7 +17,6 @@ import {
   Wrench,
   X,
   Save,
-  Filter,
   Clock,
   Ruler,
   Hash,
@@ -240,60 +239,71 @@ export default function PricebookPage() {
         </div>
       </div>
 
-      {/* Specialty Tabs */}
-      {usedSpecialties.length > 0 && (
-        <div className="card p-2">
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setSpecialtyFilter('')}
-              className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${!specialtyFilter
-                ? 'bg-primary-100 text-primary-700'
-                : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
-                }`}
-            >
-              Todos
-            </button>
-            {usedSpecialties.map((specialty) => {
-              const info = getSpecialtyInfo(specialty);
-              return (
+      {/* Filters - Combined */}
+      <div className="card p-4">
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Specialty Filter */}
+          {usedSpecialties.length > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Especialidad:</span>
+              <div className="flex flex-wrap gap-1.5">
                 <button
-                  key={specialty}
-                  onClick={() => setSpecialtyFilter(specialty)}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${specialtyFilter === specialty
-                    ? info?.color || 'bg-primary-100 text-primary-700'
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  onClick={() => setSpecialtyFilter('')}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${!specialtyFilter
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                 >
-                  {info?.label || specialty}
+                  Todas
                 </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+                {usedSpecialties.map((specialty) => {
+                  const info = getSpecialtyInfo(specialty);
+                  return (
+                    <button
+                      key={specialty}
+                      onClick={() => setSpecialtyFilter(specialty)}
+                      className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${specialtyFilter === specialty
+                        ? 'bg-primary-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                    >
+                      {info?.label || specialty}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
-      {/* Filters */}
-      <div className="card p-4">
-        <div className="flex items-center gap-4">
-          <Filter className="h-4 w-4 text-gray-400" />
-          <span className="text-sm text-gray-500">Filtrar por tipo:</span>
-          <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
-            className="input w-auto"
-          >
-            <option value="">Todos</option>
-            <option value="service">Servicios</option>
-            <option value="product">Productos</option>
-          </select>
+          {/* Divider when both filters present */}
+          {usedSpecialties.length > 0 && (
+            <div className="hidden sm:block h-6 w-px bg-gray-300" />
+          )}
+
+          {/* Type Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Tipo:</span>
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 focus:ring-1 focus:ring-primary-500"
+            >
+              <option value="">Todos</option>
+              <option value="service">Servicios</option>
+              <option value="product">Productos</option>
+            </select>
+          </div>
+
+          {/* Divider before USD */}
+          <div className="hidden sm:block h-6 w-px bg-gray-300" />
 
           {/* Exchange rate selector for USD items */}
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-xs text-gray-500">Cotización USD:</span>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500">Cotización USD:</span>
             <select
               value={selectedRateSource}
               onChange={(e) => setSelectedRateSource(e.target.value)}
-              className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700"
+              className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 focus:ring-1 focus:ring-primary-500"
             >
               <option value="">Por defecto ({defaultRateSource})</option>
               <option value="BLUE">Dólar Blue</option>
@@ -301,11 +311,11 @@ export default function PricebookPage() {
               <option value="CCL">Dólar CCL</option>
             </select>
             {currentRate > 0 ? (
-              <span className="text-xs font-medium text-green-600">
+              <span className="text-sm font-semibold text-green-600">
                 ${currentRate.toLocaleString('es-AR')}
               </span>
             ) : rateUnavailable ? (
-              <span className="text-xs text-amber-600">Sin cotización</span>
+              <span className="text-sm text-amber-600">Sin cotización</span>
             ) : null}
           </div>
         </div>

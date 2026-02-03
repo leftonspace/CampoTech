@@ -232,14 +232,6 @@ export async function hasInventoryAccess(orgId: string): Promise<boolean> {
 }
 
 /**
- * Check if organization has access to multi-location
- */
-export async function hasMultiLocationAccess(orgId: string): Promise<boolean> {
-  const tier = await getOrganizationTier(orgId);
-  return hasFeatureAccess(tier, 'multi_location');
-}
-
-/**
  * Check if organization has access to advanced analytics
  */
 export async function hasAdvancedAnalyticsAccess(orgId: string): Promise<boolean> {

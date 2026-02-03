@@ -21,47 +21,51 @@ export async function POST(request: NextRequest) {
       consentTimestamp: _consentTimestamp,
     } = body;
 
-    // Validate required fields
-    if (!cuit || !businessName || !adminName || !phone) {
+    // Validate required fields (only name and phone are truly required)
+    if (!adminName || !phone) {
       return NextResponse.json(
         {
           success: false,
-          error: { message: 'Todos los campos son requeridos (CUIT, razón social, nombre, teléfono)' }
+          error: { message: 'Tu nombre y teléfono son requeridos' }
         },
         { status: 400 }
       );
     }
 
-    // Validate CUIT
-    const cuitValidation = validateCUIT(cuit);
-    if (!cuitValidation.valid) {
-      return NextResponse.json(
-        { success: false, error: { message: cuitValidation.error, field: 'cuit' } },
-        { status: 400 }
-      );
+    // Validate CUIT only if provided
+    let cleanCuit: string | null = null;
+    if (cuit && cuit.trim()) {
+      const cuitValidation = validateCUIT(cuit);
+      if (!cuitValidation.valid) {
+        return NextResponse.json(
+          { success: false, error: { message: cuitValidation.error, field: 'cuit' } },
+          { status: 400 }
+        );
+      }
+      cleanCuit = cuitValidation.digits!;
     }
 
-    const cleanCuit = cuitValidation.digits!;
-
-    // Check if organization with this CUIT already exists
-    const existingOrg = await prisma.organization.findFirst({
-      where: {
-        settings: {
-          path: ['cuit'],
-          equals: cleanCuit,
+    // Check if organization with this CUIT already exists (only if CUIT provided)
+    if (cleanCuit) {
+      const existingOrg = await prisma.organization.findFirst({
+        where: {
+          settings: {
+            path: ['cuit'],
+            equals: cleanCuit,
+          },
         },
-      },
-    });
+      });
 
-    if (existingOrg) {
-      console.log(`Registration blocked: CUIT ${cleanCuit} already exists (org ${existingOrg.id})`);
-      return NextResponse.json(
-        {
-          success: false,
-          error: { message: 'Ya existe una empresa registrada con este CUIT', field: 'cuit' }
-        },
-        { status: 409 }
-      );
+      if (existingOrg) {
+        console.log(`Registration blocked: CUIT ${cleanCuit} already exists (org ${existingOrg.id})`);
+        return NextResponse.json(
+          {
+            success: false,
+            error: { message: 'Ya existe una empresa registrada con este CUIT', field: 'cuit' }
+          },
+          { status: 409 }
+        );
+      }
     }
 
     // Clean and normalize phone
@@ -97,7 +101,7 @@ export async function POST(request: NextRequest) {
       where: { phone: cleanPhone },
       update: {
         cuit: cleanCuit,
-        businessName: businessName.trim(),
+        businessName: businessName?.trim() || null,
         adminName: adminName.trim(),
         email: email?.trim() || null,
         expiresAt,
@@ -105,7 +109,7 @@ export async function POST(request: NextRequest) {
       create: {
         phone: cleanPhone,
         cuit: cleanCuit,
-        businessName: businessName.trim(),
+        businessName: businessName?.trim() || null,
         adminName: adminName.trim(),
         email: email?.trim() || null,
         expiresAt,

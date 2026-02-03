@@ -27,7 +27,7 @@ export async function POST(
 
         const { id: jobId } = await context.params;
         const body = await request.json();
-        const { action, adjustedAmount, reason } = body;
+        const { action, adjustedAmount, reason: _reason } = body;
 
         // Validate action
         if (!action || !['approve', 'reject', 'adjust'].includes(action)) {
@@ -96,7 +96,7 @@ export async function POST(
             );
         }
 
-        let updateData: any = {};
+        let updateData: Record<string, unknown> = {};
 
         switch (action) {
             case 'approve':

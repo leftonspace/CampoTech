@@ -110,6 +110,7 @@ Complex features with detailed implementation documentation.
 | [[Multi-Trade Pricing]] | `02_App/Admin/` | 🟡 | Universal pricing for all trades |
 | [[Support Queue]] | `02_App/Communication/` | 🟢 | AI-to-human escalation system |
 | [[WhatsApp AI Translation]] | `02_App/Communication/` | 🟢 | Multi-language AI capabilities |
+| [[Technician Verification Security]] | `02_App/Operations/` | 🟢 | QR badge & confirmation code systems |
 
 ---
 

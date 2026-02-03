@@ -14,7 +14,7 @@ import {
     Eye,
     Trash2,
 } from 'lucide-react';
-import type { TeamMember, LiveStatusType, UserLiveStatus } from './types';
+import type { TeamMember, UserLiveStatus } from './types';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONSTANTS

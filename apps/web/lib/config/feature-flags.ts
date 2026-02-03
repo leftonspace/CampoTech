@@ -36,7 +36,6 @@ export type FeatureId =
   | 'inventory_management'
 
   // EMPRESA Features
-  | 'multi_location'
   | 'advanced_analytics'
   | 'customer_portal'
   | 'public_api'
@@ -186,14 +185,6 @@ export const FEATURES: Record<FeatureId, FeatureConfig> = {
   },
 
   // EMPRESA Features
-  multi_location: {
-    id: 'multi_location',
-    name: 'Multi-Zona',
-    description: 'Operar múltiples zonas de cobertura con técnicos asignados',
-    category: 'enterprise',
-    minTier: 'EMPRESA',
-    icon: 'map-pin',
-  },
   advanced_analytics: {
     id: 'advanced_analytics',
     name: 'Analítica Avanzada',
@@ -293,7 +284,7 @@ export const TIER_FEATURES: Record<SubscriptionTier, FeatureId[]> = {
     'nearest_technician',
     'fleet_management',
     'inventory_management',
-    'multi_location',
+
     'advanced_analytics',
     'customer_portal',
     'public_api',
@@ -323,7 +314,7 @@ export const ROUTE_FEATURE_MAP: RouteFeatureMapping[] = [
   { pattern: /^\/api\/vehicles\//, feature: 'fleet_management' },
   { pattern: /^\/api\/fleet\//, feature: 'fleet_management' },
   { pattern: /^\/api\/inventory\//, feature: 'inventory_management' },
-  { pattern: /^\/api\/locations\/[^/]+\//, feature: 'multi_location' }, // Multi-location operations
+
   { pattern: /^\/api\/analytics\/advanced\//, feature: 'advanced_analytics' },
   { pattern: /^\/api\/portal\//, feature: 'customer_portal' },
   { pattern: /^\/api\/v1\//, feature: 'public_api' }, // Public API endpoints
@@ -431,7 +422,7 @@ export function getTierComparison(currentTier: SubscriptionTier): Array<{
     .map(tier => ({
       tier,
       name: tier === 'INICIAL' ? 'Inicial' :
-            tier === 'PROFESIONAL' ? 'Profesional' : 'Empresa',
+        tier === 'PROFESIONAL' ? 'Profesional' : 'Empresa',
       newFeatures: getUnlockableFeatures(currentTier, tier),
     }));
 }
@@ -492,7 +483,7 @@ export const TIER_GATED_MODULES: Record<string, FeatureId> = {
   inventory: 'inventory_management',
   payments: 'mercado_pago',
   analytics: 'advanced_analytics',
-  locations: 'multi_location',
+
   whatsapp: 'whatsapp_send',
   team: 'multi_user',
 };
@@ -566,7 +557,7 @@ export const DASHBOARD_NAV: NavItem[] = [
   { id: 'fleet', label: 'Flota', href: '/dashboard/fleet', icon: 'truck', feature: 'fleet_management' },
   { id: 'inventory', label: 'Inventario', href: '/dashboard/inventory', icon: 'package', feature: 'inventory_management' },
   { id: 'dispatch', label: 'Despacho', href: '/dashboard/dispatch', icon: 'map-pin', feature: 'live_tracking' },
-  { id: 'locations', label: 'Zonas', href: '/dashboard/locations', icon: 'map-pin', feature: 'multi_location' },
+
   { id: 'whatsapp', label: 'WhatsApp', href: '/dashboard/whatsapp', icon: 'message-circle' },
   { id: 'analytics', label: 'Reportes', href: '/dashboard/analytics', icon: 'bar-chart-2', feature: 'advanced_analytics' },
   { id: 'settings', label: 'Configuración', href: '/dashboard/settings', icon: 'settings' },

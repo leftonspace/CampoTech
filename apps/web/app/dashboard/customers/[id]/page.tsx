@@ -379,7 +379,7 @@ export default function CustomerDetailPage() {
                 </a>
               )}
               <Link
-                href={`/dashboard/jobs/new?customerId=${customer.id}`}
+                href="/dashboard/jobs"
                 className="btn-primary w-full justify-center"
               >
                 <Briefcase className="mr-2 h-4 w-4" />

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
   Truck,
@@ -72,10 +73,20 @@ async function fetchVehicles(search?: string, status?: string): Promise<FleetRes
 }
 
 export default function FleetPage() {
-  const [search, setSearch] = useState('');
+  const searchParams = useSearchParams();
+  const urlSearch = searchParams.get('search') || '';
+
+  const [search, setSearch] = useState(urlSearch);
   const [statusFilter, setStatusFilter] = useState<string | undefined>();
   const [showAlerts, setShowAlerts] = useState(false);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string | null>(null);
+
+  // Sync URL search with local state
+  useEffect(() => {
+    if (urlSearch !== search) {
+      setSearch(urlSearch);
+    }
+  }, [urlSearch, search]);
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ['vehicles', search, statusFilter],

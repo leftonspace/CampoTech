@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { cn, formatCurrency, formatPhone, formatAddress, getInitials } from '@/lib/utils';
 import {
@@ -27,6 +27,7 @@ import {
 import { Customer } from '@/types';
 import CustomerProfileModal from './CustomerProfileModal';
 import NewCustomerModal from './NewCustomerModal';
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -57,6 +58,7 @@ type UltimoServicioFilter = 'all' | 'today' | 'week' | 'month' | 'older';
 
 export default function CustomersPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
@@ -88,6 +90,34 @@ export default function CustomersPage() {
 
   // Track if menu was just closed to prevent row click on same click
   const menuJustClosedRef = useRef(false);
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // GLOBAL SEARCH INTEGRATION
+  // Handle URL params for search pre-fill and auto-open modal
+  // ═══════════════════════════════════════════════════════════════════════════════
+
+  // Sync search state with URL 'search' param (for inline global search)
+  useEffect(() => {
+    const searchParam = searchParams.get('search') || '';
+    // Only update if different to avoid loops
+    if (searchParam !== search) {
+      setSearch(searchParam);
+    }
+  }, [searchParams, search]);
+
+  // Handle customer modal open from URL param
+  useEffect(() => {
+    const customerParam = searchParams.get('customer');
+
+    if (customerParam) {
+      setSelectedCustomerId(customerParam);
+      // Clean up URL after opening (remove the customer param, keep search)
+      const url = new URL(window.location.href);
+      url.searchParams.delete('customer');
+      router.replace(url.pathname + (url.searchParams.toString() ? `?${url.searchParams}` : ''), { scroll: false });
+    }
+  }, [searchParams, router]);
+
 
   // Close menus when clicking outside
   useEffect(() => {
@@ -271,7 +301,7 @@ export default function CustomersPage() {
         router.push(`/dashboard/customers/${customer.id}?edit=true`);
         break;
       case 'new-job':
-        router.push(`/dashboard/jobs/new?customerId=${customer.id}`);
+        router.push('/dashboard/jobs');
         break;
       case 'history':
         // Open modal to the jobs tab

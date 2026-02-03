@@ -114,7 +114,7 @@ interface MapDataResponse {
       todayJobsInProgress: number;
       todayJobsCompleted: number;
     };
-    zones: { id: string; name: string; code: string }[];
+    zones: never[];
     updatedAt: string;
   };
 }
@@ -364,7 +364,6 @@ const MAP_TILE_URLS: Record<MapTileType, { url: string; attribution: string; nam
 const defaultFilters: MapFilters = {
   search: '',
   technicianId: null,
-  zone: null,
   customerHasActiveJob: false,
   customerNoRecentJob: false,
   showCustomersOnly: false,
@@ -384,10 +383,9 @@ export default function LiveMapPage() {
   const getInitialFilters = (): MapFilters => {
     const search = searchParams.get('search') || '';
     const technicianId = searchParams.get('technicianId') || null;
-    const zone = searchParams.get('zone') || null;
     const customerHasActiveJob = searchParams.get('customerHasActiveJob') === 'true';
     const customerNoRecentJob = searchParams.get('customerNoRecentJob') === 'true';
-    return { ...defaultFilters, search, technicianId, zone, customerHasActiveJob, customerNoRecentJob };
+    return { ...defaultFilters, search, technicianId, customerHasActiveJob, customerNoRecentJob };
   };
 
   // State
@@ -441,9 +439,8 @@ export default function LiveMapPage() {
   const queryParams = useMemo(() => {
     const params = new URLSearchParams();
     if (filters.technicianId) params.set('technicianId', filters.technicianId);
-    if (filters.zone) params.set('zone', filters.zone);
     return params;
-  }, [filters.technicianId, filters.zone]);
+  }, [filters.technicianId]);
 
   // Query
   const { data, isLoading, error, refetch, isFetching } = useQuery({
@@ -509,7 +506,6 @@ export default function LiveMapPage() {
     const params = new URLSearchParams();
     if (filters.search) params.set('search', filters.search);
     if (filters.technicianId) params.set('technicianId', filters.technicianId);
-    if (filters.zone) params.set('zone', filters.zone);
     if (filters.customerHasActiveJob) params.set('customerHasActiveJob', 'true');
     if (filters.customerNoRecentJob) params.set('customerNoRecentJob', 'true');
 
@@ -534,10 +530,6 @@ export default function LiveMapPage() {
         todayJobsCompleted: 0,
       }
     );
-  }, [data]);
-
-  const zones = useMemo(() => {
-    return data?.data?.zones || [];
   }, [data]);
 
   const techniciansList = useMemo(() => {
@@ -879,7 +871,7 @@ export default function LiveMapPage() {
                target="_blank">
               Ver cliente →
             </a>
-            <a href="/dashboard/jobs/new?customerId=${customer.id}"
+            <a href="/dashboard/jobs"
                style="font-size: 12px; color: #10B981; text-decoration: none; display: flex; align-items: center; gap: 4px;"
                target="_blank">
               + Nuevo trabajo
@@ -1635,7 +1627,7 @@ export default function LiveMapPage() {
           message: 'No hay trabajos programados para hoy. Crea un nuevo trabajo para verlo en el mapa.',
           action: (
             <Link
-              href="/dashboard/jobs/new"
+              href="/dashboard/jobs"
               className="flex items-center gap-1 rounded bg-primary-600 px-3 py-1.5 text-sm text-white hover:bg-primary-700"
             >
               <Plus className="h-4 w-4" />
@@ -1660,7 +1652,7 @@ export default function LiveMapPage() {
               Agregar cliente
             </Link>
             <Link
-              href="/dashboard/jobs/new"
+              href="/dashboard/jobs"
               className="flex items-center gap-1 rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
             >
               <Plus className="h-4 w-4" />
@@ -1926,7 +1918,6 @@ export default function LiveMapPage() {
                   filters={filters}
                   onFiltersChange={setFilters}
                   technicians={techniciansList}
-                  zones={zones}
                   onClearFilters={() => setFilters(defaultFilters)}
                 />
               )}
@@ -2048,7 +2039,7 @@ export default function LiveMapPage() {
                   <p className="mb-3 text-xs text-gray-500">{selectedCustomer.address}</p>
                   <div className="flex flex-col gap-2">
                     <Link
-                      href={`/dashboard/jobs/new?customerId=${selectedCustomer.id}`}
+                      href="/dashboard/jobs"
                       className="flex items-center justify-center gap-1 rounded bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700"
                     >
                       <Plus className="h-3.5 w-3.5" />

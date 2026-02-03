@@ -40,24 +40,21 @@ export async function DELETE() {
 
         console.log('[Dev API] Cleaning up fake inflation data...');
 
-        // Delete all 2026-01 records (these are seeded because real data isn't available yet)
-        const deleted2026 = await prisma.inflationIndex.deleteMany({
+        // Delete all records for periods that don't have real INDEC data yet
+        // As of late January 2026:
+        // - December 2025 data is NOW published (IPC: 2.8%, ICC: 1.4%)
+        // - January 2026 data will be published Feb 10-19, 2026
+        // So we only delete >= 2026-01 (unreleased periods)
+        const deletedFuture = await prisma.inflationIndex.deleteMany({
             where: {
-                period: '2026-01',
+                period: {
+                    gte: '2026-01', // January 2026 and beyond - not yet published
+                },
             },
         });
 
-        // Also delete fake 2025-12 ICC records (real ICC for Dec 2025 not released until Jan 19)
-        // Keep only records with rate = 2.5 for CAC_ICC_GENERAL 2025-11 (real scraped)
-        const deletedFakeICC = await prisma.inflationIndex.deleteMany({
-            where: {
-                source: 'CAC_ICC_GENERAL',
-                period: '2025-12',
-            },
-        });
-
-        const totalDeleted = deleted2026.count + deletedFakeICC.count;
-        console.log(`[Dev API] Deleted ${totalDeleted} fake records (${deleted2026.count} from 2026-01, ${deletedFakeICC.count} fake ICC Dec)`);
+        const totalDeleted = deletedFuture.count;
+        console.log(`[Dev API] Deleted ${totalDeleted} fake records (future/unreleased periods)`);
 
         // Get remaining records
         const remaining = await prisma.inflationIndex.findMany({
@@ -68,10 +65,9 @@ export async function DELETE() {
         return NextResponse.json({
             success: true,
             deleted: totalDeleted,
-            message: `Removed ${totalDeleted} fake inflation records`,
+            message: `Removed ${totalDeleted} fake inflation records (future/unreleased periods)`,
             breakdown: {
-                '2026-01': deleted2026.count,
-                'fake_icc_dec': deletedFakeICC.count,
+                'future_periods': deletedFuture.count,
             },
             remaining: remaining.map((r: InflationIndexRecord) => ({
                 source: r.source,

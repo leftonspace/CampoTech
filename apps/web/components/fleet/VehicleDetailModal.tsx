@@ -85,13 +85,10 @@ const statusConfig: Record<string, { label: string; color: string; bgColor: stri
 
 const fuelTypeLabels: Record<string, string> = {
   GASOLINE: 'Nafta',
-  NAFTA: 'Nafta',
-  DIESEL: 'Diesel',
+  DIESEL: 'Diésel',
   GNC: 'GNC',
   ELECTRIC: 'Eléctrico',
-  ELECTRICO: 'Eléctrico',
   HYBRID: 'Híbrido',
-  HIBRIDO: 'Híbrido',
 };
 
 function formatDate(dateString: string | null): string {

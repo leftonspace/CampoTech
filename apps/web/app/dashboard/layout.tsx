@@ -33,7 +33,6 @@ import {
   UsersRound,
   Lock,
   Eye,
-  Search,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
@@ -43,6 +42,7 @@ import {
 import { useState, useRef, useEffect, useMemo } from 'react';
 import NotificationCenter from '@/components/notifications/NotificationCenter';
 import { HelpWidget } from '@/components/support/HelpWidget';
+import { GlobalSearch } from '@/components/search';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // NAVIGATION ITEMS
@@ -67,7 +67,6 @@ const allNavigation: NavItemDef[] = [
   { name: 'Facturas', href: '/dashboard/invoices', icon: FileText, module: 'invoices' },
   { name: 'Pagos', href: '/dashboard/payments', icon: CreditCard, module: 'payments' },
   { name: 'Análisis', href: '/dashboard/analytics/overview', icon: BarChart3, module: 'analytics' },
-  { name: 'Zonas', href: '/dashboard/locations', icon: MapPin, module: 'locations' },
   { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle, module: 'whatsapp' },
 ];
 
@@ -350,13 +349,8 @@ export default function DashboardLayout({
             </button>
 
             {/* Search */}
-            <div className="relative w-full max-w-md hidden md:block">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <input
-                type="search"
-                placeholder="Buscar trabajos, clientes..."
-                className="w-full pl-10 h-10 bg-secondary border-0 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+            <div className="hidden md:block">
+              <GlobalSearch />
             </div>
 
             <div className="flex-1 md:hidden" />
@@ -443,8 +437,8 @@ export default function DashboardLayout({
           currentTier={subscriptionTier}
         />
 
-        {/* Help Widget - Floating support button with AI chat */}
-        <HelpWidget />
+        {/* Help Widget - Floating support button with AI chat (only on main dashboard) */}
+        {pathname === '/dashboard' && <HelpWidget />}
       </div>
     </ProtectedRoute>
   );

@@ -35,7 +35,20 @@ interface Customer {
   name: string;
   phone: string;
   address?: CustomerAddress;
+  customerType?: string;
 }
+
+// Customer type labels for display
+const CUSTOMER_TYPE_LABELS: Record<string, string> = {
+  PARTICULAR: 'Particular',
+  CONSORCIO: 'Consorcio',
+  COUNTRY: 'Country',
+  COMERCIO: 'Comercio',
+  INDUSTRIAL: 'Industrial',
+  INSTITUCIONAL: 'Institucional',
+  ADMINISTRADORA: 'Administradora',
+  CONSTRUCTORA: 'Constructora',
+};
 
 // Visit structure for multi-visit jobs
 interface JobVisit {
@@ -843,7 +856,12 @@ export default function NewJobModal({
                 </div>
                 {selectedCustomer ? (
                   <div className="input flex items-center justify-between bg-gray-50">
-                    <span className="font-medium truncate">{selectedCustomer.name}</span>
+                    <span className="font-medium truncate">
+                      {selectedCustomer.name}
+                      {selectedCustomer.customerType && (
+                        <span className="text-gray-500 font-normal"> - {CUSTOMER_TYPE_LABELS[selectedCustomer.customerType] || selectedCustomer.customerType}</span>
+                      )}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setSelectedCustomer(null)}
@@ -875,8 +893,13 @@ export default function NewJobModal({
                             }}
                             className="flex w-full items-center gap-2 px-4 py-2 text-left hover:bg-gray-50"
                           >
-                            <span className="font-medium">{customer.name}</span>
-                            <span className="text-sm text-gray-500">{customer.phone}</span>
+                            <span className="font-medium">
+                              {customer.name}
+                              {customer.customerType && (
+                                <span className="text-gray-500 font-normal"> - {CUSTOMER_TYPE_LABELS[customer.customerType] || customer.customerType}</span>
+                              )}
+                            </span>
+                            <span className="text-sm text-gray-500 ml-auto">{customer.phone}</span>
                           </button>
                         ))}
                       </div>

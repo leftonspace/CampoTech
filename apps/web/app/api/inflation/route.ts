@@ -105,6 +105,54 @@ export async function GET(request: NextRequest) {
             ? Object.values(latestBySource).filter(i => i.createdAt > lastCheck).length
             : Object.values(latestBySource).length;
 
+        // ═══════════════════════════════════════════════════════════════════════════════
+        // CUMULATIVE DRIFT TRACKING
+        // Calculate the difference between official inflation applied vs actual adjustments
+        // ═══════════════════════════════════════════════════════════════════════════════
+        let cumulativeDrift = null;
+        try {
+            // Get historical adjustment events for this organization
+            const adjustmentEvents = await prisma.priceAdjustmentEvent.findMany({
+                where: { organizationId: session.organizationId },
+                orderBy: { appliedAt: 'asc' },
+                select: {
+                    appliedAt: true,
+                    indexSource: true,
+                    indexRate: true,
+                    totalAdjustment: true,
+                    itemsAffected: true,
+                },
+            });
+
+            if (adjustmentEvents.length > 0) {
+                type AdjustmentEvent = typeof adjustmentEvents[0];
+                // Sum up official index rates applied
+                const officialInflation = adjustmentEvents.reduce(
+                    (sum: number, e: AdjustmentEvent) => sum + Number(e.indexRate), 0
+                );
+                // Sum up actual adjustments applied (includes rounding effects)
+                const actualAdjustment = adjustmentEvents.reduce(
+                    (sum: number, e: AdjustmentEvent) => sum + Number(e.totalAdjustment), 0
+                );
+                // Calculate drift
+                const drift = actualAdjustment - officialInflation;
+                const firstAdjustment = adjustmentEvents[0].appliedAt;
+                const lastAdjustment = adjustmentEvents[adjustmentEvents.length - 1].appliedAt;
+
+                cumulativeDrift = {
+                    adjustmentCount: adjustmentEvents.length,
+                    officialInflation: Number(officialInflation.toFixed(2)),
+                    actualAdjustment: Number(actualAdjustment.toFixed(2)),
+                    drift: Number(drift.toFixed(2)),
+                    firstAdjustmentAt: firstAdjustment.toISOString(),
+                    lastAdjustmentAt: lastAdjustment.toISOString(),
+                };
+            }
+        } catch {
+            // If priceAdjustmentEvent table doesn't exist yet, ignore
+            console.log('[Inflation API] Could not calculate cumulative drift');
+        }
+
         // Format response
         const formattedLatest = Object.entries(latestBySource).map(([source, index]) => ({
             source,
@@ -140,6 +188,7 @@ export async function GET(request: NextRequest) {
                     lastCheck: orgSettings?.lastInflationCheck?.toISOString() || null,
                 },
                 availableUpdates,
+                cumulativeDrift, // Historical tracking of inflation vs actual adjustments
                 sources: VALID_SOURCES.map(s => ({
                     value: s,
                     label: SOURCE_LABELS[s],

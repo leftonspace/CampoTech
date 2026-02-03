@@ -1,6 +1,7 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import Image from 'next/image';
 import { api } from '@/lib/api-client';
@@ -25,6 +26,7 @@ import {
 import { OnboardingChecklist } from '@/components/dashboard';
 import { useOnboardingStatus } from '@/hooks/useOnboardingStatus';
 import { InflationAlertWidget } from '@/components/pricing';
+import NewJobModal from '@/components/jobs/NewJobModal';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -132,6 +134,8 @@ const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
 export default function DashboardPage() {
   const { user } = useAuth();
   const { isOnboardingComplete, isLoading: onboardingLoading } = useOnboardingStatus();
+  const [isNewJobModalOpen, setIsNewJobModalOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: statsData, isLoading: statsLoading } = useQuery({
     queryKey: ['dashboard-stats'],
@@ -172,10 +176,10 @@ export default function DashboardPage() {
           </h1>
           <p className="text-gray-500">Acá tenés el resumen de tu negocio hoy.</p>
         </div>
-        <Link href="/dashboard/jobs/new" className="btn-primary">
+        <button onClick={() => setIsNewJobModalOpen(true)} className="btn-primary">
           <Plus className="mr-2 h-4 w-4" />
           Nuevo trabajo
-        </Link>
+        </button>
       </div>
 
 
@@ -235,7 +239,7 @@ export default function DashboardPage() {
               </div>
             </div>
             <div className="card-content p-0">
-              <JobsTable jobs={jobs} loading={jobsLoading} />
+              <JobsTable jobs={jobs} loading={jobsLoading} onCreateJob={() => setIsNewJobModalOpen(true)} />
             </div>
           </div>
         </div>
@@ -250,7 +254,7 @@ export default function DashboardPage() {
             <div className="card-content">
               <div className="grid grid-cols-2 gap-3">
                 <QuickActionButton
-                  href="/dashboard/jobs/new"
+                  onClick={() => setIsNewJobModalOpen(true)}
                   icon={Plus}
                   label="Nuevo Trabajo"
                   primary
@@ -286,6 +290,16 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* New Job Modal */}
+      <NewJobModal
+        isOpen={isNewJobModalOpen}
+        onClose={() => setIsNewJobModalOpen(false)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+          queryClient.invalidateQueries({ queryKey: ['today-jobs'] });
+        }}
+      />
     </div>
   );
 }
@@ -340,7 +354,7 @@ function StatCard({ title, value, icon: Icon, color, trend, loading }: StatCardP
 // JOBS TABLE COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function JobsTable({ jobs, loading }: { jobs: Job[]; loading: boolean }) {
+function JobsTable({ jobs, loading, onCreateJob }: { jobs: Job[]; loading: boolean; onCreateJob: () => void }) {
   if (loading) {
     return (
       <div className="p-6 space-y-4">
@@ -356,10 +370,10 @@ function JobsTable({ jobs, loading }: { jobs: Job[]; loading: boolean }) {
       <div className="p-8 text-center">
         <Briefcase className="mx-auto h-10 w-10 text-gray-300" />
         <p className="mt-3 text-gray-500">No hay trabajos programados para hoy</p>
-        <Link href="/dashboard/jobs/new" className="btn-primary mt-4 inline-flex">
+        <button onClick={onCreateJob} className="btn-primary mt-4 inline-flex">
           <Plus className="mr-2 h-4 w-4" />
           Crear trabajo
-        </Link>
+        </button>
       </div>
     );
   }
@@ -462,23 +476,32 @@ function JobRow({ job }: { job: Job }) {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 interface QuickActionButtonProps {
-  href: string;
+  href?: string;
+  onClick?: () => void;
   icon: React.ElementType;
   label: string;
   primary?: boolean;
 }
 
-function QuickActionButton({ href, icon: Icon, label, primary }: QuickActionButtonProps) {
+function QuickActionButton({ href, onClick, icon: Icon, label, primary }: QuickActionButtonProps) {
+  const className = cn(
+    'flex flex-col items-center justify-center gap-2 rounded-lg p-4 text-center transition-all',
+    primary
+      ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+      : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border'
+  );
+
+  if (onClick) {
+    return (
+      <button onClick={onClick} className={className}>
+        <Icon className="h-5 w-5" />
+        <span className="text-sm font-medium">{label}</span>
+      </button>
+    );
+  }
+
   return (
-    <Link
-      href={href}
-      className={cn(
-        'flex flex-col items-center justify-center gap-2 rounded-lg p-4 text-center transition-all',
-        primary
-          ? 'bg-emerald-500 text-white hover:bg-emerald-600'
-          : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border'
-      )}
-    >
+    <Link href={href || '#'} className={className}>
       <Icon className="h-5 w-5" />
       <span className="text-sm font-medium">{label}</span>
     </Link>

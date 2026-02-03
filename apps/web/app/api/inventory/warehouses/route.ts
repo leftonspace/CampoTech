@@ -27,7 +27,6 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const includeInactive = searchParams.get('includeInactive') === 'true';
     const type = searchParams.get('type');
-    const locationId = searchParams.get('locationId');
     const warehouseId = searchParams.get('warehouseId');
     const includeStock = searchParams.get('includeStock') === 'true';
 
@@ -39,9 +38,6 @@ export async function GET(request: NextRequest) {
           organizationId: session.organizationId,
         },
         include: {
-          location: {
-            select: { id: true, code: true, name: true },
-          },
           storageLocations: {
             orderBy: { sortOrder: 'asc' },
           },
@@ -94,16 +90,9 @@ export async function GET(request: NextRequest) {
       where.type = type as any;
     }
 
-    if (locationId) {
-      where.locationId = locationId;
-    }
-
     const warehouses = await prisma.warehouse.findMany({
       where,
       include: {
-        location: {
-          select: { id: true, code: true, name: true },
-        },
         _count: {
           select: {
             inventoryLevels: true,
@@ -248,7 +237,6 @@ export async function POST(request: NextRequest) {
         code: body.code.toUpperCase(),
         name: body.name,
         type: body.type || 'MAIN',
-        locationId: body.locationId || null,
         address: body.address || null,
         contactName: body.contactName || null,
         contactPhone: body.contactPhone || null,
@@ -256,11 +244,6 @@ export async function POST(request: NextRequest) {
         isDefault: body.isDefault || false,
         allowNegative: body.allowNegative || false,
         isActive: body.isActive !== false,
-      },
-      include: {
-        location: {
-          select: { id: true, code: true, name: true },
-        },
       },
     });
 
@@ -359,22 +342,10 @@ export async function PATCH(request: NextRequest) {
     if (body.isDefault !== undefined) updateData.isDefault = body.isDefault;
     if (body.allowNegative !== undefined) updateData.allowNegative = body.allowNegative;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
-    if (body.locationId !== undefined) {
-      if (body.locationId) {
-        updateData.location = { connect: { id: body.locationId } };
-      } else {
-        updateData.location = { disconnect: true };
-      }
-    }
 
     const warehouse = await prisma.warehouse.update({
       where: { id: body.id },
       data: updateData,
-      include: {
-        location: {
-          select: { id: true, code: true, name: true },
-        },
-      },
     });
 
     return NextResponse.json({

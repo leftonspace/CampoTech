@@ -16,10 +16,10 @@ import {
 
 const FUEL_TYPES = [
   { value: 'GASOLINE', label: 'Nafta' },
-  { value: 'DIESEL', label: 'Diesel' },
+  { value: 'DIESEL', label: 'Diésel' },
   { value: 'GNC', label: 'GNC' },
-  { value: 'ELECTRIC', label: 'Electrico' },
-  { value: 'HYBRID', label: 'Hibrido' },
+  { value: 'ELECTRIC', label: 'Eléctrico' },
+  { value: 'HYBRID', label: 'Híbrido' },
 ];
 
 const STATUS_OPTIONS = [

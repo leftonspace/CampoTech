@@ -272,7 +272,7 @@ export function TechnicianPanel({ technician, onClose }: TechnicianPanelProps) {
           <h4 className="text-sm font-medium text-gray-700 mb-2">Acciones Rápidas</h4>
           <div className="space-y-2">
             <Link
-              href={`/dashboard/jobs/new?technicianId=${technician.id}`}
+              href="/dashboard/jobs"
               className="flex w-full items-center justify-between rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
             >
               <span className="flex items-center gap-2">

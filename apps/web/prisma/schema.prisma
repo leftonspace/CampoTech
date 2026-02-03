@@ -5,7 +5,7 @@ generator client {
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")  // Required for Supabase - pooler doesn't support migrations
+  directUrl = env("DIRECT_URL") // Required for Supabase - pooler doesn't support migrations
 }
 
 model Organization {
@@ -61,7 +61,6 @@ model Organization {
   inventoryTransactions      InventoryTransaction[]       @relation("OrgInventoryTransactions")
   invoices                   Invoice[]
   jobs                       Job[]
-  locations                  Location[]
   marketplaceClicks          MarketplaceClick[]           @relation("OrgMarketplaceClicks")
   notificationLogs           NotificationLogs[]
   notificationPreferences    NotificationPreferences[]
@@ -123,6 +122,10 @@ model Organization {
   // ═══════════════════════════════════════════════════════════════════════════════
   whatsappTemplates Json? @map("whatsapp_templates") @db.JsonB
 
+  // Note: Confirmation codes (Phase 4.4) are MANDATORY for all organizations.
+  // There is no opt-out toggle - this is a platform-wide security standard.
+
+
   @@index([subscriptionStatus])
   @@index([subscriptionTier])
   @@index([trialEndsAt])
@@ -134,23 +137,23 @@ model Organization {
 }
 
 model User {
-  id                      String                 @id @default(cuid())
-  email                   String?
-  phone                   String                 @unique
-  name                    String
-  passwordHash            String?
-  role                    UserRole               @default(TECHNICIAN)
+  id           String   @id @default(cuid())
+  email        String?
+  phone        String   @unique
+  name         String
+  passwordHash String?
+  role         UserRole @default(TECHNICIAN)
   // Legacy single specialty (for backwards compatibility)
-  specialty               String?
-  skillLevel              String?
-  
+  specialty    String?
+  skillLevel   String?
+
   // ═══════════════════════════════════════════════════════════════════════════════
   // UOCRA WAGE RATES (Phase 6.2 - Technician Hourly Wages)
   // ═══════════════════════════════════════════════════════════════════════════════
-  
+
   // UOCRA skill level determines base hourly rate from OrganizationPricingSettings
-  uocraLevel              UocraLevel             @default(NONE) @map("uocra_level")
-  
+  uocraLevel UocraLevel @default(NONE) @map("uocra_level")
+
   // Custom hourly rate override (null = use org UOCRA base rate)
   // If set, this takes precedence over the UOCRA level rate
   hourlyRateOverride      Decimal?               @map("hourly_rate_override") @db.Decimal(12, 2)
@@ -160,7 +163,6 @@ model User {
   avatar                  String?
   isActive                Boolean                @default(true)
   organizationId          String
-  homeLocationId          String?
   createdAt               DateTime               @default(now())
   updatedAt               DateTime               @updatedAt
   verificationCompletedAt DateTime?              @map("verification_completed_at")
@@ -208,15 +210,12 @@ model User {
   complianceBlocks           ComplianceBlock[]
   schedules                  EmployeeSchedule[]
   employeeVerificationTokens EmployeeVerificationToken[]
-  approvedTransfers          InterLocationTransfer[]     @relation("TransferApprover")
-  requestedTransfers         InterLocationTransfer[]     @relation("TransferRequester")
   inventoryTransactions      InventoryTransaction[]      @relation("PerformedTransactions")
   jobAssignments             JobAssignment[]             @relation("TechnicianAssignments")
   uploadedPhotos             JobPhoto[]                  @relation("PhotoUploader")
   jobVisits                  JobVisit[]                  @relation("TechnicianVisits")
   createdJobs                Job[]                       @relation("CreatorJobs")
   assignedJobs               Job[]                       @relation("TechnicianJobs")
-  managedLocations           Location[]                  @relation("LocationManager")
   notificationPreferences    NotificationPreferences?
   notifications              Notification[]
   onboardingProgress         OnboardingProgress?
@@ -228,7 +227,6 @@ model User {
   currentLocation            TechnicianLocation?         @relation("TechnicianCurrentLocation")
   technicianRoutes           TechnicianRoute[]
   trackingSessions           TrackingSession[]           @relation("TechnicianTrackingSessions")
-  homeLocation               Location?                   @relation("TechnicianHomeLocation", fields: [homeLocationId], references: [id])
   organization               Organization                @relation(fields: [organizationId], references: [id])
   vehicleAssignments         VehicleAssignment[]         @relation("UserVehicleAssignments")
   uploadedVehicleDocs        VehicleDocument[]           @relation("UploadedVehicleDocuments")
@@ -256,7 +254,6 @@ model User {
 
   @@unique([email, organizationId])
   @@index([organizationId])
-  @@index([homeLocationId])
   @@index([verificationStatus])
   @@index([canBeAssignedJobs])
   @@index([identityVerified])
@@ -275,15 +272,15 @@ model Customer {
   address            Json
   notes              String?
   organizationId     String
-  locationId         String?
-  zoneId             String?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   customerNumber     String?
   isVip              Boolean             @default(false)
-  location           Location?           @relation("CustomerLocation", fields: [locationId], references: [id])
+  
+  // Customer Type: PARTICULAR, CONSORCIO, COUNTRY, COMERCIO, INDUSTRIAL, INSTITUCIONAL, ADMINISTRADORA, CONSTRUCTORA
+  customerType       String              @default("PARTICULAR") @map("customer_type")
+  
   organization       Organization        @relation(fields: [organizationId], references: [id])
-  zone               Zone?               @relation("CustomerZone", fields: [zoneId], references: [id])
   invoices           Invoice[]
   jobs               Job[]
   reviews            Review[]
@@ -292,8 +289,7 @@ model Customer {
 
   @@index([phone])
   @@index([organizationId])
-  @@index([locationId])
-  @@index([zoneId])
+  @@index([customerType])
   @@map("customers")
 }
 
@@ -323,8 +319,6 @@ model Job {
   technicianId       String?
   createdById        String
   organizationId     String
-  locationId         String?
-  zoneId             String?
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
   durationDays       Int?
@@ -387,6 +381,16 @@ model Job {
   pricingMode      JobPricingMode @default(FIXED_TOTAL) @map("pricing_mode")
   defaultVisitRate Decimal?       @map("default_visit_rate") @db.Decimal(12, 2) // Used for PER_VISIT and HYBRID modes
 
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // CUSTOMER CONFIRMATION CODE SYSTEM (Phase 4.4)
+  // Customer receives a code via WhatsApp, technician enters it to confirm arrival
+  // Provides security verification for both parties
+  // ═══════════════════════════════════════════════════════════════════════════════
+  confirmationCode           String?   @map("confirmation_code") // 4-digit code
+  confirmationCodeSentAt     DateTime? @map("confirmation_code_sent_at")
+  confirmationCodeVerifiedAt DateTime? @map("confirmation_code_verified_at")
+  confirmationCodeAttempts   Int       @default(0) @map("confirmation_code_attempts")
+
   invoice          Invoice?
   assignments      JobAssignment[]    @relation("JobAssignments")
   materials        JobMaterial[]
@@ -394,11 +398,9 @@ model Job {
   visits           JobVisit[]         @relation("JobVisits")
   createdBy        User               @relation("CreatorJobs", fields: [createdById], references: [id])
   customer         Customer           @relation(fields: [customerId], references: [id])
-  location         Location?          @relation("JobLocation", fields: [locationId], references: [id])
   organization     Organization       @relation(fields: [organizationId], references: [id])
   technician       User?              @relation("TechnicianJobs", fields: [technicianId], references: [id])
   vehicle          Vehicle?           @relation("VehicleJobs", fields: [vehicleId], references: [id])
-  zone             Zone?              @relation("JobZone", fields: [zoneId], references: [id])
   attribution      MarketplaceClick?  @relation("JobAttribution")
   review           Review?
   stockMovements   StockMovement[]
@@ -411,8 +413,6 @@ model Job {
   @@index([scheduledDate])
   @@index([technicianId])
   @@index([organizationId])
-  @@index([locationId])
-  @@index([zoneId])
   @@index([vehicleId])
   @@index([organizationId, status])
   @@index([organizationId, scheduledDate])
@@ -573,7 +573,6 @@ model Invoice {
   jobId            String?           @unique
   customerId       String
   organizationId   String
-  locationId       String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   chargebacks      Chargeback[]
@@ -581,13 +580,11 @@ model Invoice {
   lineItems        InvoiceItem[]     @relation("InvoiceLineItems")
   customer         Customer          @relation(fields: [customerId], references: [id])
   job              Job?              @relation(fields: [jobId], references: [id])
-  location         Location?         @relation("InvoiceLocation", fields: [locationId], references: [id])
   organization     Organization      @relation(fields: [organizationId], references: [id])
   payments         Payment[]
 
   @@index([status])
   @@index([organizationId])
-  @@index([locationId])
   @@index([customerId])
   @@index([customerId, status])
   @@map("invoices")
@@ -669,8 +666,8 @@ model OtpCode {
 model PendingRegistration {
   id           String   @id @default(cuid())
   phone        String   @unique
-  cuit         String
-  businessName String
+  cuit         String?
+  businessName String?
   adminName    String
   email        String?
   expiresAt    DateTime
@@ -916,151 +913,9 @@ model Review {
   @@map("reviews")
 }
 
-model Location {
-  id             String                  @id @default(cuid())
-  organizationId String
-  code           String
-  name           String
-  type           LocationType            @default(BRANCH)
-  address        Json
-  coordinates    Json?
-  timezone       String                  @default("America/Argentina/Buenos_Aires")
-  phone          String?
-  email          String?
-  managerId      String?
-  isHeadquarters Boolean                 @default(false)
-  isActive       Boolean                 @default(true)
-  coverageRadius Int?
-  coverageArea   Json?
-  createdAt      DateTime                @default(now())
-  updatedAt      DateTime                @updatedAt
-  customers      Customer[]              @relation("CustomerLocation")
-  transfersFrom  InterLocationTransfer[] @relation("TransferFromLocation")
-  transfersTo    InterLocationTransfer[] @relation("TransferToLocation")
-  invoices       Invoice[]               @relation("InvoiceLocation")
-  jobs           Job[]                   @relation("JobLocation")
-  afipConfig     LocationAfipConfig?
-  settings       LocationSettings?
-  manager        User?                   @relation("LocationManager", fields: [managerId], references: [id])
-  organization   Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  technicians    User[]                  @relation("TechnicianHomeLocation")
-  warehouses     Warehouse[]
-  zones          Zone[]
-
-  @@unique([organizationId, code])
-  @@index([organizationId])
-  @@index([isActive])
-  @@index([type])
-  @@map("locations")
-}
-
-model Zone {
-  id          String     @id @default(cuid())
-  locationId  String
-  code        String
-  name        String
-  description String?
-  boundary    Json?
-  color       String?
-  priority    Int        @default(0)
-  isActive    Boolean    @default(true)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-  customers   Customer[] @relation("CustomerZone")
-  jobs        Job[]      @relation("JobZone")
-  location    Location   @relation(fields: [locationId], references: [id], onDelete: Cascade)
-
-  @@unique([locationId, code])
-  @@index([locationId])
-  @@index([isActive])
-  @@map("zones")
-}
-
-model LocationSettings {
-  id                  String   @id @default(cuid())
-  locationId          String   @unique
-  operatingHours      Json     @default("{}")
-  holidays            Json     @default("[]")
-  serviceRadius       Int?
-  maxJobsPerDay       Int?
-  defaultJobDuration  Int?
-  allowEmergencyJobs  Boolean  @default(true)
-  emergencyFeePercent Decimal? @db.Decimal(5, 2)
-  pricingMultiplier   Decimal  @default(1.0) @db.Decimal(5, 3)
-  travelFeePerKm      Decimal? @db.Decimal(10, 2)
-  minimumTravelFee    Decimal? @db.Decimal(10, 2)
-  notifyOnNewJob      Boolean  @default(true)
-  notifyOnJobComplete Boolean  @default(true)
-  notificationEmails  String[] @default([])
-  whatsappNumber      String?
-  whatsappBusinessId  String?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  location            Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
-
-  @@map("location_settings")
-}
-
-model LocationAfipConfig {
-  id                     String    @id @default(cuid())
-  locationId             String    @unique
-  puntoDeVenta           Int
-  tiposPuntoDeVenta      String    @default("CAJA")
-  cuit                   String?
-  razonSocial            String?
-  domicilioFiscal        Json?
-  condicionIva           String    @default("RESPONSABLE_INSCRIPTO")
-  facturaALastNumber     Int       @default(0)
-  facturaBLastNumber     Int       @default(0)
-  facturaCLastNumber     Int       @default(0)
-  notaCreditoALastNumber Int       @default(0)
-  notaCreditoBLastNumber Int       @default(0)
-  notaCreditoCLastNumber Int       @default(0)
-  certificatePath        String?
-  certificateExpiry      DateTime?
-  privateKeyPath         String?
-  wsaaToken              String?
-  wsaaTokenExpiry        DateTime?
-  isActive               Boolean   @default(true)
-  lastSyncAt             DateTime?
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
-  location               Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
-
-  @@index([puntoDeVenta])
-  @@map("location_afip_configs")
-}
-
-model InterLocationTransfer {
-  id             String         @id @default(cuid())
-  organizationId String
-  fromLocationId String
-  toLocationId   String
-  transferType   TransferType
-  referenceId    String?
-  reason         String?
-  notes          String?
-  amount         Decimal?       @db.Decimal(10, 2)
-  status         TransferStatus @default(PENDING)
-  requestedById  String
-  approvedById   String?
-  requestedAt    DateTime       @default(now())
-  approvedAt     DateTime?
-  completedAt    DateTime?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  approvedBy     User?          @relation("TransferApprover", fields: [approvedById], references: [id])
-  fromLocation   Location       @relation("TransferFromLocation", fields: [fromLocationId], references: [id])
-  requestedBy    User           @relation("TransferRequester", fields: [requestedById], references: [id])
-  toLocation     Location       @relation("TransferToLocation", fields: [toLocationId], references: [id])
-
-  @@index([organizationId])
-  @@index([fromLocationId])
-  @@index([toLocationId])
-  @@index([status])
-  @@index([transferType])
-  @@map("inter_location_transfers")
-}
+// ═══════════════════════════════════════════════════════════════════════════════
+// INVENTORY MODELS
+// ═══════════════════════════════════════════════════════════════════════════════
 
 model ProductCategory {
   id             String            @id @default(cuid())
@@ -1155,7 +1010,6 @@ model ProductVariant {
 model Warehouse {
   id                 String             @id @default(cuid())
   organizationId     String
-  locationId         String?
   code               String
   name               String
   type               WarehouseType      @default(MAIN)
@@ -1176,13 +1030,11 @@ model Warehouse {
   stockMovementsTo   StockMovement[]    @relation("MovementToWarehouse")
   stockReservations  StockReservation[]
   storageLocations   StorageLocation[]
-  location           Location?          @relation(fields: [locationId], references: [id])
   organization       Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   vehicle            Vehicle?           @relation("VehicleWarehouse", fields: [vehicleId], references: [id])
 
   @@unique([organizationId, code])
   @@index([organizationId])
-  @@index([locationId])
   @@index([vehicleId])
   @@map("warehouses")
 }
@@ -2142,15 +1994,15 @@ model PriceItem {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model PriceItemRelation {
-  id            String   @id @default(cuid())
-  sourceItemId  String   @map("source_item_id")
-  relatedItemId String   @map("related_item_id")
-  
+  id            String @id @default(cuid())
+  sourceItemId  String @map("source_item_id")
+  relatedItemId String @map("related_item_id")
+
   // Relation strength (can be used for ordering suggestions)
-  weight        Int      @default(1) // Higher = stronger relationship
-  
-  createdAt     DateTime @default(now()) @map("created_at")
-  createdById   String?  @map("created_by_id")
+  weight Int @default(1) // Higher = stronger relationship
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  createdById String?  @map("created_by_id")
 
   // Relations
   sourceItem  PriceItem @relation("SourceItem", fields: [sourceItemId], references: [id], onDelete: Cascade)
@@ -2338,16 +2190,16 @@ model OrganizationPricingSettings {
 
   // Base hourly rate for Oficial (highest skill)
   uocraOficialRate Decimal? @map("uocra_oficial_rate") @db.Decimal(12, 2)
-  
+
   // Base hourly rate for Medio Oficial (mid skill)
   uocraMedioOficialRate Decimal? @map("uocra_medio_oficial_rate") @db.Decimal(12, 2)
-  
+
   // Base hourly rate for Ayudante (helper)
   uocraAyudanteRate Decimal? @map("uocra_ayudante_rate") @db.Decimal(12, 2)
-  
+
   // Last time UOCRA rates were updated (manual update, notify when stale)
   uocraRatesUpdatedAt DateTime? @map("uocra_rates_updated_at")
-  
+
   // Remind owner to check UOCRA paritarias? (every 3-4 months)
   uocraReminderEnabled Boolean @default(true) @map("uocra_reminder_enabled")
 
@@ -2370,28 +2222,28 @@ model OrganizationPricingSettings {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 model OrganizationLaborRate {
-  id             String   @id @default(cuid())
-  organizationId String   @map("organization_id")
-  
+  id             String @id @default(cuid())
+  organizationId String @map("organization_id")
+
   // Trade specialty (GASISTA, ELECTRICISTA, ALBANIL, etc.)
-  specialty      String   @map("specialty")
-  
+  specialty String @map("specialty")
+
   // Category/level within the trade (1RA, CAT_A, OFICIAL, etc.)
-  category       String   @map("category")
-  
+  category String @map("category")
+
   // Hourly rate in ARS
-  hourlyRate     Decimal  @map("hourly_rate") @db.Decimal(12, 2)
-  
+  hourlyRate Decimal @map("hourly_rate") @db.Decimal(12, 2)
+
   // Optional notes (e.g., "Includes tools", "Minimum 4 hours")
-  notes          String?
-  
+  notes String?
+
   // Last updated (for wage revision tracking)
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  createdAt      DateTime @default(now()) @map("created_at")
-  
+  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
   // Relations
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   // Unique constraint: one rate per specialty+category per org
   @@unique([organizationId, specialty, category])
   @@index([organizationId])
@@ -3416,10 +3268,10 @@ enum UserRole {
 // Based on UOCRA collective bargaining categories
 // ═══════════════════════════════════════════════════════════════════════════════
 enum UocraLevel {
-  OFICIAL        // Skilled worker (highest)
-  MEDIO_OFICIAL  // Semi-skilled worker
-  AYUDANTE       // Helper (lowest)
-  NONE           // Not applicable (e.g., electricians with their own union)
+  OFICIAL // Skilled worker (highest)
+  MEDIO_OFICIAL // Semi-skilled worker
+  AYUDANTE // Helper (lowest)
+  NONE // Not applicable (e.g., electricians with their own union)
 
   @@map("uocra_level")
 }
@@ -3679,30 +3531,6 @@ enum VoiceMessageStatus {
   NEEDS_REVIEW
   APPROVED
   REJECTED
-}
-
-enum LocationType {
-  HEADQUARTERS
-  BRANCH
-  WAREHOUSE
-  SERVICE_POINT
-}
-
-enum TransferType {
-  JOB_ASSIGNMENT
-  TECHNICIAN_LOAN
-  CUSTOMER_REFERRAL
-  RESOURCE_SHARE
-  FINANCIAL
-}
-
-enum TransferStatus {
-  PENDING
-  APPROVED
-  IN_PROGRESS
-  COMPLETED
-  REJECTED
-  CANCELLED
 }
 
 enum ProductType {
@@ -5135,16 +4963,16 @@ model ScrapeSchedule {
   source InflationIndexSource @unique
 
   // Last successful scrape info
-  lastScrapedAt    DateTime? @map("last_scraped_at")
-  lastScrapedPeriod String?  @map("last_scraped_period") // "2025-12" format
+  lastScrapedAt     DateTime? @map("last_scraped_at")
+  lastScrapedPeriod String?   @map("last_scraped_period") // "2025-12" format
 
   // Next expected report date (from INDEC "Próximo informe técnico")
   nextReportDate DateTime? @map("next_report_date")
 
   // Scrape status tracking
-  scrapeAttempts    Int       @default(0) @map("scrape_attempts") // Attempts on current report day
-  lastAttemptAt     DateTime? @map("last_attempt_at")
-  lastError         String?   @map("last_error")
+  scrapeAttempts Int       @default(0) @map("scrape_attempts") // Attempts on current report day
+  lastAttemptAt  DateTime? @map("last_attempt_at")
+  lastError      String?   @map("last_error")
 
   // Flags
   isWaitingForUpdate Boolean @default(false) @map("is_waiting_for_update") // True on report day until new data found

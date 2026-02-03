@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import Link from 'next/link';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft,
   ChevronRight,
   Plus,
   RefreshCw,
+  Users,
+  Check,
 } from 'lucide-react';
 import { CalendarView, CalendarEvent } from '@/components/calendar/CalendarView';
 import { JobCard } from '@/components/calendar/JobCard';
+import NewJobModal from '@/components/jobs/NewJobModal';
 import { getBuenosAiresNow, formatDisplayDate } from '@/lib/timezone';
 
 interface Technician {
@@ -52,6 +54,21 @@ export default function CalendarPage() {
   const [selectedTechnicianId, setSelectedTechnicianId] = useState<string | undefined>();
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | null>(() => getBuenosAiresNow());
+  const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
+  const [isNewJobModalOpen, setIsNewJobModalOpen] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const queryClient = useQueryClient();
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setFilterDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Calculate date range based on view
   const dateRange = useMemo(() => {
@@ -138,13 +155,13 @@ export default function CalendarPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Link
-            href="/dashboard/jobs/new"
+          <button
+            onClick={() => setIsNewJobModalOpen(true)}
             className="flex items-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700"
           >
             <Plus className="h-4 w-4" />
             Nuevo Trabajo
-          </Link>
+          </button>
         </div>
       </div>
 
@@ -187,14 +204,85 @@ export default function CalendarPage() {
                 key={v}
                 onClick={() => setView(v)}
                 className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${view === v
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
                 {v === 'day' ? 'Día' : v === 'week' ? 'Semana' : 'Mes'}
               </button>
             ))}
           </div>
+
+          {/* Technician filter dropdown */}
+          {technicians.length > 1 && (
+            <div className="relative" ref={filterDropdownRef}>
+              <button
+                onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+                className={`relative rounded-lg p-2 transition-colors ${selectedTechnicianId
+                  ? 'bg-primary-100 text-primary-600'
+                  : 'text-gray-500 hover:bg-gray-100'
+                  }`}
+                title="Filtrar por técnico"
+              >
+                <Users className="h-5 w-5" />
+                {selectedTechnicianId && (
+                  <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary-600 border-2 border-white" />
+                )}
+              </button>
+
+              {filterDropdownOpen && (
+                <div className="absolute right-0 top-full mt-2 z-50 w-64 rounded-lg bg-white shadow-lg border border-gray-200 py-2">
+                  <div className="px-3 py-2 border-b border-gray-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-gray-900">Filtrar por técnico</span>
+                      {selectedTechnicianId && (
+                        <button
+                          onClick={() => {
+                            setSelectedTechnicianId(undefined);
+                            setFilterDropdownOpen(false);
+                          }}
+                          className="text-xs text-primary-600 hover:underline"
+                        >
+                          Limpiar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    <button
+                      onClick={() => {
+                        setSelectedTechnicianId(undefined);
+                        setFilterDropdownOpen(false);
+                      }}
+                      className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors ${!selectedTechnicianId
+                        ? 'bg-primary-50 text-primary-700'
+                        : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                    >
+                      {!selectedTechnicianId && <Check className="h-4 w-4 text-primary-600" />}
+                      <span className={!selectedTechnicianId ? '' : 'ml-6'}>Todos los técnicos</span>
+                    </button>
+                    {technicians.map((tech) => (
+                      <button
+                        key={tech.id}
+                        onClick={() => {
+                          setSelectedTechnicianId(tech.id);
+                          setFilterDropdownOpen(false);
+                        }}
+                        className={`w-full px-3 py-2 text-left text-sm flex items-center gap-2 transition-colors ${selectedTechnicianId === tech.id
+                          ? 'bg-primary-50 text-primary-700'
+                          : 'text-gray-700 hover:bg-gray-50'
+                          }`}
+                      >
+                        {selectedTechnicianId === tech.id && <Check className="h-4 w-4 text-primary-600" />}
+                        <span className={selectedTechnicianId === tech.id ? '' : 'ml-6'}>{tech.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <button
             onClick={() => refetch()}
@@ -206,45 +294,7 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Technician filter pills - only show when there are multiple team members */}
-      {technicians.length > 1 && (
-        <div className="mb-4 rounded-lg bg-white p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-medium text-gray-900">Filtrar por técnico</h3>
-            {selectedTechnicianId && (
-              <button
-                onClick={() => setSelectedTechnicianId(undefined)}
-                className="text-sm text-primary-600 hover:underline"
-              >
-                Limpiar filtros
-              </button>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => setSelectedTechnicianId(undefined)}
-              className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${!selectedTechnicianId
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-            >
-              Todos
-            </button>
-            {technicians.map((tech) => (
-              <button
-                key={tech.id}
-                onClick={() => setSelectedTechnicianId(tech.id)}
-                className={`rounded-full px-3 py-1 text-sm font-medium transition-colors ${selectedTechnicianId === tech.id
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-              >
-                {tech.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+
 
       {/* Calendar */}
       <div className="flex-1 rounded-lg bg-white shadow-sm overflow-hidden">
@@ -266,6 +316,15 @@ export default function CalendarPage() {
           onClose={() => setSelectedEvent(null)}
         />
       )}
+
+      {/* New Job Modal */}
+      <NewJobModal
+        isOpen={isNewJobModalOpen}
+        onClose={() => setIsNewJobModalOpen(false)}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+        }}
+      />
     </div>
   );
 }

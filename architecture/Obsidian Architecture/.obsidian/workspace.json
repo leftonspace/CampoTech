@@ -27,12 +27,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "02_App/AI/AI Architecture Deep Dive.md",
+                "file": "02_App/Operations/Technician Verification Security.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "AI Architecture Deep Dive"
+              "title": "Technician Verification Security"
             }
           }
         ],
@@ -210,6 +210,7 @@
   },
   "active": "f48d3605ffb5866b",
   "lastOpenFiles": [
+    "02_App/AI/AI Architecture Deep Dive.md",
     "02_App/AI/Staff Help AI.md",
     "02_App/AI/Public AI Chat.md",
     "02_App/AI/AI Systems Overview.md",
@@ -236,7 +237,6 @@
     "00_Flows/App Onboarding.md",
     "00_Flows/Login Flow.md",
     "Sitemap.canvas",
-    "README.md",
     "02_App/Communication",
     "02_App/Admin",
     "02_App/Operations",

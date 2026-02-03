@@ -1,16 +1,27 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { cn, formatCurrency, formatDate, PAYMENT_STATUS_LABELS, PAYMENT_STATUS_COLORS } from '@/lib/utils';
 import { Search, ChevronRight, CreditCard, RefreshCw, AlertTriangle } from 'lucide-react';
 import { Payment } from '@/types';
 
 export default function PaymentsPage() {
-  const [search, setSearch] = useState('');
+  const searchParams = useSearchParams();
+  const urlSearch = searchParams.get('search') || '';
+
+  const [search, setSearch] = useState(urlSearch);
   const [statusFilter, setStatusFilter] = useState('');
+
+  // Sync URL search with local state
+  useEffect(() => {
+    if (urlSearch !== search) {
+      setSearch(urlSearch);
+    }
+  }, [urlSearch, search]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['payments', { search, status: statusFilter }],
