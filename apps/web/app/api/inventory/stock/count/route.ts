@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma, TransactionClient } from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
+import { validateBody, stockCountCreateSchema } from '@/lib/validation/api-schemas';
 
 /**
  * POST /api/inventory/stock/count
@@ -36,14 +37,16 @@ export async function POST(request: NextRequest) {
 
     // Create new count
     if (action === 'create') {
-      const { warehouseId, countType, productIds, assignedToId, scheduledAt, notes } = body;
-
-      if (!warehouseId) {
+      // Validate request body with Zod
+      const validation = validateBody(body, stockCountCreateSchema);
+      if (!validation.success) {
         return NextResponse.json(
-          { success: false, error: 'warehouseId es requerido' },
+          { success: false, error: validation.error },
           { status: 400 }
         );
       }
+
+      const { warehouseId, countType, productIds, assignedToId, scheduledAt, notes } = validation.data;
 
       // Verify warehouse exists
       const warehouse = await prisma.warehouse.findFirst({

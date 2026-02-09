@@ -13,6 +13,7 @@ export type AuditAction =
   | 'LOGIN'
   | 'LOGOUT'
   | 'EXPORT'
+  | 'ORG_SWITCH' // Security Fix: LOW-2 from Phase 6 Authorization Audit
   | 'acknowledgment_accepted'
   | 'verification_submit'
   | 'document_upload'

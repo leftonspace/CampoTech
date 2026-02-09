@@ -8,6 +8,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 // import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { validateBody, supplierSchema, supplierProductSchema } from '@/lib/validation/api-schemas';
 
 /**
  * GET /api/inventory/suppliers
@@ -233,16 +234,18 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const action = body.action;
 
-    // Add product to supplier
+    // Add product to supplier - validate with supplierProductSchema
     if (action === 'addProduct') {
-      const { supplierId, productId, supplierSku, supplierPrice, leadTimeDays } = body;
-
-      if (!supplierId || !productId) {
+      // Validate supplier product association
+      const productValidation = validateBody(body, supplierProductSchema);
+      if (!productValidation.success) {
         return NextResponse.json(
-          { success: false, error: 'supplierId y productId son requeridos' },
+          { success: false, error: productValidation.error },
           { status: 400 }
         );
       }
+
+      const { supplierId, productId, supplierSku, supplierPrice, leadTimeDays } = productValidation.data;
 
       const supplierProduct = await prisma.supplierProduct.create({
         data: {
@@ -265,6 +268,15 @@ export async function POST(request: NextRequest) {
         data: supplierProduct,
         message: 'Producto agregado al proveedor',
       });
+    }
+
+    // Validate main supplier creation/update
+    const validation = validateBody(body, supplierSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
     }
 
     // Create new supplier
@@ -364,6 +376,15 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
+
+    // Validate request body with Zod
+    const validation = validateBody(body, supplierSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
 
     if (!body.id) {
       return NextResponse.json(

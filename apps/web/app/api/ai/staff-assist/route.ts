@@ -17,6 +17,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getAIStaffAssistant, StaffAssistantAction } from '@/lib/services/ai-staff-assistant';
 import { prisma } from '@/lib/prisma';
+// Phase 8 Security: Rate limiting (P3)
+import { checkCombinedAILimits, getRateLimitHeaders } from '@/lib/ai';
 
 const VALID_ACTIONS: StaffAssistantAction[] = [
   'draft_response',
@@ -39,6 +41,17 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
     const { conversationId, action, query, context } = body;
+
+    // Phase 8 Security: Rate limit AI requests (P3)
+    if (session.organizationId) {
+      const rateLimit = await checkCombinedAILimits(session.userId, session.organizationId, 'staff_assist');
+      if (!rateLimit.success) {
+        return NextResponse.json(
+          { error: rateLimit.error || 'Rate limit exceeded' },
+          { status: 429, headers: getRateLimitHeaders(rateLimit) }
+        );
+      }
+    }
 
     // Validate required fields
     if (!conversationId) {

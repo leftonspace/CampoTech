@@ -78,15 +78,11 @@ export async function POST(request: NextRequest) {
       subscriptionStatus: user.organization.subscriptionStatus,
     });
 
-    // For simplicity, use same token as refresh token
-    const refreshToken = accessToken;
-
     // Create response with user data
     const response = NextResponse.json({
       success: true,
       data: {
         accessToken,
-        refreshToken,
         user: {
           id: user.id,
           name: user.name,
@@ -102,14 +98,21 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Also set token as HTTP cookie for reliability
+    // SECURITY FIX (CRIT-2): Set secure HTTP-only cookies
+    // - httpOnly: true prevents XSS token theft
+    // - sameSite: strict prevents CSRF
+    // - 24h expiration aligned with login endpoint
     response.cookies.set('auth-token', accessToken, {
-      httpOnly: false, // Allow JS access for now
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      sameSite: 'strict',
+      maxAge: 60 * 60 * 24, // 24 hours (aligned with login)
       path: '/',
     });
+
+    // Note: Refresh tokens will be properly implemented once database
+    // tables are created (CRIT-1 remediation). For now, users should
+    // re-authenticate via OTP after 24h.
 
     return response;
   } catch (error) {

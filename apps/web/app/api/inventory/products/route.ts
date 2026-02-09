@@ -1,14 +1,116 @@
 /**
  * Products API Route
  * Full inventory product management implementation
+ * 
+ * Security: Zod validation + XSS sanitization (Feb 2026 hardening)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-// import { Prisma } from '@prisma/client';
+import { z } from 'zod';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { InventoryService } from '@/src/services/inventory.service';
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECURITY: XSS Sanitization
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Strip HTML tags from a string to prevent XSS attacks.
+ * This is a simple regex-based sanitizer that removes all HTML tags.
+ * For rich text, consider using DOMPurify on the frontend.
+ */
+function stripHtml(input: string | null | undefined): string | null {
+  if (!input) return null;
+  // Remove all HTML tags
+  return input
+    .replace(/<[^>]*>/g, '')  // Remove HTML tags
+    .replace(/&lt;/g, '<')     // Decode common entities for re-stripping
+    .replace(/&gt;/g, '>')
+    .replace(/<[^>]*>/g, '')   // Second pass after entity decode
+    .trim();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECURITY: Zod Validation Schemas
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const MAX_PRICE = 999_999_999;  // ~1 billion ARS max
+const MAX_STOCK = 999_999;      // Max stock quantity
+const MAX_STRING_LENGTH = 500;  // Max description length
+
+/**
+ * Product creation schema with strict validation rules.
+ * Prevents negative prices, stock levels, and enforces reasonable limits.
+ */
+const createProductSchema = z.object({
+  // Required fields
+  name: z.string().min(1, 'Nombre es requerido').max(255, 'Nombre muy largo'),
+  sku: z.string().min(1, 'SKU es requerido').max(50, 'SKU muy largo'),
+
+  // Optional text fields
+  description: z.string().max(MAX_STRING_LENGTH, 'Descripción muy larga').optional().nullable(),
+  barcode: z.string().max(50).optional().nullable(),
+  brand: z.string().max(100).optional().nullable(),
+  model: z.string().max(100).optional().nullable(),
+  categoryId: z.string().uuid().optional().nullable(),
+
+  // Pricing - must be nonnegative with reasonable max
+  salePrice: z.number()
+    .nonnegative('Precio de venta no puede ser negativo')
+    .max(MAX_PRICE, `Precio de venta no puede superar ${MAX_PRICE.toLocaleString()}`)
+    .optional()
+    .default(0),
+  costPrice: z.number()
+    .nonnegative('Costo no puede ser negativo')
+    .max(MAX_PRICE, `Costo no puede superar ${MAX_PRICE.toLocaleString()}`)
+    .optional()
+    .default(0),
+  marginPercent: z.number().min(-100).max(1000).optional().nullable(),
+  taxRate: z.number().min(0).max(100).optional().default(21.0),
+
+  // Stock levels - must be nonnegative integers
+  minStockLevel: z.number()
+    .int('Stock mínimo debe ser un número entero')
+    .nonnegative('Stock mínimo no puede ser negativo')
+    .max(MAX_STOCK, `Stock mínimo no puede superar ${MAX_STOCK.toLocaleString()}`)
+    .optional()
+    .default(0),
+  maxStockLevel: z.number()
+    .int('Stock máximo debe ser un número entero')
+    .nonnegative('Stock máximo no puede ser negativo')
+    .max(MAX_STOCK, `Stock máximo no puede superar ${MAX_STOCK.toLocaleString()}`)
+    .optional()
+    .nullable(),
+  reorderQty: z.number().int().nonnegative().max(MAX_STOCK).optional().nullable(),
+  initialStock: z.number()
+    .int('Stock inicial debe ser un número entero')
+    .nonnegative('Stock inicial no puede ser negativo')
+    .max(MAX_STOCK, `Stock inicial no puede superar ${MAX_STOCK.toLocaleString()}`)
+    .optional()
+    .default(0),
+
+  // Enums and types
+  productType: z.enum(['PART', 'CONSUMABLE', 'SERVICE', 'TOOL', 'EQUIPMENT']).optional().default('PART'),
+  unitOfMeasure: z.string().max(20).optional().default('UNIDAD'),
+
+  // Booleans
+  trackInventory: z.boolean().optional().default(true),
+  isActive: z.boolean().optional().default(true),
+  isSerialTracked: z.boolean().optional().default(false),
+
+  // Physical attributes
+  weight: z.number().nonnegative().optional().nullable(),
+  dimensions: z.string().max(100).optional().nullable(),
+
+  // Media
+  imageUrl: z.string().url().optional().nullable(),
+  images: z.array(z.string().url()).optional().default([]),
+
+  // Warehouse for initial stock
+  warehouseId: z.string().uuid().optional().nullable(),
+});
 
 /**
  * GET /api/inventory/products
@@ -181,6 +283,10 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/inventory/products
  * Create a new product
+ * 
+ * Security hardening (Feb 2026):
+ * - Zod validation for all fields (prevents negative prices, enforces limits)
+ * - XSS sanitization for description field
  */
 export async function POST(request: NextRequest) {
   try {
@@ -201,15 +307,45 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body = await request.json();
+    const rawBody = await request.json();
 
-    // Validate required fields
-    if (!body.name || !body.sku) {
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SECURITY LAYER 1: Zod Schema Validation
+    // ═══════════════════════════════════════════════════════════════════════════
+    const parseResult = createProductSchema.safeParse(rawBody);
+
+    if (!parseResult.success) {
+      // Extract the first validation error for user-friendly message
+      const firstError = parseResult.error.errors[0];
+      const errorMessage = firstError
+        ? `${firstError.path.join('.')}: ${firstError.message}`
+        : 'Datos de producto inválidos';
+
+      console.warn('[Product Create] Validation failed:', parseResult.error.errors);
+
       return NextResponse.json(
-        { success: false, error: 'Nombre y SKU son requeridos' },
+        {
+          success: false,
+          error: errorMessage,
+          validationErrors: parseResult.error.errors.map(e => ({
+            field: e.path.join('.'),
+            message: e.message,
+          })),
+        },
         { status: 400 }
       );
     }
+
+    // Use validated data from now on
+    const body = parseResult.data;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // SECURITY LAYER 2: XSS Sanitization for text fields
+    // ═══════════════════════════════════════════════════════════════════════════
+    const sanitizedDescription = stripHtml(body.description);
+    const sanitizedBrand = stripHtml(body.brand);
+    const sanitizedModel = stripHtml(body.model);
+    const sanitizedDimensions = stripHtml(body.dimensions);
 
     // Check if SKU already exists
     const existingProduct = await prisma.product.findFirst({
@@ -226,33 +362,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create product
+    // Create product with validated and sanitized data
     const product = await prisma.product.create({
       data: {
         organizationId: session.organizationId,
         sku: body.sku,
         barcode: body.barcode || null,
-        name: body.name,
-        description: body.description || null,
-        brand: body.brand || null,
-        model: body.model || null,
+        name: body.name, // Required field, no HTML stripping (typically plain text)
+        description: sanitizedDescription, // ✅ XSS sanitized
+        brand: sanitizedBrand,             // ✅ XSS sanitized
+        model: sanitizedModel,             // ✅ XSS sanitized
         categoryId: body.categoryId || null,
-        productType: body.productType || 'PART',
-        unitOfMeasure: body.unitOfMeasure || 'UNIDAD',
-        costPrice: body.costPrice || 0,
-        salePrice: body.salePrice || 0,
+        productType: body.productType,
+        unitOfMeasure: body.unitOfMeasure,
+        costPrice: body.costPrice,         // ✅ Zod validated (nonnegative)
+        salePrice: body.salePrice,         // ✅ Zod validated (nonnegative)
         marginPercent: body.marginPercent || null,
-        taxRate: body.taxRate || 21.0,
-        trackInventory: body.trackInventory !== false,
-        minStockLevel: body.minStockLevel || 0,
+        taxRate: body.taxRate,
+        trackInventory: body.trackInventory,
+        minStockLevel: body.minStockLevel, // ✅ Zod validated (nonnegative int)
         maxStockLevel: body.maxStockLevel || null,
         reorderQty: body.reorderQty || null,
         weight: body.weight || null,
-        dimensions: body.dimensions || null,
+        dimensions: sanitizedDimensions,   // ✅ XSS sanitized
         imageUrl: body.imageUrl || null,
-        images: body.images || [],
-        isActive: body.isActive !== false,
-        isSerialTracked: body.isSerialTracked || false,
+        images: body.images,
+        isActive: body.isActive,
+        isSerialTracked: body.isSerialTracked,
       },
       include: {
         category: {
@@ -287,8 +423,8 @@ export async function POST(request: NextRequest) {
             warehouseId: targetWarehouseId,
             quantityOnHand: body.initialStock,
             quantityAvailable: body.initialStock,
-            unitCost: body.costPrice || 0,
-            totalCost: (body.costPrice || 0) * body.initialStock,
+            unitCost: body.costPrice,
+            totalCost: body.costPrice * body.initialStock,
           },
         });
 
@@ -303,8 +439,8 @@ export async function POST(request: NextRequest) {
             quantity: body.initialStock,
             direction: 'IN',
             toWarehouseId: targetWarehouseId,
-            unitCost: body.costPrice || 0,
-            totalCost: (body.costPrice || 0) * body.initialStock,
+            unitCost: body.costPrice,
+            totalCost: body.costPrice * body.initialStock,
             notes: 'Stock inicial al crear producto',
           },
         });

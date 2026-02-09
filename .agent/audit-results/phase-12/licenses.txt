@@ -1,0 +1,2 @@
+﻿Need to install the following packages:
+license-checker@25.0.1

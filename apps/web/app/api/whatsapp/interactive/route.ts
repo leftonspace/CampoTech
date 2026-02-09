@@ -7,6 +7,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { WhatsAppClient } from '@/src/integrations/whatsapp/client';
+import { validateBody } from '@/lib/validation/api-schemas';
+import { z } from 'zod';
 
 interface InteractiveButton {
   id: string;
@@ -38,24 +40,47 @@ export async function POST(request: NextRequest) {
     const organizationId = session.organizationId;
     const body = await request.json();
 
+    // Zod validation schema
+    const interactiveSchema = z.object({
+      type: z.enum(['button', 'list']),
+      phone: z.string().min(1).max(20),
+      conversationId: z.string().uuid().optional(),
+      bodyText: z.string().min(1).max(1024),
+      headerText: z.string().max(60).optional(),
+      footerText: z.string().max(60).optional(),
+      buttons: z.array(z.object({
+        id: z.string().max(256),
+        title: z.string().max(20),
+      })).max(3).optional(),
+      buttonText: z.string().max(20).optional(),
+      sections: z.array(z.object({
+        title: z.string().max(24),
+        rows: z.array(z.object({
+          id: z.string().max(200),
+          title: z.string().max(24),
+          description: z.string().max(72).optional(),
+        })),
+      })).optional(),
+    });
+
+    const validation = validateBody(body, interactiveSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
+
     const {
       type,
       phone,
-      conversationId: _conversationId,
       bodyText,
       headerText,
       footerText,
       buttons,
       buttonText,
       sections,
-    } = body;
-
-    if (!type || !phone || !bodyText) {
-      return NextResponse.json(
-        { success: false, error: 'Type, phone, and body text are required' },
-        { status: 400 }
-      );
-    }
+    } = validation.data;
 
     if (type === 'button' && (!buttons || buttons.length === 0)) {
       return NextResponse.json(
@@ -99,7 +124,7 @@ export async function POST(request: NextRequest) {
 
     if (type === 'button') {
       // Send button message
-      if (buttons.length > 3) {
+      if (buttons!.length > 3) {
         return NextResponse.json(
           { success: false, error: 'Maximum 3 buttons allowed' },
           { status: 400 }
@@ -134,7 +159,7 @@ export async function POST(request: NextRequest) {
       result = await client.sendListMessage(
         phone,
         bodyText,
-        buttonText,
+        buttonText!,
         (sections as ListSection[]).map((section) => ({
           title: section.title,
           rows: section.rows.map((row) => ({

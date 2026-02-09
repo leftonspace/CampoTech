@@ -8,6 +8,7 @@ export interface CustomerFilter {
     phone?: string;
     tag?: string;
     filter?: 'vip' | 'new' | 'frequent';
+    customerType?: string;
     createdAfter?: Date;
     createdBefore?: Date;
 }
@@ -26,12 +27,17 @@ export class CustomerService {
      * Supports accent-insensitive search for Argentine names (Pérez, González, etc.)
      */
     static async listCustomers(orgId: string, filters: CustomerFilter = {}, pagination: PaginationOptions = {}) {
-        const { search, email, phone, tag, filter, createdAfter, createdBefore } = filters;
+        const { search, email, phone, tag, filter, customerType, createdAfter, createdBefore } = filters;
         const { page = 1, limit = 20, sort = 'createdAt', order = 'desc' } = pagination;
 
         const where: any = {
             organizationId: orgId,
         };
+
+        // Customer type filter
+        if (customerType) {
+            where.customerType = customerType;
+        }
 
         // Note: We intentionally don't apply search filter in the DB query
         // to enable accent-insensitive matching (e.g., "perez" finds "Pérez")

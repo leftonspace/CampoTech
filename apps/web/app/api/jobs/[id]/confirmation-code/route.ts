@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getConfirmationCodeService } from '@/lib/services/confirmation-code.service';
+import { validateBody, confirmationCodeSchema } from '@/lib/validation/api-schemas';
 
 interface RouteParams {
     params: Promise<{ id: string }>;
@@ -75,14 +76,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         }
 
         const body = await request.json();
-        const { code } = body;
 
-        if (!code || typeof code !== 'string') {
+        // Validate request body with Zod
+        const validation = validateBody(body, confirmationCodeSchema);
+        if (!validation.success) {
             return NextResponse.json(
-                { success: false, error: 'Code is required' },
+                { success: false, error: validation.error },
                 { status: 400 }
             );
         }
+
+        const { code } = validation.data;
 
         const service = getConfirmationCodeService();
         const result = await service.verifyCode(id, code);

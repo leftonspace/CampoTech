@@ -192,6 +192,7 @@ export const api = {
       adminName: string;
       phone: string;
       email?: string;
+      selectedPlan?: string;
       // Ley 25.326 consent fields
       dataTransferConsent?: boolean;
       termsAccepted?: boolean;
@@ -204,10 +205,9 @@ export const api = {
 
     verifyRegistration: (phone: string, code: string) =>
       apiRequest<{
-        accessToken: string;
-        refreshToken: string;
-        user: unknown;
-        isNewUser: boolean;
+        registrationTicket: string;
+        selectedPlan?: string;
+        adminName?: string;
       }>('/auth/register/verify', {
         method: 'POST',
         body: { phone, code },

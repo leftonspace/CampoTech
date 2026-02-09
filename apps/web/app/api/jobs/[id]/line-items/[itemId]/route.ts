@@ -35,7 +35,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
                 id: jobId,
                 organizationId: session.organizationId,
             },
-            select: { id: true, pricingLockedAt: true },
+            select: { id: true, pricingLockedAt: true, status: true },
         });
 
         if (!job) {
@@ -45,9 +45,9 @@ export async function PUT(request: NextRequest, context: RouteContext) {
             );
         }
 
-        if (job.pricingLockedAt) {
+        if (job.pricingLockedAt || job.status === 'COMPLETED' || job.status === 'CANCELLED') {
             return NextResponse.json(
-                { success: false, error: 'El precio está bloqueado (ya se generó factura)' },
+                { success: false, error: 'No se puede modificar un trabajo terminado o cancelado' },
                 { status: 403 }
             );
         }
@@ -152,7 +152,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
                 id: jobId,
                 organizationId: session.organizationId,
             },
-            select: { id: true, pricingLockedAt: true },
+            select: { id: true, pricingLockedAt: true, status: true },
         });
 
         if (!job) {
@@ -162,9 +162,9 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
             );
         }
 
-        if (job.pricingLockedAt) {
+        if (job.pricingLockedAt || job.status === 'COMPLETED' || job.status === 'CANCELLED') {
             return NextResponse.json(
-                { success: false, error: 'El precio está bloqueado (ya se generó factura)' },
+                { success: false, error: 'No se puede modificar un trabajo terminado o cancelado' },
                 { status: 403 }
             );
         }

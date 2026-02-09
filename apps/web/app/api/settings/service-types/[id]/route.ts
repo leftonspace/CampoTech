@@ -10,6 +10,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 // import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { validateBody, serviceTypeUpdateSchema } from '@/lib/validation/api-schemas';
 
 function isTableNotFoundError(error: unknown): boolean {
   return (
@@ -90,7 +91,17 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, description, color, icon, sortOrder, isActive } = body;
+
+    // Validate request body with Zod
+    const validation = validateBody(body, serviceTypeUpdateSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
+
+    const { name, description, color, icon, sortOrder, isActive } = validation.data;
 
     // Check service type exists and belongs to organization
     const existing = await prisma.serviceTypeConfig.findFirst({

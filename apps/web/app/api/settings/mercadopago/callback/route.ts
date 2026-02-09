@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { createEncryptedMPSettings } from '@/lib/services/credential-encryption';
 
 const MP_TOKEN_URL = 'https://api.mercadopago.com/oauth/token';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'http://localhost:3000';
@@ -136,26 +137,11 @@ export async function GET(request: NextRequest) {
             ? JSON.parse(organization.settings)
             : organization.settings || {};
 
-        // Store tokens in settings (encrypted storage recommended for production)
-        // Note: In production, use encryption service for access_token and refresh_token
-        const mpSettings = {
-            // Connection info
-            connected: true,
-            connectedAt: new Date().toISOString(),
-            // Token info (should be encrypted in production)
-            accessToken: tokens.access_token,
-            refreshToken: tokens.refresh_token,
-            expiresIn: tokens.expires_in,
-            tokenType: tokens.token_type,
-            // Account info
-            userId: tokens.user_id,
-            publicKey: tokens.public_key,
-            liveMode: tokens.live_mode,
-            // User display info
-            email: userInfo?.email || null,
-            firstName: userInfo?.first_name || null,
-            lastName: userInfo?.last_name || null,
-        };
+        // ═══════════════════════════════════════════════════════════════════════
+        // PHASE 4 SECURITY REMEDIATION (Finding 1):
+        // Encrypt OAuth tokens at rest using AES-256-GCM with org-bound AAD
+        // ═══════════════════════════════════════════════════════════════════════
+        const mpSettings = createEncryptedMPSettings(tokens, userInfo, organizationId);
 
         // Update organization settings
         await prisma.organization.update({

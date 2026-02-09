@@ -45,6 +45,25 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             );
         }
 
+        // Phase 10 Security: Check terminal state before allowing job start
+        const TERMINAL_STATES = ['COMPLETED', 'CANCELLED'];
+        if (TERMINAL_STATES.includes(existing.status)) {
+            console.warn('[SECURITY] Job start terminal state violation:', {
+                jobId: id,
+                currentStatus: existing.status,
+                userId: session.userId,
+                timestamp: new Date().toISOString(),
+            });
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: `No se puede iniciar un trabajo ${existing.status === 'COMPLETED' ? 'completado' : 'cancelado'}`,
+                    terminalStateBlocked: true,
+                },
+                { status: 403 }
+            );
+        }
+
         // Verify the user is assigned to this job (for technicians)
         const isAssigned = existing.technicianId === session.userId ||
             existing.assignments.some((a: { technicianId: string }) => a.technicianId === session.userId);

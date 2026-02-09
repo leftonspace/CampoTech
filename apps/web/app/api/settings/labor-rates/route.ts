@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
+import { validateBody, laborRateBulkSchema, laborRateSchema } from '@/lib/validation/api-schemas';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Types
@@ -63,14 +64,16 @@ export async function POST(request: NextRequest) {
         const session = await requireAuth();
         const body = await request.json() as LaborRate;
 
-        const { specialty, category, hourlyRate, notes } = body;
-
-        if (!specialty || !category || hourlyRate === undefined) {
+        // Validate request body with Zod
+        const validation = validateBody(body, laborRateSchema);
+        if (!validation.success) {
             return NextResponse.json(
-                { success: false, error: 'Especialidad, categoría y tarifa son requeridos' },
+                { success: false, error: validation.error },
                 { status: 400 }
             );
         }
+
+        const { specialty, category, hourlyRate, notes } = validation.data;
 
         // Upsert - create if not exists, update if exists
         const rate = await prisma.organizationLaborRate.upsert({
@@ -116,14 +119,16 @@ export async function PUT(request: NextRequest) {
         const session = await requireAuth();
         const body = await request.json() as { rates: LaborRate[] };
 
-        const { rates } = body;
-
-        if (!rates || !Array.isArray(rates)) {
+        // Validate request body with Zod
+        const validation = validateBody(body, laborRateBulkSchema);
+        if (!validation.success) {
             return NextResponse.json(
-                { success: false, error: 'Lista de tarifas requerida' },
+                { success: false, error: validation.error },
                 { status: 400 }
             );
         }
+
+        const { rates } = validation.data;
 
         // Use transaction for bulk update
         const results = await prisma.$transaction(

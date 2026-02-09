@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { UserRole } from '@/lib/config/field-permissions';
+import { validateBody } from '@/lib/validation/api-schemas';
+import { z } from 'zod';
 
 export async function GET(request: NextRequest) {
   try {
@@ -116,27 +118,27 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { entityType, entityId, fieldName, currentValue, requestedValue, reason, documentUrls } = body;
 
-    // Validate required fields
-    if (!entityType || !entityId || !fieldName || !requestedValue || !reason) {
+    // Zod validation schema
+    const changeRequestSchema = z.object({
+      entityType: z.enum(['organization', 'user', 'customer', 'vehicle', 'product']),
+      entityId: z.string().uuid(),
+      fieldName: z.string().min(1).max(100),
+      currentValue: z.string().max(1000).optional().nullable(),
+      requestedValue: z.string().min(1).max(1000),
+      reason: z.string().min(1).max(1000),
+      documentUrls: z.array(z.string().url()).optional(),
+    });
+
+    const validation = validateBody(body, changeRequestSchema);
+    if (!validation.success) {
       return NextResponse.json(
-        {
-          success: false,
-          error: 'Faltan campos requeridos: entityType, entityId, fieldName, requestedValue, reason',
-        },
+        { success: false, error: validation.error },
         { status: 400 }
       );
     }
 
-    // Validate entity type
-    const validEntityTypes = ['organization', 'user', 'customer', 'vehicle', 'product'];
-    if (!validEntityTypes.includes(entityType)) {
-      return NextResponse.json(
-        { success: false, error: `Tipo de entidad invalido. Tipos validos: ${validEntityTypes.join(', ')}` },
-        { status: 400 }
-      );
-    }
+    const { entityType, entityId, fieldName, currentValue, requestedValue, reason, documentUrls } = validation.data;
 
     // Insert using raw query
     const result = await prisma.$queryRaw`

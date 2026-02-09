@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { validateBody, mercadopagoSettingsSchema } from '@/lib/validation/api-schemas';
 
 interface MPSettings {
   connected?: boolean;
@@ -108,7 +109,17 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { accessToken, publicKey, environment } = body;
+
+    // Validate request body with Zod
+    const validation = validateBody(body, mercadopagoSettingsSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
+
+    const { accessToken, publicKey, environment } = validation.data;
 
     // Get current organization settings
     const organization = await prisma.organization.findUnique({

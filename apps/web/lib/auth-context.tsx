@@ -21,7 +21,7 @@ interface AuthContextValue {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (phone: string, code: string) => Promise<{ success: boolean; error?: string }>;
-  register: (phone: string, code: string) => Promise<{ success: boolean; error?: string }>;
+  register: (phone: string, code: string) => Promise<{ success: boolean; error?: string; registrationTicket?: string }>;
   logout: () => Promise<void>;
   requestOtp: (phone: string) => Promise<{ success: boolean; error?: string }>;
 }
@@ -88,52 +88,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(async (phone: string, code: string) => {
-      const response = await api.auth.verifyOtp(phone, code);
+    const response = await api.auth.verifyOtp(phone, code);
 
-      console.log('Login response:', JSON.stringify(response, null, 2));
-
-      if (response.success && response.data) {
-        const data = response.data as {
-          accessToken: string;
-          refreshToken: string;
-          user: User;
-        };
-
-        console.log('Setting tokens, accessToken length:', data.accessToken?.length);
-        setTokens(data.accessToken, data.refreshToken);
-
-        // Verify tokens were stored
-        const storedToken = localStorage.getItem('accessToken');
-        console.log('Stored token length:', storedToken?.length);
-
-        // Fetch full user data (including subscriptionTier) from /api/auth/me
-        try {
-          const meResponse = await api.auth.me();
-          if (meResponse.success && meResponse.data) {
-            console.log('Setting full user data from /me endpoint');
-            setUser(meResponse.data as User);
-          } else {
-            // Fallback to login response user data
-            setUser(data.user);
-          }
-        } catch {
-          // Fallback to login response user data
-          setUser(data.user);
-        }
-
-        return { success: true };
-      }
-
-      return {
-        success: false,
-        error: response.error?.message || 'Código incorrecto',
-      };
-    }, []);
-
-  const register = useCallback(async (phone: string, code: string) => {
-    const response = await api.auth.verifyRegistration(phone, code);
-
-    console.log('Register response:', JSON.stringify(response, null, 2));
+    console.log('Login response:', JSON.stringify(response, null, 2));
 
     if (response.success && response.data) {
       const data = response.data as {
@@ -142,16 +99,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         user: User;
       };
 
-      console.log('Setting tokens after registration');
+      console.log('Setting tokens, accessToken length:', data.accessToken?.length);
       setTokens(data.accessToken, data.refreshToken);
-      setUser(data.user);
+
+      // Verify tokens were stored
+      const storedToken = localStorage.getItem('accessToken');
+      console.log('Stored token length:', storedToken?.length);
+
+      // Fetch full user data (including subscriptionTier) from /api/auth/me
+      try {
+        const meResponse = await api.auth.me();
+        if (meResponse.success && meResponse.data) {
+          console.log('Setting full user data from /me endpoint');
+          setUser(meResponse.data as User);
+        } else {
+          // Fallback to login response user data
+          setUser(data.user);
+        }
+      } catch {
+        // Fallback to login response user data
+        setUser(data.user);
+      }
 
       return { success: true };
     }
 
     return {
       success: false,
-      error: response.error?.message || 'Error al completar el registro',
+      error: response.error?.message || 'Código incorrecto',
+    };
+  }, []);
+
+  const register = useCallback(async (phone: string, code: string): Promise<{ success: boolean; error?: string; registrationTicket?: string }> => {
+    const response = await api.auth.verifyRegistration(phone, code);
+
+    console.log('Register response:', JSON.stringify(response, null, 2));
+
+    if (response.success && response.data) {
+      const data = response.data as {
+        registrationTicket: string;
+        selectedPlan?: string;
+        adminName?: string;
+      };
+
+      // Don't set tokens yet — account hasn't been created
+      // The registrationTicket is used by the checkout modal or skip flow
+      // to finalize registration via /api/auth/register/complete
+      return { success: true, registrationTicket: data.registrationTicket };
+    }
+
+    return {
+      success: false,
+      error: response.error?.message || 'Error al verificar el código',
     };
   }, []);
 

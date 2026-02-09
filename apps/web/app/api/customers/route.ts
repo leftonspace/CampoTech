@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get('page') || '1');
     const filter = searchParams.get('filter'); // 'vip' | 'new' | 'frequent' | null
     const sort = searchParams.get('sort'); // 'name' | 'jobs' | 'revenue' | 'recent'
+    const customerType = searchParams.get('customerType'); // Customer type filter
 
     const organizationId = session.organizationId;
 
@@ -43,6 +44,7 @@ export async function GET(request: NextRequest) {
       search: search || undefined,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       filter: filter as any,
+      customerType: customerType || undefined,
     }, {
       page,
       limit,

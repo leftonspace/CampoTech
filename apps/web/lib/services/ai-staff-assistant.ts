@@ -25,6 +25,12 @@ import {
   createWorkflowContext,
 } from './workflows';
 import { ExtractedEntities } from './workflows/base-workflow';
+// Phase 8 Security: Prompt sanitization (P2)
+import {
+  sanitizeConversationHistory,
+  sanitizeStaffQuery,
+  logInjectionAttempt,
+} from '@/lib/ai';
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES
@@ -109,6 +115,11 @@ function buildStaffAssistantPrompt(
   businessContext: string,
   staffQuery?: string
 ): string {
+  // Phase 8 Security: Sanitize user-controlled inputs (P2)
+  const sanitizedHistory = sanitizeConversationHistory(conversationHistory);
+  const sanitizedQuery = staffQuery ? sanitizeStaffQuery(staffQuery) : undefined;
+  if (staffQuery) logInjectionAttempt(staffQuery, 'staff');
+
   const baseInstructions = `Sos un asistente de IA para el personal de la empresa.
 Tu rol es AYUDAR al staff, no reemplazarlo. Todo lo que sugieras será revisado antes de enviarse.
 
@@ -116,9 +127,9 @@ CONTEXTO DE LA EMPRESA:
 ${businessContext}
 
 HISTORIAL DE CONVERSACIÍ“N CON EL CLIENTE:
-${conversationHistory}
+${sanitizedHistory}
 
-${staffQuery ? `CONSULTA DEL STAFF: "${staffQuery}"` : ''}`;
+${sanitizedQuery ? `CONSULTA DEL STAFF: "${sanitizedQuery}"` : ''}`;
 
   const actionInstructions: Record<StaffAssistantAction, string> = {
     draft_response: `

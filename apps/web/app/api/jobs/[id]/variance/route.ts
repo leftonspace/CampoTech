@@ -74,6 +74,25 @@ export async function POST(
             );
         }
 
+        // Phase 10 Security: Check terminal state before allowing variance operations
+        const TERMINAL_STATES = ['COMPLETED', 'CANCELLED'];
+        if (TERMINAL_STATES.includes(job.status)) {
+            console.warn('[SECURITY] Variance route terminal state violation:', {
+                jobId: jobId,
+                currentStatus: job.status,
+                userId: session.userId,
+                timestamp: new Date().toISOString(),
+            });
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: `No se puede modificar variación de un trabajo ${job.status === 'COMPLETED' ? 'completado' : 'cancelado'}`,
+                    terminalStateBlocked: true,
+                },
+                { status: 403 }
+            );
+        }
+
         // Check if variance has already been resolved
         if (job.varianceApprovedAt || job.varianceRejectedAt) {
             return NextResponse.json(

@@ -61,18 +61,20 @@ export async function POST(request: NextRequest) {
     });
 
     // New access token (24h)
+    // SECURITY FIX (MEDIUM-8): sameSite=strict for enhanced CSRF protection
     response.cookies.set('auth-token', tokenPair.accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 60 * 60 * 24, // 24 hours
     });
 
     // New refresh token (7 days) - rotated for security
+    // SECURITY FIX (MEDIUM-8): sameSite=strict for enhanced CSRF protection
     response.cookies.set('refresh-token', tokenPair.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       path: '/api/auth/refresh',
       maxAge: 60 * 60 * 24 * REFRESH_TOKEN_EXPIRY_DAYS,
     });

@@ -4,7 +4,13 @@
  *
  * Platform-aware wrapper for storing sensitive data.
  * - Native (iOS/Android): Uses expo-secure-store with device encryption
- * - Web: Uses localStorage (less secure, but functional)
+ * - Web: Uses httpOnly cookies via API (SECURITY FIX MEDIUM-10)
+ * 
+ * SECURITY FIX (MEDIUM-10): Web platform now uses:
+ * 1. httpOnly cookies (managed by server, inaccessible to JS)
+ * 2. sessionStorage fallback for non-token data (cleared on tab close)
+ * 
+ * This prevents XSS token theft on web platform.
  */
 
 import { Platform } from 'react-native';
@@ -17,14 +23,30 @@ const KEYS = {
   PUSH_TOKEN: 'campotech_push_token',
 } as const;
 
+// Sensitive keys that should NOT be stored in JS-accessible storage on web
+const SENSITIVE_KEYS = [KEYS.ACCESS_TOKEN, KEYS.REFRESH_TOKEN] as const;
+
 // ============================================================================
 // Platform-aware low-level storage functions
+// SECURITY FIX (MEDIUM-10): Web now uses sessionStorage for non-sensitive data
+// and relies on httpOnly cookies for tokens (managed server-side)
 // ============================================================================
 
 async function getItem(key: string): Promise<string | null> {
   if (Platform.OS === 'web') {
+    // SECURITY FIX (MEDIUM-10): Tokens are now managed via httpOnly cookies
+    // The auth-token cookie is set by the server with httpOnly=true
+    // Client JS cannot and should not access these tokens directly
+    if (SENSITIVE_KEYS.includes(key as typeof SENSITIVE_KEYS[number])) {
+      // Return null - tokens are handled via httpOnly cookies
+      // The API client should rely on cookie-based auth
+      console.warn(`[SecureStore] Token ${key} is managed via httpOnly cookies on web. Use cookie-based auth.`);
+      return null;
+    }
+
+    // Use sessionStorage for non-sensitive data (cleared on tab close)
     try {
-      return localStorage.getItem(key);
+      return sessionStorage.getItem(key);
     } catch {
       return null;
     }
@@ -35,8 +57,15 @@ async function getItem(key: string): Promise<string | null> {
 
 async function setItem(key: string, value: string): Promise<void> {
   if (Platform.OS === 'web') {
+    // SECURITY FIX (MEDIUM-10): Tokens should not be stored in JS-accessible storage
+    if (SENSITIVE_KEYS.includes(key as typeof SENSITIVE_KEYS[number])) {
+      console.warn(`[SecureStore] Token ${key} should be managed via httpOnly cookies on web. Ignoring setItem.`);
+      return;
+    }
+
+    // Use sessionStorage for non-sensitive data
     try {
-      localStorage.setItem(key, value);
+      sessionStorage.setItem(key, value);
     } catch {
       // Ignore storage errors on web
     }
@@ -48,8 +77,15 @@ async function setItem(key: string, value: string): Promise<void> {
 
 async function deleteItem(key: string): Promise<void> {
   if (Platform.OS === 'web') {
+    // SECURITY FIX (MEDIUM-10): Tokens should be cleared via logout API
+    if (SENSITIVE_KEYS.includes(key as typeof SENSITIVE_KEYS[number])) {
+      // To clear httpOnly cookies, call the logout endpoint
+      console.warn(`[SecureStore] Token ${key} should be cleared via /api/auth/logout on web.`);
+      return;
+    }
+
     try {
-      localStorage.removeItem(key);
+      sessionStorage.removeItem(key);
     } catch {
       // Ignore storage errors on web
     }
@@ -61,6 +97,8 @@ async function deleteItem(key: string): Promise<void> {
 
 // ============================================================================
 // Token Management
+// SECURITY NOTE: On web, tokens are managed via httpOnly cookies.
+// These functions work normally on native, but are no-ops on web.
 // ============================================================================
 
 export async function getAccessToken(): Promise<string | null> {
@@ -123,9 +161,19 @@ export async function setPushToken(token: string): Promise<void> {
 
 // ============================================================================
 // Auth State
+// SECURITY FIX (MEDIUM-10): On web, call /api/auth/logout to clear httpOnly cookies
 // ============================================================================
 
 export async function clearAuth(): Promise<void> {
+  if (Platform.OS === 'web') {
+    // On web, we need to call the logout API to clear httpOnly cookies
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch {
+      // Continue with local cleanup even if logout fails
+    }
+  }
+
   await Promise.all([
     deleteItem(KEYS.ACCESS_TOKEN),
     deleteItem(KEYS.REFRESH_TOKEN),
@@ -135,6 +183,17 @@ export async function clearAuth(): Promise<void> {
 }
 
 export async function isAuthenticated(): Promise<boolean> {
+  if (Platform.OS === 'web') {
+    // On web, check auth via API since we can't access httpOnly cookies
+    try {
+      const response = await fetch('/api/auth/session', { credentials: 'include' });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
   const token = await getAccessToken();
   return token !== null;
 }
+

@@ -1,7 +1,18 @@
+/**
+ * Voice API Route
+ * ===============
+ * 
+ * POST /api/voice - Upload voice message for transcription
+ * 
+ * Security Fix: MEDIUM-2 from Phase 6 Authorization Audit
+ * - Added authentication check - this endpoint handles user data
+ * - Only authenticated technicians can upload voice messages
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
-// import { z } from 'zod'; // Assuming zod is used for validation
-import { prisma } from '@/lib/prisma'; // Assuming prisma client location
-import { dispatch } from '@/lib/queue'; // Use the new dispatcher
+import { getSession } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
+import { dispatch } from '@/lib/queue';
 
 // Schema for Voice Upload
 // const voiceUploadSchema = z.object({
@@ -13,9 +24,19 @@ import { dispatch } from '@/lib/queue'; // Use the new dispatcher
 
 export async function POST(req: NextRequest) {
     try {
+        // Security Fix: MEDIUM-2 - Require authentication for voice uploads
+        const session = await getSession();
+        if (!session) {
+            return NextResponse.json(
+                { success: false, error: 'Unauthorized' },
+                { status: 401 }
+            );
+        }
+
         const formData = await req.formData();
         const audioFile = formData.get('audio') as File;
-        const technicianId = formData.get('technicianId') as string;
+        // Use authenticated user's ID instead of trusting client input
+        const technicianId = session.userId;
         const context = formData.get('context') as string || 'JOB_CREATION';
         const referenceId = formData.get('referenceId') as string | undefined;
 

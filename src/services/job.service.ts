@@ -1,6 +1,66 @@
 import { prisma } from '../lib/prisma';
 import { Prisma } from '@prisma/client';
 
+// Phase 10 Security: Terminal state guards
+const TERMINAL_JOB_STATES = ['COMPLETED', 'CANCELLED'] as const;
+
+function isJobTerminal(status: string): boolean {
+    return TERMINAL_JOB_STATES.includes(status as typeof TERMINAL_JOB_STATES[number]);
+}
+
+class TerminalStateError extends Error {
+    constructor(entityType: string, status: string, entityId?: string) {
+        const statusText = status === 'COMPLETED' ? 'completado' : 'cancelado';
+        super(`No se puede modificar un trabajo ${statusText}`);
+        this.name = 'TerminalStateError';
+    }
+}
+
+// Phase 10 Security: Valid state transitions map
+const VALID_TRANSITIONS: Record<string, string[]> = {
+    'PENDING': ['ASSIGNED', 'CANCELLED'],
+    'ASSIGNED': ['PENDING', 'EN_ROUTE', 'IN_PROGRESS', 'CANCELLED'],
+    'EN_ROUTE': ['IN_PROGRESS', 'CANCELLED'],
+    'IN_PROGRESS': ['COMPLETED', 'CANCELLED'],
+    'COMPLETED': [],  // Terminal - no transitions allowed
+    'CANCELLED': [],  // Terminal - no transitions allowed
+};
+
+class InvalidTransitionError extends Error {
+    constructor(fromStatus: string, toStatus: string) {
+        super(`Transición de estado inválida: ${fromStatus} → ${toStatus}`);
+        this.name = 'InvalidTransitionError';
+    }
+}
+
+function validateStatusTransition(fromStatus: string, toStatus: string): void {
+    const validTargets = VALID_TRANSITIONS[fromStatus] || [];
+    if (!validTargets.includes(toStatus)) {
+        console.warn('[SECURITY] Invalid status transition attempt:', {
+            fromStatus,
+            toStatus,
+            validTargets,
+            timestamp: new Date().toISOString(),
+        });
+        throw new InvalidTransitionError(fromStatus, toStatus);
+    }
+}
+
+function logTerminalStateViolation(
+    entityType: string,
+    entityId: string,
+    currentStatus: string,
+    attemptedAction: string
+): void {
+    console.warn('[SECURITY] Terminal state violation attempt:', {
+        entityType,
+        entityId,
+        currentStatus,
+        attemptedAction,
+        timestamp: new Date().toISOString(),
+    });
+}
+
 /**
  * Parse a date string with optional time as Argentina timezone.
  * 
@@ -348,8 +408,20 @@ export class JobService {
 
     /**
      * Update a job
+     * Phase 10 Security: Validates terminal state before allowing updates
      */
     static async updateJob(orgId: string, id: string, data: any) {
+        // Phase 10 Security: Check terminal state before update
+        const existing = await prisma.job.findFirst({
+            where: { id, organizationId: orgId },
+            select: { status: true },
+        });
+
+        if (existing && isJobTerminal(existing.status)) {
+            logTerminalStateViolation('job', id, existing.status, 'updateJob');
+            throw new TerminalStateError('job', existing.status, id);
+        }
+
         return prisma.job.update({
             where: { id, organizationId: orgId },
             data,
@@ -363,10 +435,20 @@ export class JobService {
 
     /**
      * Delete a job
+     * Phase 10 Security: Validates terminal state before allowing deletion
      */
     static async deleteJob(orgId: string, id: string) {
-        // Need to delete related assignments and visits first if they aren't CASCADE
-        // Actually Prisma handles this if specified in schema, but let's be safe or just use delete
+        // Phase 10 Security: Check terminal state before delete
+        const existing = await prisma.job.findFirst({
+            where: { id, organizationId: orgId },
+            select: { status: true },
+        });
+
+        if (existing && isJobTerminal(existing.status)) {
+            logTerminalStateViolation('job', id, existing.status, 'deleteJob');
+            throw new TerminalStateError('job', existing.status, id);
+        }
+
         return prisma.job.delete({
             where: { id, organizationId: orgId }
         });
@@ -374,9 +456,29 @@ export class JobService {
 
     /**
      * Update job status generically with automatic timestamp handling
+     * Phase 10 Security: Validates terminal state and state transitions before allowing changes
      */
     static async updateJobStatus(orgId: string, id: string, status: string, additionalData: any = {}) {
+        // Phase 10 Security: Check if job is in terminal state
+        const existing = await prisma.job.findFirst({
+            where: { id, organizationId: orgId },
+            select: { status: true },
+        });
+
+        if (!existing) {
+            throw new Error('Job not found');
+        }
+
+        if (isJobTerminal(existing.status)) {
+            logTerminalStateViolation('job', id, existing.status, `updateJobStatus to ${status}`);
+            throw new TerminalStateError('job', existing.status, id);
+        }
+
         const dbStatus = status.toUpperCase();
+
+        // Phase 10 Security: Validate state transition is allowed
+        validateStatusTransition(existing.status, dbStatus);
+
         const data: any = {
             status: dbStatus as any,
             ...additionalData
@@ -387,6 +489,8 @@ export class JobService {
             data.startedAt = new Date();
         } else if (dbStatus === 'COMPLETED') {
             data.completedAt = new Date();
+        } else if (dbStatus === 'CANCELLED') {
+            data.cancelledAt = new Date();
         }
 
         return prisma.job.update({

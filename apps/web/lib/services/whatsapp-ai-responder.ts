@@ -24,6 +24,8 @@ import {
   getBookingWorkflow,
   createWorkflowContext,
 } from './workflows';
+// Phase 8 Security: Response validation and sanitization (P2, P4)
+import { parseAIAnalysis } from '@/lib/ai';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -719,19 +721,8 @@ export class WhatsAppAIResponder {
         throw new Error('Empty response from AI');
       }
 
-      const parsed = JSON.parse(content) as AIAnalysis;
-
-      // Validate and sanitize
-      return {
-        intent: parsed.intent || 'other',
-        confidence: Math.min(100, Math.max(0, parsed.confidence || 50)),
-        extractedEntities: parsed.extractedEntities || {},
-        suggestedResponse: parsed.suggestedResponse || 'Disculpá, no pude procesar tu mensaje. ¿Podrías repetirlo?',
-        shouldCreateJob: parsed.shouldCreateJob || false,
-        shouldTransfer: parsed.shouldTransfer || false,
-        transferReason: parsed.transferReason,
-        warnings: parsed.warnings || [],
-      };
+      // Phase 8 Security: Use Zod-validated parsing with safe defaults (P4)
+      return parseAIAnalysis(content);
     } catch (error) {
       console.error('AI analysis failed:', error);
       return {

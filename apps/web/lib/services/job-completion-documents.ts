@@ -38,6 +38,7 @@ export interface DocumentDeliveryResult {
 export interface DeliveryOptions {
     jobId: string;
     organizationId: string;
+    ratingToken?: string | null;
     sendReport?: boolean;
     sendInvoice?: boolean;
     customMessage?: string;
@@ -104,7 +105,7 @@ async function uploadPDFToStorage(
 export async function sendCompletionDocuments(
     options: DeliveryOptions
 ): Promise<DocumentDeliveryResult> {
-    const { jobId, organizationId, sendReport = true, sendInvoice = true, customMessage } = options;
+    const { jobId, organizationId, ratingToken, sendReport = true, sendInvoice = true, customMessage } = options;
     const errors: string[] = [];
 
     let reportSent = false;
@@ -253,13 +254,18 @@ export async function sendCompletionDocuments(
             }
         }
 
-        // 3. Send thank you message
+        // 3. Build rating link if token available
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://campo.tech';
+        const ratingLink = ratingToken ? `${baseUrl}/rate/${ratingToken}` : null;
+
+        // 4. Send thank you message with rating link
         const thankYouMessage = customMessage ||
             `¡Hola ${customerName}! 👋\n\n` +
             `Gracias por confiar en ${companyName}. ` +
             `Tu trabajo #${job.jobNumber} ha sido completado.\n\n` +
             (reportSent ? '📋 Te enviamos el reporte del trabajo.\n' : '') +
             (invoiceSent ? '🧾 Te enviamos la factura correspondiente.\n' : '') +
+            (ratingLink ? `\n⭐ ¿Cómo te fue? Dejanos tu opinión:\n${ratingLink}\n` : '') +
             `\n¿Tenés alguna consulta? Respondé este mensaje y te ayudamos. 🙌`;
 
         await whatsapp.sendMessage(customerPhone, thankYouMessage);
@@ -312,10 +318,7 @@ export async function isReadyForDocumentDelivery(
         return { ready: false, reason: 'Job not completed' };
     }
 
-    if (!job.customerSignature) {
-        return { ready: false, reason: 'No customer signature' };
-    }
-
+    // Removed signature requirement - most jobs complete without formal signature
     // Ready to send report (invoice is optional)
     return { ready: true };
 }
@@ -326,7 +329,8 @@ export async function isReadyForDocumentDelivery(
  */
 export async function queueDocumentDelivery(
     jobId: string,
-    organizationId: string
+    organizationId: string,
+    ratingToken?: string | null
 ): Promise<{ queued: boolean; error?: string }> {
     try {
         // Check if ready
@@ -341,6 +345,7 @@ export async function queueDocumentDelivery(
         await dispatch('job.sendDocuments', {
             jobId,
             organizationId,
+            ratingToken,
         }, {
             maxRetries: 3,
         });

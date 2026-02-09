@@ -103,7 +103,7 @@ function HeroSection() {
           <div className="flex items-center justify-center gap-6 mt-8 text-sm text-muted-foreground flex-wrap">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-success" />
-              14 días gratis, sin tarjeta
+              21 días gratis, sin tarjeta
             </div>
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-success" />
@@ -1457,7 +1457,7 @@ function PricingSection() {
               </ul>
 
               <Link
-                href="/signup"
+                href={`/signup?plan=${plan.name.toUpperCase()}`}
                 className={`mt-8 block w-full text-center py-3 px-4 rounded-lg font-medium transition-colors ${plan.popular
                   ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                   : 'bg-muted text-foreground hover:bg-muted/80'
@@ -1465,6 +1465,9 @@ function PricingSection() {
               >
                 {plan.cta}
               </Link>
+              <p className="mt-3 text-center text-xs text-muted-foreground">
+                21 días de prueba gratis · Sin tarjeta
+              </p>
             </div>
           ))}
         </div>
@@ -1491,7 +1494,7 @@ function CTASection() {
           Empezá a organizar tu negocio hoy
         </h2>
         <p className="text-xl text-primary-foreground/80 mb-8">
-          14 días de prueba gratis. Sin compromisos. Cancelá cuando quieras.
+          21 días de prueba gratis. Sin compromisos. Cancelá cuando quieras.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link

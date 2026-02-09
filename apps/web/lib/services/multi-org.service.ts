@@ -461,6 +461,18 @@ class MultiOrgService {
                 return { success: false, error: memberResult.error };
             }
 
+            // Auto-create BusinessPublicProfile for marketplace (non-blocking)
+            import('./business-profile.service').then(({ createBusinessProfile }) => {
+                createBusinessProfile({
+                    organizationId: organization.id,
+                    displayName: orgData.name,
+                    whatsappNumber: orgData.phone || '',
+                    phone: orgData.phone,
+                }).catch((err) => {
+                    console.error('[MultiOrg] Failed to create business profile:', organization.id, err);
+                });
+            });
+
             return { success: true, organizationId: organization.id };
         } catch (error) {
             console.error('[MultiOrg] Error creating organization:', error);

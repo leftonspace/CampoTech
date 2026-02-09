@@ -128,6 +128,20 @@ CampoTech implements three distinct AI systems:
 
 ---
 
+## 🔧 Infrastructure & Monitoring
+
+System health, capacity monitoring, and DevOps documentation.
+
+| System | Location | Status | Description |
+|:---|:---|:---:|:---|
+| [[System Health and Capacity]] | `02_App/Infrastructure/` | 🟢 | Unified health + capacity monitoring |
+
+### Quick Health Check Links
+- **Local:** [System Status](http://localhost:3000/api/system/capacity?format=text) | [Health Check](http://localhost:3000/api/health)
+- **Production:** [System Status](https://campo-tech-rho.vercel.app/api/system/capacity?format=simple) | [Health Check](https://campo-tech-rho.vercel.app/api/health)
+
+---
+
 ## 🧩 Components
 
 Reusable UI components documented.
@@ -170,12 +184,13 @@ architecture/Obsidian Architecture/
 ├── 📁 00_Flows/           # User Journeys (e.g., Signup, Checkout)
 ├── 📁 01_Website/         # Public Marketing & Legal Pages
 ├── 📁 02_App/             # The Authenticated Web Application
-│   ├── AI/             # AI Systems (3 types)
-│   ├── Core/           # General Dashboard Pages
-│   ├── CRM/            # Customer & Lead Management
-│   ├── Operations/     # Jobs, Fleet, Inventory
-│   ├── Admin/          # Admin & Settings
-│   └── Communication/  # WhatsApp, Voice, Support
+│   ├── AI/                # AI Systems (3 types)
+│   ├── Core/              # General Dashboard Pages
+│   ├── CRM/               # Customer & Lead Management
+│   ├── Operations/        # Jobs, Fleet, Inventory
+│   ├── Admin/             # Admin & Settings
+│   ├── Communication/     # WhatsApp, Voice, Support
+│   └── Infrastructure/    # Health, Capacity, Monitoring
 ├── 📁 03_Auth/            # Authentication Pages
 └── 📁 Components/         # Reusable UI Patterns
 ```
@@ -212,4 +227,4 @@ When adding new documentation:
 
 ---
 
-*Last updated: January 2026*
+*Last updated: February 2026*

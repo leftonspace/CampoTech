@@ -105,6 +105,20 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // SECURITY: Block updates on completed/cancelled jobs
+    // This is the authoritative server-side check - frontend disabled state is cosmetic only
+    // ═══════════════════════════════════════════════════════════════════════════════
+    if (existing.status === 'COMPLETED' || existing.status === 'CANCELLED') {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `Este trabajo está ${existing.status === 'COMPLETED' ? 'completado' : 'cancelado'} y no puede ser modificado`
+        },
+        { status: 403 }
+      );
+    }
+
     // Normalize user role
     const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 

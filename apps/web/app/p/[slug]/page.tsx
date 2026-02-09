@@ -30,7 +30,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const profile = await prisma.businessPublicProfile.findFirst({
     where: {
-      OR: [{ organizationId: slug }],
+      OR: [
+        { slug: slug },
+        { organizationId: slug },
+      ],
       isActive: true,
     },
     select: {
@@ -61,10 +64,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function PublicBusinessProfilePage({ params }: PageProps) {
   const { slug } = await params;
 
-  // Fetch profile data
+  // Fetch profile data - look up by slug OR organizationId
   const profile = await prisma.businessPublicProfile.findFirst({
     where: {
-      OR: [{ organizationId: slug }],
+      OR: [
+        { slug: slug },           // Primary: look up by slug (e.g., "kevin-conta")
+        { organizationId: slug }, // Fallback: look up by org ID (for legacy URLs)
+      ],
       isActive: true,
     },
     include: {
@@ -124,7 +130,6 @@ export default async function PublicBusinessProfilePage({ params }: PageProps) {
       submittedValue: true,
       verifiedAt: true,
       expiresAt: true,
-      verificationData: true,
       requirement: {
         select: {
           code: true,
@@ -137,22 +142,11 @@ export default async function PublicBusinessProfilePage({ params }: PageProps) {
 
   // Transform badges to CredentialBadgeData format
   const credentials: CredentialBadgeData[] = approvedBadges.map((badge: typeof approvedBadges[number]) => {
-    const verificationData = badge.verificationData as Record<string, unknown> | null;
-    const verificationMethod = verificationData?.verificationMethod as string | undefined;
-    const source = verificationData?.source as string | undefined;
-
-    // Determine verification method
-    let method: VerificationMethod = 'manual';
-    if (verificationMethod === 'registry' || verificationMethod === 'registry_claim') {
-      method = 'registry';
-    }
-
     return {
       code: badge.requirement.code,
       name: badge.requirement.badgeLabel || badge.requirement.name,
       matricula: badge.submittedValue || undefined,
-      verificationMethod: method,
-      source: source,
+      verificationMethod: 'manual' as VerificationMethod,
       verifiedAt: badge.verifiedAt?.toISOString(),
       expiresAt: badge.expiresAt?.toISOString(),
     };

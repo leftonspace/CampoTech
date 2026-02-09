@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { validateBody, pricingSettingsSchema } from '@/lib/validation/api-schemas';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GET - Fetch Pricing Settings
@@ -99,45 +100,29 @@ export async function PUT(request: NextRequest) {
 
         const body = await request.json();
 
-        // Validate exchange rate source
-        const validSources = ['OFICIAL', 'BLUE', 'MEP', 'CCL', 'CRYPTO', 'CUSTOM'];
-        if (body.exchangeRateSource && !validSources.includes(body.exchangeRateSource)) {
+        // Validate request body with Zod
+        const validation = validateBody(body, pricingSettingsSchema);
+        if (!validation.success) {
             return NextResponse.json(
-                { success: false, error: 'Invalid exchange rate source' },
+                { success: false, error: validation.error },
                 { status: 400 }
             );
         }
 
-        // Validate rounding strategy
-        const validStrategies = ['NO_ROUNDING', 'ROUND_100', 'ROUND_500', 'ROUND_1000', 'ROUND_5000'];
-        if (body.roundingStrategy && !validStrategies.includes(body.roundingStrategy)) {
-            return NextResponse.json(
-                { success: false, error: 'Invalid rounding strategy' },
-                { status: 400 }
-            );
-        }
-
-        // Validate rounding direction
-        const validDirections = ['NEAREST', 'UP', 'DOWN'];
-        if (body.roundingDirection && !validDirections.includes(body.roundingDirection)) {
-            return NextResponse.json(
-                { success: false, error: 'Invalid rounding direction' },
-                { status: 400 }
-            );
-        }
+        const validData = validation.data;
 
         // Upsert settings
         const settings = await prisma.organizationPricingSettings.upsert({
             where: { organizationId: session.organizationId },
             update: {
-                exchangeRateSource: body.exchangeRateSource,
-                exchangeRateMarkup: body.exchangeRateMarkup,
-                autoUpdateExchangeRate: body.autoUpdateExchangeRate,
-                roundingStrategy: body.roundingStrategy,
-                roundingDirection: body.roundingDirection,
-                autoUpdateThreshold: body.autoUpdateThreshold,
+                exchangeRateSource: validData.exchangeRateSource,
+                exchangeRateMarkup: validData.exchangeRateMarkup,
+                autoUpdateExchangeRate: validData.autoUpdateExchangeRate,
+                roundingStrategy: validData.roundingStrategy,
+                roundingDirection: validData.roundingDirection,
+                autoUpdateThreshold: validData.autoUpdateThreshold,
                 // Reset anchor if source changes
-                ...(body.exchangeRateSource && {
+                ...(validData.exchangeRateSource && {
                     anchorExchangeRate: null,
                     anchorSetAt: null,
                 }),
@@ -145,12 +130,12 @@ export async function PUT(request: NextRequest) {
             },
             create: {
                 organizationId: session.organizationId,
-                exchangeRateSource: body.exchangeRateSource || 'BLUE',
-                exchangeRateMarkup: body.exchangeRateMarkup || 0,
-                autoUpdateExchangeRate: body.autoUpdateExchangeRate ?? true,
-                roundingStrategy: body.roundingStrategy || 'ROUND_500',
-                roundingDirection: body.roundingDirection || 'NEAREST',
-                autoUpdateThreshold: body.autoUpdateThreshold || 5,
+                exchangeRateSource: validData.exchangeRateSource || 'BLUE',
+                exchangeRateMarkup: validData.exchangeRateMarkup || 0,
+                autoUpdateExchangeRate: validData.autoUpdateExchangeRate ?? true,
+                roundingStrategy: validData.roundingStrategy || 'ROUND_500',
+                roundingDirection: validData.roundingDirection || 'NEAREST',
+                autoUpdateThreshold: validData.autoUpdateThreshold || 5,
             },
         });
 

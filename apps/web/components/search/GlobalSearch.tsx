@@ -59,7 +59,7 @@ interface PageFilterConfig {
 const PAGE_FILTERS: Record<string, PageFilterConfig> = {
     // Jobs removed - page has its own comprehensive filter system
     customers: {
-        // Customers use tabs instead of dropdowns - handled separately
+        // Customer type filter is on the page itself, not in global search
     },
     vehicles: {
         statusOptions: [

@@ -12,7 +12,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const user = validateCredentials(email, password);
+    // SECURITY FIX: Now uses async bcrypt validation
+    const user = await validateCredentials(email, password);
 
     if (!user) {
       return NextResponse.json(
@@ -21,7 +22,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate session token
+    // Generate session token (now uses crypto.randomBytes)
     const sessionToken = generateSessionToken(user.id);
 
     // Create response with session cookie
@@ -35,11 +36,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Set secure HTTP-only cookie
+    // SECURITY: HTTP-only, Secure, Strict SameSite cookie
     response.cookies.set('admin_session', sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'strict',
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',
     });

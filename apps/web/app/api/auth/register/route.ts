@@ -15,6 +15,7 @@ export async function POST(request: NextRequest) {
       adminName,
       phone,
       email,
+      selectedPlan,
       // Ley 25.326 consent fields (captured for future compliance use)
       dataTransferConsent: _dataTransferConsent,
       termsAccepted: _termsAccepted,
@@ -97,6 +98,12 @@ export async function POST(request: NextRequest) {
     // Store or update pending registration
     const expiresAt = new Date(Date.now() + REGISTRATION_EXPIRY_MINUTES * 60 * 1000);
 
+    // Validate selectedPlan if provided
+    const validPlans = ['INICIAL', 'PROFESIONAL', 'EMPRESA'];
+    const cleanPlan = selectedPlan && validPlans.includes(selectedPlan.toUpperCase())
+      ? selectedPlan.toUpperCase()
+      : null;
+
     await prisma.pendingRegistration.upsert({
       where: { phone: cleanPhone },
       update: {
@@ -104,6 +111,7 @@ export async function POST(request: NextRequest) {
         businessName: businessName?.trim() || null,
         adminName: adminName.trim(),
         email: email?.trim() || null,
+        selectedPlan: cleanPlan,
         expiresAt,
       },
       create: {
@@ -112,6 +120,7 @@ export async function POST(request: NextRequest) {
         businessName: businessName?.trim() || null,
         adminName: adminName.trim(),
         email: email?.trim() || null,
+        selectedPlan: cleanPlan,
         expiresAt,
       },
     });

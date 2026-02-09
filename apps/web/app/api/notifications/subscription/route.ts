@@ -14,6 +14,7 @@ import {
   getSubscriptionNotifications,
   markNotificationsAsRead,
 } from '@/lib/notifications/subscription-notifications';
+import { validateBody, notificationMarkReadSchema } from '@/lib/validation/api-schemas';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GET - Get Subscription Notifications
@@ -91,7 +92,17 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     }
 
     const body = await request.json().catch(() => ({}));
-    const { notificationIds } = body as { notificationIds?: string[] };
+
+    // Validate request body with Zod
+    const validation = validateBody(body, notificationMarkReadSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
+
+    const { notificationIds } = validation.data;
 
     const markedCount = await markNotificationsAsRead(
       session.organizationId,

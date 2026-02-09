@@ -96,6 +96,7 @@ export const COMPLIANCE_CODES = {
     MODE_CHANGE_AFTER_WORK: 'BIZ_MODE_CHANGE_LOCKED',
     INVOICED_JOB_MODIFICATION: 'BIZ_INVOICED_READONLY',
     MISSING_VARIANCE_REASON: 'BIZ_MISSING_REASON',
+    TERMINAL_STATE_MODIFICATION: 'BIZ_TERMINAL_STATE', // Phase 10 Security
 
     // Data Integrity Warnings
     NEGATIVE_PRICE: 'DATA_NEGATIVE_PRICE',
@@ -211,6 +212,7 @@ export function validateVisitPriceUpdate(
 /**
  * Validate if a job can be modified (not invoiced/locked)
  * AFIP Compliance: Invoiced jobs are immutable
+ * Phase 10 Security: Terminal state jobs are immutable
  */
 export function validateJobModification(job: JobComplianceData): ComplianceResult {
     const violations: ComplianceViolation[] = [];
@@ -227,12 +229,20 @@ export function validateJobModification(job: JobComplianceData): ComplianceResul
         });
     }
 
-    // Warning for modifying completed jobs (allowed but logged)
-    if (job.status === 'COMPLETED') {
-        warnings.push({
-            code: 'WARN_MODIFYING_COMPLETED',
+    // Phase 10 Security: Block modifications to terminal state jobs
+    const TERMINAL_STATES = ['COMPLETED', 'CANCELLED'];
+    if (TERMINAL_STATES.includes(job.status)) {
+        const statusText = job.status === 'COMPLETED' ? 'completado' : 'cancelado';
+        violations.push({
+            code: COMPLIANCE_CODES.TERMINAL_STATE_MODIFICATION,
             field: 'status',
-            message: 'Modificando un trabajo completado. Los cambios serán auditados.',
+            message: `No se puede modificar un trabajo ${statusText}. Los trabajos terminados son inmutables.`,
+            severity: 'blocking',
+        });
+        console.warn('[SECURITY] Pricing compliance terminal state violation:', {
+            jobId: job.id,
+            currentStatus: job.status,
+            timestamp: new Date().toISOString(),
         });
     }
 

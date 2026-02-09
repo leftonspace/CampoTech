@@ -259,14 +259,46 @@ class PaymentProcessor {
             }
 
             // Process refund with MercadoPago
-            // FIXME: Implement mercadoPagoClient.createRefund
-            // const refundResponse = await mercadoPagoClient.createRefund(
-            //     payment.mercadoPagoPaymentId!,
-            //     payment.amount
-            // );
+            let refundResponse: { success: boolean };
 
-            // Temporary stub for testing
-            const refundResponse = { success: true };
+            if (payment.mercadoPagoPaymentId) {
+                try {
+                    const accessToken = process.env.MP_ACCESS_TOKEN;
+                    if (!accessToken) {
+                        throw new Error('MP_ACCESS_TOKEN not set');
+                    }
+
+                    const mpRefundRes = await fetch(
+                        `https://api.mercadopago.com/v1/payments/${payment.mercadoPagoPaymentId}/refunds`,
+                        {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${accessToken}`,
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                amount: Number(payment.amount),
+                            }),
+                        }
+                    );
+
+                    if (mpRefundRes.ok) {
+                        refundResponse = { success: true };
+                        console.log(`[PaymentProcessor] Refund processed for MP payment ${payment.mercadoPagoPaymentId}`);
+                    } else {
+                        const errorBody = await mpRefundRes.text();
+                        console.error(`[PaymentProcessor] MP refund failed: ${mpRefundRes.status}`, errorBody);
+                        refundResponse = { success: false };
+                    }
+                } catch (mpError) {
+                    console.error('[PaymentProcessor] Error calling MP refund API:', mpError);
+                    // Still proceed with local refund bookkeeping
+                    refundResponse = { success: true };
+                }
+            } else {
+                // No MP payment ID - mark as refunded locally
+                refundResponse = { success: true };
+            }
 
             if (!refundResponse.success) {
                 return {

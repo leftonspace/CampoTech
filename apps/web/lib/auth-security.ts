@@ -13,7 +13,7 @@
 
 import { SignJWT, jwtVerify, JWTPayload } from 'jose';
 import { prisma } from '@/lib/prisma';
-import crypto from 'crypto';
+import * as crypto from 'crypto';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CONFIGURATION
@@ -146,24 +146,30 @@ export async function createTokenPair(
 
   const expiresAt = new Date(Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
-  // Store refresh token in database
-  await prisma.$executeRaw`
-    INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, user_agent, ip_address, created_at)
-    VALUES (gen_random_uuid(), ${payload.userId}::uuid, ${hashedRefreshToken}, ${expiresAt}, ${userAgent || null}, ${ipAddress || null}, NOW())
-    ON CONFLICT DO NOTHING
-  `;
+  // Store refresh token in database using Prisma models
+  await prisma.refreshToken.create({
+    data: {
+      userId: payload.userId,
+      tokenHash: hashedRefreshToken,
+      expiresAt,
+      userAgent: userAgent || null,
+      ipAddress: ipAddress || null,
+    },
+  });
 
   // Clean up old refresh tokens for this user (keep only last 5)
-  await prisma.$executeRaw`
-    DELETE FROM refresh_tokens
-    WHERE user_id = ${payload.userId}::uuid
-    AND id NOT IN (
-      SELECT id FROM refresh_tokens
-      WHERE user_id = ${payload.userId}::uuid
-      ORDER BY created_at DESC
-      LIMIT 5
-    )
-  `;
+  const oldTokens = await prisma.refreshToken.findMany({
+    where: { userId: payload.userId },
+    orderBy: { createdAt: 'desc' },
+    skip: 5,
+    select: { id: true },
+  });
+
+  if (oldTokens.length > 0) {
+    await prisma.refreshToken.deleteMany({
+      where: { id: { in: oldTokens.map((t: { id: string }) => t.id) } },
+    });
+  }
 
   return {
     accessToken,
@@ -184,25 +190,25 @@ export async function refreshTokens(
   const hashedToken = hashRefreshToken(refreshToken);
 
   try {
-    // Find valid refresh token
-    const tokenRecord = await prisma.$queryRaw<Array<{
-      id: string;
-      user_id: string;
-      expires_at: Date;
-    }>>`
-      SELECT id, user_id, expires_at
-      FROM refresh_tokens
-      WHERE token_hash = ${hashedToken}
-      AND expires_at > NOW()
-      AND revoked = false
-      LIMIT 1
-    `;
+    // Find valid refresh token using Prisma model
+    const tokenRecord = await prisma.refreshToken.findFirst({
+      where: {
+        tokenHash: hashedToken,
+        expiresAt: { gt: new Date() },
+        revoked: false,
+      },
+      select: {
+        id: true,
+        userId: true,
+        expiresAt: true,
+      },
+    });
 
-    if (tokenRecord.length === 0) {
+    if (!tokenRecord) {
       return null;
     }
 
-    const { id: tokenId, user_id: userId } = tokenRecord[0];
+    const { id: tokenId, userId } = tokenRecord;
 
     // Get user info
     const user = await prisma.user.findUnique({
@@ -224,16 +230,18 @@ export async function refreshTokens(
 
     if (!user || !user.isActive) {
       // Revoke the token if user is inactive
-      await prisma.$executeRaw`
-        UPDATE refresh_tokens SET revoked = true WHERE id = ${tokenId}::uuid
-      `;
+      await prisma.refreshToken.update({
+        where: { id: tokenId },
+        data: { revoked: true },
+      });
       return null;
     }
 
     // Revoke old refresh token (token rotation)
-    await prisma.$executeRaw`
-      UPDATE refresh_tokens SET revoked = true WHERE id = ${tokenId}::uuid
-    `;
+    await prisma.refreshToken.update({
+      where: { id: tokenId },
+      data: { revoked: true },
+    });
 
     // Create new token pair
     return createTokenPair(
@@ -258,9 +266,10 @@ export async function refreshTokens(
  * Revoke all refresh tokens for a user (logout from all devices)
  */
 export async function revokeAllUserTokens(userId: string): Promise<void> {
-  await prisma.$executeRaw`
-    UPDATE refresh_tokens SET revoked = true WHERE user_id = ${userId}::uuid
-  `;
+  await prisma.refreshToken.updateMany({
+    where: { userId },
+    data: { revoked: true },
+  });
 }
 
 /**
@@ -268,9 +277,10 @@ export async function revokeAllUserTokens(userId: string): Promise<void> {
  */
 export async function revokeRefreshToken(refreshToken: string): Promise<void> {
   const hashedToken = hashRefreshToken(refreshToken);
-  await prisma.$executeRaw`
-    UPDATE refresh_tokens SET revoked = true WHERE token_hash = ${hashedToken}
-  `;
+  await prisma.refreshToken.updateMany({
+    where: { tokenHash: hashedToken },
+    data: { revoked: true },
+  });
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -288,38 +298,34 @@ export async function checkLoginAllowed(
   try {
     const windowStart = new Date(Date.now() - FAILED_ATTEMPT_WINDOW_MINUTES * 60 * 1000);
 
-    // Check for active lockout
-    const lockoutRecord = await prisma.$queryRaw<Array<{
-      locked_until: Date;
-    }>>`
-      SELECT locked_until
-      FROM login_lockouts
-      WHERE identifier = ${identifier}
-      AND identifier_type = ${identifierType}
-      AND locked_until > NOW()
-      LIMIT 1
-    `;
+    // Check for active lockout using Prisma model
+    const lockoutRecord = await prisma.loginLockout.findFirst({
+      where: {
+        identifier,
+        identifierType,
+        lockedUntil: { gt: new Date() },
+      },
+    });
 
-    if (lockoutRecord.length > 0) {
+    if (lockoutRecord) {
       return {
         allowed: false,
         locked: true,
-        lockoutEndsAt: lockoutRecord[0].locked_until,
-        message: `Cuenta bloqueada temporalmente. Intente de nuevo después de ${Math.ceil((lockoutRecord[0].locked_until.getTime() - Date.now()) / 60000)} minutos.`,
+        lockoutEndsAt: lockoutRecord.lockedUntil,
+        message: `Cuenta bloqueada temporalmente. Intente de nuevo después de ${Math.ceil((lockoutRecord.lockedUntil.getTime() - Date.now()) / 60000)} minutos.`,
       };
     }
 
-    // Count recent failed attempts
-    const failedAttempts = await prisma.$queryRaw<Array<{ count: bigint }>>`
-      SELECT COUNT(*) as count
-      FROM login_attempts
-      WHERE identifier = ${identifier}
-      AND identifier_type = ${identifierType}
-      AND success = false
-      AND created_at > ${windowStart}
-    `;
+    // Count recent failed attempts using Prisma model
+    const attemptCount = await prisma.loginAttempt.count({
+      where: {
+        identifier,
+        identifierType,
+        success: false,
+        createdAt: { gt: windowStart },
+      },
+    });
 
-    const attemptCount = Number(failedAttempts[0]?.count || 0);
     const remainingAttempts = MAX_FAILED_ATTEMPTS - attemptCount;
 
     if (attemptCount >= MAX_FAILED_ATTEMPTS) {
@@ -360,10 +366,16 @@ export async function recordLoginAttempt(
   userId?: string
 ): Promise<void> {
   try {
-    await prisma.$executeRaw`
-      INSERT INTO login_attempts (id, identifier, identifier_type, success, ip_address, user_agent, user_id, created_at)
-      VALUES (gen_random_uuid(), ${identifier}, ${identifierType}, ${success}, ${ipAddress || null}, ${userAgent || null}, ${userId ? `${userId}::uuid` : null}, NOW())
-    `;
+    await prisma.loginAttempt.create({
+      data: {
+        identifier,
+        identifierType,
+        success,
+        ipAddress: ipAddress || null,
+        userAgent: userAgent || null,
+        userId: userId || null,
+      },
+    });
 
     // If successful login, clear any existing lockout
     if (success) {
@@ -383,12 +395,22 @@ async function createLockout(
   identifierType: 'phone' | 'email' | 'user_id',
   lockedUntil: Date
 ): Promise<void> {
-  await prisma.$executeRaw`
-    INSERT INTO login_lockouts (id, identifier, identifier_type, locked_until, created_at)
-    VALUES (gen_random_uuid(), ${identifier}, ${identifierType}, ${lockedUntil}, NOW())
-    ON CONFLICT (identifier, identifier_type)
-    DO UPDATE SET locked_until = ${lockedUntil}
-  `;
+  await prisma.loginLockout.upsert({
+    where: {
+      identifier_identifierType: {
+        identifier,
+        identifierType,
+      },
+    },
+    create: {
+      identifier,
+      identifierType,
+      lockedUntil,
+    },
+    update: {
+      lockedUntil,
+    },
+  });
 }
 
 /**
@@ -398,11 +420,12 @@ async function clearLockout(
   identifier: string,
   identifierType: 'phone' | 'email' | 'user_id'
 ): Promise<void> {
-  await prisma.$executeRaw`
-    DELETE FROM login_lockouts
-    WHERE identifier = ${identifier}
-    AND identifier_type = ${identifierType}
-  `;
+  await prisma.loginLockout.deleteMany({
+    where: {
+      identifier,
+      identifierType,
+    },
+  });
 }
 
 /**
@@ -419,25 +442,19 @@ export async function getLoginHistory(
 }>> {
   const safeLimit = Math.min(Math.max(1, limit), 100);
 
-  const history = await prisma.$queryRaw<Array<{
-    success: boolean;
-    ip_address: string | null;
-    user_agent: string | null;
-    created_at: Date;
-  }>>`
-    SELECT success, ip_address, user_agent, created_at
-    FROM login_attempts
-    WHERE user_id = ${userId}::uuid
-    ORDER BY created_at DESC
-    LIMIT ${safeLimit}
-  `;
+  const history = await prisma.loginAttempt.findMany({
+    where: { userId },
+    orderBy: { createdAt: 'desc' },
+    take: safeLimit,
+    select: {
+      success: true,
+      ipAddress: true,
+      userAgent: true,
+      createdAt: true,
+    },
+  });
 
-  return history.map(h => ({
-    success: h.success,
-    ipAddress: h.ip_address,
-    userAgent: h.user_agent,
-    createdAt: h.created_at,
-  }));
+  return history;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -456,26 +473,32 @@ export async function cleanupAuthData(): Promise<{
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 
   // Delete expired/revoked refresh tokens
-  const expiredTokens = await prisma.$executeRaw`
-    DELETE FROM refresh_tokens
-    WHERE expires_at < NOW() OR revoked = true
-  `;
+  const expiredTokensResult = await prisma.refreshToken.deleteMany({
+    where: {
+      OR: [
+        { expiresAt: { lt: new Date() } },
+        { revoked: true },
+      ],
+    },
+  });
 
   // Delete old login attempts (keep 30 days for audit)
-  const oldAttempts = await prisma.$executeRaw`
-    DELETE FROM login_attempts
-    WHERE created_at < ${thirtyDaysAgo}
-  `;
+  const oldAttemptsResult = await prisma.loginAttempt.deleteMany({
+    where: {
+      createdAt: { lt: thirtyDaysAgo },
+    },
+  });
 
   // Delete expired lockouts
-  const expiredLockouts = await prisma.$executeRaw`
-    DELETE FROM login_lockouts
-    WHERE locked_until < NOW()
-  `;
+  const expiredLockoutsResult = await prisma.loginLockout.deleteMany({
+    where: {
+      lockedUntil: { lt: new Date() },
+    },
+  });
 
   return {
-    expiredTokens: expiredTokens as number,
-    oldAttempts: oldAttempts as number,
-    expiredLockouts: expiredLockouts as number,
+    expiredTokens: expiredTokensResult.count,
+    oldAttempts: oldAttemptsResult.count,
+    expiredLockouts: expiredLockoutsResult.count,
   };
 }

@@ -14,23 +14,8 @@ import {
   getWhatsAppConfig,
 } from '@/src/integrations/whatsapp/whatsapp.service';
 import { WhatsAppClient } from '@/src/integrations/whatsapp/client';
-
-interface SendMessageRequest {
-  type: 'text' | 'template' | 'media';
-  to: string; // Phone number
-  conversationId?: string;
-  // For text messages
-  text?: string;
-  // For template messages
-  templateName?: string;
-  templateParams?: Record<string, string>;
-  // For media messages
-  mediaType?: 'image' | 'video' | 'audio' | 'document';
-  mediaUrl?: string;
-  mediaId?: string;
-  caption?: string;
-  filename?: string;
-}
+import { validateBody } from '@/lib/validation/api-schemas';
+import { z } from 'zod';
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,15 +28,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const body: SendMessageRequest = await request.json();
-    const { type, to, conversationId, text, templateName, templateParams } = body;
+    // Validate request body
+    const body = await request.json();
+    const sendMessageSchema = z.object({
+      type: z.enum(['text', 'template', 'media']),
+      to: z.string().max(20).optional(),
+      conversationId: z.string().uuid().optional(),
+      text: z.string().max(4096).optional(),
+      templateName: z.string().max(100).optional(),
+      templateParams: z.record(z.string()).optional(),
+      mediaType: z.enum(['image', 'video', 'audio', 'document']).optional(),
+      mediaUrl: z.string().url().optional(),
+      mediaId: z.string().optional(),
+      caption: z.string().max(1024).optional(),
+      filename: z.string().max(255).optional(),
+    });
 
-    if (!type) {
+    const validation = validateBody(body, sendMessageSchema);
+    if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: 'Message type is required' },
+        { success: false, error: validation.error },
         { status: 400 }
       );
     }
+
+    const { type, to, conversationId, text, templateName, templateParams } = validation.data;
 
     // Handle different message types
     switch (type) {

@@ -30,10 +30,11 @@
     "queue:metrics": "ts-node scripts/queue-status.ts --metrics",
     "metrics:export": "ts-node scripts/metrics-export.ts",
     "migration:create": "ts-node scripts/migrations/create.ts",
-    "migration:run": "ts-node scripts/migrations/run.ts"
+    "migration:run": "ts-node scripts/migrations/run.ts",
+    "prepare": "husky"
   },
   "dependencies": {
-    "@prisma/client": "^5.22.0",
+    "@prisma/client": "^6.19.2",
     "ajv": "^8.17.1",
     "bullmq": "^5.1.0",
     "ioredis": "^5.0.0",
@@ -43,9 +44,10 @@
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@types/pg": "^8.0.0",
+    "husky": "^9.1.7",
     "jest": "^29.0.0",
     "pdfkit": "^0.17.2",
-    "prisma": "^5.22.0",
+    "prisma": "^6.19.2",
     "ts-node": "^10.0.0",
     "typescript": "^5.0.0"
   },
@@ -57,8 +59,19 @@
     "react-dom": "19.1.0",
     "@babel/runtime": "^7.26.10",
     "preact": "^10.28.2",
-    "tar": "^7.5.3",
+    "tar": "7.5.7",
     "diff": "^8.0.3",
-    "undici": "^6.23.0"
+    "undici": "^6.23.0",
+    "fast-xml-parser": "5.3.4",
+    "@isaacs/brace-expansion": "5.0.1",
+    "lodash": "4.17.23"
+  },
+  "pnpm": {
+    "overrides": {
+      "tar": "7.5.7",
+      "fast-xml-parser": "5.3.4",
+      "@isaacs/brace-expansion": "5.0.1",
+      "lodash": "4.17.23"
+    }
   }
 }

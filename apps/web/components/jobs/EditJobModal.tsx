@@ -1028,8 +1028,9 @@ export default function EditJobModal({
                     value={formData.title}
                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                     placeholder="Ej: Instalación de aire acondicionado"
-                    className="input"
+                    className={cn('input', isLocked && 'cursor-not-allowed bg-gray-100')}
                     required
+                    disabled={isLocked}
                     onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, ingresá el título del trabajo')}
                     onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                   />
@@ -1039,24 +1040,28 @@ export default function EditJobModal({
                 <div>
                   <div className="flex items-center justify-between mb-1 h-5">
                     <label className="label">Cliente *</label>
-                    <button
-                      type="button"
-                      onClick={() => setShowNewCustomerModal(true)}
-                      className="text-xs text-primary-600 hover:underline"
-                    >
-                      + Crear nuevo cliente
-                    </button>
-                  </div>
-                  {selectedCustomer ? (
-                    <div className="input flex items-center justify-between bg-gray-50">
-                      <span className="font-medium truncate">{selectedCustomer.name}</span>
+                    {!isLocked && (
                       <button
                         type="button"
-                        onClick={() => setSelectedCustomer(null)}
-                        className="text-sm text-primary-600 hover:underline flex-shrink-0 ml-2"
+                        onClick={() => setShowNewCustomerModal(true)}
+                        className="text-xs text-primary-600 hover:underline"
                       >
-                        Cambiar
+                        + Crear nuevo cliente
                       </button>
+                    )}
+                  </div>
+                  {selectedCustomer ? (
+                    <div className={cn('input flex items-center justify-between bg-gray-50', isLocked && 'cursor-not-allowed')}>
+                      <span className="font-medium truncate">{selectedCustomer.name}</span>
+                      {!isLocked && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCustomer(null)}
+                          className="text-sm text-primary-600 hover:underline flex-shrink-0 ml-2"
+                        >
+                          Cambiar
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="relative">
@@ -1066,7 +1071,8 @@ export default function EditJobModal({
                         value={customerSearch}
                         onChange={(e) => setCustomerSearch(e.target.value)}
                         placeholder="Buscar cliente por nombre o teléfono..."
-                        className="input pl-10"
+                        className={cn('input pl-10', isLocked && 'cursor-not-allowed bg-gray-100')}
+                        disabled={isLocked}
                       />
                       {customers && customers.length > 0 && (
                         <div className="absolute z-10 mt-1 w-full rounded-md border bg-white shadow-lg">
@@ -1100,7 +1106,7 @@ export default function EditJobModal({
                     <label htmlFor="serviceType" className="label">
                       Tipo de servicio *
                     </label>
-                    {!showCreateServiceType && (
+                    {!showCreateServiceType && !isLocked && (
                       <button
                         type="button"
                         onClick={() => setShowCreateServiceType(true)}
@@ -1118,8 +1124,9 @@ export default function EditJobModal({
                         id="serviceType"
                         value={formData.serviceType}
                         onChange={(e) => setFormData({ ...formData, serviceType: e.target.value })}
-                        className="input pl-10"
+                        className={cn('input pl-10', isLocked && 'cursor-not-allowed bg-gray-100')}
                         required
+                        disabled={isLocked}
                         onInvalid={(e) => (e.target as HTMLSelectElement).setCustomValidity('Por favor, seleccioná un tipo de servicio')}
                         onInput={(e) => (e.target as HTMLSelectElement).setCustomValidity('')}
                       >
@@ -1187,6 +1194,7 @@ export default function EditJobModal({
                     placeholder={selectedCustomer ? "Buscar otra dirección..." : "Buscar dirección del servicio..."}
                     defaultCountry="AR"
                     required
+                    disabled={isLocked}
                   />
                 </div>
               </div>
@@ -1357,7 +1365,7 @@ export default function EditJobModal({
               {/* Pricebook Line Items - Add services/products after diagnosis */}
               <PricebookLineItems
                 jobId={jobId}
-                isLocked={!!formData.pricingLockedAt}
+                isLocked={isLocked || !!formData.pricingLockedAt}
                 className="rounded-lg border border-emerald-100 bg-gradient-to-r from-emerald-50 to-teal-50 p-4"
               />
 
@@ -1379,7 +1387,7 @@ export default function EditJobModal({
                       <h4 className="font-medium text-gray-900 text-sm">
                         {visits.length === 1 ? 'Fecha y hora' : `Visita ${index + 1}`}
                       </h4>
-                      {visits.length > 1 && (
+                      {visits.length > 1 && !isLocked && (
                         <button
                           type="button"
                           onClick={() => removeVisit(visit.id)}
@@ -1400,8 +1408,9 @@ export default function EditJobModal({
                             type="date"
                             value={visit.date}
                             onChange={(e) => updateVisit(visit.id, 'date', e.target.value)}
-                            className="input pl-10"
+                            className={cn('input pl-10', isLocked && 'cursor-not-allowed bg-gray-100')}
                             required={index === 0}
+                            disabled={isLocked}
                             onInvalid={(e) => (e.target as HTMLInputElement).setCustomValidity('Por favor, seleccioná una fecha de inicio')}
                             onInput={(e) => (e.target as HTMLInputElement).setCustomValidity('')}
                           />
@@ -1418,8 +1427,9 @@ export default function EditJobModal({
                             value={visit.endDate}
                             onChange={(e) => updateVisit(visit.id, 'endDate', e.target.value)}
                             min={visit.date || undefined}
-                            className="input pl-10"
+                            className={cn('input pl-10', isLocked && 'cursor-not-allowed bg-gray-100')}
                             placeholder="Mismo día"
+                            disabled={isLocked}
                           />
                         </div>
                       </div>
@@ -1440,14 +1450,19 @@ export default function EditJobModal({
                                 const val = e.target.value.replace(/[^0-9:]/g, '').slice(0, 5);
                                 updateVisit(visit.id, 'timeStart', val);
                               }}
-                              className="input pl-10"
+                              className={cn('input pl-10', isLocked && 'cursor-not-allowed bg-gray-100')}
                               maxLength={5}
+                              disabled={isLocked}
                             />
                           </div>
                           <button
                             type="button"
-                            onClick={() => updateVisit(visit.id, 'timePeriodStart', visit.timePeriodStart === 'AM' ? 'PM' : 'AM')}
-                            className="flex h-[42px] w-14 items-center justify-center rounded-lg border-2 border-primary-500 bg-primary-50 font-semibold text-primary-700 text-sm"
+                            onClick={() => !isLocked && updateVisit(visit.id, 'timePeriodStart', visit.timePeriodStart === 'AM' ? 'PM' : 'AM')}
+                            className={cn(
+                              'flex h-[42px] w-14 items-center justify-center rounded-lg border-2 border-primary-500 bg-primary-50 font-semibold text-primary-700 text-sm',
+                              isLocked && 'cursor-not-allowed opacity-60'
+                            )}
+                            disabled={isLocked}
                           >
                             {visit.timePeriodStart}
                           </button>
@@ -1466,14 +1481,19 @@ export default function EditJobModal({
                                 const val = e.target.value.replace(/[^0-9:]/g, '').slice(0, 5);
                                 updateVisit(visit.id, 'timeEnd', val);
                               }}
-                              className="input pl-10"
+                              className={cn('input pl-10', isLocked && 'cursor-not-allowed bg-gray-100')}
                               maxLength={5}
+                              disabled={isLocked}
                             />
                           </div>
                           <button
                             type="button"
-                            onClick={() => updateVisit(visit.id, 'timePeriodEnd', visit.timePeriodEnd === 'AM' ? 'PM' : 'AM')}
-                            className="flex h-[42px] w-14 items-center justify-center rounded-lg border-2 border-primary-500 bg-primary-50 font-semibold text-primary-700 text-sm"
+                            onClick={() => !isLocked && updateVisit(visit.id, 'timePeriodEnd', visit.timePeriodEnd === 'AM' ? 'PM' : 'AM')}
+                            className={cn(
+                              'flex h-[42px] w-14 items-center justify-center rounded-lg border-2 border-primary-500 bg-primary-50 font-semibold text-primary-700 text-sm',
+                              isLocked && 'cursor-not-allowed opacity-60'
+                            )}
+                            disabled={isLocked}
                           >
                             {visit.timePeriodEnd}
                           </button>
@@ -1485,7 +1505,7 @@ export default function EditJobModal({
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <label className="label text-sm">Técnico(s) para esta visita</label>
-                        {visit.technicianIds.length > 0 && (
+                        {visit.technicianIds.length > 0 && !isLocked && (
                           <button
                             type="button"
                             onClick={() => {
@@ -1508,8 +1528,12 @@ export default function EditJobModal({
                       <div className="relative" ref={activeVisitDropdown === visit.id ? dropdownRef : null}>
                         <button
                           type="button"
-                          onClick={() => setActiveVisitDropdown(activeVisitDropdown === visit.id ? null : visit.id)}
-                          className="input flex w-full items-center justify-between pl-10 text-left text-sm"
+                          onClick={() => !isLocked && setActiveVisitDropdown(activeVisitDropdown === visit.id ? null : visit.id)}
+                          className={cn(
+                            'input flex w-full items-center justify-between pl-10 text-left text-sm',
+                            isLocked && 'cursor-not-allowed bg-gray-100'
+                          )}
+                          disabled={isLocked}
                         >
                           <Users className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                           <span className={`truncate ${visit.technicianIds.length === 0 ? 'text-gray-400' : ''}`}>
@@ -1706,13 +1730,14 @@ export default function EditJobModal({
                     })()}
 
                     {/* Recurrence option - compact inline */}
-                    <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-4 flex-wrap">
-                      <label className="flex items-center gap-2 cursor-pointer">
+                    <div className={cn('mt-2 pt-2 border-t border-gray-100 flex items-center gap-4 flex-wrap', isLocked && 'opacity-60')}>
+                      <label className={cn('flex items-center gap-2', isLocked ? 'cursor-not-allowed' : 'cursor-pointer')}>
                         <input
                           type="checkbox"
                           checked={visit.isRecurring}
                           onChange={(e) => updateVisit(visit.id, 'isRecurring', e.target.checked)}
                           className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                          disabled={isLocked}
                         />
                         <Repeat className="h-3.5 w-3.5 text-gray-400" />
                         <span className="text-xs font-medium text-gray-700">Repetir</span>
@@ -1723,7 +1748,8 @@ export default function EditJobModal({
                           <select
                             value={visit.recurrencePattern}
                             onChange={(e) => updateVisit(visit.id, 'recurrencePattern', e.target.value)}
-                            className="input text-xs py-1 px-2 w-auto"
+                            className={cn('input text-xs py-1 px-2 w-auto', isLocked && 'cursor-not-allowed bg-gray-100')}
+                            disabled={isLocked}
                           >
                             {RECURRENCE_PATTERNS.map((pattern) => (
                               <option key={pattern.value} value={pattern.value}>
@@ -1738,7 +1764,8 @@ export default function EditJobModal({
                               max={24}
                               value={visit.recurrenceCount}
                               onChange={(e) => updateVisit(visit.id, 'recurrenceCount', parseInt(e.target.value) || 6)}
-                              className="input text-xs py-1 px-2 w-14"
+                              className={cn('input text-xs py-1 px-2 w-14', isLocked && 'cursor-not-allowed bg-gray-100')}
+                              disabled={isLocked}
                             />
                             <span className="text-xs text-gray-500">veces</span>
                           </div>
@@ -1749,14 +1776,16 @@ export default function EditJobModal({
                 ))}
 
                 {/* Add visit button */}
-                <button
-                  type="button"
-                  onClick={addVisit}
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 py-2 text-sm text-gray-600 hover:border-primary-400 hover:text-primary-600 transition-colors"
-                >
-                  <Plus className="h-4 w-4" />
-                  Agregar otra visita
-                </button>
+                {!isLocked && (
+                  <button
+                    type="button"
+                    onClick={addVisit}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-gray-300 py-2 text-sm text-gray-600 hover:border-primary-400 hover:text-primary-600 transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Agregar otra visita
+                  </button>
+                )}
               </div>
 
               {error && <p className="text-sm text-danger-500">{error}</p>}

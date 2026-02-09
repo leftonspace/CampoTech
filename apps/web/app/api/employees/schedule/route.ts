@@ -7,6 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { validateBody, employeeScheduleSchema } from '@/lib/validation/api-schemas';
+import { z } from 'zod';
 
 export async function GET(request: NextRequest) {
   try {
@@ -97,24 +99,18 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId, dayOfWeek, startTime, endTime, isAvailable } = body;
 
-    const targetUserId = userId || session.userId;
-
-    // Validate inputs
-    if (dayOfWeek === undefined || dayOfWeek < 0 || dayOfWeek > 6) {
+    // Validate request body with Zod
+    const validation = validateBody(body, employeeScheduleSchema);
+    if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: 'Día de la semana inválido' },
+        { success: false, error: validation.error },
         { status: 400 }
       );
     }
 
-    if (!startTime || !endTime) {
-      return NextResponse.json(
-        { success: false, error: 'Horarios requeridos' },
-        { status: 400 }
-      );
-    }
+    const { userId, dayOfWeek, startTime, endTime, isAvailable } = validation.data;
+    const targetUserId = userId;
 
     // Check permissions
     const roleUpper = session.role?.toUpperCase();
@@ -190,8 +186,23 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { userId, scheduleType, advanceNoticeHours } = body;
 
+    // Zod validation schema for schedule settings
+    const scheduleSettingsSchema = z.object({
+      userId: z.string().uuid().optional(),
+      scheduleType: z.enum(['base', 'rotating', 'ondemand', 'custom']).optional(),
+      advanceNoticeHours: z.number().int().min(0).max(168).optional(),
+    });
+
+    const validation = validateBody(body, scheduleSettingsSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
+
+    const { userId, scheduleType, advanceNoticeHours } = validation.data;
     const targetUserId = userId || session.userId;
 
     // Check permissions
@@ -203,21 +214,12 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    // Validate schedule type
-    const validTypes = ['base', 'rotating', 'ondemand', 'custom'];
-    if (scheduleType && !validTypes.includes(scheduleType)) {
-      return NextResponse.json(
-        { success: false, error: 'Tipo de horario inválido' },
-        { status: 400 }
-      );
-    }
-
     // Update user's schedule settings
     const updatedUser = await prisma.user.update({
       where: { id: targetUserId },
       data: {
         ...(scheduleType && { scheduleType }),
-        ...(advanceNoticeHours !== undefined && { advanceNoticeHours: Math.max(0, parseInt(advanceNoticeHours) || 0) }),
+        ...(advanceNoticeHours !== undefined && { advanceNoticeHours: Math.max(0, advanceNoticeHours) }),
       },
       select: {
         id: true,

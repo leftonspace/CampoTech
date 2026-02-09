@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { UserRole } from '@/lib/config/field-permissions';
+import { validateBody } from '@/lib/validation/api-schemas';
+import { z } from 'zod';
 
 export async function GET(
   request: NextRequest,
@@ -93,23 +95,28 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { status, rejectionReason } = body;
 
-    // Validate status
-    if (!['approved', 'rejected'].includes(status)) {
+    // Zod validation schema for approve/reject
+    const updateSchema = z.object({
+      status: z.enum(['approved', 'rejected']),
+      rejectionReason: z.string().max(1000).optional(),
+    }).refine((data) => {
+      // If rejecting, require a reason
+      if (data.status === 'rejected' && !data.rejectionReason) {
+        return false;
+      }
+      return true;
+    }, { message: 'Debe proporcionar una razon para rechazar la solicitud' });
+
+    const validation = validateBody(body, updateSchema);
+    if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: 'Estado invalido. Use "approved" o "rejected"' },
+        { success: false, error: validation.error },
         { status: 400 }
       );
     }
 
-    // If rejecting, require a reason
-    if (status === 'rejected' && !rejectionReason) {
-      return NextResponse.json(
-        { success: false, error: 'Debe proporcionar una razon para rechazar la solicitud' },
-        { status: 400 }
-      );
-    }
+    const { status, rejectionReason } = validation.data;
 
     // Verify the request exists and belongs to this organization
     const existing = await prisma.$queryRaw`

@@ -14,6 +14,11 @@
 
 import { prisma } from '@/lib/prisma';
 import { SubscriptionTier, getTierConfig } from '@/lib/config/tier-limits';
+import { createCheckoutPreference } from '@/lib/mercadopago/checkout';
+import {
+  notifyPaymentFailed,
+  notifyOrganizationOwners,
+} from '@/lib/notifications/subscription-notifications';
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // TYPES
@@ -219,7 +224,7 @@ class SubscriptionManager {
       // Downgrade to FREE - cancel any existing subscription
       const subscription = await this.getSubscription(orgId);
       if (subscription?.mpSubscriptionId) {
-        // TODO: Cancel MP subscription via API
+        await this.cancelMPSubscription(subscription.mpSubscriptionId);
       }
 
       const updated = await this.upsertSubscription({
@@ -255,12 +260,77 @@ class SubscriptionManager {
    * Create MP checkout URL for subscription
    */
   async createCheckoutUrl(orgId: string, tier: SubscriptionTier): Promise<string> {
-    const _tierConfig = getTierConfig(tier);
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    // Use the real checkout preference flow
+    const org = await prisma.organization.findUnique({
+      where: { id: orgId },
+      select: { id: true, ownerId: true, email: true, phone: true },
+    });
 
-    // TODO: Integrate with actual MP subscription API
-    // For now, return a placeholder URL
-    return `${baseUrl}/dashboard/settings/billing/checkout?tier=${tier}&org=${orgId}`;
+    if (!org) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      return `${baseUrl}/dashboard/settings/billing?error=org_not_found`;
+    }
+
+    // Get owner info for payer details
+    const owner = await prisma.user.findUnique({
+      where: { id: org.ownerId },
+      select: { name: true, email: true, phone: true },
+    });
+
+    const paidTier = tier as Exclude<SubscriptionTier, 'FREE'>;
+
+    const result = await createCheckoutPreference({
+      organizationId: orgId,
+      tier: paidTier,
+      billingCycle: 'MONTHLY', // Default to monthly for plan change flow
+      userId: org.ownerId,
+      payerEmail: owner?.email || org.email || undefined,
+      payerName: owner?.name || undefined,
+      payerPhone: owner?.phone || org.phone || undefined,
+    });
+
+    if (!result.success) {
+      console.error('[SubscriptionManager] Checkout preference creation failed:', result.error);
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+      return `${baseUrl}/dashboard/settings/billing?error=checkout_failed`;
+    }
+
+    return result.checkoutUrl;
+  }
+
+  /**
+   * Cancel an MP subscription via API
+   */
+  private async cancelMPSubscription(mpSubscriptionId: string): Promise<void> {
+    try {
+      // MercadoPago preapproval cancellation via REST API
+      const accessToken = process.env.MP_ACCESS_TOKEN;
+      if (!accessToken) {
+        console.error('[SubscriptionManager] MP_ACCESS_TOKEN not set, cannot cancel subscription');
+        return;
+      }
+
+      const response = await fetch(
+        `https://api.mercadopago.com/preapproval/${mpSubscriptionId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ status: 'cancelled' }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        console.error(`[SubscriptionManager] MP subscription cancellation failed: ${response.status}`, errorBody);
+      } else {
+        console.log(`[SubscriptionManager] MP subscription ${mpSubscriptionId} cancelled successfully`);
+      }
+    } catch (error) {
+      console.error('[SubscriptionManager] Error cancelling MP subscription:', error);
+    }
   }
 
   /**
@@ -413,7 +483,19 @@ class SubscriptionManager {
       WHERE org_id = ${orgId}::uuid
     `;
 
-    // TODO: Send notification to organization owner
+    // Get payment amount from event data for notification
+    const amount = (_eventData.transaction_amount as number) || 0;
+    const currency = (_eventData.currency_id as string) || 'ARS';
+    const reason = (_eventData.status_detail as string) || undefined;
+
+    // Notify organization owners about the failed payment
+    try {
+      await notifyOrganizationOwners(orgId, (userId) =>
+        notifyPaymentFailed(orgId, userId, amount, currency, reason)
+      );
+    } catch (error) {
+      console.error('[SubscriptionManager] Error sending payment failure notification:', error);
+    }
   }
 
   /**

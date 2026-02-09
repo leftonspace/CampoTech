@@ -1,6 +1,55 @@
 import { prisma } from '../lib/prisma';
 import { Prisma } from '@prisma/client';
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 4 SECURITY REMEDIATION: PAYMENT AUDIT LOGGING
+// Inline implementation to avoid cross-package import issues
+// ═══════════════════════════════════════════════════════════════════════════════
+
+type PaymentAuditAction =
+    | 'payment_created'
+    | 'payment_completed'
+    | 'payment_amount_validated'
+    | 'payment_amount_rejected'
+    | 'payment_refunded';
+
+async function logPaymentAudit(
+    action: PaymentAuditAction,
+    orgId: string,
+    data: {
+        paymentId?: string;
+        invoiceId?: string;
+        amount?: number;
+        method?: string;
+        status?: string;
+        providedAmount?: number;
+        remainingBalance?: number;
+        validationError?: string;
+        userId?: string;
+    }
+): Promise<void> {
+    try {
+        await prisma.auditLog.create({
+            data: {
+                organizationId: orgId,
+                userId: data.userId || null,
+                action,
+                entityType: 'payment',
+                entityId: data.paymentId || null,
+                metadata: {
+                    ...data,
+                    actorType: data.userId ? 'user' : 'system',
+                    timestamp: new Date().toISOString(),
+                },
+            },
+        });
+        console.log(`[PaymentAudit] ${action}`, { orgId, paymentId: data.paymentId, amount: data.amount });
+    } catch (error) {
+        // Never fail the main operation due to audit logging failure
+        console.error('[PaymentAudit] Failed to log:', error);
+    }
+}
+
 export interface PaymentFilter {
     status?: string;
     invoiceId?: string;
@@ -116,29 +165,104 @@ export class PaymentService {
 
     /**
      * Record a new payment
+     * 
+     * Phase 4 Security Remediation (Finding 2):
+     * - Server-side amount validation prevents overpayment/manipulation
+     * - Audit logging for all payment operations (Finding 3)
      */
-    static async createPayment(orgId: string, data: any) {
+    static async createPayment(orgId: string, data: any, userId?: string) {
         const { invoiceId, amount, method, reference, notes, paidAt, status = 'COMPLETED' } = data;
 
-        // Verify invoice
+        // ═══════════════════════════════════════════════════════════════════════
+        // PHASE 4 SECURITY: Input validation
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const numericAmount = Number(amount);
+
+        // Validate amount is positive
+        if (isNaN(numericAmount) || numericAmount <= 0) {
+            await logPaymentAudit('payment_amount_rejected', orgId, {
+                invoiceId,
+                providedAmount: numericAmount,
+                validationError: 'Payment amount must be a positive number',
+                userId,
+            });
+            throw new Error('Payment amount must be a positive number');
+        }
+
+        // Verify invoice and get existing payments
         const invoice = await prisma.invoice.findFirst({
-            where: { id: invoiceId, organizationId: orgId }
+            where: { id: invoiceId, organizationId: orgId },
+            include: {
+                payments: {
+                    where: { status: 'COMPLETED' },
+                    select: { amount: true }
+                }
+            }
         });
 
         if (!invoice) throw new Error('Invoice not found');
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // PHASE 4 SECURITY (Finding 2): Server-side amount validation
+        // Prevents payment manipulation by validating against remaining balance
+        // ═══════════════════════════════════════════════════════════════════════
+
+        const invoiceTotal = Number(invoice.total);
+        const totalPaidBefore = invoice.payments.reduce(
+            (sum: number, p: { amount: Prisma.Decimal | null }) => sum + Number(p.amount || 0),
+            0
+        );
+        const remainingBalance = invoiceTotal - totalPaidBefore;
+
+        // Validate payment doesn't exceed remaining balance (with small tolerance for rounding)
+        const TOLERANCE = 0.01; // 1 centavo tolerance for floating-point rounding
+        if (numericAmount > remainingBalance + TOLERANCE) {
+            await logPaymentAudit('payment_amount_rejected', orgId, {
+                invoiceId,
+                providedAmount: numericAmount,
+                remainingBalance,
+                validationError: `Payment exceeds remaining balance. Provided: $${numericAmount.toFixed(2)}, Remaining: $${remainingBalance.toFixed(2)}`,
+                userId,
+            });
+            throw new Error(
+                `El monto del pago ($${numericAmount.toFixed(2)}) excede el saldo restante ($${remainingBalance.toFixed(2)})`
+            );
+        }
+
+        // Log successful validation
+        await logPaymentAudit('payment_amount_validated', orgId, {
+            invoiceId,
+            providedAmount: numericAmount,
+            remainingBalance,
+            userId,
+        });
 
         return prisma.$transaction(async (tx) => {
             const payment = await tx.payment.create({
                 data: {
                     organizationId: orgId,
                     invoiceId,
-                    amount: amount,
+                    amount: numericAmount,
                     method: (method?.toUpperCase() || 'CASH') as any,
                     status: status.toUpperCase() as any,
                     reference,
                     paidAt: paidAt ? new Date(paidAt) : new Date(),
                 },
                 include: { invoice: true }
+            });
+
+            // ═══════════════════════════════════════════════════════════════════════
+            // PHASE 4 SECURITY (Finding 3): Audit logging
+            // ═══════════════════════════════════════════════════════════════════════
+
+            await logPaymentAudit('payment_created', orgId, {
+                paymentId: payment.id,
+                invoiceId,
+                amount: numericAmount,
+                method: method?.toUpperCase() || 'CASH',
+                status: status.toUpperCase(),
+                userId,
             });
 
             // Update invoice status if fully paid
@@ -149,10 +273,18 @@ export class PaymentService {
                 });
 
                 const totalPaid = Number(aggregate._sum.amount || 0);
-                if (totalPaid >= Number(invoice.total)) {
+                if (totalPaid >= invoiceTotal) {
                     await tx.invoice.update({
                         where: { id: invoiceId },
                         data: { status: 'PAID' }
+                    });
+
+                    // Log invoice fully paid
+                    await logPaymentAudit('payment_completed', orgId, {
+                        paymentId: payment.id,
+                        invoiceId,
+                        amount: totalPaid,
+                        status: 'PAID',
                     });
                 } else if (totalPaid > 0) {
                     await tx.invoice.update({
@@ -168,8 +300,25 @@ export class PaymentService {
 
     /**
      * Update a payment
+     * Phase 10 Security: Validates terminal state before allowing updates
      */
     static async updatePayment(orgId: string, id: string, data: any) {
+        // Phase 10 Security: Check terminal state before update
+        const existing = await prisma.payment.findFirst({
+            where: { id, organizationId: orgId },
+            select: { status: true },
+        });
+
+        const TERMINAL_PAYMENT_STATES = ['COMPLETED', 'REFUNDED'];
+        if (existing && TERMINAL_PAYMENT_STATES.includes(existing.status)) {
+            console.warn('[SECURITY] Payment update terminal state violation:', {
+                paymentId: id,
+                currentStatus: existing.status,
+                timestamp: new Date().toISOString(),
+            });
+            throw new Error(`No se puede modificar un pago ${existing.status === 'COMPLETED' ? 'completado' : 'reembolsado'}`);
+        }
+
         const { status, reference, notes, metadata, externalTransactionId } = data;
 
         return prisma.payment.update({

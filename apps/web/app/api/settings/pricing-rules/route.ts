@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Decimal } from '@prisma/client/runtime/library';
+import { validateBody, pricingRulesSchema } from '@/lib/validation/api-schemas';
 
 export async function GET() {
     try {
@@ -104,6 +105,16 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
+
+        // Validate request body with Zod
+        const validation = validateBody(body, pricingRulesSchema);
+        if (!validation.success) {
+            return NextResponse.json(
+                { success: false, error: validation.error },
+                { status: 400 }
+            );
+        }
+
         const {
             techCanModifyPricing,
             techMaxAdjustmentPercent,
@@ -116,7 +127,7 @@ export async function PUT(request: NextRequest) {
             requireDepositToStart,
             usePriceBook,
             priceBookMandatory,
-        } = body;
+        } = validation.data;
 
         // Upsert the settings (create if doesn't exist, update if exists)
         const settings = await prisma.organizationPricingSettings.upsert({

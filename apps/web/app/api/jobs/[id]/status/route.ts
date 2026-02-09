@@ -5,6 +5,7 @@ import { onJobStatusChange } from '@/src/modules/whatsapp/notification-triggers.
 import { randomUUID } from 'crypto';
 import { JobService } from '@/src/services/job.service';
 import { jobRouteIntegrationService } from '@/lib/services/job-route-integration.service';
+import { validateBody, jobStatusSchema } from '@/lib/validation/api-schemas';
 
 type JobStatus = 'PENDING' | 'SCHEDULED' | 'ASSIGNED' | 'EN_ROUTE' | 'ARRIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
@@ -34,7 +35,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const { status } = await request.json();
+    const body = await request.json();
+
+    // Validate request body with Zod
+    const validation = validateBody(body, jobStatusSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
+
+    const { status } = validation.data;
 
     // Verify the job belongs to the organization
     const existing = await JobService.getJobById(session.organizationId, id);

@@ -18,15 +18,7 @@ import {
     validateJobModification,
     type JobComplianceData,
 } from '@/lib/services/pricing-compliance';
-
-interface PricingUpdatePayload {
-    estimatedPrice?: number;
-    actualPrice?: number;
-    techProposedPrice?: number;
-    priceVarianceReason?: string;
-    requiresDeposit?: boolean;
-    depositAmount?: number;
-}
+import { validateBody, visitPricingSchema } from '@/lib/validation/api-schemas';
 
 export async function PUT(
     request: NextRequest,
@@ -42,7 +34,17 @@ export async function PUT(
         }
 
         const { id: jobId, visitId } = await params;
-        const body: PricingUpdatePayload = await request.json();
+        const body = await request.json();
+
+        // Validate request body with Zod
+        const validation = validateBody(body, visitPricingSchema);
+        if (!validation.success) {
+            return NextResponse.json(
+                { success: false, error: validation.error },
+                { status: 400 }
+            );
+        }
+
         const {
             estimatedPrice,
             actualPrice,
@@ -50,7 +52,7 @@ export async function PUT(
             priceVarianceReason,
             requiresDeposit,
             depositAmount,
-        } = body;
+        } = validation.data;
 
         // Verify job belongs to organization
         const job = await prisma.job.findFirst({

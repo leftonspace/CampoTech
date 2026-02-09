@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Star, CheckCircle, AlertCircle, MessageCircle, Phone, Building2 } from 'lucide-react';
+import { Star, CheckCircle, AlertCircle, MessageCircle, Building2 } from 'lucide-react';
 
 interface RatingData {
   organizationName: string;
@@ -145,8 +145,8 @@ export default function RatingPage() {
               <Star
                 key={star}
                 className={`h-8 w-8 ${star <= selectedRating
-                    ? 'text-yellow-400 fill-yellow-400'
-                    : 'text-gray-300'
+                  ? 'text-yellow-400 fill-yellow-400'
+                  : 'text-gray-300'
                   }`}
               />
             ))}
@@ -242,8 +242,8 @@ export default function RatingPage() {
               >
                 <Star
                   className={`h-10 w-10 transition-colors ${star <= (hoveredRating || selectedRating)
-                      ? 'text-yellow-400 fill-yellow-400'
-                      : 'text-gray-300 hover:text-yellow-200'
+                    ? 'text-yellow-400 fill-yellow-400'
+                    : 'text-gray-300 hover:text-yellow-200'
                     }`}
                 />
               </button>
@@ -292,10 +292,10 @@ export default function RatingPage() {
           onClick={handleSubmit}
           disabled={submitting || selectedRating === 0}
           className={`w-full py-3 px-4 rounded-xl font-medium text-white transition-all ${selectedRating === 0
-              ? 'bg-gray-300 cursor-not-allowed'
-              : submitting
-                ? 'bg-primary-400 cursor-wait'
-                : 'bg-primary-600 hover:bg-primary-700 active:scale-[0.98]'
+            ? 'bg-gray-300 cursor-not-allowed'
+            : submitting
+              ? 'bg-primary-400 cursor-wait'
+              : 'bg-primary-600 hover:bg-primary-700 active:scale-[0.98]'
             }`}
         >
           {submitting ? (
@@ -308,19 +308,8 @@ export default function RatingPage() {
           )}
         </button>
 
-        {/* Contact */}
-        {ratingData?.organizationPhone && (
-          <div className="mt-6 text-center">
-            <p className="text-xs text-gray-500 mb-2">¿Necesitás ayuda?</p>
-            <a
-              href={`tel:${ratingData.organizationPhone}`}
-              className="inline-flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700"
-            >
-              <Phone className="h-4 w-4" />
-              {ratingData.organizationPhone}
-            </a>
-          </div>
-        )}
+
+        {/* Removed phone number - customer already has WhatsApp contact from original conversation */}
       </div>
     </div>
   );

@@ -1,0 +1,26 @@
+#!/bin/sh
+# CampoTech Pre-Commit Hook
+# Security audit + lint checks
+
+# Run security audit - fail on HIGH or CRITICAL vulnerabilities
+echo "🔒 Running security audit..."
+pnpm audit --audit-level=high
+
+if [ $? -ne 0 ]; then
+  echo "❌ Security audit failed! HIGH or CRITICAL vulnerabilities detected."
+  echo "   Run 'pnpm audit' to see details and 'pnpm audit fix' to attempt auto-fix."
+  exit 1
+fi
+
+echo "✅ Security audit passed (0 HIGH/CRITICAL vulnerabilities)"
+
+# Run linting
+echo "🔍 Running lint checks..."
+pnpm lint
+
+if [ $? -ne 0 ]; then
+  echo "❌ Lint check failed!"
+  exit 1
+fi
+
+echo "✅ All pre-commit checks passed!"

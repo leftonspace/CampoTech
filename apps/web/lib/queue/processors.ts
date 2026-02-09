@@ -721,6 +721,7 @@ const webhookHandler: JobHandler<WebhookData> = async (job) => {
 interface JobSendDocumentsData {
   jobId: string;
   organizationId: string;
+  ratingToken?: string | null;
   sendReport?: boolean;
   sendInvoice?: boolean;
 }
@@ -729,7 +730,7 @@ interface JobSendDocumentsData {
  * Send completion documents (report + invoice) to customer via WhatsApp
  */
 const jobSendDocumentsHandler: JobHandler<JobSendDocumentsData> = async (job) => {
-  const { jobId, organizationId, sendReport = true, sendInvoice = true } = job.data;
+  const { jobId, organizationId, ratingToken, sendReport = true, sendInvoice = true } = job.data;
 
   try {
     // Dynamic import to avoid circular dependency
@@ -738,6 +739,7 @@ const jobSendDocumentsHandler: JobHandler<JobSendDocumentsData> = async (job) =>
     const result = await sendCompletionDocuments({
       jobId,
       organizationId,
+      ratingToken,
       sendReport,
       sendInvoice,
     });

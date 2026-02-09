@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useParams } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
 import {
@@ -16,9 +15,6 @@ import {
 } from '@/lib/utils';
 import {
   ArrowLeft,
-  Edit2,
-  Save,
-  X,
   MapPin,
   Calendar,
   Clock,
@@ -30,63 +26,22 @@ import {
   CheckCircle,
   Truck,
   Wrench,
-  Play,
-  Pause,
   XCircle,
-  AlertTriangle,
   MessageCircle,
-  Copy,
+
   Printer,
   Package,
   Plus,
 } from 'lucide-react';
-import { Job, User as UserType, Customer, JobPriority } from '@/types';
-import { JobMaterialUsagePanel } from '@/components/inventory/JobMaterialUsagePanel';
-import { CompletionForm } from '@/components/jobs/CompletionForm';
-import { PricebookLineItems } from '@/components/jobs/PricebookLineItems';
-import { PriceVarianceAlert } from '@/components/jobs/PriceVarianceAlert';
+import { Job } from '@/types';
 import { MultiVisitProgress } from '@/components/jobs/MultiVisitProgress';
 import { PerVisitQuoteBreakdown } from '@/components/jobs/PerVisitQuoteBreakdown';
+import { PriceVarianceAlert } from '@/components/jobs/PriceVarianceAlert';
 import { generateQuoteWhatsAppLink } from '@/lib/whatsapp-links';
 
-// Form-specific interface for editing jobs
-// Uses separate time fields for UX, converted to scheduledTimeSlot on save
-interface JobEditFormData {
-  description?: string;
-  address?: string;
-  priority?: JobPriority;
-  serviceType?: string;
-  customerId?: string;
-  scheduledDate?: string;
-  scheduledTimeStart?: string;
-  scheduledTimeEnd?: string;
-  vehicleId?: string | null; // Phase 2.2: Vehicle assignment
-}
-
-// Availability data from API
-interface AvailableEmployee {
-  id: string;
-  name: string;
-  phone: string;
-  isAvailable: boolean;
-  scheduleInfo: {
-    startTime: string;
-    endTime: string;
-    isException: boolean;
-    exceptionReason?: string;
-  } | null;
-  currentJobCount: number;
-}
-
-// Vehicle data for job assignment (Phase 2.2)
-interface Vehicle {
-  id: string;
-  plateNumber: string;
-  make: string;
-  model: string;
-  status: string;
-  currentMileage?: number;
-}
+// ═══════════════════════════════════════════════════════════════════════════════
+// CONSTANTS
+// ═══════════════════════════════════════════════════════════════════════════════
 
 const PRIORITY_LABELS: Record<string, string> = {
   low: 'Baja',
@@ -102,61 +57,21 @@ const PRIORITY_COLORS: Record<string, string> = {
   urgent: 'bg-red-100 text-red-800',
 };
 
-// Valid status transitions (using database enum values)
-const STATUS_TRANSITIONS: Record<string, string[]> = {
-  PENDING: ['ASSIGNED', 'CANCELLED'],
-  ASSIGNED: ['EN_ROUTE', 'PENDING', 'CANCELLED'],
-  EN_ROUTE: ['IN_PROGRESS', 'ASSIGNED'],
-  IN_PROGRESS: ['COMPLETED', 'EN_ROUTE'],
-  COMPLETED: [],
-  CANCELLED: ['PENDING'],
-};
+// ═══════════════════════════════════════════════════════════════════════════════
+// MAIN COMPONENT - READ-ONLY JOB DETAIL PAGE
+// ═══════════════════════════════════════════════════════════════════════════════
 
 export default function JobDetailPage() {
   const params = useParams();
-  const _router = useRouter();
-  const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
   const jobId = params.id as string;
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [editData, setEditData] = useState<JobEditFormData>({});
-  const [showMaterialsPanel, setShowMaterialsPanel] = useState(false);
-  const [materialUsageMessage, setMaterialUsageMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [showCompletionForm, setShowCompletionForm] = useState(false); // Phase 3: Completion modal
-
-  // Auto-enable edit mode if ?edit=true is present
-  useEffect(() => {
-    if (searchParams.get('edit') === 'true') {
-      setIsEditing(true);
-    }
-  }, [searchParams]);
-
+  // Fetch job details
   const { data, isLoading, error } = useQuery({
     queryKey: ['job', jobId],
     queryFn: () => api.jobs.get(jobId),
   });
 
-  const { data: usersData } = useQuery({
-    queryKey: ['users-all'],
-    queryFn: () => api.users.list(),
-  });
-
-  const { data: customersData } = useQuery({
-    queryKey: ['customers-all'],
-    queryFn: () => api.customers.list(),
-  });
-
-  // Fetch vehicles for assignment (Phase 2.2)
-  const { data: vehiclesData } = useQuery({
-    queryKey: ['vehicles-all'],
-    queryFn: async () => {
-      const res = await fetch('/api/vehicles');
-      return res.json();
-    },
-  });
-
-  // Fetch line items for quote generation and variance alert
+  // Fetch line items for quote display
   const { data: lineItemsData } = useQuery({
     queryKey: ['job-line-items', jobId],
     queryFn: async () => {
@@ -166,203 +81,13 @@ export default function JobDetailPage() {
     enabled: !!jobId,
   });
 
+  const job = data?.data as Job | undefined;
   const lineItems = lineItemsData?.data?.items || [];
   const lineItemsSummary = lineItemsData?.data?.summary || { subtotal: 0, tax: 0, total: 0, itemCount: 0 };
 
-  // Cast job data for type safety
-  const jobData = data?.data as Job | undefined;
-
-  // Fetch availability when job has a scheduled date
-  const scheduledDateStr = jobData?.scheduledDate?.split('T')[0];
-  // Use separate time field from Prisma schema
-  const scheduledTimeStr = jobData?.scheduledTimeStart;
-
-  const { data: availabilityData } = useQuery({
-    queryKey: ['employee-availability', scheduledDateStr, scheduledTimeStr],
-    queryFn: async () => {
-      const params = new URLSearchParams({ date: scheduledDateStr! });
-      if (scheduledTimeStr) params.append('time', scheduledTimeStr);
-      const res = await fetch(`/api/employees/availability?${params}`);
-      return res.json();
-    },
-    enabled: !!scheduledDateStr,
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: (data: Partial<Job>) => api.jobs.update(jobId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['job', jobId] });
-      setIsEditing(false);
-    },
-  });
-
-  const statusMutation = useMutation({
-    mutationFn: (status: string) => api.jobs.updateStatus(jobId, status),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['job', jobId] });
-    },
-  });
-
-  const assignMutation = useMutation({
-    mutationFn: (userId: string) => api.jobs.assign(jobId, userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['job', jobId] });
-    },
-  });
-
-  const unassignMutation = useMutation({
-    mutationFn: (userId: string) => api.jobs.unassign(jobId, userId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['job', jobId] });
-    },
-  });
-
-  const job = data?.data as Job | undefined;
-  const teamMembers = usersData?.data as UserType[] | undefined;
-  const customers = customersData?.data as Customer[] | undefined;
-  const vehicles = vehiclesData?.data?.vehicles as Vehicle[] | undefined; // Phase 2.2 - API returns { vehicles: [], stats: {} }
-
-  // Build availability map for quick lookup
-  const availabilityMap = new Map<string, AvailableEmployee>();
-  if (availabilityData?.data?.employees) {
-    (availabilityData.data.employees as AvailableEmployee[]).forEach((emp) => {
-      availabilityMap.set(emp.id, emp);
-    });
-  }
-
-  // Get team members sorted by availability
-  const getSortedTeamMembers = () => {
-    if (!teamMembers) return [];
-
-    const filtered = teamMembers.filter(
-      (member) => !job?.assignments?.some((a) => a.technicianId === member.id)
-    );
-
-    // If we have availability data, sort by it
-    if (availabilityMap.size > 0) {
-      return filtered.sort((a, b) => {
-        const aAvail = availabilityMap.get(a.id);
-        const bAvail = availabilityMap.get(b.id);
-
-        // Available first
-        if (aAvail?.isAvailable && !bAvail?.isAvailable) return -1;
-        if (!aAvail?.isAvailable && bAvail?.isAvailable) return 1;
-
-        // Then by job count (less busy first)
-        const aJobs = aAvail?.currentJobCount || 0;
-        const bJobs = bAvail?.currentJobCount || 0;
-        return aJobs - bJobs;
-      });
-    }
-
-    return filtered;
-  };
-
-  const handleEdit = () => {
-    if (job) {
-      setEditData({
-        description: job.description || '',
-        address: formatAddress(job.address || job.customer?.address),
-        priority: job.priority,
-        serviceType: job.serviceType || '',
-        customerId: job.customerId,
-        scheduledDate: job.scheduledDate?.split('T')[0] || '',
-        scheduledTimeStart: job.scheduledTimeStart || '',
-        scheduledTimeEnd: job.scheduledTimeEnd || '',
-        vehicleId: job.vehicleId || null, // Phase 2.2
-      });
-      setIsEditing(true);
-    }
-  };
-
-  const handleSave = () => {
-    // Pass form data directly - API uses separate time fields
-    updateMutation.mutate(editData as Partial<Job>);
-  };
-
-  const handleStatusChange = (newStatus: string) => {
-    // Phase 3: Open completion form for COMPLETED status
-    if (newStatus === 'COMPLETED') {
-      setShowCompletionForm(true);
-      return;
-    }
-
-    if (confirm(`¿Cambiar estado a "${JOB_STATUS_LABELS[newStatus]}"?`)) {
-      statusMutation.mutate(newStatus);
-    }
-  };
-
-  const handleAssign = (userId: string) => {
-    const availability = availabilityMap.get(userId);
-    const member = teamMembers?.find((m) => m.id === userId);
-
-    // If not available, show warning and ask for confirmation
-    if (availability && !availability.isAvailable) {
-      const reason = availability.scheduleInfo?.isException
-        ? availability.scheduleInfo.exceptionReason || 'Día libre'
-        : 'Fuera de horario de trabajo';
-
-      if (
-        !confirm(
-          `⚠️ ${member?.name || 'Este técnico'} no está disponible.\n\nMotivo: ${reason}\n\n¿Deseas asignarlo de todos modos?`
-        )
-      ) {
-        return;
-      }
-    }
-
-    assignMutation.mutate(userId);
-  };
-
-  const handleUnassign = (userId: string, technicianName: string) => {
-    if (confirm(`¿Desasignar a ${technicianName} de este trabajo?`)) {
-      unassignMutation.mutate(userId);
-    }
-  };
-
-  const getNextActions = (status: string) => {
-    const transitions = STATUS_TRANSITIONS[status] || [];
-    return transitions.map((s) => ({
-      status: s,
-      label: JOB_STATUS_LABELS[s],
-      icon: getStatusIcon(s),
-      color: getStatusButtonColor(s),
-    }));
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'ASSIGNED':
-        return Calendar;
-      case 'EN_ROUTE':
-        return Truck;
-      case 'IN_PROGRESS':
-        return Wrench;
-      case 'COMPLETED':
-        return CheckCircle;
-      case 'CANCELLED':
-        return XCircle;
-      case 'PENDING':
-        return Pause;
-      default:
-        return Play;
-    }
-  };
-
-  const getStatusButtonColor = (status: string) => {
-    switch (status) {
-      case 'COMPLETED':
-        return 'btn-primary';
-      case 'CANCELLED':
-        return 'btn-danger';
-      case 'EN_ROUTE':
-        return 'bg-purple-600 text-white hover:bg-purple-700';
-      case 'IN_PROGRESS':
-        return 'bg-orange-600 text-white hover:bg-orange-700';
-      default:
-        return 'btn-outline';
-    }
-  };
+  // ═══════════════════════════════════════════════════════════════════════════
+  // LOADING STATE
+  // ═══════════════════════════════════════════════════════════════════════════
 
   if (isLoading) {
     return (
@@ -371,6 +96,10 @@ export default function JobDetailPage() {
       </div>
     );
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ERROR STATE
+  // ═══════════════════════════════════════════════════════════════════════════
 
   if (error || !job) {
     return (
@@ -396,7 +125,9 @@ export default function JobDetailPage() {
     );
   }
 
-  const nextActions = getNextActions(job.status);
+  // ═══════════════════════════════════════════════════════════════════════════
+  // MAIN RENDER
+  // ═══════════════════════════════════════════════════════════════════════════
 
   return (
     <div className="space-y-6">
@@ -409,7 +140,7 @@ export default function JobDetailPage() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div className="flex-1">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl font-bold text-gray-900">
               {job.serviceType?.replace(/_/g, ' ') || job.description || 'Trabajo'}
             </h1>
@@ -432,74 +163,12 @@ export default function JobDetailPage() {
           </div>
           <p className="text-gray-500">Trabajo {job.jobNumber?.replace('JOB-', 'Nº ') || `Nº ${job.id.slice(0, 8)}`}</p>
         </div>
-        <div className="flex gap-2">
-          {isEditing ? (
-            <>
-              <button onClick={() => setIsEditing(false)} className="btn-outline">
-                <X className="mr-2 h-4 w-4" />
-                Cancelar
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={updateMutation.isPending}
-                className="btn-primary"
-              >
-                <Save className="mr-2 h-4 w-4" />
-                {updateMutation.isPending ? 'Guardando...' : 'Guardar'}
-              </button>
-            </>
-          ) : (
-            <button onClick={handleEdit} className="btn-outline">
-              <Edit2 className="mr-2 h-4 w-4" />
-              Editar
-            </button>
-          )}
+
+        {/* Info badge about read-only status */}
+        <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-100 px-3 py-1.5 rounded-lg">
+          <span className="text-xs">📱 Las actualizaciones se realizan desde la app móvil</span>
         </div>
       </div>
-
-      {/* Status actions */}
-      {!isEditing && (
-        <div className="card p-4">
-          <div className="flex flex-wrap items-center gap-4">
-            {/* Direct status dropdown */}
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700">Estado:</span>
-              <select
-                value={job.status}
-                onChange={(e) => handleStatusChange(e.target.value)}
-                disabled={statusMutation.isPending}
-                className="input w-auto py-1.5 text-sm"
-              >
-                <option value="PENDING">Pendiente</option>
-                <option value="ASSIGNED">Asignado</option>
-                <option value="EN_ROUTE">En camino</option>
-                <option value="IN_PROGRESS">En trabajo</option>
-                <option value="COMPLETED">Completado</option>
-                <option value="CANCELLED">Cancelado</option>
-              </select>
-            </div>
-
-            {/* Quick action buttons for common transitions */}
-            {nextActions.length > 0 && (
-              <>
-                <span className="text-gray-300">|</span>
-                <span className="text-sm text-gray-500">Acciones rápidas:</span>
-                {nextActions.map(({ status, label, icon: Icon, color }) => (
-                  <button
-                    key={status}
-                    onClick={() => handleStatusChange(status)}
-                    disabled={statusMutation.isPending}
-                    className={cn('inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium', color)}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {label}
-                  </button>
-                ))}
-              </>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Multi-Visit Progress (for MULTI_VISIT jobs) */}
       {(job as Job & { durationType?: string; visits?: unknown[] }).durationType === 'MULTIPLE_VISITS' &&
@@ -516,213 +185,57 @@ export default function JobDetailPage() {
             <PerVisitQuoteBreakdown jobId={job.id} />
           )}
 
-          {/* Job details */}
+          {/* Job details - READ ONLY */}
           <div className="card p-6">
             <h2 className="mb-4 font-medium text-gray-900">Detalles del trabajo</h2>
-
-            {isEditing ? (
-              <div className="space-y-4">
-                <div>
-                  <label className="label mb-1 block">Descripción del trabajo</label>
-                  <textarea
-                    value={editData.description || ''}
-                    onChange={(e) => setEditData({ ...editData, description: e.target.value })}
-                    rows={3}
-                    placeholder="Detalles del trabajo a realizar..."
-                    className="input"
-                  />
-                </div>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="label mb-1 block">Cliente</label>
-                    <select
-                      value={editData.customerId || ''}
-                      onChange={(e) => setEditData({ ...editData, customerId: e.target.value })}
-                      className="input"
-                    >
-                      <option value="">Seleccionar cliente...</option>
-                      {customers?.map((customer) => (
-                        <option key={customer.id} value={customer.id}>
-                          {customer.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="label mb-1 block">Tipo de servicio</label>
-                    <input
-                      type="text"
-                      value={editData.serviceType || ''}
-                      onChange={(e) => setEditData({ ...editData, serviceType: e.target.value })}
-                      placeholder="Ej: Instalación, Mantenimiento, Reparación"
-                      className="input"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="label mb-1 block">Dirección</label>
-                  <input
-                    type="text"
-                    value={editData.address || ''}
-                    onChange={(e) => setEditData({ ...editData, address: e.target.value })}
-                    placeholder="Dirección donde se realizará el trabajo"
-                    className="input"
-                  />
-                </div>
-                <div>
-                  <label className="label mb-1 block">Prioridad</label>
-                  <select
-                    value={editData.priority || 'normal'}
-                    onChange={(e) => setEditData({ ...editData, priority: e.target.value as JobPriority })}
-                    className="input"
-                  >
-                    <option value="low">Baja</option>
-                    <option value="normal">Normal</option>
-                    <option value="high">Alta</option>
-                    <option value="urgent">Urgente</option>
-                  </select>
-                </div>
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div>
-                    <label className="label mb-1 block">Fecha</label>
-                    <input
-                      type="date"
-                      value={editData.scheduledDate || ''}
-                      onChange={(e) => setEditData({ ...editData, scheduledDate: e.target.value })}
-                      className="input"
-                    />
-                  </div>
-                  <div>
-                    <label className="label mb-1 block">Hora inicio</label>
-                    <input
-                      type="time"
-                      value={editData.scheduledTimeStart || ''}
-                      onChange={(e) => setEditData({ ...editData, scheduledTimeStart: e.target.value })}
-                      className="input"
-                    />
-                  </div>
-                  <div>
-                    <label className="label mb-1 block">Hora fin</label>
-                    <input
-                      type="time"
-                      value={editData.scheduledTimeEnd || ''}
-                      onChange={(e) => setEditData({ ...editData, scheduledTimeEnd: e.target.value })}
-                      className="input"
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {job.serviceType && (
-                  <div className="flex items-center gap-2">
-                    <Wrench className="h-5 w-5 text-gray-400" />
-                    <span className="font-medium text-gray-700">{job.serviceType}</span>
-                  </div>
-                )}
-                {job.description && (
-                  <div>
-                    <p className="text-gray-700">{job.description}</p>
-                  </div>
-                )}
-                <div className="flex items-start gap-3">
-                  <MapPin className="mt-0.5 h-5 w-5 text-gray-400" />
-                  <span className="text-gray-700">{formatAddress(job.address || job.customer?.address) || 'Sin dirección'}</span>
-                </div>
-                {job.scheduledDate && (
-                  <div className="flex items-center gap-3">
-                    <Calendar className="h-5 w-5 text-gray-400" />
-                    <span className="text-gray-700">{formatDate(job.scheduledDate)}</span>
-                    {(job.scheduledTimeStart || job.scheduledTimeEnd) && (
-                      <>
-                        <Clock className="ml-2 h-5 w-5 text-gray-400" />
-                        <span className="text-gray-700">
-                          {job.scheduledTimeStart || '--:--'} - {job.scheduledTimeEnd || '--:--'}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                )}
-                {job.estimatedDuration && (
-                  <div className="flex items-center gap-3">
-                    <Clock className="h-5 w-5 text-gray-400" />
-                    <span className="text-gray-700">
-                      Duración estimada: {job.estimatedDuration} min
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Material Usage Panel - Phase 2.2.2 */}
-          {(job.status === 'IN_PROGRESS' || job.status === 'EN_ROUTE') && (
-            <div className="card p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="flex items-center gap-2 font-medium text-gray-900">
-                  <Package className="h-5 w-5" />
-                  Registrar Uso de Materiales
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setShowMaterialsPanel(!showMaterialsPanel)}
-                  className="text-sm text-primary-600 hover:underline"
-                >
-                  {showMaterialsPanel ? 'Ocultar' : 'Expandir'}
-                </button>
-              </div>
-
-              {materialUsageMessage && (
-                <div className={`mb-4 rounded-lg p-3 ${materialUsageMessage.type === 'success'
-                  ? 'bg-green-50 text-green-700 border border-green-200'
-                  : 'bg-red-50 text-red-700 border border-red-200'
-                  }`}>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm">{materialUsageMessage.text}</span>
-                    <button
-                      onClick={() => setMaterialUsageMessage(null)}
-                      className="text-current opacity-60 hover:opacity-100"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
+            <div className="space-y-4">
+              {job.serviceType && (
+                <div className="flex items-center gap-2">
+                  <Wrench className="h-5 w-5 text-gray-400" />
+                  <span className="font-medium text-gray-700">{job.serviceType}</span>
                 </div>
               )}
-
-              {showMaterialsPanel ? (
-                <JobMaterialUsagePanel
-                  jobId={job.id}
-                  onSuccess={(summary) => {
-                    setMaterialUsageMessage({ type: 'success', text: summary });
-                    setShowMaterialsPanel(false);
-                    queryClient.invalidateQueries({ queryKey: ['job', jobId] });
-                  }}
-                  onError={(error) => {
-                    setMaterialUsageMessage({ type: 'error', text: error });
-                  }}
-                />
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-gray-500 text-sm mb-3">
-                    Registrá los materiales utilizados durante el trabajo
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowMaterialsPanel(true)}
-                    className="btn-outline inline-flex items-center gap-2"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Agregar materiales
-                  </button>
+              {job.description && (
+                <div>
+                  <p className="text-gray-700">{job.description}</p>
+                </div>
+              )}
+              <div className="flex items-start gap-3">
+                <MapPin className="mt-0.5 h-5 w-5 text-gray-400" />
+                <span className="text-gray-700">{formatAddress(job.address || job.customer?.address) || 'Sin dirección'}</span>
+              </div>
+              {job.scheduledDate && (
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-5 w-5 text-gray-400" />
+                  <span className="text-gray-700">{formatDate(job.scheduledDate)}</span>
+                  {(job.scheduledTimeStart || job.scheduledTimeEnd) && (
+                    <>
+                      <Clock className="ml-2 h-5 w-5 text-gray-400" />
+                      <span className="text-gray-700">
+                        {job.scheduledTimeStart || '--:--'} - {job.scheduledTimeEnd || '--:--'}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
+              {job.estimatedDuration && (
+                <div className="flex items-center gap-3">
+                  <Clock className="h-5 w-5 text-gray-400" />
+                  <span className="text-gray-700">
+                    Duración estimada: {job.estimatedDuration} min
+                  </span>
                 </div>
               )}
             </div>
-          )}
+          </div>
 
           {/* Completion info (if completed) */}
           {job.status === 'COMPLETED' && (
             <div className="card p-6">
-              <h2 className="mb-4 font-medium text-gray-900">Información de finalización</h2>
+              <h2 className="mb-4 font-medium text-gray-900 flex items-center gap-2">
+                <CheckCircle className="h-5 w-5 text-green-500" />
+                Información de finalización
+              </h2>
               <div className="space-y-4">
                 {job.completedAt && (
                   <div className="flex items-center gap-3">
@@ -787,110 +300,173 @@ export default function JobDetailPage() {
             </div>
           )}
 
+          {/* Cancelled info (if cancelled) */}
+          {job.status === 'CANCELLED' && (
+            <div className="card p-6 border-red-200 bg-red-50">
+              <h2 className="mb-2 font-medium text-red-900 flex items-center gap-2">
+                <XCircle className="h-5 w-5 text-red-500" />
+                Trabajo Cancelado
+              </h2>
+              <p className="text-sm text-red-700">
+                Este trabajo fue cancelado y no puede ser modificado.
+              </p>
+            </div>
+          )}
+
           {/* Materials Used Section */}
-          {job.status === 'COMPLETED' && (
+          {job.status === 'COMPLETED' && job.materialsUsed && Array.isArray(job.materialsUsed) && job.materialsUsed.length > 0 && (
             <div className="card p-6">
               <h2 className="mb-4 flex items-center gap-2 font-medium text-gray-900">
                 <Package className="h-5 w-5" />
                 Materiales Utilizados
               </h2>
-              {job.materialsUsed && Array.isArray(job.materialsUsed) && job.materialsUsed.length > 0 ? (
-                <div>
-                  <table className="min-w-full text-sm">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left py-2 font-medium text-gray-700">Producto</th>
-                        <th className="text-center py-2 font-medium text-gray-700">Cant.</th>
-                        <th className="text-right py-2 font-medium text-gray-700">P. Unit.</th>
-                        <th className="text-right py-2 font-medium text-gray-700">Subtotal</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {job.materialsUsed.map((material, idx) => (
-                        <tr key={idx} className="border-b last:border-0">
-                          <td className="py-2">{material.name}</td>
-                          <td className="text-center py-2">{material.quantity}</td>
-                          <td className="text-right py-2">{formatCurrency(material.unitPrice)}</td>
-                          <td className="text-right py-2">{formatCurrency(material.quantity * material.unitPrice)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t font-medium">
-                        <td colSpan={3} className="py-2 text-right">Total Materiales:</td>
-                        <td className="text-right py-2">
-                          {formatCurrency(
-                            job.materialsUsed.reduce(
-                              (sum, m) => sum + m.quantity * m.unitPrice,
-                              0
-                            )
-                          )}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-gray-500 text-sm">No se registraron materiales para este trabajo</p>
-              )}
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 font-medium text-gray-700">Material</th>
+                    <th className="text-right py-2 font-medium text-gray-700">Cantidad</th>
+                    <th className="text-right py-2 font-medium text-gray-700">Costo Unit.</th>
+                    <th className="text-right py-2 font-medium text-gray-700">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {job.materialsUsed.map((material: any, index: number) => (
+                    <tr key={index} className="border-b">
+                      <td className="py-2 text-gray-900">{material.name || material.productName}</td>
+                      <td className="text-right py-2 text-gray-600">{material.quantity}</td>
+                      <td className="text-right py-2 text-gray-600">{formatCurrency(material.unitCost || 0)}</td>
+                      <td className="text-right py-2 text-gray-900 font-medium">
+                        {formatCurrency((material.quantity || 0) * (material.unitCost || 0))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
-          {/* Related invoice */}
-          {job.invoiceId && (
+          {/* Line Items (Pricebook) */}
+          {lineItems.length > 0 && (
             <div className="card p-6">
-              <h2 className="mb-4 font-medium text-gray-900">Factura relacionada</h2>
-              <Link
-                href={`/dashboard/invoices/${job.invoiceId}`}
-                className="flex items-center gap-3 rounded-md border p-3 hover:bg-gray-50"
-              >
-                <FileText className="h-5 w-5 text-gray-400" />
-                <span className="font-medium text-primary-600">Ver factura</span>
-              </Link>
+              <h2 className="mb-4 flex items-center gap-2 font-medium text-gray-900">
+                <FileText className="h-5 w-5" />
+                Servicios y Productos
+              </h2>
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-2 font-medium text-gray-700">Descripción</th>
+                    <th className="text-right py-2 font-medium text-gray-700">Cant.</th>
+                    <th className="text-right py-2 font-medium text-gray-700">Precio</th>
+                    <th className="text-right py-2 font-medium text-gray-700">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                  {lineItems.map((item: any, index: number) => (
+                    <tr key={index} className="border-b">
+                      <td className="py-2 text-gray-900">{item.description}</td>
+                      <td className="text-right py-2 text-gray-600">{item.quantity}</td>
+                      <td className="text-right py-2 text-gray-600">{formatCurrency(item.unitPrice)}</td>
+                      <td className="text-right py-2 text-gray-900 font-medium">
+                        {formatCurrency(item.total)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 font-medium">
+                    <td colSpan={3} className="py-2 text-right text-gray-700">Subtotal</td>
+                    <td className="py-2 text-right">{formatCurrency(lineItemsSummary.subtotal)}</td>
+                  </tr>
+                  {lineItemsSummary.tax > 0 && (
+                    <tr>
+                      <td colSpan={3} className="py-1 text-right text-gray-500">IVA</td>
+                      <td className="py-1 text-right text-gray-600">{formatCurrency(lineItemsSummary.tax)}</td>
+                    </tr>
+                  )}
+                  <tr className="text-lg font-bold">
+                    <td colSpan={3} className="py-2 text-right text-gray-900">Total</td>
+                    <td className="py-2 text-right text-primary-600">{formatCurrency(lineItemsSummary.total)}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+
+          {/* Vehicle Trip Info (if vehicle was assigned) */}
+          {job.vehicleMileageStart && (
+            <div className="card p-6">
+              <h2 className="mb-4 flex items-center gap-2 font-medium text-gray-900">
+                <Truck className="h-5 w-5" />
+                Información del Viaje
+              </h2>
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="rounded-lg bg-gray-50 p-4 text-center">
+                  <p className="text-sm text-gray-500">Km inicial</p>
+                  <p className="text-xl font-bold text-gray-900">{job.vehicleMileageStart.toLocaleString()}</p>
+                </div>
+                {job.vehicleMileageEnd && (
+                  <>
+                    <div className="rounded-lg bg-gray-50 p-4 text-center">
+                      <p className="text-sm text-gray-500">Km final</p>
+                      <p className="text-xl font-bold text-gray-900">{job.vehicleMileageEnd.toLocaleString()}</p>
+                    </div>
+                    <div className="rounded-lg bg-primary-50 p-4 text-center">
+                      <p className="text-sm text-primary-600">Km recorridos</p>
+                      <p className="text-xl font-bold text-primary-600">
+                        {(job.vehicleMileageEnd - job.vehicleMileageStart).toLocaleString()}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           )}
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Customer info */}
+          {/* Customer info - READ ONLY */}
           <div className="card p-6">
             <h2 className="mb-4 font-medium text-gray-900">Cliente</h2>
             {job.customer ? (
               <div className="space-y-3">
                 <Link
-                  href={`/dashboard/customers/${job.customer.id}`}
-                  className="font-medium text-primary-600 hover:underline"
+                  href={`/dashboard/customers/${job.customerId}`}
+                  className="flex items-center gap-3 hover:bg-gray-50 rounded-lg p-2 -m-2 transition-colors"
                 >
-                  {job.customer.name}
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-primary-600">
+                    <User className="h-5 w-5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-gray-900">{job.customer.name}</p>
+                    <p className="text-sm text-primary-600">Ver perfil →</p>
+                  </div>
                 </Link>
-                <div className="flex items-center gap-2 text-sm text-gray-500">
-                  <Phone className="h-4 w-4" />
-                  <a href={`tel:${job.customer.phone}`} className="hover:underline">
-                    {job.customer.phone}
-                  </a>
-                  {/* WhatsApp button */}
-                  <a
-                    href={`https://wa.me/${job.customer.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(
-                      `Hola ${job.customer.name}, le escribimos de CampoTech respecto al trabajo ${job.jobNumber} programado para el ${job.scheduledDate ? formatDate(job.scheduledDate) : 'próximamente'}.`
-                    )}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ml-2 inline-flex items-center justify-center h-7 w-7 rounded-full bg-green-100 text-green-600 hover:bg-green-200 transition-colors"
-                    title="Enviar WhatsApp"
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                  </a>
-                </div>
+                {job.customer.phone && (
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <Phone className="h-4 w-4 text-gray-400" />
+                    <a
+                      href={`https://wa.me/${job.customer.phone?.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-primary-600"
+                    >
+                      {job.customer.phone}
+                    </a>
+                  </div>
+                )}
               </div>
             ) : (
-              <p className="text-gray-500">Cliente no disponible</p>
+              <p className="text-gray-500">Sin cliente asignado</p>
             )}
           </div>
 
-          {/* Assignment - Multiple Technicians */}
+          {/* Assigned technicians - READ ONLY */}
           <div className="card p-6">
-            <h2 className="mb-4 flex items-center gap-2 font-medium text-gray-900">
+            <h2 className="mb-4 font-medium text-gray-900 flex items-center gap-2">
               <Users className="h-5 w-5" />
               Técnicos asignados
             </h2>
@@ -907,21 +483,10 @@ export default function JobDetailPage() {
                         Asignado: {formatDate(assignment.assignedAt)}
                       </p>
                     </div>
-                    {job.status !== 'COMPLETED' && job.status !== 'CANCELLED' && (
-                      <button
-                        onClick={() => handleUnassign(assignment.technicianId, assignment.technician?.name || 'técnico')}
-                        disabled={unassignMutation.isPending}
-                        className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500"
-                        title="Desasignar técnico"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    )}
                   </div>
                 ))}
               </div>
             ) : job.assignedTo ? (
-              // Fallback to legacy single assignment
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary-100 text-primary-600">
                   <User className="h-5 w-5" />
@@ -932,154 +497,32 @@ export default function JobDetailPage() {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-between">
-                <p className="text-gray-500">Sin asignar</p>
-                {!isEditing && job.status !== 'COMPLETED' && job.status !== 'CANCELLED' && (
-                  <button
-                    onClick={() => {
-                      const select = document.querySelector('#technician-select') as HTMLSelectElement;
-                      if (select) select.focus();
-                    }}
-                    className="btn-outline text-sm py-1.5 px-3"
-                  >
-                    <Plus className="mr-1 h-4 w-4" />
-                    Asignar
-                  </button>
-                )}
-              </div>
-            )}
-            {!isEditing && job.status !== 'COMPLETED' && job.status !== 'CANCELLED' && (
-              <div className="mt-4">
-                <label className="label mb-1 block text-sm">Agregar/cambiar asignación:</label>
-                {job.scheduledDate && availabilityData?.data?.availableCount === 0 && (
-                  <div className="mb-2 flex items-center gap-2 rounded-md bg-amber-50 p-2 text-sm text-amber-700">
-                    <AlertTriangle className="h-4 w-4" />
-                    <span>No hay técnicos disponibles para esta fecha/hora</span>
-                  </div>
-                )}
-                <select
-                  id="technician-select"
-                  value=""
-                  onChange={(e) => e.target.value && handleAssign(e.target.value)}
-                  disabled={assignMutation.isPending}
-                  className="input"
-                >
-                  <option value="">Seleccionar técnico...</option>
-                  {getSortedTeamMembers().map((member) => {
-                    const availability = availabilityMap.get(member.id);
-                    const isAvailable = availability?.isAvailable ?? true;
-                    const jobCount = availability?.currentJobCount || 0;
-
-                    // Build status indicator
-                    let status = '';
-                    if (availability) {
-                      if (isAvailable) {
-                        status = jobCount > 0 ? ` ✓ (${jobCount} trabajos)` : ' ✓ Disponible';
-                      } else {
-                        status = ' ⚠ No disponible';
-                      }
-                    }
-
-                    return (
-                      <option key={member.id} value={member.id}>
-                        {member.name}{status}
-                      </option>
-                    );
-                  })}
-                </select>
-                {job.scheduledDate && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    Disponibilidad para {formatDate(job.scheduledDate)}
-                    {job.scheduledTimeStart && ` a las ${job.scheduledTimeStart}`}
-                  </p>
-                )}
-              </div>
+              <p className="text-gray-500">Sin asignar</p>
             )}
           </div>
 
-          {/* Vehicle Assignment - Phase 2.2 */}
-          <div className="card p-6">
-            <h2 className="mb-4 flex items-center gap-2 font-medium text-gray-900">
-              <Truck className="h-5 w-5" />
-              Vehículo asignado
-            </h2>
-            {job.vehicle ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                    <Truck className="h-5 w-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">
-                      {job.vehicle.make} {job.vehicle.model}
-                    </p>
-                    <p className="text-sm text-gray-500">{job.vehicle.plateNumber}</p>
-                  </div>
+          {/* Vehicle - READ ONLY */}
+          {job.vehicle && (
+            <div className="card p-6">
+              <h2 className="mb-4 font-medium text-gray-900 flex items-center gap-2">
+                <Truck className="h-5 w-5" />
+                Vehículo asignado
+              </h2>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                  <Truck className="h-5 w-5" />
                 </div>
-                {/* Mileage info if started */}
-                {job.vehicleMileageStart && (
-                  <div className="mt-2 rounded-md bg-gray-50 p-3 text-sm">
-                    <p className="text-gray-600">
-                      <span className="font-medium">Km inicio:</span> {job.vehicleMileageStart.toLocaleString()}
-                    </p>
-                    {job.vehicleMileageEnd && (
-                      <>
-                        <p className="text-gray-600">
-                          <span className="font-medium">Km fin:</span> {job.vehicleMileageEnd.toLocaleString()}
-                        </p>
-                        <p className="text-gray-800 font-medium">
-                          Recorrido: {(job.vehicleMileageEnd - job.vehicleMileageStart).toLocaleString()} km
-                        </p>
-                      </>
-                    )}
-                  </div>
-                )}
+                <div>
+                  <p className="font-medium text-gray-900">
+                    {job.vehicle.make} {job.vehicle.model}
+                  </p>
+                  <p className="text-sm text-gray-500">{job.vehicle.plateNumber}</p>
+                </div>
               </div>
-            ) : (
-              <p className="text-gray-500">Sin vehículo asignado</p>
-            )}
+            </div>
+          )}
 
-            {/* Vehicle selector (only if not started/completed) */}
-            {!isEditing && job.status !== 'IN_PROGRESS' && job.status !== 'COMPLETED' && job.status !== 'CANCELLED' && (
-              <div className="mt-4">
-                <label className="label mb-1 block text-sm">Cambiar vehículo:</label>
-                <select
-                  value={job.vehicleId || ''}
-                  onChange={async (e) => {
-                    const newVehicleId = e.target.value || null;
-                    updateMutation.mutate({ vehicleId: newVehicleId } as Partial<Job>);
-                  }}
-                  disabled={updateMutation.isPending}
-                  className="input"
-                >
-                  <option value="">Sin vehículo</option>
-                  {vehicles?.filter(v => v.status === 'ACTIVE').map((vehicle) => (
-                    <option key={vehicle.id} value={vehicle.id}>
-                      {vehicle.plateNumber} - {vehicle.make} {vehicle.model}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* Soft lock warning after job starts */}
-            {job.status === 'IN_PROGRESS' && (
-              <div className="mt-3 flex items-center gap-2 rounded-md bg-amber-50 p-2 text-sm text-amber-700">
-                <AlertTriangle className="h-4 w-4 flex-shrink-0" />
-                <span>El vehículo no puede cambiarse después de iniciar el trabajo</span>
-              </div>
-            )}
-          </div>
-
-          {/* Pricing / Pricebook Items - Phase 2 */}
-          <div className="card p-6">
-            <PricebookLineItems
-              jobId={job.id}
-              isLocked={!!job.pricingLockedAt || job.status === 'COMPLETED' || job.status === 'CANCELLED'}
-            />
-          </div>
-
-          {/* Price Variance Alert - Shows when technician proposes different price */}
+          {/* Price Variance Alert */}
           <PriceVarianceAlert
             jobId={job.id}
             estimatedTotal={Number(job.estimatedTotal || 0)}
@@ -1091,21 +534,22 @@ export default function JobDetailPage() {
             priceVarianceReason={job.priceVarianceReason}
           />
 
-          {/* Quick actions */}
+          {/* Quick actions - LIMITED */}
           <div className="card p-6">
             <h2 className="mb-4 font-medium text-gray-900">Acciones rápidas</h2>
             <div className="space-y-2">
-              {!job.invoiceId && job.status === 'COMPLETED' && (
+              {/* View invoice if exists */}
+              {job.invoiceId && (
                 <Link
-                  href={`/dashboard/invoices/new?jobId=${job.id}&customerId=${job.customerId}`}
+                  href={`/dashboard/invoices/${job.invoiceId}`}
                   className="btn-primary w-full justify-center"
                 >
                   <FileText className="mr-2 h-4 w-4" />
-                  Crear factura
+                  Ver factura
                 </Link>
               )}
 
-              {/* Send Quote via WhatsApp - Only show when there are line items and job is pending */}
+              {/* Send Quote via WhatsApp */}
               {job.customer?.phone && lineItemsSummary.itemCount > 0 && job.status === 'PENDING' && (
                 <a
                   href={generateQuoteWhatsAppLink(
@@ -1121,7 +565,7 @@ export default function JobDetailPage() {
                     lineItemsSummary.subtotal,
                     lineItemsSummary.tax,
                     lineItemsSummary.total,
-                    'CampoTech' // TODO: Replace with organization name from context
+                    'CampoTech'
                   )}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -1147,15 +591,6 @@ export default function JobDetailPage() {
                 </a>
               )}
 
-              {/* Duplicate job */}
-              <Link
-                href="/dashboard/jobs"
-                className="btn-outline w-full justify-center"
-              >
-                <Copy className="mr-2 h-4 w-4" />
-                Duplicar trabajo
-              </Link>
-
               {/* Print order */}
               <button
                 onClick={() => window.print()}
@@ -1172,22 +607,6 @@ export default function JobDetailPage() {
                 <Plus className="mr-2 h-4 w-4" />
                 Nuevo trabajo para cliente
               </Link>
-
-              {/* Cancel job option */}
-              {job.status !== 'COMPLETED' && job.status !== 'CANCELLED' && (
-                <button
-                  onClick={() => {
-                    if (confirm(`¿Estás seguro de cancelar el trabajo ${job.jobNumber}?`)) {
-                      statusMutation.mutate('CANCELLED');
-                    }
-                  }}
-                  disabled={statusMutation.isPending}
-                  className="w-full rounded-lg border border-red-200 px-4 py-2 text-red-600 hover:bg-red-50 flex items-center justify-center"
-                >
-                  <XCircle className="mr-2 h-4 w-4" />
-                  Cancelar trabajo
-                </button>
-              )}
             </div>
           </div>
 
@@ -1203,26 +622,16 @@ export default function JobDetailPage() {
                 <span>Actualizado</span>
                 <span>{formatDateTime(job.updatedAt)}</span>
               </div>
+              {job.completedAt && (
+                <div className="flex justify-between">
+                  <span>Completado</span>
+                  <span>{formatDateTime(job.completedAt)}</span>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
-
-      {/* Completion Form Modal - Phase 3 */}
-      {showCompletionForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="w-full max-w-lg rounded-lg bg-white shadow-xl max-h-[90vh] overflow-y-auto">
-            <CompletionForm
-              jobId={jobId}
-              onComplete={() => {
-                setShowCompletionForm(false);
-                queryClient.invalidateQueries({ queryKey: ['job', jobId] });
-              }}
-              onCancel={() => setShowCompletionForm(false)}
-            />
-          </div>
-        </div>
-      )}
     </div>
   );
 }

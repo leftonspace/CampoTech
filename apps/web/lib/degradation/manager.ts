@@ -246,11 +246,36 @@ export class DegradationManager {
 
   /**
    * Get Redis service state
+   *
+   * Redis is optional - CampoTech currently operates without it.
+   * When deployed, update this to check actual Redis connectivity.
    */
   private getRedisState(): ServiceState {
     const metadata = SERVICE_METADATA.redis;
 
-    // TODO: Implement actual Redis health check
+    // Check if Redis is configured
+    const redisUrl = process.env.REDIS_URL || process.env.UPSTASH_REDIS_REST_URL;
+
+    if (!redisUrl) {
+      // Redis not deployed - this is expected for free tier
+      // Return 'healthy' because fallback (no cache) is working fine
+      return {
+        id: 'redis',
+        name: metadata.name,
+        status: 'healthy', // System works fine without Redis
+        successRate: 100,
+        avgLatency: 0,
+        lastSuccess: null,
+        lastError: null,
+        hasFallback: metadata.hasFallback,
+        fallbackDescription: 'No desplegado - usando modo sin caché (normal para tier gratuito)',
+        impactLevel: 'low', // Downgrade impact since it's optional
+        updatedAt: new Date(),
+      };
+    }
+
+    // TODO: When Redis is deployed, implement actual health check here
+    // For now, if URL is configured, assume it's working
     return {
       id: 'redis',
       name: metadata.name,
@@ -268,15 +293,39 @@ export class DegradationManager {
 
   /**
    * Get Storage service state
+   *
+   * Storage uses Supabase Storage which shares DB credentials.
+   * We report healthy if DB is healthy since they're the same service.
    */
-  private getStorageState(): ServiceState {
+  private async getStorageState(): Promise<ServiceState> {
     const metadata = SERVICE_METADATA.storage;
 
-    // TODO: Implement actual storage health check
+    // Check if Supabase storage is configured
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+
+    if (!supabaseUrl) {
+      // Storage not configured - report honestly
+      return {
+        id: 'storage',
+        name: metadata.name,
+        status: 'unavailable',
+        successRate: 0,
+        avgLatency: 0,
+        lastSuccess: null,
+        lastError: new Date(),
+        lastErrorMessage: 'Supabase Storage no configurado',
+        hasFallback: metadata.hasFallback,
+        impactLevel: metadata.impactLevel,
+        updatedAt: new Date(),
+      };
+    }
+
+    // Storage is on Supabase - if DB works, storage likely works too
+    // For a true check, we'd need to make an API call to storage
     return {
       id: 'storage',
       name: metadata.name,
-      status: 'healthy',
+      status: 'healthy', // Assume healthy if Supabase URL is configured
       successRate: 100,
       avgLatency: 0,
       lastSuccess: new Date(),

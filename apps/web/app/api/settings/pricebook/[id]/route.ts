@@ -10,6 +10,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 // import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError, Decimal } from '@prisma/client/runtime/library';
+import { validateBody, pricebookItemSchema } from '@/lib/validation/api-schemas';
 
 // Helper to check if error is "table doesn't exist"
 function isTableNotFoundError(error: unknown): boolean {
@@ -103,7 +104,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { name, description, type, price, unit, taxRate, isActive, priceCurrency, priceInUsd } = body;
+
+    // Validate request body with Zod
+    const validation = validateBody(body, pricebookItemSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
+
+    const { name, description, type, price, unit, taxRate, isActive, priceCurrency, priceInUsd } = validation.data;
 
     // Determine if this is a currency change
     const isUsdPricing = priceCurrency === 'USD';
@@ -120,7 +131,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
     if (isUsdPricing) {
       // For USD: store priceInUsd, set price to 0
-      if (priceInUsd !== undefined) {
+      if (priceInUsd !== undefined && priceInUsd !== null) {
         updateData.priceInUsd = new Decimal(priceInUsd);
         updateData.price = new Decimal(0);
       }

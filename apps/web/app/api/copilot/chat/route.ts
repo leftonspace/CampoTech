@@ -10,6 +10,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+// Phase 8 Security: Prompt sanitization and rate limiting (P2, P3)
+import { checkCombinedAILimits, getRateLimitHeaders } from '@/lib/ai';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -111,6 +113,15 @@ export async function POST(request: NextRequest) {
     const body: ChatRequest = await request.json();
     const { message, conversationId, context } = body;
     console.log('[COPILOT] Request body:', { message, conversationId, hasContext: !!context });
+
+    // Phase 8 Security: Rate limit AI requests (P3)
+    const rateLimit = await checkCombinedAILimits(session.userId, session.organizationId, 'copilot');
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { success: false, error: rateLimit.error || 'Rate limit exceeded' },
+        { status: 429, headers: getRateLimitHeaders(rateLimit) }
+      );
+    }
 
     // Phase 5.4: For TECHNICIAN role, verify they are assigned to the conversation
     if (userRole === 'TECHNICIAN' && conversationId) {

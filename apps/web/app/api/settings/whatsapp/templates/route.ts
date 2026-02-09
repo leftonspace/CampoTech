@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { validateBody, whatsappTemplateListSchema } from '@/lib/validation/api-schemas';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GET - Fetch organization's WhatsApp templates
@@ -57,11 +58,6 @@ export async function GET() {
 // PUT - Save organization's WhatsApp templates
 // ═══════════════════════════════════════════════════════════════════════════════
 
-interface TemplateInput {
-    id: string;
-    template: string;
-}
-
 export async function PUT(request: NextRequest) {
     try {
         const session = await getSession();
@@ -79,19 +75,20 @@ export async function PUT(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { templates } = body as { templates: TemplateInput[] };
 
-        if (!templates || !Array.isArray(templates)) {
+        // Validate request body with Zod
+        const validation = validateBody(body, whatsappTemplateListSchema);
+        if (!validation.success) {
             return NextResponse.json(
-                { success: false, error: 'Templates array required' },
+                { success: false, error: validation.error },
                 { status: 400 }
             );
         }
 
-        // Validate template structure
-        const validTemplates = templates.filter(
-            (t) => t.id && typeof t.id === 'string' && typeof t.template === 'string'
-        );
+        const { templates } = validation.data;
+
+        // Filter valid templates (Zod already validated structure)
+        const validTemplates = templates;
 
         // Save to organization
         await prisma.organization.update({

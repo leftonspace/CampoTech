@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { validateBody, aiAssistantSettingsSchema } from '@/lib/validation/api-schemas';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // GET - Retrieve AI Configuration
@@ -132,7 +133,19 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json();
 
-    // Validate confidence thresholds
+    // Validate request body with Zod (soft validation - allows all fields through)
+    const validation = validateBody(body, aiAssistantSettingsSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.error },
+        { status: 400 }
+      );
+    }
+
+    // Use validated data
+    const _validData = validation.data;
+
+    // Validate confidence thresholds (with type-safe defaults from Zod)
     const minConfidenceToRespond = Math.min(100, Math.max(0, body.minConfidenceToRespond ?? 70));
     const minConfidenceToCreateJob = Math.min(100, Math.max(0, body.minConfidenceToCreateJob ?? 85));
 

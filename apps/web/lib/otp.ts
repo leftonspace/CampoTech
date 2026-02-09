@@ -36,7 +36,12 @@ function safeCompare(a: string, b: string): boolean {
 }
 
 // Check if dev mode bypass is allowed
+// SECURITY FIX (HIGH-4): Hard-coded false in production builds
 function isDevBypassAllowed(): boolean {
+  // NEVER allow dev bypass in production, regardless of environment variables
+  if (process.env.NODE_ENV === 'production') {
+    return false;
+  }
   return process.env.NODE_ENV === 'development' || process.env.ALLOW_DEV_OTP === 'true';
 }
 
@@ -53,7 +58,12 @@ const TEST_PHONE_PREFIXES = [
 ];
 
 // Check if a phone number is a test number
+// SECURITY FIX (HIGH-3): Test phones only work in development
 function isTestPhoneNumber(phone: string): boolean {
+  // NEVER allow test phone bypass in production
+  if (process.env.NODE_ENV !== 'development') {
+    return false;
+  }
   const normalizedPhone = phone.replace(/[^+\d]/g, '');
   return TEST_PHONE_PREFIXES.some(prefix => normalizedPhone.startsWith(prefix));
 }

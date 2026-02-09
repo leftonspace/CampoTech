@@ -26,18 +26,20 @@ export async function POST(request: NextRequest) {
   const response = NextResponse.json({ success: true });
 
   // Clear access token
+  // SECURITY FIX (MEDIUM-8): sameSite=strict for consistency
   response.cookies.set('auth-token', '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict',
     maxAge: 0,
   });
 
   // Clear refresh token
+  // SECURITY FIX (MEDIUM-8): sameSite=strict for consistency
   response.cookies.set('refresh-token', '', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    sameSite: 'strict',
     path: '/api/auth/refresh',
     maxAge: 0,
   });

@@ -1,12 +1,20 @@
 /**
- * Feature Degradation Module
- * ==========================
+ * Feature Degradation & System Monitoring Module
+ * ===============================================
  *
- * Central module for graceful feature degradation.
+ * Central module for graceful feature degradation and system health monitoring.
+ *
+ * Two complementary systems:
+ * 1. OPERATIONAL HEALTH - Is it working right now? (this module)
+ * 2. INFRASTRUCTURE CAPACITY - How much room left? (system-capacity.service.ts)
  *
  * Usage:
- *   import { getDegradationManager, isFeatureAvailable } from '@/lib/degradation';
+ *   import { getDegradationManager, isFeatureAvailable, getSystemHealth } from '@/lib/degradation';
+ *
+ * For unified status (health + capacity):
+ *   import { getUnifiedSystemStatus } from '@/lib/services/system-capacity.service';
  */
+
 
 // Manager
 export {

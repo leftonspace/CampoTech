@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma, TransactionClient } from '@/lib/prisma';
+import { validateBody, stockTransferSchema } from '@/lib/validation/api-schemas';
 
 /**
  * POST /api/inventory/stock/transfer
@@ -31,26 +32,21 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { productId, fromWarehouseId, toWarehouseId, quantity, notes } = body;
 
-    // Validate required fields
-    if (!productId || !fromWarehouseId || !toWarehouseId || !quantity) {
+    // Validate request body with Zod
+    const validation = validateBody(body, stockTransferSchema);
+    if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: 'productId, fromWarehouseId, toWarehouseId y quantity son requeridos' },
+        { success: false, error: validation.error },
         { status: 400 }
       );
     }
+
+    const { productId, fromWarehouseId, toWarehouseId, quantity, notes } = validation.data;
 
     if (fromWarehouseId === toWarehouseId) {
       return NextResponse.json(
         { success: false, error: 'Los almacenes de origen y destino deben ser diferentes' },
-        { status: 400 }
-      );
-    }
-
-    if (quantity <= 0) {
-      return NextResponse.json(
-        { success: false, error: 'La cantidad debe ser mayor a 0' },
         { status: 400 }
       );
     }

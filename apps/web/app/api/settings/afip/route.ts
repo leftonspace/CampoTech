@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getAFIPCredentialsService } from '@/lib/services/afip-credentials.service';
+import { validateBody, afipSettingsSchema } from '@/lib/validation/api-schemas';
 
 export async function GET() {
   try {
@@ -65,17 +66,27 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { cuit, puntoVenta, environment, certificate, privateKey } = body;
+
+    // Validate request body with Zod
+    const validation = validateBody(body, afipSettingsSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
+
+    const { cuit, puntoVenta, environment, certificate, privateKey } = validation.data;
 
     const afipService = getAFIPCredentialsService();
 
     // Save credentials with encryption
     await afipService.saveCredentials(session.organizationId, {
-      cuit,
-      certificate,
-      privateKey,
-      puntoVenta,
-      environment,
+      cuit: cuit ?? '',
+      certificate: certificate ?? '',
+      privateKey: privateKey ?? '',
+      puntoVenta: puntoVenta ?? '',
+      environment: environment ?? 'testing',
     });
 
     // Get updated status

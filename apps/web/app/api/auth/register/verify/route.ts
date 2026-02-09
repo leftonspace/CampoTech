@@ -1,8 +1,22 @@
+/**
+ * Registration OTP Verification
+ * ==============================
+ *
+ * POST /api/auth/register/verify
+ *
+ * Validates the OTP code for a pending registration.
+ * Does NOT create the account — just confirms the phone number
+ * and returns a `registrationTicket` (signed JWT) that can be
+ * used with /api/auth/register/complete to finalize registration.
+ *
+ * This allows the checkout modal to be shown BEFORE account creation,
+ * so users can close the modal and try again without a stuck account.
+ */
+
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma, TransactionClient } from '@/lib/prisma';
-import { createToken } from '@/lib/auth';
+import { prisma } from '@/lib/prisma';
 import { verifyOTP } from '@/lib/otp';
-import { trialManager, TRIAL_DAYS } from '@/lib/services/trial-manager';
+import { SignJWT } from 'jose';
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,7 +50,6 @@ export async function POST(request: NextRequest) {
 
     // Check if registration expired
     if (pendingReg.expiresAt < new Date()) {
-      // Clean up expired registration
       await prisma.pendingRegistration.delete({ where: { id: pendingReg.id } });
       return NextResponse.json(
         {
@@ -64,153 +77,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Double-check CUIT not taken (race condition protection) - only if CUIT was provided
-    if (pendingReg.cuit) {
-      const existingOrg = await prisma.organization.findFirst({
-        where: {
-          settings: {
-            path: ['cuit'],
-            equals: pendingReg.cuit,
-          },
-        },
-      });
+    // OTP verified! Create a registration ticket (signed JWT)
+    // This ticket proves the user verified their phone and contains the registration data.
+    // It does NOT create the account — that happens in /api/auth/register/complete.
+    const secret = process.env.NEXTAUTH_SECRET || 'dev-fallback-secret-not-for-production';
+    const jwtSecret = new TextEncoder().encode(secret);
 
-      if (existingOrg) {
-        await prisma.pendingRegistration.delete({ where: { id: pendingReg.id } });
-        return NextResponse.json(
-          {
-            success: false,
-            error: { message: 'Este CUIT ya fue registrado. Intentá iniciar sesión.' }
-          },
-          { status: 409 }
-        );
-      }
-    }
+    const registrationTicket = await new SignJWT({
+      type: 'registration_ticket',
+      pendingRegistrationId: pendingReg.id,
+      phone: cleanPhone,
+      selectedPlan: pendingReg.selectedPlan,
+    })
+      .setProtectedHeader({ alg: 'HS256' })
+      .setIssuedAt()
+      .setExpirationTime('30m') // Ticket valid for 30 minutes
+      .sign(jwtSecret);
 
-    // Create organization and user in a transaction
-    const { organization, user } = await prisma.$transaction(async (tx: TransactionClient) => {
-      // Use businessName if provided, otherwise use adminName as org name
-      const orgName = pendingReg.businessName || pendingReg.adminName;
-
-      // Create organization
-      const org = await tx.organization.create({
-        data: {
-          name: orgName,
-          phone: cleanPhone,
-          email: pendingReg.email,
-          settings: {
-            // Only include CUIT fields if provided
-            ...(pendingReg.cuit ? {
-              cuit: pendingReg.cuit,
-              cuitFormatted: formatCUIT(pendingReg.cuit),
-            } : {}),
-            // Ley 25.326 consent record
-            consent: {
-              dataTransferConsent: true,  // Required to register
-              termsAccepted: true,         // Required to register
-              consentTimestamp: new Date().toISOString(),
-              ipAddress: request.headers.get('x-forwarded-for') || 'unknown',
-              userAgent: request.headers.get('user-agent') || 'unknown',
-            },
-          },
-        },
-      });
-
-      // Generate email from CUIT if available, otherwise from phone
-      const email = pendingReg.email || (pendingReg.cuit
-        ? `admin-${pendingReg.cuit}@campotech.app`
-        : `admin-${cleanPhone.replace(/\+/g, '')}@campotech.app`);
-
-      // Create admin user
-      const adminUser = await tx.user.create({
-        data: {
-          name: pendingReg.adminName,
-          phone: cleanPhone,
-          email,
-          role: 'OWNER',
-          isActive: true,
-          organizationId: org.id,
-        },
-      });
-
-      // Delete pending registration
-      await tx.pendingRegistration.delete({ where: { id: pendingReg.id } });
-
-      return { organization: org, user: adminUser };
-    });
-
-    // Create 14-day trial subscription for the new organization
-    const trialResult = await trialManager.createTrial(organization.id);
-    if (!trialResult.success) {
-      console.error('Failed to create trial for organization:', organization.id, trialResult.error);
-      // Don't fail registration if trial creation fails - organization can still use the app
-    }
-
-    // Create JWT tokens
-    const accessToken = await createToken({
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-      organizationId: user.organizationId,
-      subscriptionTier: trialResult.success ? 'INICIAL' : 'FREE',
-      subscriptionStatus: trialResult.success ? 'trialing' : 'none',
-    });
-
-    const refreshToken = accessToken;
-
-    // Create response
-    const response = NextResponse.json({
+    return NextResponse.json({
       success: true,
       data: {
-        accessToken,
-        refreshToken,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          role: user.role,
-          organization: {
-            id: organization.id,
-            name: organization.name,
-          },
-        },
-        isNewUser: true,
-        trial: trialResult.success && trialResult.subscription ? {
-          trialEndsAt: trialResult.subscription.currentPeriodEnd,
-          daysRemaining: TRIAL_DAYS,
-        } : null,
+        registrationTicket,
+        selectedPlan: pendingReg.selectedPlan,
+        adminName: pendingReg.adminName,
       },
     });
-
-    // Set auth cookie
-    response.cookies.set('auth-token', accessToken, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7,
-      path: '/',
-    });
-
-    return response;
   } catch (error: unknown) {
     console.error('Register verify error:', error);
-
-    // Handle unique constraint violation (phone or email already exists)
-    // Prisma error code for unique constraint violation is P2002
-    const isPrismaError = error && typeof error === 'object' && 'code' in error;
-    if ((isPrismaError && (error as { code: string }).code === 'P2002') || (error instanceof Error && error.message.includes('Unique constraint'))) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: { message: 'Este teléfono o email ya está registrado. Intentá iniciar sesión.' }
-        },
-        { status: 409 }
-      );
-    }
-
     return NextResponse.json(
-      { success: false, error: { message: 'Error al completar el registro' } },
+      { success: false, error: { message: 'Error al verificar el código' } },
       { status: 500 }
     );
   }
@@ -240,11 +135,4 @@ function normalizePhone(phone: string): string {
   }
 
   return '+' + cleaned;
-}
-
-// Format CUIT as XX-XXXXXXXX-X
-function formatCUIT(cuit: string): string {
-  const digits = cuit.replace(/\D/g, '');
-  if (digits.length !== 11) return cuit;
-  return `${digits.slice(0, 2)}-${digits.slice(2, 10)}-${digits.slice(10)}`;
 }

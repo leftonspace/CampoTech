@@ -116,6 +116,25 @@ async function processOperation(
           return {}; // Job not found, skip
         }
 
+        // Phase 10 Security: Block modifications to terminal state jobs
+        const TERMINAL_STATES = ['COMPLETED', 'CANCELLED'];
+        if (TERMINAL_STATES.includes(existing.status)) {
+          console.warn('[SECURITY] Sync push terminal state violation:', {
+            jobId: data.serverId,
+            currentStatus: existing.status,
+            attemptedStatus: data.status,
+            timestamp: new Date().toISOString(),
+          });
+          return {
+            conflict: true,
+            serverData: {
+              error: `No se puede modificar un trabajo ${existing.status === 'COMPLETED' ? 'completado' : 'cancelado'}`,
+              terminalStateBlocked: true,
+              currentStatus: existing.status,
+            },
+          };
+        }
+
         // Check for conflicts based on timestamp
         const clientUpdatedAt = data.updatedAt ? new Date(data.updatedAt as string) : new Date(0);
         if (existing.updatedAt > clientUpdatedAt) {

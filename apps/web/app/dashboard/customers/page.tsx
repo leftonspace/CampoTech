@@ -7,7 +7,6 @@ import { api } from '@/lib/api-client';
 import { cn, formatCurrency, formatPhone, formatAddress, getInitials } from '@/lib/utils';
 import {
   Plus,
-  Search,
   Mail,
   Phone,
   MapPin,
@@ -52,6 +51,19 @@ type FacturadoFilter = 'all' | '0' | '1-100000' | '100001-500000' | '500000+';
 type RatingFilter = 'all' | 'none' | '1-2' | '3-4' | '5';
 type UltimoServicioFilter = 'all' | 'today' | 'week' | 'month' | 'older';
 
+// Customer type options for the dropdown filter
+const CUSTOMER_TYPES = [
+  { value: '', label: 'Todos los tipos' },
+  { value: 'PARTICULAR', label: 'Particular' },
+  { value: 'CONSORCIO', label: 'Consorcio' },
+  { value: 'COUNTRY', label: 'Country / Barrio Privado' },
+  { value: 'COMERCIO', label: 'Comercio' },
+  { value: 'INDUSTRIAL', label: 'Industrial' },
+  { value: 'INSTITUCIONAL', label: 'Institucional' },
+  { value: 'ADMINISTRADORA', label: 'Administradora' },
+  { value: 'CONSTRUCTORA', label: 'Constructora' },
+];
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -62,6 +74,7 @@ export default function CustomersPage() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [customerType, setCustomerType] = useState('');
   const [viewType, setViewType] = useState<ViewType>('cards');
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
@@ -171,7 +184,7 @@ export default function CustomersPage() {
 
   // Fetch customers with computed fields and pagination
   const { data, isLoading } = useQuery({
-    queryKey: ['customers', { search, filter: activeFilter, page: currentPage, sort: sortOrder }],
+    queryKey: ['customers', { search, filter: activeFilter, customerType, page: currentPage, sort: sortOrder }],
     queryFn: () => {
       const params: Record<string, string> = {
         limit: String(ITEMS_PER_PAGE),
@@ -180,6 +193,7 @@ export default function CustomersPage() {
       };
       if (search) params.search = search;
       if (activeFilter !== 'all') params.filter = activeFilter;
+      if (customerType) params.customerType = customerType;
       return api.customers.list(params);
     },
   });
@@ -391,21 +405,9 @@ export default function CustomersPage() {
         />
       </div>
 
-      {/* Search and Filters */}
+      {/* Filters */}
       <div className="card p-4">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          {/* Search Input */}
-          <div className="relative w-full sm:max-w-md">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar clientes..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="input pl-10 w-full"
-            />
-          </div>
-
           <div className="flex items-center gap-4">
             {/* Filter Tabs */}
             <div className="flex gap-1 overflow-x-auto">
@@ -425,33 +427,54 @@ export default function CustomersPage() {
               ))}
             </div>
 
-            {/* View Toggle */}
-            <div className="flex items-center gap-1 border-l pl-4">
-              <button
-                onClick={() => setViewType('cards')}
-                className={cn(
-                  'p-2 rounded-lg transition-all',
-                  viewType === 'cards'
-                    ? 'bg-white shadow-sm border border-teal-200 text-teal-600'
-                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                )}
-                title="Vista de tarjetas"
-              >
-                <LayoutGrid className="h-5 w-5" />
-              </button>
-              <button
-                onClick={() => setViewType('table')}
-                className={cn(
-                  'p-2 rounded-lg transition-all',
-                  viewType === 'table'
-                    ? 'bg-white shadow-sm border border-teal-200 text-teal-600'
-                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
-                )}
-                title="Vista de tabla"
-              >
-                <List className="h-5 w-5" />
-              </button>
-            </div>
+            {/* Customer Type Dropdown */}
+            <select
+              value={customerType}
+              onChange={(e) => {
+                setCustomerType(e.target.value);
+                setCurrentPage(1);
+              }}
+              className={cn(
+                'px-3 py-2 text-sm font-medium rounded-lg border transition-colors cursor-pointer',
+                customerType
+                  ? 'bg-primary-50 border-primary-200 text-primary-700'
+                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+              )}
+            >
+              {CUSTOMER_TYPES.map((type) => (
+                <option key={type.value} value={type.value}>
+                  {type.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* View Toggle */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setViewType('cards')}
+              className={cn(
+                'p-2 rounded-lg transition-all',
+                viewType === 'cards'
+                  ? 'bg-white shadow-sm border border-teal-200 text-teal-600'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+              )}
+              title="Vista de tarjetas"
+            >
+              <LayoutGrid className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => setViewType('table')}
+              className={cn(
+                'p-2 rounded-lg transition-all',
+                viewType === 'table'
+                  ? 'bg-white shadow-sm border border-teal-200 text-teal-600'
+                  : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+              )}
+              title="Vista de tabla"
+            >
+              <List className="h-5 w-5" />
+            </button>
           </div>
         </div>
       </div>

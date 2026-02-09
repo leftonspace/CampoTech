@@ -6,6 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma, TransactionClient } from '@/lib/prisma';
+import { validateBody } from '@/lib/validation/api-schemas';
+import { z } from 'zod';
 
 /**
  * POST /api/inventory/stock/adjust
@@ -31,15 +33,31 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { productId, warehouseId, adjustmentType, quantity, reason, notes, costPerUnit } = body;
 
-    // Validate required fields
-    if (!productId || !warehouseId || !adjustmentType || quantity === undefined) {
+    // Define adjustment schema inline
+    const adjustmentSchema = z.object({
+      productId: z.string().uuid(),
+      warehouseId: z.string().uuid(),
+      adjustmentType: z.string(),
+      quantity: z.number(),
+      reason: z.string().max(500).optional(),
+      notes: z.string().max(500).optional(),
+      costPerUnit: z.number().nonnegative().optional(),
+    });
+
+    // Validate request body with Zod
+    const validation = validateBody(body, adjustmentSchema);
+    if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: 'productId, warehouseId, adjustmentType y quantity son requeridos' },
+        { success: false, error: validation.error },
         { status: 400 }
       );
     }
+
+    const { productId, warehouseId, quantity, notes } = validation.data;
+    const adjustmentType = validation.data.adjustmentType;
+    const reason = validation.data.reason;
+    const costPerUnit = validation.data.costPerUnit;
 
     // Validate adjustment type
     const validTypes = ['ADJUSTMENT_IN', 'ADJUSTMENT_OUT', 'DAMAGE', 'THEFT', 'CORRECTION', 'EXPIRED', 'FOUND'];

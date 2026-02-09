@@ -174,7 +174,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ status: 'already_processed' });
     }
 
-    // Fetch full subscription details from MP API if needed
+    // Fetch full details from MP API to enrich event data
     const eventData: Record<string, unknown> = {
       webhook_id: webhookId,
       subscription_id: subscriptionId,
@@ -182,14 +182,64 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       date_created: payload.date_created,
     };
 
-    // If it's a payment event, we might need to fetch payment details
-    if (eventType.includes('payment')) {
-      // TODO: Fetch payment details from MP API
-      eventData.payment_id = subscriptionId;
+    const accessToken = process.env.MP_ACCESS_TOKEN;
+
+    // If it's a payment event, fetch payment details
+    if (eventType.includes('payment') && accessToken) {
+      try {
+        const paymentRes = await fetch(
+          `https://api.mercadopago.com/v1/payments/${subscriptionId}`,
+          {
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          }
+        );
+        if (paymentRes.ok) {
+          const paymentData = await paymentRes.json();
+          eventData.payment_id = paymentData.id;
+          eventData.transaction_amount = paymentData.transaction_amount;
+          eventData.currency_id = paymentData.currency_id;
+          eventData.status = paymentData.status;
+          eventData.status_detail = paymentData.status_detail;
+          eventData.external_reference = paymentData.external_reference;
+          eventData.next_payment_date = paymentData.date_of_expiration;
+          eventData.payer_id = paymentData.payer?.id;
+        } else {
+          console.warn(`[Subscription Webhook] Could not fetch payment ${subscriptionId}: ${paymentRes.status}`);
+          eventData.payment_id = subscriptionId;
+        }
+      } catch (fetchErr) {
+        console.warn('[Subscription Webhook] Payment fetch error:', fetchErr);
+        eventData.payment_id = subscriptionId;
+      }
+    } else if (!eventType.includes('payment') && accessToken) {
+      // Fetch subscription (preapproval) details
+      try {
+        const subRes = await fetch(
+          `https://api.mercadopago.com/preapproval/${subscriptionId}`,
+          {
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+          }
+        );
+        if (subRes.ok) {
+          const subData = await subRes.json();
+          eventData.preapproval_id = subData.id;
+          eventData.preapproval_plan_id = subData.preapproval_plan_id;
+          eventData.payer_id = subData.payer_id;
+          eventData.external_reference = subData.external_reference;
+          eventData.status = subData.status;
+          eventData.next_payment_date = subData.next_payment_date;
+          eventData.reason = subData.reason;
+        } else {
+          console.warn(`[Subscription Webhook] Could not fetch preapproval ${subscriptionId}: ${subRes.status}`);
+          eventData.preapproval_id = subscriptionId;
+        }
+      } catch (fetchErr) {
+        console.warn('[Subscription Webhook] Preapproval fetch error:', fetchErr);
+        eventData.preapproval_id = subscriptionId;
+      }
     } else {
-      // Fetch subscription details
+      // No access token - fallback
       eventData.preapproval_id = subscriptionId;
-      // TODO: Fetch subscription details from MP API to get plan_id, etc.
     }
 
     // Process the event

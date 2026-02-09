@@ -15,7 +15,6 @@ import {
   MapPin,
   Clock,
   Eye,
-  Edit2,
   Copy,
   FileText,
   XCircle,
@@ -488,9 +487,6 @@ export default function JobsPage() {
     switch (action) {
       case 'view':
         router.push(`/dashboard/jobs/${job.id}`);
-        break;
-      case 'edit':
-        router.push(`/dashboard/jobs/${job.id}?edit=true`);
         break;
       case 'duplicate':
         duplicateJobMutation.mutate(job);
@@ -1274,13 +1270,6 @@ function JobCard({ job, visitConfig, isVisitRow, totalConfigs, openMenuId, onMen
                 >
                   <Eye className="h-4 w-4" />
                   Ver Detalles
-                </button>
-                <button
-                  onClick={(e) => onAction('edit', job, e)}
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <Edit2 className="h-4 w-4" />
-                  Editar
                 </button>
                 <button
                   onClick={(e) => onAction('duplicate', job, e)}

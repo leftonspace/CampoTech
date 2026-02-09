@@ -10,6 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { isValidWhatsAppNumber, formatPhoneForDisplay } from '@/lib/whatsapp-links';
+import { validateBody, whatsappSettingsSchema } from '@/lib/validation/api-schemas';
 
 export async function GET() {
   try {
@@ -110,6 +111,16 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
+
+    // Validate request body with Zod
+    const validation = validateBody(body, whatsappSettingsSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
+
     const {
       personalNumber,
       integrationType,
@@ -119,7 +130,7 @@ export async function PUT(request: NextRequest) {
       accessToken,
       appSecret,
       webhookVerifyToken,
-    } = body;
+    } = validation.data;
 
     // Get current organization
     const organization = await prisma.organization.findUnique({

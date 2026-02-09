@@ -11,6 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { Decimal } from '@prisma/client/runtime/library';
+import { validateBody, jobLineItemSchema } from '@/lib/validation/api-schemas';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -133,6 +134,15 @@ export async function POST(request: NextRequest, context: RouteContext) {
         const { id: jobId } = await context.params;
         const body = await request.json();
 
+        // Validate request body with Zod
+        const validation = validateBody(body, jobLineItemSchema);
+        if (!validation.success) {
+            return NextResponse.json(
+                { success: false, error: validation.error },
+                { status: 400 }
+            );
+        }
+
         // Verify job belongs to user's organization and is not locked
         const job = await prisma.job.findFirst({
             where: {
@@ -153,10 +163,10 @@ export async function POST(request: NextRequest, context: RouteContext) {
             );
         }
 
-        // Check if pricing is locked (AFIP compliance)
-        if (job.pricingLockedAt) {
+        // Check if pricing is locked (AFIP compliance) or job is completed/cancelled
+        if (job.pricingLockedAt || job.status === 'COMPLETED' || job.status === 'CANCELLED') {
             return NextResponse.json(
-                { success: false, error: 'El precio está bloqueado (ya se generó factura)' },
+                { success: false, error: 'No se puede modificar un trabajo terminado o cancelado' },
                 { status: 403 }
             );
         }
@@ -180,13 +190,57 @@ export async function POST(request: NextRequest, context: RouteContext) {
             }
         }
 
-        // Calculate values
+        // ═══════════════════════════════════════════════════════════════════════════
+        // SECURITY: Enforce pricebook prices to prevent discount manipulation
+        // ═══════════════════════════════════════════════════════════════════════════
+        // 
+        // Rule: If priceItemId is provided, we MUST use the official pricebook price.
+        // The client's unitPrice is IGNORED to prevent users from discounting official items.
+        //
+        // Exception: Custom one-off items (no priceItemId) can have user-specified prices.
+        // ═══════════════════════════════════════════════════════════════════════════
+
         const quantity = new Decimal(body.quantity || 1);
-        const unitPrice = new Decimal(
-            body.unitPrice ?? priceItem?.price ?? 0
-        );
+        let unitPrice: Decimal;
+        let taxRate: Decimal;
+
+        if (priceItem) {
+            // ✅ PRICEBOOK ITEM: Use official price, ignore client's unitPrice
+            unitPrice = new Decimal(priceItem.price);
+            taxRate = new Decimal(priceItem.taxRate ?? 21);
+
+            // Log if client tried to send a different price (potential manipulation attempt)
+            if (body.unitPrice !== undefined && body.unitPrice !== Number(priceItem.price)) {
+                console.warn(
+                    `[Security] Price override attempt blocked: ` +
+                    `priceItemId=${body.priceItemId}, ` +
+                    `clientPrice=${body.unitPrice}, ` +
+                    `officialPrice=${priceItem.price}, ` +
+                    `userId=${session.userId}`
+                );
+            }
+        } else {
+            // ❌ NO PRICEBOOK ITEM: Allow custom price for one-off items
+            if (body.unitPrice === undefined || body.unitPrice === null) {
+                return NextResponse.json(
+                    { success: false, error: 'Se requiere precio para items personalizados' },
+                    { status: 400 }
+                );
+            }
+
+            // Validate custom price is positive
+            if (typeof body.unitPrice !== 'number' || body.unitPrice < 0) {
+                return NextResponse.json(
+                    { success: false, error: 'El precio debe ser un número positivo' },
+                    { status: 400 }
+                );
+            }
+
+            unitPrice = new Decimal(body.unitPrice);
+            taxRate = new Decimal(body.taxRate ?? 21);
+        }
+
         const total = quantity.mul(unitPrice);
-        const taxRate = new Decimal(body.taxRate ?? priceItem?.taxRate ?? 21);
         const taxAmount = total.mul(taxRate).div(100);
 
         // Create the line item

@@ -219,9 +219,9 @@ export const PREFERENCE_EXPIRATION_MINUTES = 30;
  */
 export function getBackUrls(baseUrl: string) {
   return {
-    success: `${baseUrl}/dashboard/settings/billing/success`,
-    failure: `${baseUrl}/dashboard/settings/billing/failure`,
-    pending: `${baseUrl}/dashboard/settings/billing/pending`,
+    success: `${baseUrl}/checkout/success`,
+    failure: `${baseUrl}/checkout/failure`,
+    pending: `${baseUrl}/checkout/pending`,
   };
 }
 

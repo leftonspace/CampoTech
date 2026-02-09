@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma, TransactionClient } from '@/lib/prisma';
+import { validateBody, purchaseOrderCreateSchema, purchaseOrderReceiveSchema, purchaseOrderUpdateSchema } from '@/lib/validation/api-schemas';
 
 /**
  * GET /api/inventory/purchase-orders
@@ -217,14 +218,16 @@ export async function POST(request: NextRequest) {
 
     // Receive items from a purchase order
     if (action === 'receive') {
-      const { orderId, items, notes } = body;
-
-      if (!orderId || !items || !Array.isArray(items)) {
+      // Validate with receive schema
+      const validation = validateBody(body, purchaseOrderReceiveSchema);
+      if (!validation.success) {
         return NextResponse.json(
-          { success: false, error: 'orderId e items son requeridos' },
+          { success: false, error: validation.error },
           { status: 400 }
         );
       }
+
+      const { orderId, items, notes } = validation.data;
 
       // Get order
       const order = await prisma.purchaseOrder.findFirst({
@@ -260,7 +263,7 @@ export async function POST(request: NextRequest) {
         return {
           productId: orderItem?.productId,
           quantityExpected: orderItem?.quantity || 0,
-          quantityReceived: parseInt(item.quantity, 10) || 0,
+          quantityReceived: parseInt(String(item.quantity), 10) || 0,
           notes: item.notes || null,
         };
       }).filter((item: { productId: string | undefined; quantityExpected: number; quantityReceived: number; notes: string | null }) => item.productId);
@@ -285,7 +288,7 @@ export async function POST(request: NextRequest) {
           const orderItem = order.items.find((i: typeof order.items[number]) => i.id === item.itemId);
           if (!orderItem) continue;
 
-          const receivedQty = parseInt(item.quantity, 10);
+          const receivedQty = parseInt(String(item.quantity), 10);
           if (receivedQty <= 0) continue;
 
           // Update order item received quantity
@@ -446,17 +449,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create new purchase order
-    if (!body.supplierId || !body.warehouseId) {
+    // Create new purchase order - validate with create schema
+    const validation = validateBody(body, purchaseOrderCreateSchema);
+    if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: 'supplierId y warehouseId son requeridos' },
-        { status: 400 }
-      );
-    }
-
-    if (!body.items || !Array.isArray(body.items) || body.items.length === 0) {
-      return NextResponse.json(
-        { success: false, error: 'Se requiere al menos un producto' },
+        { success: false, error: validation.error },
         { status: 400 }
       );
     }
@@ -556,9 +553,11 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json();
 
-    if (!body.id) {
+    // Validate request body with Zod
+    const validation = validateBody(body, purchaseOrderUpdateSchema);
+    if (!validation.success) {
       return NextResponse.json(
-        { success: false, error: 'ID de la orden es requerido' },
+        { success: false, error: validation.error },
         { status: 400 }
       );
     }

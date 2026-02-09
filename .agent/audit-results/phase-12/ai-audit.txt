@@ -1,0 +1,15 @@
+﻿python : Found 6 known vulnerabilities in 3 packages
+At line:1 char:145
++ ... se-12\ai-audit.json" -Encoding utf8; python -m pip_audit 2>&1 | Out-F ...
++                                          ~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Found 6 known v...s in 3 packages:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Name             Version ID             Fix Versions
+---------------- ------- -------------- ------------
+pip              25.1.1  CVE-2025-8869  25.3
+pip              25.1.1  CVE-2026-1703  26.0
+python-multipart 0.0.21  CVE-2026-24486 0.0.22
+urllib3          2.5.0   CVE-2025-66418 2.6.0
+urllib3          2.5.0   CVE-2025-66471 2.6.0
+urllib3          2.5.0   CVE-2026-21441 2.6.3

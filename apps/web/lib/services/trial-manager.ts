@@ -104,16 +104,16 @@ class TrialManager {
    * Create a new trial subscription for an organization
    * Called automatically during signup
    */
-  async createTrial(organizationId: string): Promise<CreateTrialResult> {
+  async createTrial(organizationId: string, tier?: SubscriptionTier): Promise<CreateTrialResult> {
     try {
       const now = getBuenosAiresNow();
       const trialEndsAt = addDays(now, TRIAL_DAYS);
+      const trialTier = tier || TRIAL_TIER;
 
-      // Create subscription record with trial status
       const subscription = await prisma.organizationSubscription.create({
         data: {
           organizationId,
-          tier: TRIAL_TIER,
+          tier: trialTier,
           billingCycle: 'MONTHLY', // Default, will be set when they upgrade
           status: 'trialing',
           trialEndsAt,
@@ -126,7 +126,7 @@ class TrialManager {
       await prisma.organization.update({
         where: { id: organizationId },
         data: {
-          subscriptionTier: TRIAL_TIER,
+          subscriptionTier: trialTier,
           subscriptionStatus: 'trialing',
           trialEndsAt,
         },
@@ -136,11 +136,11 @@ class TrialManager {
       await this.logEvent(organizationId, subscription.id, 'trial_started', {
         trialDays: TRIAL_DAYS,
         trialEndsAt: trialEndsAt.toISOString(),
-        tier: TRIAL_TIER,
+        tier: trialTier,
       });
 
       console.log(
-        `[TrialManager] Created ${TRIAL_DAYS}-day trial for org ${organizationId}, ends at ${trialEndsAt.toISOString()}`
+        `[TrialManager] Created ${TRIAL_DAYS}-day trial at ${trialTier} for org ${organizationId}, ends at ${trialEndsAt.toISOString()}`
       );
 
       return { success: true, subscription };

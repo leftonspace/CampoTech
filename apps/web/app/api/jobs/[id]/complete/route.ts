@@ -141,18 +141,17 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
             console.error('Route integration error:', err);
         });
 
-        // Phase 2: Trigger automatic document delivery if signature was captured
-        // This sends completion report + invoice (if exists) to customer via WhatsApp
-        if (customerSignature) {
-            try {
-                const { queueDocumentDelivery } = await import('@/lib/services/job-completion-documents');
-                queueDocumentDelivery(id, session.organizationId).catch((err) => {
-                    console.error('[JobComplete] Document delivery queue error:', err);
-                });
-            } catch (docError) {
-                // Non-blocking - log but don't fail the completion
-                console.error('[JobComplete] Document delivery error:', docError);
-            }
+        // Phase 2: Trigger automatic document delivery for ALL completed jobs
+        // This sends completion report + invoice (if exists) + rating link to customer via WhatsApp
+        // No signature requirement - most jobs complete without formal signature
+        try {
+            const { queueDocumentDelivery } = await import('@/lib/services/job-completion-documents');
+            queueDocumentDelivery(id, session.organizationId, ratingToken).catch((err) => {
+                console.error('[JobComplete] Document delivery queue error:', err);
+            });
+        } catch (docError) {
+            // Non-blocking - log but don't fail the completion
+            console.error('[JobComplete] Document delivery error:', docError);
         }
 
         return NextResponse.json({

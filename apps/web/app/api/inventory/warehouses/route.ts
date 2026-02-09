@@ -8,6 +8,7 @@ import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 // import { Prisma } from '@prisma/client';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { validateBody, warehouseSchema } from '@/lib/validation/api-schemas';
 
 /**
  * GET /api/inventory/warehouses
@@ -197,6 +198,15 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
+    // Validate request body with Zod
+    const validation = validateBody(body, warehouseSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
+
     // Validate required fields
     if (!body.name || !body.code) {
       return NextResponse.json(
@@ -296,6 +306,15 @@ export async function PATCH(request: NextRequest) {
     }
 
     const body = await request.json();
+
+    // Validate request body with Zod
+    const validation = validateBody(body, warehouseSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
 
     if (!body.id) {
       return NextResponse.json(

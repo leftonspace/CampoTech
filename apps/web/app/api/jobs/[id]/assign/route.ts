@@ -5,6 +5,7 @@ import { onTechnicianAssigned } from '@/src/modules/whatsapp/notification-trigge
 import { canEmployeeBeAssignedJobs } from '@/lib/services/employee-verification-notifications';
 import { JobService } from '@/src/services/job.service';
 import { jobRouteIntegrationService } from '@/lib/services/job-route-integration.service';
+import { validateBody, jobAssignSchema } from '@/lib/validation/api-schemas';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -22,7 +23,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const { userId } = await request.json();
+    const body = await request.json();
+
+    // Validate request body with Zod
+    const validation = validateBody(body, jobAssignSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
+
+    // Note: jobAssignSchema expects 'technicianId', but route uses 'userId' - handle both
+    const userId = body.userId || validation.data.technicianId;
 
     if (!userId) {
       return NextResponse.json(
@@ -38,6 +51,25 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json(
         { success: false, error: 'Job not found' },
         { status: 404 }
+      );
+    }
+
+    // Phase 10 Security: Check terminal state before allowing assignment
+    const TERMINAL_STATES = ['COMPLETED', 'CANCELLED'];
+    if (TERMINAL_STATES.includes(existing.status)) {
+      console.warn('[SECURITY] Job assign terminal state violation:', {
+        jobId: id,
+        currentStatus: existing.status,
+        userId: session.userId,
+        timestamp: new Date().toISOString(),
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: `No se puede asignar técnico a un trabajo ${existing.status === 'COMPLETED' ? 'completado' : 'cancelado'}`,
+          terminalStateBlocked: true,
+        },
+        { status: 403 }
       );
     }
 

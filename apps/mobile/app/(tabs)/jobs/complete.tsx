@@ -20,6 +20,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Share,
 } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -34,12 +35,21 @@ import VoiceInput from '../../../components/voice/VoiceInput';
 import { PricebookSearch, type SelectedPriceItem } from '../../../components/pricebook';
 import { useAuth } from '../../../lib/auth/auth-context';
 
-type Step = 'notes' | 'photos' | 'signature';
+type Step = 'notes' | 'photos' | 'signature' | 'payment';
 
 interface Material {
   name: string;
   quantity: number;
   price: number;
+}
+
+type PaymentMethod = 'cash' | 'mercadopago' | 'transfer' | null;
+
+interface OrganizationPaymentInfo {
+  cbu?: string;
+  alias?: string;
+  titular?: string;
+  hasMercadoPago?: boolean;
 }
 
 export default function CompleteJobScreen() {
@@ -70,6 +80,14 @@ export default function CompleteJobScreen() {
 
   // Pricebook search state
   const [showPricebook, setShowPricebook] = useState(false);
+
+  // Payment state (Step 4 - Feb 2026)
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(null);
+  const [cashAmount, setCashAmount] = useState<string>('');
+  const [isGeneratingPaymentLink, setIsGeneratingPaymentLink] = useState(false);
+  const [paymentLinkUrl, setPaymentLinkUrl] = useState<string | null>(null);
+  const [transferConfirmed, setTransferConfirmed] = useState(false);
+  const [orgPaymentInfo, setOrgPaymentInfo] = useState<OrganizationPaymentInfo>({});
 
   // Voice-to-Invoice: Extract invoice data from transcription
   const handleVoiceInvoiceExtraction = async (transcription: string) => {
@@ -165,6 +183,41 @@ export default function CompleteJobScreen() {
   useEffect(() => {
     loadJobPricingData();
   }, [loadJobPricingData]);
+
+  // Load organization payment info (Step 4 - Feb 2026)
+  const loadOrgPaymentInfo = useCallback(async () => {
+    if (!organizationId) return;
+    try {
+      const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${apiUrl}/api/organization/payment-info`, {
+        headers: {
+          'Authorization': `Bearer ${await SecureStore.getItemAsync('auth_token')}`,
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setOrgPaymentInfo(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading org payment info:', error);
+    }
+  }, [organizationId]);
+
+  // Load org payment info on mount
+  useEffect(() => {
+    loadOrgPaymentInfo();
+  }, [loadOrgPaymentInfo]);
+
+  // Pre-fill cash amount when entering payment step
+  useEffect(() => {
+    if (step === 'payment' && !cashAmount && materials.length > 0) {
+      const subtotal = materials.reduce((sum, m) => sum + m.quantity * m.price, 0);
+      const total = subtotal * 1.21; // +21% IVA
+      setCashAmount(total.toFixed(0));
+    }
+  }, [step, cashAmount, materials]);
 
   const handleAddMaterial = () => {
     if (!newMaterial.name || !newMaterial.price) {
@@ -300,6 +353,23 @@ export default function CompleteJobScreen() {
         syncPayload.priceVarianceReason = visitPricing.priceVarianceReason;
       }
 
+      // Add payment data (Step 4 - Feb 2026)
+      if (paymentMethod) {
+        syncPayload.paymentMethod = paymentMethod;
+        syncPayload.paymentCollectedAt = new Date().toISOString();
+
+        if (paymentMethod === 'cash') {
+          syncPayload.paymentAmount = parseFloat(cashAmount || '0');
+        } else if (paymentMethod === 'mercadopago') {
+          syncPayload.paymentAmount = totals.total;
+          // Payment might be pending webhook confirmation
+          syncPayload.paymentLinkGenerated = !!paymentLinkUrl;
+        } else if (paymentMethod === 'transfer') {
+          syncPayload.paymentAmount = totals.total;
+          syncPayload.transferConfirmed = transferConfirmed;
+        }
+      }
+
       await enqueueOperation(
         'job',
         job.serverId,
@@ -326,18 +396,43 @@ export default function CompleteJobScreen() {
 
   const totals = calculateTotal();
 
+  // Check if payment step is complete
+  const canCompletePayment = () => {
+    if (!paymentMethod) return false;
+
+    switch (paymentMethod) {
+      case 'cash':
+        return parseFloat(cashAmount || '0') > 0;
+      case 'mercadopago':
+        // For MP, we allow completion even if they just shared the link
+        return true;
+      case 'transfer':
+        return transferConfirmed;
+      default:
+        return false;
+    }
+  };
+
+  const STEPS: Step[] = ['notes', 'photos', 'signature', 'payment'];
+  const STEP_LABELS: Record<Step, string> = {
+    notes: 'Notas',
+    photos: 'Fotos',
+    signature: 'Firma',
+    payment: 'Cobro',
+  };
+
   const renderStepIndicator = () => (
     <View style={styles.stepIndicator}>
-      {(['notes', 'photos', 'signature'] as Step[]).map((s, i) => (
+      {STEPS.map((s, i) => (
         <View key={s} style={styles.stepItem}>
           <View
             style={[
               styles.stepDot,
               step === s && styles.stepDotActive,
-              (['notes', 'photos', 'signature'].indexOf(step) > i) && styles.stepDotCompleted,
+              (STEPS.indexOf(step) > i) && styles.stepDotCompleted,
             ]}
           >
-            {['notes', 'photos', 'signature'].indexOf(step) > i ? (
+            {STEPS.indexOf(step) > i ? (
               <Feather name="check" size={12} color="#fff" />
             ) : (
               <Text style={[styles.stepNumber, step === s && styles.stepNumberActive]}>
@@ -346,9 +441,7 @@ export default function CompleteJobScreen() {
             )}
           </View>
           <Text style={[styles.stepLabel, step === s && styles.stepLabelActive]}>
-            {s === 'notes' && 'Notas'}
-            {s === 'photos' && 'Fotos'}
-            {s === 'signature' && 'Firma'}
+            {STEP_LABELS[s]}
           </Text>
         </View>
       ))}
@@ -651,6 +744,225 @@ export default function CompleteJobScreen() {
               </TouchableOpacity>
             </View>
           )}
+
+          {/* Step 4: Payment (Cobro) */}
+          {step === 'payment' && (
+            <View style={styles.stepContent}>
+              <Text style={styles.sectionTitle}>Cobrar al cliente</Text>
+              <Text style={styles.hint}>
+                Seleccioná el método de pago y confirmá el cobro
+              </Text>
+
+              {/* Invoice Summary */}
+              <View style={styles.invoiceSummary}>
+                <Text style={styles.invoiceSummaryTitle}>Resumen</Text>
+                {materials.slice(0, 5).map((material, index) => (
+                  <View key={index} style={styles.invoiceLineItem}>
+                    <Text style={styles.invoiceItemDesc} numberOfLines={1}>
+                      {material.quantity}x {material.name}
+                    </Text>
+                    <Text style={styles.invoiceItemPrice}>
+                      ${(material.quantity * material.price).toLocaleString('es-AR')}
+                    </Text>
+                  </View>
+                ))}
+                {materials.length > 5 && (
+                  <Text style={styles.invoiceMoreItems}>+{materials.length - 5} más...</Text>
+                )}
+                <View style={styles.invoiceTotalRow}>
+                  <Text style={styles.invoiceTotalLabel}>Subtotal</Text>
+                  <Text style={styles.invoiceTotalValue}>${totals.subtotal.toLocaleString('es-AR')}</Text>
+                </View>
+                <View style={styles.invoiceTotalRow}>
+                  <Text style={styles.invoiceTotalLabel}>IVA (21%)</Text>
+                  <Text style={styles.invoiceTotalValue}>${totals.tax.toLocaleString('es-AR')}</Text>
+                </View>
+                <View style={[styles.invoiceTotalRow, styles.invoiceGrandTotal]}>
+                  <Text style={styles.invoiceGrandTotalLabel}>TOTAL</Text>
+                  <Text style={styles.invoiceGrandTotalValue}>${totals.total.toLocaleString('es-AR')}</Text>
+                </View>
+              </View>
+
+              {/* Payment Method Selector */}
+              <Text style={[styles.sectionTitle, { marginTop: 20 }]}>¿Cómo paga el cliente?</Text>
+              <View style={styles.paymentMethodGrid}>
+                <TouchableOpacity
+                  style={[
+                    styles.paymentMethodButton,
+                    paymentMethod === 'cash' && styles.paymentMethodButtonActive,
+                  ]}
+                  onPress={() => setPaymentMethod('cash')}
+                >
+                  <Feather name="dollar-sign" size={24} color={paymentMethod === 'cash' ? '#16a34a' : '#6b7280'} />
+                  <Text style={[
+                    styles.paymentMethodLabel,
+                    paymentMethod === 'cash' && styles.paymentMethodLabelActive,
+                  ]}>Efectivo</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.paymentMethodButton,
+                    paymentMethod === 'mercadopago' && styles.paymentMethodButtonActive,
+                  ]}
+                  onPress={() => setPaymentMethod('mercadopago')}
+                >
+                  <Feather name="smartphone" size={24} color={paymentMethod === 'mercadopago' ? '#16a34a' : '#6b7280'} />
+                  <Text style={[
+                    styles.paymentMethodLabel,
+                    paymentMethod === 'mercadopago' && styles.paymentMethodLabelActive,
+                  ]}>MercadoPago</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.paymentMethodButton,
+                    paymentMethod === 'transfer' && styles.paymentMethodButtonActive,
+                  ]}
+                  onPress={() => setPaymentMethod('transfer')}
+                >
+                  <Feather name="send" size={24} color={paymentMethod === 'transfer' ? '#16a34a' : '#6b7280'} />
+                  <Text style={[
+                    styles.paymentMethodLabel,
+                    paymentMethod === 'transfer' && styles.paymentMethodLabelActive,
+                  ]}>Transferencia</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Cash Payment Details */}
+              {paymentMethod === 'cash' && (
+                <View style={styles.paymentDetails}>
+                  <Text style={styles.paymentDetailsLabel}>Monto recibido en efectivo:</Text>
+                  <View style={styles.cashInputContainer}>
+                    <Text style={styles.cashInputPrefix}>$</Text>
+                    <TextInput
+                      style={styles.cashInput}
+                      value={cashAmount}
+                      onChangeText={setCashAmount}
+                      keyboardType="numeric"
+                      placeholder={totals.total.toFixed(0)}
+                      placeholderTextColor="#9ca3af"
+                    />
+                  </View>
+                  {parseFloat(cashAmount || '0') < totals.total && (
+                    <Text style={styles.cashWarning}>
+                      ⚠️ El monto es menor al total
+                    </Text>
+                  )}
+                </View>
+              )}
+
+              {/* MercadoPago Payment Details */}
+              {paymentMethod === 'mercadopago' && (
+                <View style={styles.paymentDetails}>
+                  {!orgPaymentInfo.hasMercadoPago ? (
+                    <View style={styles.paymentWarningBox}>
+                      <Feather name="alert-circle" size={20} color="#d97706" />
+                      <Text style={styles.paymentWarningText}>
+                        MercadoPago no configurado. El dueño debe conectar su cuenta en Configuración.
+                      </Text>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={styles.paymentDetailsLabel}>El cliente puede pagar con MercadoPago:</Text>
+                      <TouchableOpacity
+                        style={styles.generateLinkButton}
+                        onPress={async () => {
+                          setIsGeneratingPaymentLink(true);
+                          try {
+                            const apiUrl = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+                            const response = await fetch(`${apiUrl}/api/jobs/${id}/payment-link`, {
+                              method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${await SecureStore.getItemAsync('auth_token')}`,
+                              },
+                              body: JSON.stringify({
+                                amount: totals.total,
+                                description: `Trabajo ${id?.slice(0, 8)}`,
+                              }),
+                            });
+                            const data = await response.json();
+                            if (data.success && data.data?.paymentUrl) {
+                              setPaymentLinkUrl(data.data.paymentUrl);
+                              // Share the link
+                              await Share.share({
+                                message: `Pagá tu servicio de CampoTech: ${data.data.paymentUrl}`,
+                                url: data.data.paymentUrl,
+                              });
+                            } else {
+                              Alert.alert('Error', 'No se pudo generar el link de pago');
+                            }
+                          } catch (error) {
+                            Alert.alert('Error', 'Error al generar link de pago');
+                          } finally {
+                            setIsGeneratingPaymentLink(false);
+                          }
+                        }}
+                        disabled={isGeneratingPaymentLink}
+                      >
+                        {isGeneratingPaymentLink ? (
+                          <Feather name="loader" size={20} color="#fff" />
+                        ) : (
+                          <Feather name="share-2" size={20} color="#fff" />
+                        )}
+                        <Text style={styles.generateLinkButtonText}>
+                          {isGeneratingPaymentLink ? 'Generando...' : 'Compartir Link de Pago'}
+                        </Text>
+                      </TouchableOpacity>
+                      <Text style={styles.mpNote}>
+                        El pago irá directamente a la cuenta de la empresa.
+                      </Text>
+                    </>
+                  )}
+                </View>
+              )}
+
+              {/* Transfer Payment Details */}
+              {paymentMethod === 'transfer' && (
+                <View style={styles.paymentDetails}>
+                  <Text style={styles.paymentDetailsLabel}>Datos para transferencia:</Text>
+                  <View style={styles.transferInfoBox}>
+                    {orgPaymentInfo.cbu && (
+                      <View style={styles.transferRow}>
+                        <Text style={styles.transferLabel}>CBU:</Text>
+                        <Text style={styles.transferValue}>{orgPaymentInfo.cbu}</Text>
+                      </View>
+                    )}
+                    {orgPaymentInfo.alias && (
+                      <View style={styles.transferRow}>
+                        <Text style={styles.transferLabel}>Alias:</Text>
+                        <Text style={styles.transferValue}>{orgPaymentInfo.alias}</Text>
+                      </View>
+                    )}
+                    {orgPaymentInfo.titular && (
+                      <View style={styles.transferRow}>
+                        <Text style={styles.transferLabel}>Titular:</Text>
+                        <Text style={styles.transferValue}>{orgPaymentInfo.titular}</Text>
+                      </View>
+                    )}
+                    {!orgPaymentInfo.cbu && !orgPaymentInfo.alias && (
+                      <Text style={styles.noTransferInfo}>
+                        Datos de transferencia no configurados
+                      </Text>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    style={styles.transferConfirmRow}
+                    onPress={() => setTransferConfirmed(!transferConfirmed)}
+                  >
+                    <View style={[
+                      styles.checkbox,
+                      transferConfirmed && styles.checkboxChecked,
+                    ]}>
+                      {transferConfirmed && <Feather name="check" size={16} color="#fff" />}
+                    </View>
+                    <Text style={styles.transferConfirmText}>Confirmo que recibí la transferencia</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          )}
         </ScrollView>
 
         {/* Navigation buttons */}
@@ -658,9 +970,11 @@ export default function CompleteJobScreen() {
           {step !== 'notes' && (
             <TouchableOpacity
               style={styles.backButton}
-              onPress={() =>
-                setStep(step === 'signature' ? 'photos' : 'notes')
-              }
+              onPress={() => {
+                if (step === 'photos') setStep('notes');
+                else if (step === 'signature') setStep('photos');
+                else if (step === 'payment') setStep('signature');
+              }}
             >
               <Feather name="arrow-left" size={20} color="#6b7280" />
               <Text style={styles.backButtonText}>Anterior</Text>
@@ -671,20 +985,21 @@ export default function CompleteJobScreen() {
             style={[
               styles.nextButton,
               step === 'notes' && styles.nextButtonFull,
-              isSubmitting && styles.buttonDisabled,
+              (isSubmitting || (step === 'payment' && !canCompletePayment())) && styles.buttonDisabled,
             ]}
             onPress={() => {
               if (step === 'notes') setStep('photos');
               else if (step === 'photos') setStep('signature');
+              else if (step === 'signature') setStep('payment');
               else handleSubmit();
             }}
-            disabled={isSubmitting}
+            disabled={isSubmitting || (step === 'payment' && !canCompletePayment())}
           >
             <Text style={styles.nextButtonText}>
-              {step === 'signature' ? 'Completar trabajo' : 'Siguiente'}
+              {step === 'payment' ? 'Completar trabajo' : 'Siguiente'}
             </Text>
             <Feather
-              name={step === 'signature' ? 'check' : 'arrow-right'}
+              name={step === 'payment' ? 'check' : 'arrow-right'}
               size={20}
               color="#fff"
             />
@@ -1126,5 +1441,233 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#d97706',
     fontWeight: '500',
+  },
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // PAYMENT STEP STYLES (Step 4 - Feb 2026)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  invoiceSummary: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 12,
+  },
+  invoiceSummaryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b7280',
+    marginBottom: 12,
+  },
+  invoiceLineItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  invoiceItemDesc: {
+    flex: 1,
+    fontSize: 14,
+    color: '#374151',
+  },
+  invoiceItemPrice: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  invoiceMoreItems: {
+    fontSize: 12,
+    color: '#9ca3af',
+    fontStyle: 'italic',
+    paddingTop: 4,
+  },
+  invoiceTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    paddingTop: 8,
+  },
+  invoiceTotalLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  invoiceTotalValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+  },
+  invoiceGrandTotal: {
+    marginTop: 8,
+    paddingTop: 12,
+    borderTopWidth: 2,
+    borderTopColor: '#16a34a',
+  },
+  invoiceGrandTotalLabel: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  invoiceGrandTotalValue: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#16a34a',
+  },
+  paymentMethodGrid: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 12,
+  },
+  paymentMethodButton: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    gap: 8,
+  },
+  paymentMethodButtonActive: {
+    borderColor: '#16a34a',
+    backgroundColor: '#ecfdf5',
+  },
+  paymentMethodLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  paymentMethodLabelActive: {
+    color: '#16a34a',
+  },
+  paymentDetails: {
+    marginTop: 20,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+  },
+  paymentDetailsLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 12,
+  },
+  cashInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    overflow: 'hidden',
+  },
+  cashInputPrefix: {
+    paddingHorizontal: 16,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  cashInput: {
+    flex: 1,
+    padding: 16,
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  cashWarning: {
+    marginTop: 8,
+    fontSize: 13,
+    color: '#d97706',
+    fontWeight: '500',
+  },
+  paymentWarningBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fef3c7',
+    borderRadius: 8,
+    padding: 12,
+  },
+  paymentWarningText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#92400e',
+  },
+  generateLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#00b4e7',
+    borderRadius: 12,
+    padding: 16,
+    gap: 8,
+  },
+  generateLinkButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  mpNote: {
+    marginTop: 12,
+    fontSize: 12,
+    color: '#6b7280',
+    textAlign: 'center',
+    fontStyle: 'italic',
+  },
+  transferInfoBox: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    padding: 16,
+  },
+  transferRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  transferLabel: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  transferValue: {
+    fontSize: 14,
+    color: '#111827',
+    fontWeight: '600',
+  },
+  noTransferInfo: {
+    fontSize: 14,
+    color: '#9ca3af',
+    fontStyle: 'italic',
+    textAlign: 'center',
+  },
+  transferConfirmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 16,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#d1d5db',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#16a34a',
+    borderColor: '#16a34a',
+  },
+  transferConfirmText: {
+    flex: 1,
+    fontSize: 14,
+    color: '#374151',
   },
 });

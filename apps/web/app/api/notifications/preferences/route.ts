@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { validateBody, notificationPreferencesFullSchema } from '@/lib/validation/api-schemas';
 
 // Default preferences
 const defaultPreferences = {
@@ -160,6 +161,16 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
+
+    // Validate request body with Zod
+    const validation = validateBody(body, notificationPreferencesFullSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, error: validation.error },
+        { status: 400 }
+      );
+    }
+
     const {
       webEnabled,
       pushEnabled,
@@ -172,7 +183,7 @@ export async function PUT(request: NextRequest) {
       quietHoursStart,
       quietHoursEnd,
       quietHoursTimezone,
-    } = body;
+    } = validation.data;
 
     // Build data for upsert
     const data = {

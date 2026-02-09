@@ -287,11 +287,41 @@ export async function verifyPaymentByReference(
   amount?: number;
 }> {
   try {
-    // This would typically query MercadoPago API to verify payment
-    // For now, return not found - actual implementation would use Payment API
-    console.log('[Checkout] Verifying payment for reference:', externalReference);
+    const accessToken = process.env.MP_ACCESS_TOKEN;
+    if (!accessToken) {
+      console.warn('[Checkout] MP_ACCESS_TOKEN not set, cannot verify payment');
+      return { found: false };
+    }
 
-    return { found: false };
+    // Search payments by external_reference via MP API
+    const searchRes = await fetch(
+      `https://api.mercadopago.com/v1/payments/search?external_reference=${encodeURIComponent(externalReference)}&sort=date_created&criteria=desc`,
+      {
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      }
+    );
+
+    if (!searchRes.ok) {
+      console.warn(`[Checkout] MP payment search failed: ${searchRes.status}`);
+      return { found: false };
+    }
+
+    const searchData = await searchRes.json();
+    const results = searchData.results || [];
+
+    if (results.length === 0) {
+      return { found: false };
+    }
+
+    // Take the most recent payment for this reference
+    const payment = results[0];
+
+    return {
+      found: true,
+      status: payment.status as 'approved' | 'pending' | 'rejected' | 'cancelled',
+      paymentId: String(payment.id),
+      amount: payment.transaction_amount,
+    };
   } catch (error) {
     console.error('[Checkout] Error verifying payment:', error);
     return { found: false };

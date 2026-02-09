@@ -120,10 +120,12 @@ async def readiness_check() -> dict[str, Any]:
     )
 
 
-# Include routers
-app.include_router(voice_router, prefix="/api", tags=["voice"])
-app.include_router(support_router, prefix="/api", tags=["support"])
-app.include_router(invoice_router, tags=["invoice"])
+# Include routers with API key authentication (P1 Security)
+from app.middleware.auth import ApiKeyAuth
+
+app.include_router(voice_router, prefix="/api", tags=["voice"], dependencies=[ApiKeyAuth])
+app.include_router(support_router, prefix="/api", tags=["support"], dependencies=[ApiKeyAuth])
+app.include_router(invoice_router, tags=["invoice"], dependencies=[ApiKeyAuth])
 
 
 if __name__ == "__main__":

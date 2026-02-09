@@ -115,6 +115,7 @@ model Organization {
   exportRequests        ExportRequest[]
   dataAccessRequests    DataAccessRequest[]
   priceAdjustmentEvents PriceAdjustmentEvent[] @relation("OrgPriceAdjustments")
+  syncOperations        SyncOperation[]        @relation("OrgSyncOperations")
 
   // ═══════════════════════════════════════════════════════════════════════════════
   // WHATSAPP MESSAGE TEMPLATES (Custom)
@@ -124,7 +125,6 @@ model Organization {
 
   // Note: Confirmation codes (Phase 4.4) are MANDATORY for all organizations.
   // There is no opt-out toggle - this is a platform-wide security standard.
-
 
   @@index([subscriptionStatus])
   @@index([subscriptionTier])
@@ -252,6 +252,15 @@ model User {
   priceAdjustmentsApplied PriceAdjustmentEvent[] @relation("PriceAdjustmentsApplied")
   priceRelationsCreated   PriceItemRelation[]    @relation("PriceRelationCreator")
 
+  // Phase 2 Security - Auth tokens
+  refreshTokens RefreshToken[]
+
+  // Phase 5 Security - Sync audit logging
+  syncOperations SyncOperation[] @relation("UserSyncOperations")
+
+  // Phase 9 Compliance - Consent tracking (Ley 25.326)
+  consentLogs UserConsentLog[]
+
   @@unique([email, organizationId])
   @@index([organizationId])
   @@index([verificationStatus])
@@ -265,21 +274,21 @@ model User {
 }
 
 model Customer {
-  id                 String              @id @default(cuid())
-  name               String
-  phone              String
-  email              String?
-  address            Json
-  notes              String?
-  organizationId     String
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  customerNumber     String?
-  isVip              Boolean             @default(false)
-  
+  id             String   @id @default(cuid())
+  name           String
+  phone          String
+  email          String?
+  address        Json
+  notes          String?
+  organizationId String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  customerNumber String?
+  isVip          Boolean  @default(false)
+
   // Customer Type: PARTICULAR, CONSORCIO, COUNTRY, COMERCIO, INDUSTRIAL, INSTITUCIONAL, ADMINISTRADORA, CONSTRUCTORA
-  customerType       String              @default("PARTICULAR") @map("customer_type")
-  
+  customerType String @default("PARTICULAR") @map("customer_type")
+
   organization       Organization        @relation(fields: [organizationId], references: [id])
   invoices           Invoice[]
   jobs               Job[]
@@ -390,6 +399,17 @@ model Job {
   confirmationCodeSentAt     DateTime? @map("confirmation_code_sent_at")
   confirmationCodeVerifiedAt DateTime? @map("confirmation_code_verified_at")
   confirmationCodeAttempts   Int       @default(0) @map("confirmation_code_attempts")
+
+  // ═══════════════════════════════════════════════════════════════════════════════
+  // ON-SITE PAYMENT COLLECTION (Step 4 - Feb 2026)
+  // Technician collects payment at job completion (cash, MercadoPago, transfer)
+  // ═══════════════════════════════════════════════════════════════════════════════
+  paymentMethod        String?   @map("payment_method") // CASH, MERCADOPAGO, TRANSFER
+  paymentAmount        Decimal?  @map("payment_amount") @db.Decimal(12, 2)
+  paymentCollectedAt   DateTime? @map("payment_collected_at")
+  paymentCollectedById String?   @map("payment_collected_by_id")
+  mpPreferenceId       String?   @map("mp_preference_id") // MercadoPago checkout preference ID
+  mpPaymentStatus      String?   @map("mp_payment_status") // pending, approved, rejected
 
   invoice          Invoice?
   assignments      JobAssignment[]    @relation("JobAssignments")
@@ -663,6 +683,83 @@ model OtpCode {
   @@map("otp_codes")
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 2 SECURITY FIX (CRIT-1): AUTH SECURITY TABLES
+// These tables support refresh token rotation, brute force protection, and
+// account lockout as implemented in apps/web/lib/auth-security.ts
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  tokenHash String   @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  userAgent String?  @map("user_agent")
+  ipAddress String?  @map("ip_address")
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model LoginAttempt {
+  id             String   @id @default(uuid())
+  identifier     String
+  identifierType String   @map("identifier_type") // 'phone' | 'email' | 'user_id'
+  success        Boolean
+  ipAddress      String?  @map("ip_address")
+  userAgent      String?  @map("user_agent")
+  userId         String?  @map("user_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([identifier, identifierType])
+  @@index([createdAt])
+  @@map("login_attempts")
+}
+
+model LoginLockout {
+  id             String   @id @default(uuid())
+  identifier     String
+  identifierType String   @map("identifier_type")
+  lockedUntil    DateTime @map("locked_until")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([identifier, identifierType])
+  @@map("login_lockouts")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 9: REGULATORY COMPLIANCE (LEY 25.326)
+// User consent tracking with version control for data protection compliance
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model UserConsentLog {
+  id           String    @id @default(uuid())
+  userId       String    @map("user_id")
+  consentType  String    @map("consent_type") // privacy_policy, terms_of_service, marketing, data_processing
+  version      String // Policy version at time of consent
+  granted      Boolean   @default(true) // true = granted, false = withdrawn
+  grantedAt    DateTime  @default(now()) @map("granted_at")
+  withdrawnAt  DateTime? @map("withdrawn_at")
+  ipAddress    String?   @map("ip_address")
+  userAgent    String?   @map("user_agent")
+  metadata     Json?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([consentType])
+  @@index([grantedAt])
+  @@map("user_consent_log")
+}
+
 model PendingRegistration {
   id           String   @id @default(cuid())
   phone        String   @unique
@@ -670,6 +767,7 @@ model PendingRegistration {
   businessName String?
   adminName    String
   email        String?
+  selectedPlan String?  @map("selected_plan") // Plan chosen from landing page (e.g., INICIAL, PROFESIONAL, EMPRESA)
   expiresAt    DateTime
   createdAt    DateTime @default(now())
 
@@ -5019,4 +5117,56 @@ model PriceAdjustmentEvent {
   @@index([organizationId, appliedAt])
   @@index([appliedById])
   @@map("price_adjustment_events")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 5 SECURITY: MOBILE SYNC AUDIT LOGGING
+// Tracks all sync operations for forensic analysis and fraud detection
+// ═══════════════════════════════════════════════════════════════════════════════
+
+model SyncOperation {
+  id             String  @id @default(cuid())
+  organizationId String  @map("organization_id")
+  userId         String  @map("user_id")
+  deviceId       String? @map("device_id")
+
+  // Operation details
+  operationType    String  @map("operation_type") // 'pull', 'push', 'bidirectional', 'payment_sync'
+  entityType       String? @map("entity_type") // 'job', 'payment', 'customer', etc.
+  entityId         String? @map("entity_id")
+  operationCount   Int     @default(0) @map("operation_count")
+  conflictCount    Int     @default(0) @map("conflict_count")
+
+  // Payment variance tracking (for fraud detection)
+  paymentVariance     Decimal? @map("payment_variance") @db.Decimal(12, 2)
+  clientClaimedAmount Decimal? @map("client_claimed_amount") @db.Decimal(12, 2)
+  serverActualAmount  Decimal? @map("server_actual_amount") @db.Decimal(12, 2)
+
+  // Status transition tracking
+  statusTransition     String? @map("status_transition") // 'PENDING->IN_PROGRESS', etc.
+  terminalStateBlocked Boolean @default(false) @map("terminal_state_blocked")
+
+  // Severity and outcome
+  severity     String  @default("INFO") // 'INFO', 'WARN', 'ERROR', 'CRITICAL'
+  success      Boolean @default(true)
+  errorMessage String? @map("error_message")
+
+  // Context
+  ipAddress String? @map("ip_address")
+  userAgent String? @map("user_agent")
+  details   Json?   @db.JsonB
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  organization Organization @relation("OrgSyncOperations", fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation("UserSyncOperations", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
+  @@index([severity])
+  @@index([operationType])
+  @@index([entityId])
+  @@index([terminalStateBlocked])
+  @@map("sync_operations")
 }

@@ -117,8 +117,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Log webhook for debugging
-    console.log('[Dialog360 Webhook] Received:', JSON.stringify(payload, null, 2));
+    // Log webhook summary (sanitized - no PII)
+    const entrySummary = payload.entry?.map((e) => ({
+      id: e.id,
+      changesCount: e.changes?.length ?? 0,
+      fields: e.changes?.map((c) => c.field),
+      messageCount: e.changes?.reduce((sum, c) => sum + (c.value.messages?.length ?? 0), 0),
+      statusCount: e.changes?.reduce((sum, c) => sum + (c.value.statuses?.length ?? 0), 0),
+    }));
+    console.log('[Dialog360 Webhook] Received:', JSON.stringify({ object: payload.object, entries: entrySummary }));
 
     // Process the webhook
     await processWebhook(payload, orgId);
