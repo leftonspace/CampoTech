@@ -117,7 +117,7 @@ export function useAIAssistant() {
                                             ┌──────────────▼──────────────┐
                                             │  1. Session validation      │
                                             │  2. Role check (OWNER/      │
-                                            │     DISPATCHER/TECHNICIAN)  │
+                                            │     ADMIN/TECHNICIAN)  │
                                             │  3. Rate limiting           │
                                             └──────────────┬──────────────┘
                                                            │
@@ -505,7 +505,7 @@ interface DataAccessPermissions {
 │                                                                             │
 │  Role Requirements:                                                         │
 │  ├── Read: Any authenticated user                                          │
-│  └── Write: OWNER or DISPATCHER only                                       │
+│  └── Write: OWNER or ADMIN only                                       │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -524,7 +524,7 @@ interface DataAccessPermissions {
 | Data Privacy | `test/route.ts:502-546` | `dataAccessPermissions` filtering |
 | Real-Time Data | `test/route.ts:301-377` | Live technician availability |
 | Audit Logging | `copilot/chat/route.ts:424-437` | AIConversationLog for all interactions |
-| Role-Based Access | Multiple files | OWNER/DISPATCHER for config, TECHNICIAN limited |
+| Role-Based Access | Multiple files | OWNER/ADMIN for config, TECHNICIAN limited |
 | Idempotency | `webhook/route.ts:193-197` | `wasMessageProcessed()` prevents duplicates |
 
 ### ⚠️ Potential Issues

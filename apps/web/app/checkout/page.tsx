@@ -12,7 +12,7 @@
  * This page is outside the dashboard layout (no sidebar) for a clean checkout UX.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -106,10 +106,10 @@ function PaymentMethodCard({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// MAIN CHECKOUT PAGE
+// CHECKOUT CONTENT (uses useSearchParams)
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export default function CheckoutPage() {
+function CheckoutContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const planId = searchParams.get('plan')?.toUpperCase() || 'PROFESIONAL';
@@ -365,5 +365,21 @@ export default function CheckoutPage() {
                 </div>
             </footer>
         </div>
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PAGE EXPORT (wrapped in Suspense for Next.js 15)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export default function CheckoutPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            </div>
+        }>
+            <CheckoutContent />
+        </Suspense>
     );
 }

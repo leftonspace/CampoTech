@@ -25,8 +25,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only admins, owners, and dispatchers can trigger re-geocoding
-    if (!['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
+    // Only admins, owners, and Admins can trigger re-geocoding
+    if (!['OWNER', 'ADMIN'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para esta acción' },
         { status: 403 }

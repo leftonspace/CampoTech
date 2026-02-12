@@ -17,11 +17,14 @@ import {
   resetAllMocks,
 } from '../utils/subscription-test-helpers';
 
-// Mock prisma
-const mockPrisma = createMockPrisma();
-vi.mock('@/lib/prisma', () => ({
-  prisma: mockPrisma,
-}));
+// Mock prisma - use async factory to avoid hoisting issues
+vi.mock('@/lib/prisma', async () => {
+  const helpers = await import('../utils/subscription-test-helpers');
+  return { prisma: helpers.createMockPrisma() };
+});
+
+// Import the mocked module to get a reference
+import { prisma as mockPrisma } from '@/lib/prisma';
 
 // Import after mocking
 import { blockManager } from '@/lib/subscription/block-manager';
@@ -343,7 +346,14 @@ describe('BlockManager', () => {
         blockType: null,
       });
 
-      mockPrisma.organization.findMany = vi.fn().mockResolvedValueOnce([expiredOrg]);
+      // checkAndApplyBlocks calls findMany twice:
+      // 1. For orgsToBlock (expired trials)
+      // 2. For orgsToEscalate (soft blocks to escalate)  
+      mockPrisma.organization.findMany = vi.fn()
+        .mockResolvedValueOnce([expiredOrg])  // orgsToBlock
+        .mockResolvedValueOnce([]);           // orgsToEscalate
+      // applyBlock internally calls findUnique then update
+      mockPrisma.organization.findUnique.mockResolvedValueOnce(expiredOrg);
       mockPrisma.organization.update.mockResolvedValueOnce({
         ...expiredOrg,
         blockType: 'soft_block',
@@ -352,7 +362,7 @@ describe('BlockManager', () => {
 
       const result = await blockManager.checkAndApplyBlocks();
 
-      expect(result.blocksApplied).toBeGreaterThanOrEqual(0);
+      expect(result.blocksApplied).toBeGreaterThanOrEqual(1);
     });
 
     it('should escalate soft blocks to hard blocks after extended period', async () => {
@@ -363,7 +373,14 @@ describe('BlockManager', () => {
         // Blocked more than 14 days ago
       });
 
-      mockPrisma.organization.findMany = vi.fn().mockResolvedValueOnce([softBlockedOrg]);
+      // checkAndApplyBlocks calls findMany twice:
+      // 1. For orgsToBlock (expired trials) - empty
+      // 2. For orgsToEscalate (soft blocks) - our org
+      mockPrisma.organization.findMany = vi.fn()
+        .mockResolvedValueOnce([])                // orgsToBlock
+        .mockResolvedValueOnce([softBlockedOrg]); // orgsToEscalate
+      // escalateBlock internally calls findUnique then update
+      mockPrisma.organization.findUnique.mockResolvedValueOnce(softBlockedOrg);
       mockPrisma.organization.update.mockResolvedValueOnce({
         ...softBlockedOrg,
         blockType: 'hard_block',
@@ -372,7 +389,7 @@ describe('BlockManager', () => {
 
       const result = await blockManager.checkAndApplyBlocks();
 
-      expect(result.escalated).toBeGreaterThanOrEqual(0);
+      expect(result.escalated).toBeGreaterThanOrEqual(1);
     });
   });
 });

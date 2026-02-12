@@ -41,8 +41,8 @@ export function createMockOwner(options: MockUserOptions = {}): User {
   return createMockUser({ ...options, role: 'OWNER' });
 }
 
-export function createMockDispatcher(options: MockUserOptions = {}): User {
-  return createMockUser({ ...options, role: 'DISPATCHER' });
+export function createMockAdmin(options: MockUserOptions = {}): User {
+  return createMockUser({ ...options, role: 'ADMIN' });
 }
 
 export function createMockTechnician(options: MockUserOptions = {}): User {

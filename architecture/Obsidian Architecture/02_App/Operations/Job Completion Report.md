@@ -86,7 +86,7 @@ path: apps/web/lib/reports/job-completion-report.ts
 | Visita | Visit number (HYBRID: "(Diagnóstico)" for first) |
 | Fecha | Scheduled date |
 | Estado | Status badge (Programada, Completada, etc.) |
-| Estimado | Dispatcher-set price |
+| Estimado | ADMIN-set price |
 | Real | Technician-reported actual price |
 | Variación | Percentage variance with color coding |
 

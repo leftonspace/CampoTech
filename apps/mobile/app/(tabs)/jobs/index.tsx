@@ -1,5 +1,5 @@
 /**
- * Jobs Management Screen (Dispatcher/Owner)
+ * Jobs Management Screen (ADMIN/Owner)
  * ==========================================
  *
  * Phase 2.4.1: Job Management Screen

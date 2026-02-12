@@ -88,7 +88,6 @@ const STATUS_COLORS: Record<string, string> = {
     // User roles
     'OWNER': 'purple',
     'ADMIN': 'blue',
-    'DISPATCHER': 'indigo',
     'TECHNICIAN': 'green',
     // Inventory categories
     'PARTS': 'blue',

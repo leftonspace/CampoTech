@@ -63,7 +63,7 @@ This directory contains all security-related documentation for the CampoTech pla
 1. AFIP certificates stored in plain text
 2. Mercado Pago tokens may be unencrypted
 3. No encryption key rotation
-4. Incomplete RBAC (DISPATCHER role missing)
+4. Incomplete RBAC (ADMIN role missing)
 5. Secrets in environment variables
 
 ### 🟡 High Priority (Recommended Before Launch)
@@ -87,7 +87,7 @@ Week 1-2: Phase 1 (Critical) - 12 days
   ├─ Encrypt AFIP certificates (3 days)
   ├─ Encrypt MP tokens (2 days)
   ├─ Key rotation support (3 days)
-  ├─ RBAC - DISPATCHER role (2 days)
+  ├─ RBAC - ADMIN role (2 days)
   └─ Secrets management (2 days)
 
 Week 3: Phase 2 (High Priority) - 10 days

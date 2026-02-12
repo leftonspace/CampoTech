@@ -862,7 +862,7 @@ function getSuggestedFix(category: ErrorCategory, _message: string): string {
       return 'Consider increasing timeout limits or optimizing the job processing logic';
 
     case 'rate_limit':
-      return 'Implement rate limiting on the dispatcher or increase delay between retries';
+      return 'Implement rate limiting on the ADMIN or increase delay between retries';
 
     case 'external_service':
       return 'Check external service health. Consider implementing circuit breaker pattern';
@@ -871,7 +871,7 @@ function getSuggestedFix(category: ErrorCategory, _message: string): string {
       return 'Verify API credentials and token refresh logic';
 
     case 'validation':
-      return 'Review input validation in the dispatcher. Check for missing required fields';
+      return 'Review input validation in the ADMIN. Check for missing required fields';
 
     case 'not_found':
       return 'Resource may have been deleted. Consider adding existence checks before processing';

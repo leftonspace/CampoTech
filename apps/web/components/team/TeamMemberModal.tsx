@@ -108,7 +108,7 @@ export function TeamMemberModal({ member, currentUserId, currentUserRole, onClos
     // ACCESS CONTROL: Determine if user can edit or just view
     const normalizedRole = currentUserRole?.toUpperCase() || 'TECHNICIAN';
     const isEditingSelf = member?.id === currentUserId;
-    const canEdit = isEditingSelf || ['OWNER', 'DISPATCHER'].includes(normalizedRole);
+    const canEdit = isEditingSelf || ['OWNER', 'ADMIN'].includes(normalizedRole);
     const isViewOnly = isEditing && !canEdit;
 
     // Resend access states (Edit mode only)
@@ -565,7 +565,7 @@ export function TeamMemberModal({ member, currentUserId, currentUserRole, onClos
                                         disabled={isOwner}
                                     >
                                         <option value="TECHNICIAN">Técnico</option>
-                                        <option value="DISPATCHER">Despachador</option>
+                                        <option value="ADMIN">Administrador</option>
                                         {isOwner && <option value="OWNER">Dueño</option>}
                                     </select>
                                     {/* Active checkbox - under Rol for alignment */}

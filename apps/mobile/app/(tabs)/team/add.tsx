@@ -33,7 +33,7 @@ import {
 
 const ROLES = [
   { value: 'TECHNICIAN', label: 'Técnico', description: 'Realiza trabajos asignados' },
-  { value: 'DISPATCHER', label: 'Despachador', description: 'Asigna trabajos al equipo' },
+  { value: 'ADMIN', label: 'Administrador', description: 'Asigna trabajos al equipo' },
   { value: 'ADMIN', label: 'Administrador', description: 'Acceso completo excepto facturación' },
 ];
 

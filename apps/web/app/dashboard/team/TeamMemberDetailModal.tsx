@@ -29,7 +29,7 @@ interface TeamMember {
   name: string;
   phone: string;
   email?: string;
-  role: 'OWNER' | 'DISPATCHER' | 'TECHNICIAN';
+  role: 'OWNER' | 'ADMIN' | 'TECHNICIAN';
   specialty?: string;
   skillLevel?: string;
   avatar?: string;
@@ -51,8 +51,8 @@ const ROLE_CONFIG = {
     color: 'bg-amber-100 text-amber-700 border-amber-200',
     icon: Shield,
   },
-  DISPATCHER: {
-    label: 'Despachador',
+  ADMIN: {
+    label: 'Administrador',
     color: 'bg-rose-100 text-rose-700 border-rose-200',
     icon: User,
   },

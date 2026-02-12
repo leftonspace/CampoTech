@@ -164,6 +164,8 @@ interface WelcomeEmailData {
 }
 
 export function generateWelcomeEmailHTML(data: WelcomeEmailData): string {
+  const isTechnician = data.role === 'Técnico';
+
   return `
 <!DOCTYPE html>
 <html>
@@ -212,6 +214,13 @@ export function generateWelcomeEmailHTML(data: WelcomeEmailData): string {
     .info-box {
       background: #f0fdf4;
       border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .warning-box {
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
       border-radius: 8px;
       padding: 20px;
       margin: 20px 0;
@@ -273,6 +282,12 @@ export function generateWelcomeEmailHTML(data: WelcomeEmailData): string {
     .step-text {
       flex: 1;
     }
+    .highlight {
+      background: #fef3c7;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -297,19 +312,50 @@ export function generateWelcomeEmailHTML(data: WelcomeEmailData): string {
         </div>
       </div>
 
-      <h3>Proximos pasos:</h3>
+      ${isTechnician ? `
+      <div class="warning-box">
+        <p style="margin: 0; font-size: 16px;"><strong>📱 Importante para Técnicos</strong></p>
+        <p style="margin: 10px 0 0 0;">
+          Como técnico, vas a usar la <span class="highlight">app móvil de CampoTech</span> para recibir y gestionar tus órdenes de trabajo.
+          La app estará disponible próximamente. Te contactaremos cuando esté lista para descargar.
+        </p>
+      </div>
+
+      <h3>Próximos pasos:</h3>
       <div class="steps">
         <div class="step">
           <div class="step-number">1</div>
-          <div class="step-text">Recibiras un codigo de verificacion por WhatsApp para activar tu cuenta.</div>
+          <div class="step-text">Recibirás un código de verificación por WhatsApp para activar tu cuenta.</div>
         </div>
         <div class="step">
           <div class="step-number">2</div>
-          <div class="step-text">Ingresa el codigo en la aplicacion para completar tu registro.</div>
+          <div class="step-text">Cuando la app móvil esté lista, te enviaremos las instrucciones de descarga.</div>
         </div>
         <div class="step">
           <div class="step-number">3</div>
-          <div class="step-text">Comenza a recibir y gestionar ordenes de trabajo asignadas.</div>
+          <div class="step-text">Ingresarás el código en la app móvil para completar tu registro.</div>
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <div class="step-text">¡Listo! Comenzarás a recibir órdenes de trabajo directamente en tu celular.</div>
+        </div>
+      </div>
+
+      <p><strong>¿Necesitas ayuda?</strong> Contacta a tu administrador${data.adminName ? ` (${data.adminName})` : ''} o responde a este correo.</p>
+      ` : `
+      <h3>Próximos pasos:</h3>
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-text">Recibirás un código de verificación por WhatsApp para activar tu cuenta.</div>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-text">Ingresa el código en la plataforma web para completar tu registro.</div>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-text">Comenzá a gestionar trabajos, técnicos y clientes desde el panel de control.</div>
         </div>
       </div>
 
@@ -317,11 +363,12 @@ export function generateWelcomeEmailHTML(data: WelcomeEmailData): string {
         <a href="${data.loginUrl}" class="button">Ingresar a CampoTech</a>
       </p>
 
-      <p><strong>Necesitas ayuda?</strong> Contacta a tu administrador${data.adminName ? ` (${data.adminName})` : ''} o responde a este correo.</p>
+      <p><strong>¿Necesitas ayuda?</strong> Contacta a tu administrador${data.adminName ? ` (${data.adminName})` : ''} o responde a este correo.</p>
+      `}
     </div>
     <div class="footer">
-      <p>Este correo fue enviado automaticamente. Por favor no respondas directamente a este mensaje.</p>
-      <p>&copy; ${new Date().getFullYear()} CampoTech - Sistema de Gestion para Servicios de Campo</p>
+      <p>Este correo fue enviado automáticamente. Por favor no respondas directamente a este mensaje.</p>
+      <p>&copy; ${new Date().getFullYear()} CampoTech - Sistema de Gestión para Servicios de Campo</p>
     </div>
   </div>
 </body>
@@ -329,6 +376,37 @@ export function generateWelcomeEmailHTML(data: WelcomeEmailData): string {
 }
 
 export function generateWelcomeEmailText(data: WelcomeEmailData): string {
+  const isTechnician = data.role === 'Técnico';
+
+  if (isTechnician) {
+    return `
+Bienvenido a CampoTech!
+
+Hola ${data.employeeName},
+
+Te damos la bienvenida al equipo de ${data.organizationName}. Tu cuenta ha sido creada exitosamente.
+
+DETALLES DE TU CUENTA:
+- Empresa: ${data.organizationName}
+- Tu Rol: ${data.role}
+
+📱 IMPORTANTE PARA TÉCNICOS:
+Como técnico, vas a usar la app móvil de CampoTech para recibir y gestionar tus órdenes de trabajo.
+La app estará disponible próximamente. Te contactaremos cuando esté lista para descargar.
+
+PRÓXIMOS PASOS:
+1. Recibirás un código de verificación por WhatsApp para activar tu cuenta.
+2. Cuando la app móvil esté lista, te enviaremos las instrucciones de descarga.
+3. Ingresarás el código en la app móvil para completar tu registro.
+4. ¡Listo! Comenzarás a recibir órdenes de trabajo directamente en tu celular.
+
+¿Necesitas ayuda? Contacta a tu administrador${data.adminName ? ` (${data.adminName})` : ''}.
+
+---
+CampoTech - Sistema de Gestión para Servicios de Campo
+`;
+  }
+
   return `
 Bienvenido a CampoTech!
 
@@ -340,17 +418,17 @@ DETALLES DE TU CUENTA:
 - Empresa: ${data.organizationName}
 - Tu Rol: ${data.role}
 
-PROXIMOS PASOS:
-1. Recibiras un codigo de verificacion por WhatsApp para activar tu cuenta.
-2. Ingresa el codigo en la aplicacion para completar tu registro.
-3. Comenza a recibir y gestionar ordenes de trabajo asignadas.
+PRÓXIMOS PASOS:
+1. Recibirás un código de verificación por WhatsApp para activar tu cuenta.
+2. Ingresa el código en la plataforma web para completar tu registro.
+3. Comenzá a gestionar trabajos, técnicos y clientes desde el panel de control.
 
 Para ingresar, visita: ${data.loginUrl}
 
-Necesitas ayuda? Contacta a tu administrador${data.adminName ? ` (${data.adminName})` : ''}.
+¿Necesitas ayuda? Contacta a tu administrador${data.adminName ? ` (${data.adminName})` : ''}.
 
 ---
-CampoTech - Sistema de Gestion para Servicios de Campo
+CampoTech - Sistema de Gestión para Servicios de Campo
 `;
 }
 
@@ -368,7 +446,7 @@ export async function sendWelcomeEmail(
 
   const roleDisplay: Record<string, string> = {
     'OWNER': 'Propietario',
-    'DISPATCHER': 'Despachador',
+    'ADMIN': 'Administrador',
     'TECHNICIAN': 'Técnico',
   };
 

@@ -27,7 +27,7 @@ export default async function SettingsLayout({
     }
 
     // Only OWNER can access settings pages
-    // This blocks TECHNICIAN and DISPATCHER roles from direct URL access
+    // This blocks TECHNICIAN and ADMIN roles from direct URL access
     if (session.role.toUpperCase() !== 'OWNER') {
         redirect('/dashboard');
     }

@@ -95,7 +95,7 @@ Auth wrapper middleware for explicit authentication on API routes.
 - `withAuth(handler)` - Wraps handler with session check
 - `withRole(handler, roles)` - Wraps with role validation
 - `withOwner(handler)` - Shortcut for OWNER-only routes
-- `withManagement(handler)` - Shortcut for OWNER/DISPATCHER routes
+- `withManagement(handler)` - Shortcut for OWNER/ADMIN routes
 - `requireValidSession(session)` - Throws if session invalid (LOW-1 fix)
 - `requireValidRole(session)` - Throws if role missing (LOW-1 fix)
 - `AuthError` class for auth-specific errors

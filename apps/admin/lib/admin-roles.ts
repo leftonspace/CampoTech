@@ -3,7 +3,7 @@
  * ======================
  * 
  * Defines the role types for administrative users in the CampoTech platform.
- * These roles are separate from tenant roles (OWNER, DISPATCHER, TECHNICIAN).
+ * These roles are separate from tenant roles (OWNER, ADMIN, TECHNICIAN).
  * 
  * Security Fix: INFO-1 from Phase 6 Authorization Audit
  * - Formally defines and documents admin role types

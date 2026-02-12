@@ -44,7 +44,7 @@ The Growth Engine is CampoTech's **professional acquisition system**. It:
 |:---|:---:|:---|
 | Platform Admin | ✅ | `test-org-001` or `isPlatformAdmin: true` |
 | Business Owner | ❌ | Sees "Acceso Restringido" message |
-| Admin (Dispatcher) | ❌ | Sees "Acceso Restringido" message |
+| Admin (ADMIN) | ❌ | Sees "Acceso Restringido" message |
 | Technician | ❌ | Cannot access `/admin` routes |
 
 ### How Access Is Checked

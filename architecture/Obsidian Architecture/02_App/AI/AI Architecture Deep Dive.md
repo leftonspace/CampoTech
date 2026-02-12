@@ -332,7 +332,7 @@ where: { organizationId: session.organizationId }
 
 ### User Role Restrictions
 
-Only `OWNER` and `DISPATCHER` can:
+Only `OWNER` and `ADMIN` can:
 - Access copilot
 - Configure AI settings
 - View AI conversation logs

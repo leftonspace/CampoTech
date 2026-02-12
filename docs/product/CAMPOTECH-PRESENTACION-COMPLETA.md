@@ -263,7 +263,7 @@ CampoTech resuelve estos problemas con una plataforma integral:
 
 ---
 
-### 3. Despachadores (Dispatcher)
+### 3. Despachadores (ADMIN)
 
 **Rol**: Personal de oficina que coordina trabajos
 
@@ -1141,7 +1141,7 @@ OFFLINE (App Técnico)
 FASE 1: SEGURIDAD E INFRAESTRUCTURA 🔐
 ────────────────────────────────────────
 ├── Encriptación de credenciales AFIP
-├── Rol DISPATCHER (operaciones sin facturación)
+├── Rol ADMIN (operaciones sin facturación)
 ├── Validación de locks distribuidos
 └── Estado: En progreso
 

@@ -24,7 +24,7 @@ The CampoTech authorization infrastructure demonstrates **robust security contro
 ### Key Strengths
 
 1. **Field-Level RBAC**: Granular permissions for sensitive fields (CUIT, salaries, financial data)
-2. **Role Hierarchy Enforcement**: OWNER > DISPATCHER > TECHNICIAN with explicit checks
+2. **Role Hierarchy Enforcement**: OWNER > ADMIN > TECHNICIAN with explicit checks
 3. **Multi-Organization Security**: Membership validation before org switching
 4. **Terminal State Immutability**: Server-side guards prevent modification of COMPLETED/CANCELLED jobs
 5. **Admin Isolation**: Admin panel (`apps/admin`) uses completely separate authentication (`getAdminSession()`)
@@ -50,7 +50,7 @@ The CampoTech authorization infrastructure demonstrates **robust security contro
 **Location:** `apps/web/lib/config/field-permissions.ts:13`
 
 ```typescript
-export type UserRole = 'SUPER_ADMIN' | 'OWNER' | 'DISPATCHER' | 'TECHNICIAN';
+export type UserRole = 'SUPER_ADMIN' | 'OWNER' | 'ADMIN' | 'TECHNICIAN';
 ```
 
 **Hierarchy:**
@@ -59,7 +59,7 @@ SUPER_ADMIN (platform-level, admin panel only)
     ↓
 OWNER (organization owner, full access)
     ↓
-DISPATCHER (operations management, no financial access)
+ADMIN (operations management, no financial access)
     ↓
 TECHNICIAN (field worker, own jobs only)
 ```
@@ -117,7 +117,7 @@ if (!session) {
 #### ✅ Users API (`/api/users/*`)
 ```typescript
 // apps/web/app/api/users/route.ts:185-189
-if (!['OWNER', 'DISPATCHER'].includes(session.role)) {
+if (!['OWNER', 'ADMIN'].includes(session.role)) {
     return NextResponse.json(
         { success: false, error: 'Forbidden: insufficient permissions' },
         { status: 403 }
@@ -800,7 +800,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         // 3. PERMISSION CHECK
         const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
         const isEditingSelf = session.userId === id;
-        if (!isEditingSelf && !['OWNER', 'DISPATCHER'].includes(userRole)) {
+        if (!isEditingSelf && !['OWNER', 'ADMIN'].includes(userRole)) {
             return NextResponse.json({ success: false, error: 'Forbidden: insufficient permissions' }, { status: 403 });
         }
 

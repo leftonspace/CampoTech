@@ -48,7 +48,7 @@ pricingMode        JobPricingMode @default(FIXED_TOTAL) @map("pricing_mode")
 defaultVisitRate   Decimal?       @db.Decimal(12, 2) @map("default_visit_rate")
 
 // JobVisit Model (schema.prisma lines 442-462)
-estimatedPrice      Decimal?   @db.Decimal(12, 2)  // Dispatcher sets
+estimatedPrice      Decimal?   @db.Decimal(12, 2)  // ADMIN sets
 actualPrice         Decimal?   @db.Decimal(12, 2)  // Technician reports
 techProposedPrice   Decimal?   @db.Decimal(12, 2)  // Pending approval
 priceVarianceReason String?    @map("price_variance_reason")
@@ -187,7 +187,7 @@ export function calculateJobTotal(job: JobWithPricing): PricingCalculation {
 ### Price Priority Order
 
 1. `visit.actualPrice` (technician-reported)
-2. `visit.estimatedPrice` (dispatcher-set)
+2. `visit.estimatedPrice` (ADMIN-set)
 3. `job.defaultVisitRate` (fallback for PER_VISIT/HYBRID)
 
 ---
@@ -238,7 +238,7 @@ When `job.pricingMode !== 'FIXED_TOTAL'`, the report includes:
 | Visita | Number (HYBRID: 1 shows "Diagnóstico") |
 | Fecha | Scheduled date |
 | Estado | Status chip |
-| Estimado | Dispatcher price |
+| Estimado | ADMIN price |
 | Real | Actual price |
 | Variación | Percentage with color coding |
 

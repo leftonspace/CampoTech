@@ -287,36 +287,36 @@ npm run reencrypt-data
 
 ---
 
-### 4. Complete RBAC - Add DISPATCHER Role (2 days)
+### 4. Complete RBAC - Add ADMIN Role (2 days)
 
-**Why:** Right now, anyone who's not an OWNER has too much or too little access. DISPATCHER role gives operational access without financial access.
+**Why:** Right now, anyone who's not an OWNER has too much or too little access. ADMIN role gives operational access without financial access.
 
 **Implementation (FREE - already planned in implementation-plan.md):**
 
 ```sql
--- File: prisma/migrations/add_dispatcher_role.sql
-ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'DISPATCHER';
+-- File: prisma/migrations/add_ADMIN_role.sql
+ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'ADMIN';
 
--- Migrate existing ADMIN users to DISPATCHER (if any)
+-- Migrate existing ADMIN users to ADMIN (if any)
 UPDATE users 
-SET role = 'DISPATCHER' 
+SET role = 'ADMIN' 
 WHERE role = 'ADMIN';
 ```
 
 ```typescript
 // File: apps/web/lib/access-control/permissions.ts
 export const PERMISSIONS = {
-  // Operations (OWNER + DISPATCHER)
-  'jobs:read': ['OWNER', 'DISPATCHER'],
-  'jobs:create': ['OWNER', 'DISPATCHER'],
-  'jobs:assign': ['OWNER', 'DISPATCHER'],
-  'customers:read': ['OWNER', 'DISPATCHER'],
-  'customers:create': ['OWNER', 'DISPATCHER'],
-  'team:read': ['OWNER', 'DISPATCHER'],
-  'whatsapp:read': ['OWNER', 'DISPATCHER'],
-  'whatsapp:send': ['OWNER', 'DISPATCHER'],
-  'inventory:read': ['OWNER', 'DISPATCHER'],
-  'inventory:adjust': ['OWNER', 'DISPATCHER'],
+  // Operations (OWNER + ADMIN)
+  'jobs:read': ['OWNER', 'ADMIN'],
+  'jobs:create': ['OWNER', 'ADMIN'],
+  'jobs:assign': ['OWNER', 'ADMIN'],
+  'customers:read': ['OWNER', 'ADMIN'],
+  'customers:create': ['OWNER', 'ADMIN'],
+  'team:read': ['OWNER', 'ADMIN'],
+  'whatsapp:read': ['OWNER', 'ADMIN'],
+  'whatsapp:send': ['OWNER', 'ADMIN'],
+  'inventory:read': ['OWNER', 'ADMIN'],
+  'inventory:adjust': ['OWNER', 'ADMIN'],
   
   // Billing & Admin (OWNER ONLY)
   'billing:read': ['OWNER'],
@@ -328,8 +328,8 @@ export const PERMISSIONS = {
   'settings:mercadopago': ['OWNER'],
   
   // Field operations (ALL ROLES)
-  'jobs:update_status': ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
-  'jobs:add_photos': ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+  'jobs:update_status': ['OWNER', 'ADMIN', 'TECHNICIAN'],
+  'jobs:add_photos': ['OWNER', 'ADMIN', 'TECHNICIAN'],
 } as const;
 
 export function hasPermission(role: string, permission: string): boolean {
@@ -337,7 +337,7 @@ export function hasPermission(role: string, permission: string): boolean {
 }
 ```
 
-**Update UI (hide billing from DISPATCHER):**
+**Update UI (hide billing from ADMIN):**
 ```tsx
 // File: apps/web/components/navigation/sidebar.tsx
 import { hasPermission } from '@/lib/access-control/permissions';
@@ -350,7 +350,7 @@ export function Sidebar({ user }) {
       <NavItem href="/jobs">Trabajos</NavItem>
       <NavItem href="/customers">Clientes</NavItem>
       
-      {/* OWNER + DISPATCHER */}
+      {/* OWNER + ADMIN */}
       {hasPermission(user.role, 'team:read') && (
         <NavItem href="/team">Equipo</NavItem>
       )}
@@ -369,7 +369,7 @@ export function Sidebar({ user }) {
 ```
 
 **Checklist:**
-- [ ] Add DISPATCHER to UserRole enum
+- [ ] Add ADMIN to UserRole enum
 - [ ] Create permissions matrix
 - [ ] Update all API routes to check permissions
 - [ ] Update UI to hide restricted features
@@ -836,7 +836,7 @@ Cost: $0
   - [ ] Update all encryption calls
   - [ ] Document rotation procedure
   
-- [ ] **Day 9-10:** Complete RBAC (DISPATCHER role)
+- [ ] **Day 9-10:** Complete RBAC (ADMIN role)
   - [ ] Add role to database
   - [ ] Create permissions matrix
   - [ ] Update UI

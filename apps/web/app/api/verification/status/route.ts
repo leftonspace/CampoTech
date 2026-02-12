@@ -251,11 +251,11 @@ async function getUserVerificationStatus(
   organizationId: string,
   session: { id: string; role?: string }
 ): Promise<NextResponse<UserStatusResponse | ErrorResponse>> {
-  // Check permissions - user can view their own status, OWNER/DISPATCHER can view any
+  // Check permissions - user can view their own status, OWNER/ADMIN can view any
   const isOwnStatus = session.id === userId;
-  const isDispatcher = ['OWNER', 'DISPATCHER'].includes(session.role?.toUpperCase() || '');
+  const isAdmin = ['OWNER', 'ADMIN'].includes(session.role?.toUpperCase() || '');
 
-  if (!isOwnStatus && !isDispatcher) {
+  if (!isOwnStatus && !isAdmin) {
     return NextResponse.json(
       {
         success: false,

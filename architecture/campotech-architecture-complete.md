@@ -358,7 +358,7 @@ flowchart TB
     subgraph USERS["👥 USER ACTORS"]
         direction TB
         OWNER["🏢 OWNER<br/>(Dueño)<br/>Full Access"]
-        DISPATCH["📋 DISPATCHER<br/>(Despachador)<br/>Ops Management"]
+        DISPATCH["📋 ADMIN<br/>(Despachador)<br/>Ops Management"]
         TECH["🔧 TECHNICIAN<br/>(Técnico)<br/>Field Work"]
         CONSUMER["🛒 CONSUMER<br/>(Marketplace)<br/>Booking & Reviews"]
     end
@@ -1220,7 +1220,7 @@ flowchart TB
 │                                                                              │
 │  USERS (6 types)          FRONTENDS (6 apps)         API (237+ endpoints)  │
 │  ├─ Owner                 ├─ Web Dashboard (80p)     ├─ Authentication      │
-│  ├─ Dispatcher            ├─ Tech Mobile App         ├─ Jobs Management     │
+│  ├─ ADMIN            ├─ Tech Mobile App         ├─ Jobs Management     │
 │  ├─ Technician            ├─ Consumer Mobile         ├─ Customers           │
 │  ├─ Accountant            ├─ Customer Portal         ├─ Inventory (18)      │
 │  ├─ Customer              ├─ Marketplace             ├─ WhatsApp (21)       │
@@ -1277,7 +1277,7 @@ flowchart LR
         O1["1. Sign Up<br/>Email + CUIT"] --> O2["2. Onboarding<br/>Connect AFIP cert"]
         O2 --> O3["3. Setup WhatsApp<br/>Business number"]
         O3 --> O4["4. Connect Mercado Pago<br/>OAuth flow"]
-        O4 --> O5["5. Invite Team<br/>Technicians, dispatcher"]
+        O4 --> O5["5. Invite Team<br/>Technicians, ADMIN"]
         O5 --> O6["6. Add Vehicles<br/>Fleet setup"]
         O6 --> O7["7. Setup Inventory<br/>Parts & materials"]
         O7 --> O8["8. Daily Operations<br/>Dashboard monitoring"]
@@ -1326,7 +1326,7 @@ flowchart LR
         W6 -->|Yes| W7["6a. Auto-create job<br/>Draft status"]
         W6 -->|No| W8["6b. Request clarification<br/>Human handoff"]
         W7 --> W9["7. Confirm with customer<br/>WhatsApp template"]
-        W8 --> W10["7. Alert dispatcher<br/>Dashboard notification"]
+        W8 --> W10["7. Alert ADMIN<br/>Dashboard notification"]
     end
 ```
 
@@ -1402,7 +1402,7 @@ flowchart TB
     subgraph ROLES["User Roles"]
         R_OWNER["👔 OWNER"]
         R_ADMIN["🔧 ADMIN"]
-        R_DISPATCHER["📋 DISPATCHER"]
+        R_ADMIN["📋 ADMIN"]
         R_TECH["🔨 TECHNICIAN"]
         R_ACCOUNTANT["💼 ACCOUNTANT"]
     end
@@ -1432,7 +1432,7 @@ flowchart TB
     R_ADMIN --> F_DASHBOARD & F_JOBS & F_CUSTOMERS & F_INVOICES & F_PAYMENTS
     R_ADMIN --> F_FLEET & F_INVENTORY & F_REPORTS & F_MAP & F_CALENDAR
 
-    R_DISPATCHER --> F_DASHBOARD & F_JOBS & F_CUSTOMERS & F_MAP & F_CALENDAR
+    R_ADMIN --> F_DASHBOARD & F_JOBS & F_CUSTOMERS & F_MAP & F_CALENDAR
 
     R_TECH --> F_MY_JOBS
     R_TECH -.->|"View only"| F_INVENTORY
@@ -1577,7 +1577,7 @@ organizations (
 users (
   id: UUID PRIMARY KEY REFERENCES auth.users(id)
   org_id: UUID REFERENCES organizations(id) NOT NULL
-  role: TEXT NOT NULL DEFAULT 'technician' -- 'owner' | 'admin' | 'dispatcher' | 'technician' | 'accountant'
+  role: TEXT NOT NULL DEFAULT 'technician' -- 'owner' | 'admin' | 'ADMIN' | 'technician' | 'accountant'
   full_name: TEXT NOT NULL
   phone: TEXT
   email: TEXT
@@ -3309,7 +3309,7 @@ CREATE POLICY job_technician_view ON jobs
   USING (
     org_id = current_setting('app.current_org_id')::uuid
     AND (
-      current_setting('app.current_user_role') IN ('owner', 'admin', 'dispatcher')
+      current_setting('app.current_user_role') IN ('owner', 'admin', 'ADMIN')
       OR technician_id = current_setting('app.current_user_id')::uuid
     )
   );
@@ -3321,7 +3321,7 @@ CREATE POLICY invoice_org_isolation ON invoices
   FOR ALL
   USING (
     org_id = current_setting('app.current_org_id')::uuid
-    AND current_setting('app.current_user_role') IN ('owner', 'admin', 'dispatcher')
+    AND current_setting('app.current_user_role') IN ('owner', 'admin', 'ADMIN')
   );
 
 -- Set context on each request (middleware)
@@ -3574,8 +3574,8 @@ On sync:
 | Field | Conflict Strategy | Rationale |
 |-------|-------------------|-----------|
 | **status** | Special rules (see below) | Status transitions are business logic |
-| **scheduled_date/time** | Server wins | Dispatcher controls schedule |
-| **technician_id** | Server wins | Dispatcher controls assignment |
+| **scheduled_date/time** | Server wins | ADMIN controls schedule |
+| **technician_id** | Server wins | ADMIN controls assignment |
 | **customer address** | Server wins | Customer may have corrected |
 | **notes** | Append (offline + server) | Both may have added notes |
 | **internal_notes** | Append (offline + server) | Both may have added |
@@ -3603,7 +3603,7 @@ cancelled│ server  | server   | server    | server  | CONFLICT  | no-op
 SPECIAL RULES:
 1. completed vs cancelled → Show conflict UI, user must choose
 2. Mobile 'completed' always wins UNLESS server is 'cancelled'
-3. Cancelled by server = dispatcher override, must respect
+3. Cancelled by server = ADMIN override, must respect
 ```
 
 ### Scenario 1: Two Technicians Edit Same Job Offline
@@ -3629,11 +3629,11 @@ RESOLUTION:
 3. Final state: working
 ```
 
-### Scenario 2: Dispatcher Cancels While Tech Working Offline
+### Scenario 2: ADMIN Cancels While Tech Working Offline
 
 ```
 SCENARIO:
-- Dispatcher cancels job at 10:00 (customer called to cancel)
+- ADMIN cancels job at 10:00 (customer called to cancel)
 - Tech is offline since 9:30, marked 'working' at 9:45
 - Tech completes job at 10:15 with photos/signature
 - Tech comes online at 10:30
@@ -3674,7 +3674,7 @@ RESOLUTION:
 
 5. If "Keep My Completion":
    - Update server: status=completed, keep all data
-   - Send notification to dispatcher: "Tech completed cancelled job"
+   - Send notification to ADMIN: "Tech completed cancelled job"
    - Invoice may still be created (manual review)
 
 6. If "Accept Cancellation":
@@ -3687,7 +3687,7 @@ RESOLUTION:
 
 ```
 SCENARIO:
-- Dispatcher adds note at 10:00: "Customer requests morning appointment"
+- ADMIN adds note at 10:00: "Customer requests morning appointment"
 - Tech offline, adds note at 10:15: "Arrived, customer not home"
 - Tech syncs at 10:30
 
@@ -3710,7 +3710,7 @@ RESOLUTION:
 ```
 SCENARIO:
 - Customer calls to correct address at 10:00
-- Dispatcher updates: "Av. Corrientes 1234" → "Av. Corrientes 1234, Piso 3"
+- ADMIN updates: "Av. Corrientes 1234" → "Av. Corrientes 1234, Piso 3"
 - Tech offline since 9:30, still has old address
 - Tech syncs at 10:30
 
@@ -3718,7 +3718,7 @@ RESOLUTION:
 1. Server address: "Av. Corrientes 1234, Piso 3" (updated 10:00)
 2. Mobile address: "Av. Corrientes 1234" (stale)
 
-3. Strategy: SERVER WINS (dispatcher has authoritative info)
+3. Strategy: SERVER WINS (ADMIN has authoritative info)
    - Update mobile address to match server
    - Show toast: "Address updated: Piso 3 added"
 
@@ -4021,7 +4021,7 @@ Deep linking:
 
 ### User Roles & Permissions
 
-> **Updated:** The system enforces a strict 3-role model (`OWNER`, `DISPATCHER`, `TECHNICIAN`) to separate billing/admin concerns from operational dispatch duties.
+> **Updated:** The system enforces a strict 3-role model (`OWNER`, `ADMIN`, `TECHNICIAN`) to separate billing/admin concerns from operational dispatch duties.
 
 ### Subscription Tiers (Corrected Pricing)
 > **Note:** Marketplace visibility is MANDATORY for all tiers. All businesses are automatically listed in the consumer app.
@@ -4043,7 +4043,7 @@ Deep linking:
 | Role | Spanish | Description |
 |------|---------|-------------|
 | `OWNER` | Dueño | **Full platform access** including billing, subscription management, and team invites. |
-| `DISPATCHER` | Despachador | **Operations management** (jobs, customers, team schedules) but **NO access** to billing or subscription settings. |
+| `ADMIN` | Despachador | **Operations management** (jobs, customers, team schedules) but **NO access** to billing or subscription settings. |
 | `TECHNICIAN` | Técnico | **Field worker** with mobile-first access. Restricted to assigned jobs and inventory usage. |
 
 #### Permissions Matrix
@@ -4241,7 +4241,7 @@ Steps:
   2. Match sender to customer (create if new)
   3. Store message
   4. If voice message: queue for Voice AI processing
-  5. If text: show in inbox for dispatcher
+  5. If text: show in inbox for ADMIN
 Result: Message visible in inbox, customer linked
 ```
 
@@ -4454,7 +4454,7 @@ Human review queue:
   - Shows audio player
   - Shows transcription (if available)
   - Shows AI extraction (if available)
-  - Dispatcher corrects/completes
+  - ADMIN corrects/completes
   - Correction feeds training data
 ```
 
@@ -4467,7 +4467,7 @@ Human review queue:
 | Confidence Range | Action | User Experience |
 |-----------------|--------|-----------------|
 | **≥ 0.85** (High) | Auto-create job | Job created, WhatsApp confirms: "Trabajo creado: [summary]" |
-| **0.70 - 0.84** (Medium-High) | Auto-create + flag | Job created, marked for review, notification to dispatcher |
+| **0.70 - 0.84** (Medium-High) | Auto-create + flag | Job created, marked for review, notification to ADMIN |
 | **0.50 - 0.69** (Medium) | Create draft, require confirmation | WhatsApp: "Entendí: [summary]. ¿Está bien? Responde SI o NO" |
 | **0.30 - 0.49** (Low) | Human review queue | WhatsApp: "Recibimos tu mensaje de voz. Un operador lo revisará." |
 | **< 0.30** (Very Low) | Log only, no action | WhatsApp: "No pudimos entender el mensaje. ¿Podés enviarlo de nuevo o llamar?" |

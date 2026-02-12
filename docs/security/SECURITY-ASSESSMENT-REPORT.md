@@ -31,7 +31,7 @@ CampoTech demonstrates strong foundational security practices but has **critical
 1. **🔴 CRITICAL:** AFIP certificates stored in plain text (identified in implementation plan)
 2. **🔴 CRITICAL:** No encryption key rotation mechanism
 3. **🔴 CRITICAL:** Missing PCI DSS compliance for payment data
-4. **🟡 HIGH:** Incomplete RBAC implementation (DISPATCHER role not implemented)
+4. **🟡 HIGH:** Incomplete RBAC implementation (ADMIN role not implemented)
 5. **🟡 HIGH:** No Web Application Firewall (WAF)
 6. **🟡 HIGH:** Insufficient API rate limiting for DDoS protection
 
@@ -66,7 +66,7 @@ CampoTech demonstrates strong foundational security practices but has **critical
 - **Recommendation:** Implement key rotation with grace period for old keys
 
 #### 🟡 MEDIUM: Incomplete RBAC
-- **Issue:** DISPATCHER role not implemented (per implementation plan Phase 1.2)
+- **Issue:** ADMIN role not implemented (per implementation plan Phase 1.2)
 - **Impact:** Over-privileged users, audit trail gaps
 - **Recommendation:** Complete RBAC implementation as planned
 
@@ -672,7 +672,7 @@ async function detectSuspiciousActivity() {
    - Build rotation mechanism
    - Document rotation procedures
 
-4. **Complete RBAC (DISPATCHER role)** (2 days)
+4. **Complete RBAC (ADMIN role)** (2 days)
    - Update schema
    - Implement permissions
    - Update UI

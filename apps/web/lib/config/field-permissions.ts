@@ -10,7 +10,7 @@
  * - 'readonly': Visible but not editable
  */
 
-export type UserRole = 'SUPER_ADMIN' | 'OWNER' | 'DISPATCHER' | 'TECHNICIAN';
+export type UserRole = 'SUPER_ADMIN' | 'OWNER' | 'ADMIN' | 'TECHNICIAN';
 export type FieldStatus = 'locked' | 'restricted' | 'approval' | 'editable' | 'readonly';
 
 export interface FieldPermission {
@@ -29,25 +29,25 @@ export const ORGANIZATION_FIELDS: Record<string, FieldPermission> = {
   // LOCKED - Cannot be changed (AFIP/legal requirements)
   cuit: {
     status: 'locked',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
     lockedMessage: 'CUIT no puede ser modificado. Contacte soporte@campotech.com con documentacion de AFIP.',
   },
   razonSocial: {
     status: 'locked',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
     lockedMessage: 'Razon Social no puede ser modificada. Requiere documentacion de IGJ.',
   },
   tipoSociedad: {
     status: 'locked',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
     lockedMessage: 'Tipo de sociedad no puede ser modificado.',
   },
   ivaCondition: {
     status: 'locked',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
     lockedMessage: 'Condicion de IVA no puede ser modificada. Requiere cambio en AFIP primero.',
   },
@@ -112,37 +112,37 @@ export const ORGANIZATION_FIELDS: Record<string, FieldPermission> = {
   // EDITABLE - Normal fields
   name: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   nombreComercial: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   phone: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   email: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   direccionComercial: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   logo: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   horariosAtencion: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
 };
@@ -166,7 +166,7 @@ export const USER_FIELDS: Record<string, FieldPermission> = {
   },
   legalName: {
     status: 'locked',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
     lockedMessage: 'Nombre legal no puede ser modificado. Contacte soporte con documentacion.',
   },
@@ -252,17 +252,17 @@ export const USER_FIELDS: Record<string, FieldPermission> = {
   // EDITABLE
   name: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   phone: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'], // Self can also edit
   },
   email: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'], // Self can also edit
   },
   direccion: {
@@ -277,23 +277,23 @@ export const USER_FIELDS: Record<string, FieldPermission> = {
   },
   ubicacionAsignada: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   specialty: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   skillLevel: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   avatar: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
-    editableBy: ['OWNER', 'DISPATCHER', 'TECHNICIAN'], // Self can edit
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
+    editableBy: ['OWNER', 'ADMIN', 'TECHNICIAN'], // Self can edit
   },
 };
 
@@ -304,60 +304,60 @@ export const CUSTOMER_FIELDS: Record<string, FieldPermission> = {
   // LOCKED for business customers
   cuit: {
     status: 'locked',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
     lockedMessage: 'CUIT de cliente no puede ser modificado. Contacte soporte.',
   },
   razonSocial: {
     status: 'locked', // Only locked if has CUIT
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
     lockedMessage: 'Razon social debe coincidir con AFIP.',
   },
   condicionIva: {
     status: 'locked',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
     lockedMessage: 'Condicion IVA determina tipo de factura.',
   },
   dni: {
     status: 'locked', // If provided
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
   },
 
   // APPROVAL for fiscal address
   direccionFiscal: {
     status: 'approval',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
 
   // EDITABLE
   name: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
-    editableBy: ['OWNER', 'DISPATCHER'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
+    editableBy: ['OWNER', 'ADMIN'],
   },
   phone: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
-    editableBy: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
+    editableBy: ['OWNER', 'ADMIN', 'TECHNICIAN'],
   },
   email: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
-    editableBy: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
+    editableBy: ['OWNER', 'ADMIN', 'TECHNICIAN'],
   },
   address: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
-    editableBy: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
+    editableBy: ['OWNER', 'ADMIN', 'TECHNICIAN'],
   },
   notes: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
-    editableBy: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
+    editableBy: ['OWNER', 'ADMIN', 'TECHNICIAN'],
   },
 };
 
@@ -368,7 +368,7 @@ export const VEHICLE_FIELDS: Record<string, FieldPermission> = {
   // LOCKED - Cannot ever change
   plateNumber: {
     status: 'locked',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
     lockedMessage: 'Patente no puede ser modificada. Cree un nuevo vehiculo.',
   },
@@ -379,17 +379,17 @@ export const VEHICLE_FIELDS: Record<string, FieldPermission> = {
   },
   make: {
     status: 'locked',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
   },
   model: {
     status: 'locked',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
   },
   year: {
     status: 'locked',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
   },
   fuelType: {
@@ -402,7 +402,7 @@ export const VEHICLE_FIELDS: Record<string, FieldPermission> = {
   // LOCKED DOCUMENTS - Upload new only (readonly for viewing)
   vtvCertificadoUrl: {
     status: 'readonly',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [], // Can only upload new
   },
   seguroDocumentoUrl: {
@@ -425,7 +425,7 @@ export const VEHICLE_FIELDS: Record<string, FieldPermission> = {
   // EDITABLE - Operational
   vtvExpiry: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'], // When uploading new cert
   },
   insuranceCompany: {
@@ -440,34 +440,34 @@ export const VEHICLE_FIELDS: Record<string, FieldPermission> = {
   },
   insuranceExpiry: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   currentMileage: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER', 'TECHNICIAN'], // Tech can update for assigned vehicle
   },
   status: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   color: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   notes: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
-    editableBy: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
+    editableBy: ['OWNER', 'ADMIN', 'TECHNICIAN'],
   },
 
   // APPROVAL - Assignment
   primaryDriver: {
     status: 'approval',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
 };
@@ -478,7 +478,7 @@ export const VEHICLE_FIELDS: Record<string, FieldPermission> = {
 export const PRODUCT_FIELDS: Record<string, FieldPermission> = {
   sku: {
     status: 'locked',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
     lockedMessage: 'SKU no puede ser modificado. Cree un nuevo producto.',
   },
@@ -495,22 +495,22 @@ export const PRODUCT_FIELDS: Record<string, FieldPermission> = {
   },
   name: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   description: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   salePrice: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   category: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   minStockLevel: {
@@ -608,74 +608,74 @@ export const INVOICE_FIELDS: Record<string, FieldPermission> = {
 export const JOB_FIELDS: Record<string, FieldPermission> = {
   jobNumber: {
     status: 'locked',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
   },
   createdAt: {
     status: 'locked',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [],
   },
   customerSignature: {
     status: 'locked',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: [], // Once captured
   },
   customerId: {
     status: 'approval',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER'],
   },
   // Editable
   address: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
-    editableBy: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
+    editableBy: ['OWNER', 'ADMIN', 'TECHNICIAN'],
   },
   description: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
-    editableBy: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
+    editableBy: ['OWNER', 'ADMIN', 'TECHNICIAN'],
   },
   urgency: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
-    editableBy: ['OWNER', 'DISPATCHER'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
+    editableBy: ['OWNER', 'ADMIN'],
   },
   technicianId: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
-    editableBy: ['OWNER', 'DISPATCHER'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
+    editableBy: ['OWNER', 'ADMIN'],
   },
   scheduledDate: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
-    editableBy: ['OWNER', 'DISPATCHER'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
+    editableBy: ['OWNER', 'ADMIN'],
   },
   status: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
-    editableBy: ['OWNER', 'DISPATCHER', 'TECHNICIAN'], // Per workflow
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
+    editableBy: ['OWNER', 'ADMIN', 'TECHNICIAN'], // Per workflow
   },
   resolution: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['TECHNICIAN'], // Only assigned tech
   },
   materialsUsed: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER', 'TECHNICIAN'], // Until invoiced
   },
   photos: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
     editableBy: ['OWNER', 'TECHNICIAN'],
   },
   serviceType: {
     status: 'editable',
-    visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
-    editableBy: ['OWNER', 'DISPATCHER'],
+    visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
+    editableBy: ['OWNER', 'ADMIN'],
   },
 };
 
@@ -685,34 +685,34 @@ export const JOB_FIELDS: Record<string, FieldPermission> = {
 export type ModuleAccess = 'full' | 'limited' | 'view' | 'own' | 'hidden';
 
 export const MODULE_ACCESS: Record<string, Record<UserRole, ModuleAccess>> = {
-  // Dashboard: SUPER_ADMIN sees everything, Owner sees everything, Dispatcher sees operations summary, Technician sees own stats
-  dashboard: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'limited', TECHNICIAN: 'own' },
-  // Jobs: SUPER_ADMIN/Owner & Dispatcher manage all jobs, Technician sees only assigned jobs
-  jobs: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'own' },
-  // Customers: SUPER_ADMIN/Owner & Dispatcher manage customers, Technician sees own job customers
-  customers: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'own' },
+  // Dashboard: SUPER_ADMIN sees everything, Owner sees everything, ADMIN sees operations summary, Technician sees own stats
+  dashboard: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'limited', TECHNICIAN: 'own' },
+  // Jobs: SUPER_ADMIN/Owner & ADMIN manage all jobs, Technician sees only assigned jobs
+  jobs: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'full', TECHNICIAN: 'own' },
+  // Customers: SUPER_ADMIN/Owner & ADMIN manage customers, Technician sees own job customers
+  customers: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'full', TECHNICIAN: 'own' },
   // Invoices: SUPER_ADMIN/Owner only (billing access)
-  invoices: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'hidden', TECHNICIAN: 'hidden' },
+  invoices: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'hidden', TECHNICIAN: 'hidden' },
   // Payments: SUPER_ADMIN/Owner only (billing access)
-  payments: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'hidden', TECHNICIAN: 'hidden' },
-  // Fleet: SUPER_ADMIN/Owner manages vehicles, Dispatcher views, Technician sees assigned vehicle
-  fleet: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'view', TECHNICIAN: 'own' },
-  // Inventory: SUPER_ADMIN/Owner manages, Dispatcher views stock, Technician logs usage
-  inventory: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'view', TECHNICIAN: 'own' },
+  payments: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'hidden', TECHNICIAN: 'hidden' },
+  // Fleet: SUPER_ADMIN/Owner manages vehicles, ADMIN views, Technician sees assigned vehicle
+  fleet: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'view', TECHNICIAN: 'own' },
+  // Inventory: SUPER_ADMIN/Owner manages, ADMIN views stock, Technician logs usage
+  inventory: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'view', TECHNICIAN: 'own' },
   // Team: SUPER_ADMIN/Owner only (manages employees)
-  team: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'view', TECHNICIAN: 'own' },
+  team: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'view', TECHNICIAN: 'own' },
   // Settings: SUPER_ADMIN/Owner only (organization config)
-  settings: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'hidden', TECHNICIAN: 'hidden' },
-  // Analytics: SUPER_ADMIN/Owner sees all, Dispatcher sees ops reports, Technician hidden
-  analytics: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'limited', TECHNICIAN: 'hidden' },
-  // Calendar: SUPER_ADMIN/Owner & Dispatcher manage schedule, Technician sees own schedule
-  calendar: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'own' },
-  // Map: SUPER_ADMIN/Owner & Dispatcher see live map, Technician hidden
-  map: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'hidden' },
-  // WhatsApp: SUPER_ADMIN/Owner & Dispatcher manage inbox, Technician hidden
-  whatsapp: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'hidden' },
-  // Schedule: SUPER_ADMIN/Owner & Dispatcher manage all schedules, Technician sees own (read-only)
-  schedule: { SUPER_ADMIN: 'full', OWNER: 'full', DISPATCHER: 'full', TECHNICIAN: 'own' },
+  settings: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'hidden', TECHNICIAN: 'hidden' },
+  // Analytics: SUPER_ADMIN/Owner sees all, ADMIN sees ops reports, Technician hidden
+  analytics: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'limited', TECHNICIAN: 'hidden' },
+  // Calendar: SUPER_ADMIN/Owner & ADMIN manage schedule, Technician sees own schedule
+  calendar: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'full', TECHNICIAN: 'own' },
+  // Map: SUPER_ADMIN/Owner & ADMIN see live map, Technician hidden
+  map: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'full', TECHNICIAN: 'hidden' },
+  // WhatsApp: SUPER_ADMIN/Owner & ADMIN manage inbox, Technician hidden
+  whatsapp: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'full', TECHNICIAN: 'hidden' },
+  // Schedule: SUPER_ADMIN/Owner & ADMIN manage all schedules, Technician sees own (read-only)
+  schedule: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'full', TECHNICIAN: 'own' },
 };
 
 // ===========================================

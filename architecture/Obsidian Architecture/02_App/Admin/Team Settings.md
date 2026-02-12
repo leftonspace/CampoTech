@@ -12,7 +12,7 @@ path: apps/web/app/dashboard/settings/team/page.tsx
 # 👥 Team Settings
 
 > [!SUCCESS] **Purpose**
-> Manage team members, roles, and permissions. Add technicians, dispatchers, and configure their access levels.
+> Manage team members, roles, and permissions. Add technicians, ADMINs, and configure their access levels.
 
 ---
 
@@ -24,7 +24,7 @@ path: apps/web/app/dashboard/settings/team/page.tsx
 | Avatar | Profile image or initials |
 | Name | Full name |
 | Phone | With country flag |
-| Role | OWNER, DISPATCHER, TECHNICIAN |
+| Role | OWNER, ADMIN, TECHNICIAN |
 | Specialty | Trade category |
 | Status | Active/Inactive, Verified badge |
 | Actions | Edit, Delete |
@@ -39,7 +39,7 @@ Shows team members awaiting verification.
 | Role | Icon | Permissions |
 |:---|:---|:---|
 | **OWNER** | 🛡 Shield | Full access: billing, team, configuration |
-| **DISPATCHER** | 👥 Users | Jobs, customers, schedule, reporting |
+| **ADMIN** | 👥 Users | Jobs, customers, schedule, reporting |
 | **TECHNICIAN** | 🔧 Wrench | Own assigned jobs, inventory usage |
 
 ---

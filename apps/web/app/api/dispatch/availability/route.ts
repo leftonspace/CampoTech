@@ -115,9 +115,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Only owners and dispatchers can access dispatch data
+    // Only owners and Admins can access dispatch data
     const userRole = session.role?.toUpperCase();
-    if (userRole !== 'OWNER' && userRole !== 'DISPATCHER') {
+    if (userRole !== 'OWNER' && userRole !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'Access denied' },
         { status: 403 }

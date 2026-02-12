@@ -20,8 +20,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Only admins, owners, and dispatchers can view all technician locations
-    if (!['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
+    // Only admins, owners, and Admins can view all technician locations
+    if (!['OWNER', 'ADMIN'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para ver ubicaciones' },
         { status: 403 }

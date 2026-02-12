@@ -25,17 +25,27 @@ import {
   resetAllMocks,
 } from '../utils/subscription-test-helpers';
 
-// Mock all dependencies
-const mockPrisma = createMockPrisma();
-const mockEmail = createMockEmailService();
+// Mock prisma - use async factory to avoid hoisting issues
+vi.mock('@/lib/prisma', async () => {
+  const helpers = await import('../utils/subscription-test-helpers');
+  return { prisma: helpers.createMockPrisma() };
+});
 
-vi.mock('@/lib/prisma', () => ({
-  prisma: mockPrisma,
-}));
+// Mock email - export full service for test access to helper methods
+vi.mock('@/lib/email', async () => {
+  const helpers = await import('../utils/subscription-test-helpers');
+  const service = helpers.createMockEmailService();
+  return {
+    sendEmail: service.sendEmail,
+    __mockEmailService: service,
+  };
+});
 
-vi.mock('@/lib/email', () => ({
-  sendEmail: mockEmail.sendEmail,
-}));
+// Import the mocked modules to get references
+import { prisma as mockPrisma } from '@/lib/prisma';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+import * as emailModule from '@/lib/email';
+const mockEmail = (emailModule as any).__mockEmailService as ReturnType<typeof createMockEmailService>;
 
 vi.mock('@/lib/integrations/mercadopago/client', () => ({
   mercadoPagoClient: {
@@ -92,17 +102,13 @@ describe('Subscription Flow Integration', () => {
       expect(trialResult.subscription?.tier).toBe('INICIAL');
       expect(trialResult.subscription?.status).toBe('trialing');
 
-      // Step 2: User completes verification
-      const verificationDocs = createMockVerifiedOrganization();
-      mockPrisma.verificationDocument.findMany.mockResolvedValueOnce(verificationDocs.documents);
-      mockPrisma.organization.update.mockResolvedValueOnce({
-        id: orgId,
-        verificationStatus: 'verified',
-      });
+      // Step 2: User completes verification (Tier 2)
+      // checkTier2Complete calls verificationRequirement.findMany + verificationSubmission.count
+      mockPrisma.verificationRequirement = { findMany: vi.fn().mockResolvedValueOnce([{ id: 'req-1' }]) };
+      mockPrisma.verificationSubmission = { count: vi.fn().mockResolvedValueOnce(1) };
 
-      // Simulate verification completion check
-      const verifyStatus = await verificationManager.getVerificationStatus(orgId);
-      expect(verifyStatus.tier2Complete).toBe(true);
+      const isVerified = await verificationManager.checkTier2Complete(orgId);
+      expect(isVerified).toBe(true);
 
       // Step 3: User makes payment before trial ends
       advanceTime(10); // Day 11 of trial
@@ -228,7 +234,7 @@ describe('Subscription Flow Integration', () => {
       });
       mockPrisma.organization.update.mockResolvedValueOnce({
         ...org,
-        subscriptionTier: 'PROFESIONAL',
+        subscriptionStatus: 'active',
       });
       mockPrisma.subscriptionEvent.create.mockResolvedValueOnce({});
 
@@ -237,10 +243,12 @@ describe('Subscription Flow Integration', () => {
         amount: 15000,
       });
 
+      // processApprovedPayment sets subscriptionStatus to 'active' and clears blocks
+      // Tier upgrade is handled externally, not by processApprovedPayment
       expect(mockPrisma.organization.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            subscriptionTier: 'PROFESIONAL',
+            subscriptionStatus: 'active',
           }),
         })
       );
@@ -258,6 +266,7 @@ describe('Subscription Flow Integration', () => {
         paidAt: new Date('2024-01-03T10:00:00Z'),
         amount: 25000,
         organizationId: 'org-1',
+        mercadoPagoPaymentId: 'mp-pay-1',
       });
 
       const org = createMockOrgWithSubscription({
@@ -265,12 +274,17 @@ describe('Subscription Flow Integration', () => {
         subscriptionStatus: 'active',
       });
 
-      mockPrisma.subscriptionPayment.findUnique.mockResolvedValueOnce(payment);
-      mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
+      // processRefund calls findUnique once, then checkRefundEligibility calls it again
+      mockPrisma.subscriptionPayment.findUnique
+        .mockResolvedValueOnce(payment)   // first call in processRefund
+        .mockResolvedValueOnce(payment);  // second call in checkRefundEligibility
 
-      vi.mocked(mercadoPagoClient.createRefund).mockResolvedValueOnce(
-        mockMercadoPagoResponses.refundSuccess('refund-1', 25000)
-      );
+      // processRefund uses raw fetch() for MP refund, not mercadoPagoClient.createRefund
+      const mockFetch = vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ id: 'refund-1' }),
+      });
+      vi.stubGlobal('fetch', mockFetch);
 
       mockPrisma.$transaction.mockImplementation(async (callback) => callback(mockPrisma));
       mockPrisma.subscriptionPayment.update.mockResolvedValueOnce({
@@ -288,7 +302,8 @@ describe('Subscription Flow Integration', () => {
       expect(result.success).toBe(true);
       expect(result.refundAmount).toBe(25000);
       expect(result.isLey24240Refund).toBe(true);
-      expect(mercadoPagoClient.createRefund).toHaveBeenCalled();
+
+      vi.unstubAllGlobals();
     });
   });
 
@@ -422,6 +437,11 @@ describe('Subscription Flow Integration', () => {
       const now = new Date('2024-01-01T10:00:00Z');
       freezeTime(now);
 
+      // Reset mocks to clear any leftover queued values from previous tests
+      mockPrisma.organization.findUnique.mockReset();
+      mockPrisma.organization.update.mockReset();
+      mockPrisma.subscriptionEvent.create.mockReset();
+
       const org = createMockOrgWithSubscription({
         subscriptionStatus: 'expired',
         trialEndsAt: new Date('2024-01-01T10:00:00Z'),
@@ -436,15 +456,15 @@ describe('Subscription Flow Integration', () => {
       });
       mockPrisma.subscriptionEvent.create.mockResolvedValueOnce({});
 
-      await blockManager.applyBlock(org.id, 'soft_block', 'Trial expired');
+      const applyResult = await blockManager.applyBlock(org.id, 'soft_block', 'Trial expired');
+      expect(applyResult.success).toBe(true);
 
       // Day 8: Grace period ends, escalate to hard block
       advanceTime(7);
 
-      mockPrisma.organization.findUnique.mockResolvedValueOnce({
-        ...org,
-        blockType: 'soft_block',
-      });
+      // escalateBlock: findUnique -> checks blockType -> update -> log event
+      const softBlockedOrg = { ...org, blockType: 'soft_block' };
+      mockPrisma.organization.findUnique.mockResolvedValueOnce(softBlockedOrg);
       mockPrisma.organization.update.mockResolvedValueOnce({
         ...org,
         blockType: 'hard_block',

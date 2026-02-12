@@ -937,7 +937,7 @@ sequenceDiagram
     
     participant Tech1 as Technician 1 (Mobile)
     participant Tech2 as Technician 2 (Mobile)
-    participant Disp as Dispatcher (Web)
+    participant Disp as ADMIN (Web)
     participant API as CampoTech API
     participant DB as Database
     
@@ -957,7 +957,7 @@ sequenceDiagram
         par Tech1 goes offline and edits
             Tech1->>Tech1: Update notes: "Customer not home"
             Note right of Tech1: localClock: {device1: 1}
-        and Dispatcher edits online
+        and ADMIN edits online
             Disp->>API: PATCH /jobs/123 {notes: "VIP customer"}
             API->>DB: Update notes
             Note right of DB: vectorClock: {server: 6}
@@ -997,7 +997,7 @@ sequenceDiagram
             
         else Field-Level Conflict (same field)
             Note over API: Tech1 changed: notes
-            Note over API: Dispatcher changed: notes
+            Note over API: ADMIN changed: notes
             Note over API: Same field → Conflict
             
             API-->>Tech1: {merged: false, conflicts: [{field: "notes", serverValue: "VIP customer", clientValue: "Customer not home"}]}
@@ -2599,7 +2599,7 @@ sequenceDiagram
 sequenceDiagram
     autonumber
 
-    participant User as Dispatcher
+    participant User as ADMIN
     participant API as CampoTech API
     participant DB as Database
     participant Google as Google Distance Matrix API
@@ -2767,7 +2767,7 @@ Alert Schedule:
 sequenceDiagram
     autonumber
 
-    participant User as Admin/Dispatcher
+    participant User as Admin/ADMIN
     participant Web as Dashboard
     participant API as CampoTech API
     participant DB as Database

@@ -45,9 +45,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Only owners and dispatchers can check availability
+    // Only owners and Admins can check availability
     const roleUpper = session.role?.toUpperCase();
-    if (roleUpper !== 'OWNER' && roleUpper !== 'DISPATCHER') {
+    if (roleUpper !== 'OWNER' && roleUpper !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para ver disponibilidad' },
         { status: 403 }
@@ -90,12 +90,12 @@ export async function GET(request: NextRequest) {
 
     const targetMinutes = timeToMinutes(targetTime);
 
-    // Get all active technicians and dispatchers in the organization
+    // Get all active technicians and Admins in the organization
     const employees = await prisma.user.findMany({
       where: {
         organizationId: session.organizationId,
         isActive: true,
-        role: { in: ['TECHNICIAN', 'DISPATCHER'] },
+        role: { in: ['TECHNICIAN', 'ADMIN'] },
       },
       select: {
         id: true,

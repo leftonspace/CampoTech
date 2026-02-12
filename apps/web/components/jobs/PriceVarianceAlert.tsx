@@ -4,7 +4,7 @@
  * PriceVarianceAlert Component
  * 
  * Displays a visual alert when there's a difference between estimated
- * and technician-proposed prices. Allows dispatchers to approve/reject.
+ * and technician-proposed prices. Allows Admins to approve/reject.
  */
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';

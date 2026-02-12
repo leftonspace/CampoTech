@@ -205,17 +205,17 @@ async function saveAIConfig(config: AIConfig): Promise<AIConfig> {
 }
 
 async function fetchTeamMembers(): Promise<Array<{ id: string; name: string; role: string }>> {
-  // Fetch OWNER and DISPATCHER users separately since API doesn't support comma-separated roles
-  const [ownersRes, dispatchersRes] = await Promise.all([
+  // Fetch OWNER and ADMIN users separately since API doesn't support comma-separated roles
+  const [ownersRes, adminsRes] = await Promise.all([
     fetch('/api/users?role=OWNER'),
-    fetch('/api/users?role=DISPATCHER'),
+    fetch('/api/users?role=ADMIN'),
   ]);
 
   const owners = ownersRes.ok ? await ownersRes.json() : { data: [] };
-  const dispatchers = dispatchersRes.ok ? await dispatchersRes.json() : { data: [] };
+  const admins = adminsRes.ok ? await adminsRes.json() : { data: [] };
 
   // Combine and deduplicate
-  const allUsers = [...(owners.data || []), ...(dispatchers.data || [])];
+  const allUsers = [...(owners.data || []), ...(admins.data || [])];
   const uniqueUsers = allUsers.filter((user, index, self) =>
     index === self.findIndex((u) => u.id === user.id)
   );
@@ -993,8 +993,8 @@ export default function AIAssistantSettingsPage() {
                   <label
                     key={lang.code}
                     className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${lang.required
-                        ? 'bg-sky-50 border-sky-200 cursor-not-allowed'
-                        : 'hover:bg-gray-50'
+                      ? 'bg-sky-50 border-sky-200 cursor-not-allowed'
+                      : 'hover:bg-gray-50'
                       }`}
                   >
                     <input

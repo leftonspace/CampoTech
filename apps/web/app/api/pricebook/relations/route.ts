@@ -76,9 +76,9 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Only OWNER/DISPATCHER can create relations
+        // Only OWNER/ADMIN can create relations
         const role = session.role?.toUpperCase();
-        if (!['OWNER', 'DISPATCHER'].includes(role || '')) {
+        if (!['OWNER', 'ADMIN'].includes(role || '')) {
             return NextResponse.json(
                 { success: false, error: 'No tienes permiso para crear relaciones' },
                 { status: 403 }
@@ -157,9 +157,9 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Only OWNER/DISPATCHER can delete relations
+        // Only OWNER/ADMIN can delete relations
         const role = session.role?.toUpperCase();
-        if (!['OWNER', 'DISPATCHER'].includes(role || '')) {
+        if (!['OWNER', 'ADMIN'].includes(role || '')) {
             return NextResponse.json(
                 { success: false, error: 'No tienes permiso para eliminar relaciones' },
                 { status: 403 }

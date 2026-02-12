@@ -67,7 +67,7 @@ const RESOLUTION_LABELS: Record<string, string> = {
 
 export default function DisputesPage() {
   return (
-    <ProtectedRoute allowedRoles={['OWNER', 'DISPATCHER']}>
+    <ProtectedRoute allowedRoles={['OWNER', 'ADMIN']}>
       <DisputesContent />
     </ProtectedRoute>
   );
@@ -228,8 +228,8 @@ function DisputesContent() {
                 <div className={cn(
                   'flex h-10 w-10 items-center justify-center rounded-lg',
                   dispute.status === 'opened' ? 'bg-red-100 text-red-600' :
-                  dispute.status === 'pending_review' ? 'bg-yellow-100 text-yellow-600' :
-                  'bg-gray-100 text-gray-600'
+                    dispute.status === 'pending_review' ? 'bg-yellow-100 text-yellow-600' :
+                      'bg-gray-100 text-gray-600'
                 )}>
                   <AlertTriangle className="h-5 w-5" />
                 </div>
@@ -248,8 +248,8 @@ function DisputesContent() {
                       <span className={cn(
                         'rounded-full px-2 py-0.5 text-xs font-medium',
                         dispute.resolution === 'won' ? 'bg-green-100 text-green-800' :
-                        dispute.resolution === 'lost' ? 'bg-red-100 text-red-800' :
-                        'bg-yellow-100 text-yellow-800'
+                          dispute.resolution === 'lost' ? 'bg-red-100 text-red-800' :
+                            'bg-yellow-100 text-yellow-800'
                       )}>
                         {RESOLUTION_LABELS[dispute.resolution]}
                       </span>
@@ -318,8 +318,8 @@ function DisputeDetailModal({
               <span className={cn(
                 'rounded-full px-3 py-1 font-medium',
                 dispute.resolution === 'won' ? 'bg-green-100 text-green-800' :
-                dispute.resolution === 'lost' ? 'bg-red-100 text-red-800' :
-                'bg-yellow-100 text-yellow-800'
+                  dispute.resolution === 'lost' ? 'bg-red-100 text-red-800' :
+                    'bg-yellow-100 text-yellow-800'
               )}>
                 Resolución: {RESOLUTION_LABELS[dispute.resolution]}
               </span>

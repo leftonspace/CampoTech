@@ -425,7 +425,7 @@ const visits = await prisma.jobVisit.findMany({
 ### Prioridad: 🔴 Crítico
 
 ### Descripción
-Crear panel en dashboard para que dispatchers aprueben/rechacen variaciones de precio propuestas por técnicos.
+Crear panel en dashboard para que ADMINs aprueben/rechacen variaciones de precio propuestas por técnicos.
 
 ### Estado Actual
 - ✅ Backend tiene `validatePriceVariance()` en `pricing-calculator.ts`

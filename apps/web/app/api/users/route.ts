@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!['OWNER', 'DISPATCHER'].includes(session.role)) {
+    if (!['OWNER', 'ADMIN'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'Forbidden: insufficient permissions' },
         { status: 403 }

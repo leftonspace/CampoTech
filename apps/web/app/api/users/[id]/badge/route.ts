@@ -28,9 +28,9 @@ export async function GET(
 
         const { id } = await params;
 
-        // Users can view their own badge, or owners/dispatchers can view team badges
+        // Users can view their own badge, or owners/Admins can view team badges
         const isOwnBadge = session.userId === id;
-        const canViewTeamBadges = ['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase());
+        const canViewTeamBadges = ['OWNER', 'ADMIN'].includes(session.role.toUpperCase());
 
         if (!isOwnBadge && !canViewTeamBadges) {
             return NextResponse.json(

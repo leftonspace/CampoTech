@@ -159,12 +159,12 @@ async function main() {
     }
     console.log(`✅ Have ${customers.length} customers`);
 
-    // Get admin/dispatcher/owner
+    // Get admin/ADMIN/owner
     const admin = await prisma.user.findFirst({
-        where: { organizationId, role: { in: ['DISPATCHER', 'OWNER'] } },
+        where: { organizationId, role: { in: ['ADMIN', 'OWNER'] } },
     });
     if (!admin) {
-        console.log('❌ No dispatcher/owner found.');
+        console.log('❌ No ADMIN/owner found.');
         return;
     }
 

@@ -7,11 +7,12 @@
  * Shown when payment is pending (e.g., cash payment via Rapipago/Pago Fácil).
  */
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Clock, ArrowRight, FileText } from 'lucide-react';
+import { Clock, ArrowRight, FileText, Loader2 } from 'lucide-react';
 
-export default function CheckoutPendingPage() {
+function CheckoutPendingContent() {
     const searchParams = useSearchParams();
     const collectionId = searchParams.get('collection_id');
 
@@ -59,5 +60,17 @@ export default function CheckoutPendingPage() {
                 </Link>
             </div>
         </div>
+    );
+}
+
+export default function CheckoutPendingPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            </div>
+        }>
+            <CheckoutPendingContent />
+        </Suspense>
     );
 }

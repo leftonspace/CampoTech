@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Verify the user is the assigned technician or has permission
-    if (job.technicianId !== session.userId && !['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
+    if (job.technicianId !== session.userId && !['OWNER', 'ADMIN'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para iniciar el seguimiento de este trabajo' },
         { status: 403 }

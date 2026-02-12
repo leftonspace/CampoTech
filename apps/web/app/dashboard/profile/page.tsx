@@ -34,7 +34,7 @@ interface ProfileResponse {
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: 'Propietario',
-  DISPATCHER: 'Despachador',
+  ADMIN: 'Administrador',
   TECHNICIAN: 'Tecnico',
 };
 

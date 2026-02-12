@@ -7,11 +7,12 @@
  * Shown when payment fails or is rejected.
  */
 
+import { Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { XCircle, RefreshCw, ArrowRight, MessageSquare } from 'lucide-react';
+import { XCircle, RefreshCw, ArrowRight, MessageSquare, Loader2 } from 'lucide-react';
 
-export default function CheckoutFailurePage() {
+function CheckoutFailureContent() {
     const searchParams = useSearchParams();
     const externalReference = searchParams.get('external_reference');
     const plan = externalReference?.split('_')[1] || '';
@@ -65,5 +66,17 @@ export default function CheckoutFailurePage() {
                 </p>
             </div>
         </div>
+    );
+}
+
+export default function CheckoutFailurePage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            </div>
+        }>
+            <CheckoutFailureContent />
+        </Suspense>
     );
 }

@@ -2,352 +2,316 @@
  * Access Control Unit Tests
  * =========================
  *
- * Tests for route and feature access control:
- * - Route blocking based on subscription status
- * - Feature access based on tier
- * - Block enforcement
+ * Tests for the Unified Access Control Checker:
+ * - Organization access based on subscription status
+ * - Verification-based access restrictions
+ * - Block reason generation
+ * - Quick check functions
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import {
-  createMockOrgWithSubscription,
-  createMockBlockedOrg,
-  createMockTrialOrg,
-  createMockPrisma,
-  resetAllMocks,
-} from '../utils/subscription-test-helpers';
 
-// Create mocks in hoisted scope
-const mockPrisma = vi.hoisted(() => createMockPrisma());
+// Create mock prisma with vi.hoisted to avoid hoisting issues
+const mockPrisma = vi.hoisted(() => {
+  return {
+    organization: {
+      findUnique: vi.fn(),
+    },
+    user: {
+      findUnique: vi.fn(),
+    },
+    complianceBlock: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    verificationRequirement: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    verificationSubmission: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+  };
+});
 
-// Mock prisma
 vi.mock('@/lib/prisma', () => ({
   prisma: mockPrisma,
 }));
 
 // Import after mocking
-import { accessControl } from '@/lib/access-control/checker';
+import {
+  checkAccess,
+  checkUserAccess,
+  canReceiveJobs,
+  canAssignUser,
+  isOrgMarketplaceVisible,
+} from '@/lib/access-control/checker';
 
-describe('AccessControl', () => {
+// Helper to create org data
+function createOrg(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'org-1',
+    subscriptionTier: 'INICIAL',
+    subscriptionStatus: 'active',
+    trialEndsAt: null,
+    verificationStatus: 'verified',
+    canReceiveJobs: true,
+    marketplaceVisible: true,
+    ...overrides,
+  };
+}
+
+describe('Access Control - checkAccess', () => {
   beforeEach(() => {
-    resetAllMocks();
-    mockPrisma._clearAll();
     vi.clearAllMocks();
+    // Reset defaults
+    mockPrisma.complianceBlock.findMany.mockResolvedValue([]);
+    mockPrisma.verificationRequirement.findMany.mockResolvedValue([]);
+    mockPrisma.verificationSubmission.findMany.mockResolvedValue([]);
   });
 
-  describe('checkRouteAccess', () => {
-    it('should allow access to dashboard for active subscription', async () => {
-      const org = createMockOrgWithSubscription({
-        subscriptionStatus: 'active',
-        blockType: null,
+  describe('Dashboard Access', () => {
+    it('should allow dashboard access for active subscription', async () => {
+      const org = createOrg({ subscriptionStatus: 'active' });
+      mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
+
+      const access = await checkAccess('org-1');
+
+      expect(access.canAccessDashboard).toBe(true);
+      expect(access.isHardBlocked).toBe(false);
+    });
+
+    it('should allow dashboard access during trial', async () => {
+      const org = createOrg({
+        subscriptionStatus: 'trialing',
+        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
       });
-
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
 
-      const access = await accessControl.checkRouteAccess(org.id, '/dashboard');
+      const access = await checkAccess('org-1');
 
-      expect(access.allowed).toBe(true);
+      expect(access.canAccessDashboard).toBe(true);
+      expect(access.subscription.trialDaysRemaining).toBeGreaterThan(0);
     });
 
-    it('should allow access to dashboard during trial', async () => {
-      const org = createMockTrialOrg(7);
-
+    it('should block dashboard when subscription is expired', async () => {
+      const org = createOrg({ subscriptionStatus: 'expired' });
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
 
-      const access = await accessControl.checkRouteAccess(org.id, '/dashboard');
+      const access = await checkAccess('org-1');
 
-      expect(access.allowed).toBe(true);
+      expect(access.canAccessDashboard).toBe(false);
+      expect(access.isHardBlocked).toBe(true);
+      expect(access.blockReasons).toContainEqual(
+        expect.objectContaining({ code: 'trial_expired' })
+      );
     });
 
-    it('should block dashboard access when hard blocked', async () => {
-      const org = createMockBlockedOrg('hard_block');
-
+    it('should block dashboard when hard blocked by compliance', async () => {
+      const org = createOrg();
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
+      mockPrisma.complianceBlock.findMany.mockResolvedValueOnce([
+        { blockType: 'hard_block', reason: 'Fraude detectado', reasonCode: 'fraud' },
+      ]);
 
-      const access = await accessControl.checkRouteAccess(org.id, '/dashboard');
+      const access = await checkAccess('org-1');
 
-      expect(access.allowed).toBe(false);
-      expect(access.redirectTo).toBe('/blocked');
-    });
-
-    it('should allow billing access when hard blocked', async () => {
-      const org = createMockBlockedOrg('hard_block');
-
-      mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
-
-      const access = await accessControl.checkRouteAccess(org.id, '/billing');
-
-      expect(access.allowed).toBe(true);
-    });
-
-    it('should allow blocked page access when blocked', async () => {
-      const org = createMockBlockedOrg('hard_block');
-
-      mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
-
-      const access = await accessControl.checkRouteAccess(org.id, '/blocked');
-
-      expect(access.allowed).toBe(true);
-    });
-
-    it('should allow limited dashboard access when soft blocked', async () => {
-      const org = createMockBlockedOrg('soft_block');
-
-      mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
-
-      const access = await accessControl.checkRouteAccess(org.id, '/dashboard');
-
-      expect(access.allowed).toBe(true);
-      expect(access.warning).toBeDefined();
-    });
-
-    it('should block jobs page when soft blocked', async () => {
-      const org = createMockBlockedOrg('soft_block');
-
-      mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
-
-      const access = await accessControl.checkRouteAccess(org.id, '/jobs/new');
-
-      expect(access.allowed).toBe(false);
-      expect(access.reason).toContain('blocked');
+      expect(access.canAccessDashboard).toBe(false);
+      expect(access.isHardBlocked).toBe(true);
     });
   });
 
-  describe('checkFeatureAccess', () => {
-    it('should allow all features for EMPRESA tier', async () => {
-      const org = createMockOrgWithSubscription({
-        subscriptionTier: 'EMPRESA',
-        subscriptionStatus: 'active',
-      });
-
+  describe('Subscription Status', () => {
+    it('should mark past_due as active but with soft block', async () => {
+      const org = createOrg({ subscriptionStatus: 'past_due' });
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
 
-      const access = await accessControl.checkFeatureAccess(org.id, 'advanced_analytics');
+      const access = await checkAccess('org-1');
 
-      expect(access.allowed).toBe(true);
+      expect(access.subscription.isActive).toBe(true);
+      expect(access.subscription.isPastDue).toBe(true);
+      expect(access.isSoftBlocked).toBe(true);
+      expect(access.blockReasons).toContainEqual(
+        expect.objectContaining({ code: 'payment_past_due' })
+      );
     });
 
-    it('should restrict advanced features for FREE tier', async () => {
-      const org = createMockOrgWithSubscription({
-        subscriptionTier: 'FREE',
-        subscriptionStatus: 'active',
-      });
-
+    it('should mark cancelled with soft block', async () => {
+      const org = createOrg({ subscriptionStatus: 'cancelled' });
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
 
-      const access = await accessControl.checkFeatureAccess(org.id, 'advanced_analytics');
+      const access = await checkAccess('org-1');
 
-      expect(access.allowed).toBe(false);
-      expect(access.requiredTier).toBeDefined();
+      expect(access.subscription.isCancelled).toBe(true);
+      expect(access.blockReasons).toContainEqual(
+        expect.objectContaining({ code: 'subscription_cancelled' })
+      );
     });
 
-    it('should allow basic features for INICIAL tier', async () => {
-      const org = createMockOrgWithSubscription({
-        subscriptionTier: 'INICIAL',
-        subscriptionStatus: 'active',
+    it('should warn when trial is expiring soon', async () => {
+      const org = createOrg({
+        subscriptionStatus: 'trialing',
+        trialEndsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days left
       });
-
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
 
-      const access = await accessControl.checkFeatureAccess(org.id, 'job_management');
+      const access = await checkAccess('org-1');
 
-      expect(access.allowed).toBe(true);
-    });
-
-    it('should grant trial users INICIAL tier features', async () => {
-      const org = createMockTrialOrg(14);
-
-      mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
-
-      const access = await accessControl.checkFeatureAccess(org.id, 'job_management');
-
-      expect(access.allowed).toBe(true);
-    });
-
-    it('should deny features when subscription is expired', async () => {
-      const org = createMockOrgWithSubscription({
-        subscriptionStatus: 'expired',
-        subscriptionTier: 'INICIAL',
-      });
-
-      mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
-
-      const access = await accessControl.checkFeatureAccess(org.id, 'job_management');
-
-      expect(access.allowed).toBe(false);
-      expect(access.reason).toContain('expired');
+      expect(access.hasWarnings).toBe(true);
+      expect(access.blockReasons).toContainEqual(
+        expect.objectContaining({ code: 'trial_expiring' })
+      );
     });
   });
 
-  describe('checkJobLimits', () => {
-    it('should allow jobs within monthly limit', async () => {
-      const org = createMockOrgWithSubscription({
-        subscriptionTier: 'INICIAL', // 50 jobs/month
-        subscriptionStatus: 'active',
-      });
-
+  describe('Verification Status', () => {
+    it('should indicate pending verification as soft block', async () => {
+      const org = createOrg({ verificationStatus: 'pending' });
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
-      mockPrisma.job = {
-        count: vi.fn().mockResolvedValueOnce(25), // 25 jobs used
-      };
 
-      const access = await accessControl.checkJobLimits(org.id);
+      const access = await checkAccess('org-1');
 
-      expect(access.allowed).toBe(true);
-      expect(access.remaining).toBe(25);
+      expect(access.verification.status).toBe('pending');
+      expect(access.blockReasons).toContainEqual(
+        expect.objectContaining({ code: 'verification_pending' })
+      );
     });
 
-    it('should deny jobs when limit exceeded', async () => {
-      const org = createMockOrgWithSubscription({
-        subscriptionTier: 'INICIAL',
-        subscriptionStatus: 'active',
-      });
-
+    it('should indicate suspended verification as hard block', async () => {
+      const org = createOrg({ verificationStatus: 'suspended' });
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
-      mockPrisma.job = {
-        count: vi.fn().mockResolvedValueOnce(50), // Limit reached
-      };
 
-      const access = await accessControl.checkJobLimits(org.id);
+      const access = await checkAccess('org-1');
 
-      expect(access.allowed).toBe(false);
-      expect(access.remaining).toBe(0);
-      expect(access.upgradeRequired).toBe(true);
+      expect(access.blockReasons).toContainEqual(
+        expect.objectContaining({
+          code: 'verification_suspended',
+          severity: 'hard_block',
+        })
+      );
     });
 
-    it('should allow unlimited jobs for EMPRESA tier', async () => {
-      const org = createMockOrgWithSubscription({
-        subscriptionTier: 'EMPRESA',
-        subscriptionStatus: 'active',
-      });
-
-      mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
-      mockPrisma.job = {
-        count: vi.fn().mockResolvedValueOnce(1000), // Lots of jobs
-      };
-
-      const access = await accessControl.checkJobLimits(org.id);
-
-      expect(access.allowed).toBe(true);
-      expect(access.unlimited).toBe(true);
-    });
-  });
-
-  describe('checkVerificationAccess', () => {
-    it('should allow job reception when verified', async () => {
-      const org = createMockOrgWithSubscription({
-        verificationStatus: 'verified',
-        subscriptionStatus: 'active',
-        blockType: null,
-      });
-
+    it('should allow job reception when verified and no blocks', async () => {
+      const org = createOrg({ verificationStatus: 'verified' });
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
 
-      const access = await accessControl.checkVerificationAccess(org.id);
+      const access = await checkAccess('org-1');
 
       expect(access.canReceiveJobs).toBe(true);
     });
 
-    it('should block job reception when not verified', async () => {
-      const org = createMockOrgWithSubscription({
-        verificationStatus: 'pending',
-        subscriptionStatus: 'active',
-      });
-
+    it('should block job reception when Tier 2 is incomplete', async () => {
+      const org = createOrg({ verificationStatus: 'partial' });
       mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
+      // Simulate incomplete Tier 2
+      mockPrisma.verificationRequirement.findMany.mockResolvedValueOnce([
+        { id: 'req-1', code: 'cuit', name: 'CUIT' },
+      ]);
+      mockPrisma.verificationSubmission.findMany.mockResolvedValueOnce([]);
 
-      const access = await accessControl.checkVerificationAccess(org.id);
+      const access = await checkAccess('org-1');
 
-      expect(access.canReceiveJobs).toBe(false);
-      expect(access.reason).toContain('verification');
-    });
-
-    it('should allow dashboard access when paid but not verified', async () => {
-      const org = createMockOrgWithSubscription({
-        verificationStatus: 'pending',
-        subscriptionStatus: 'active', // Paid
-        blockType: null,
-      });
-
-      mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
-
-      const access = await accessControl.checkVerificationAccess(org.id);
-
-      expect(access.canAccessDashboard).toBe(true);
       expect(access.canReceiveJobs).toBe(false);
     });
   });
 
-  describe('getAccessContext', () => {
-    it('should return full access context for organization', async () => {
-      const org = createMockOrgWithSubscription({
-        subscriptionTier: 'PROFESIONAL',
-        subscriptionStatus: 'active',
-        verificationStatus: 'verified',
-        blockType: null,
+  describe('Marketplace Visibility', () => {
+    it('should be visible when fully verified and active', async () => {
+      const org = createOrg();
+      mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
+
+      const access = await checkAccess('org-1');
+
+      expect(access.isMarketplaceVisible).toBe(true);
+    });
+
+    it('should not be visible when soft blocked', async () => {
+      const org = createOrg({ subscriptionStatus: 'past_due' });
+      mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
+
+      const access = await checkAccess('org-1');
+
+      expect(access.isMarketplaceVisible).toBe(false);
+    });
+  });
+
+  describe('Quick checks', () => {
+    it('canReceiveJobs should check org field', async () => {
+      mockPrisma.organization.findUnique.mockResolvedValueOnce({
+        canReceiveJobs: true,
       });
 
-      mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
-
-      const context = await accessControl.getAccessContext(org.id);
-
-      expect(context.tier).toBe('PROFESIONAL');
-      expect(context.status).toBe('active');
-      expect(context.isVerified).toBe(true);
-      expect(context.isBlocked).toBe(false);
-      expect(context.canReceiveJobs).toBe(true);
+      const result = await canReceiveJobs('org-1');
+      expect(result).toBe(true);
     });
 
-    it('should include blocking info when blocked', async () => {
-      const org = createMockBlockedOrg('soft_block');
+    it('canReceiveJobs should return false when org field is false', async () => {
+      mockPrisma.organization.findUnique.mockResolvedValueOnce({
+        canReceiveJobs: false,
+      });
 
-      mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
-
-      const context = await accessControl.getAccessContext(org.id);
-
-      expect(context.isBlocked).toBe(true);
-      expect(context.blockType).toBe('soft_block');
-      expect(context.blockReason).toBeDefined();
+      const result = await canReceiveJobs('org-1');
+      expect(result).toBe(false);
     });
 
-    it('should include trial info when trialing', async () => {
-      const org = createMockTrialOrg(5);
+    it('canAssignUser should check user field', async () => {
+      mockPrisma.user.findUnique.mockResolvedValueOnce({
+        canBeAssignedJobs: true,
+      });
 
-      mockPrisma.organization.findUnique.mockResolvedValueOnce(org);
+      const result = await canAssignUser('user-1');
+      expect(result).toBe(true);
+    });
 
-      const context = await accessControl.getAccessContext(org.id);
+    it('isOrgMarketplaceVisible should check org field', async () => {
+      mockPrisma.organization.findUnique.mockResolvedValueOnce({
+        marketplaceVisible: true,
+      });
 
-      expect(context.isTrial).toBe(true);
-      expect(context.trialDaysRemaining).toBe(5);
+      const result = await isOrgMarketplaceVisible('org-1');
+      expect(result).toBe(true);
     });
   });
+});
 
-  describe('BLOCKED_ROUTES', () => {
-    it('should define which routes are blocked for each block type', () => {
-      const blockedRoutes = accessControl.getBlockedRoutes('hard_block');
-
-      expect(blockedRoutes).toContain('/dashboard');
-      expect(blockedRoutes).toContain('/jobs');
-      expect(blockedRoutes).not.toContain('/billing');
-      expect(blockedRoutes).not.toContain('/blocked');
-    });
-
-    it('should have fewer blocked routes for soft block', () => {
-      const hardBlockedRoutes = accessControl.getBlockedRoutes('hard_block');
-      const softBlockedRoutes = accessControl.getBlockedRoutes('soft_block');
-
-      expect(softBlockedRoutes.length).toBeLessThan(hardBlockedRoutes.length);
-    });
+describe('Access Control - checkUserAccess', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockPrisma.complianceBlock.findMany.mockResolvedValue([]);
   });
 
-  describe('TIER_LIMITS', () => {
-    it('should define job limits for each tier', () => {
-      const limits = accessControl.getTierLimits();
-
-      expect(limits.FREE.monthlyJobs).toBe(5);
-      expect(limits.INICIAL.monthlyJobs).toBe(50);
-      expect(limits.PROFESIONAL.monthlyJobs).toBe(200);
-      expect(limits.EMPRESA.monthlyJobs).toBe(-1); // Unlimited
+  it('should return verified status for verified user', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      id: 'user-1',
+      verificationStatus: 'verified',
+      canBeAssignedJobs: true,
+      identityVerified: true,
     });
+
+    const access = await checkUserAccess('user-1', 'org-1');
+
+    expect(access.isVerified).toBe(true);
+    expect(access.canBeAssignedJobs).toBe(true);
+    expect(access.blockReasons).toHaveLength(0);
+  });
+
+  it('should block unverified user', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce({
+      id: 'user-1',
+      verificationStatus: 'pending',
+      canBeAssignedJobs: false,
+      identityVerified: false,
+    });
+
+    const access = await checkUserAccess('user-1', 'org-1');
+
+    expect(access.isVerified).toBe(false);
+    expect(access.blockReasons).toContainEqual(
+      expect.objectContaining({ code: 'user_not_verified' })
+    );
+  });
+
+  it('should throw for non-existent user', async () => {
+    mockPrisma.user.findUnique.mockResolvedValueOnce(null);
+
+    await expect(checkUserAccess('nonexistent', 'org-1')).rejects.toThrow('User not found');
   });
 });

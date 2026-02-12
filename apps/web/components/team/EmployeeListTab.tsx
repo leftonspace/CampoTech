@@ -25,8 +25,8 @@ export const ROLE_CONFIG = {
         label: 'Dueño',
         color: 'bg-amber-100 text-amber-700 border-amber-200',
     },
-    DISPATCHER: {
-        label: 'Despachador',
+    ADMIN: {
+        label: 'Administrador',
         color: 'bg-rose-100 text-rose-700 border-rose-200',
     },
     TECHNICIAN: {

@@ -78,7 +78,7 @@ const isExactMatch = variance <= VARIANCE_THRESHOLD;
 - Client sends less than owed amount
 - Payment recorded but job NOT marked complete
 - Warning message: `PARTIAL_PAYMENT: Collected $X of $Y owed`
-- Flagged for dispatcher review
+- Flagged for ADMIN review
 
 #### ✅ Overpayment / Fraud Attempt (Line 407-438)
 ```typescript
@@ -321,7 +321,7 @@ resolution: `PAYMENT_VARIANCE: Client claimed $${clientPaymentAmount}, server ba
 
 **Issue:** Payment variances are logged to console and stored in job `resolution` field, but:
 - No dedicated audit log entry created
-- No real-time alert to dispatcher dashboard
+- No real-time alert to ADMIN dashboard
 - No centralized fraud detection tracking
 
 **Recommendation:**
@@ -709,7 +709,7 @@ const operations = pendingOps
   1. Create `SyncOperation` model
   2. Run migration
   3. Add logging to sync endpoint
-  4. Create dashboard view for dispatchers
+  4. Create dashboard view for ADMINs
 
 ---
 
@@ -870,7 +870,7 @@ async function processPaymentSync(
     console.warn(
       `[Payment Sync] ⚠️ PARTIAL PAYMENT for job ${jobId}: ` +
       `Collected $${clientPaymentAmount} of $${remainingBalance.toFixed(2)} owed. ` +
-      `userId=${userId}. Flagging for dispatcher review.`
+      `userId=${userId}. Flagging for ADMIN review.`
     );
 
     return {

@@ -4,7 +4,7 @@
  *
  * Phase 2.1 Task 2.1.5: Create Vehicle Scheduling UI
  *
- * This page allows dispatchers and owners to manage vehicle assignments
+ * This page allows Admins and owners to manage vehicle assignments
  * for technicians with support for:
  * - Default (permanent) vehicle assignments
  * - Date-range specific assignments

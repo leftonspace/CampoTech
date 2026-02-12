@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma';
 /**
  * Job Price Variance API
  * 
- * Handles dispatcher approval/rejection of technician-proposed price changes.
+ * Handles ADMIN approval/rejection of technician-proposed price changes.
  * Used when a technician completes a job with a different price than originally estimated.
  */
 

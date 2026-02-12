@@ -524,7 +524,7 @@ export const api = {
     },
   },
 
-  // Map data (dispatcher live map)
+  // Map data (ADMIN live map)
   map: {
     getTechnicianLocations: (params?: { onlineOnly?: boolean }) => {
       const query = params?.onlineOnly !== undefined

@@ -175,7 +175,7 @@ rg -i "(variance|discrepancy|mismatch|flag.*payment|alert)" --type ts -g "!node_
 
 25. Verify payment variance handling:
     - **CRITICAL:** Are payment mismatches flagged?
-    - Check: Does variance trigger alerts to dispatcher?
+    - Check: Does variance trigger alerts to ADMIN?
     - Check: Are mismatched jobs prevented from marking as COMPLETED?
 
 26. Search for payment validation in sync:

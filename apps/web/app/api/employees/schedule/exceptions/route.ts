@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
 
     // Check permissions
     const roleUpper = session.role?.toUpperCase();
-    if (targetUserId !== session.userId && roleUpper !== 'OWNER' && roleUpper !== 'DISPATCHER') {
+    if (targetUserId !== session.userId && roleUpper !== 'OWNER' && roleUpper !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para modificar este horario' },
         { status: 403 }
@@ -299,7 +299,7 @@ export async function DELETE(request: NextRequest) {
 
     // Check permissions
     const roleUpper = session.role?.toUpperCase();
-    if (exception.userId !== session.userId && roleUpper !== 'OWNER' && roleUpper !== 'DISPATCHER') {
+    if (exception.userId !== session.userId && roleUpper !== 'OWNER' && roleUpper !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para eliminar esta excepción' },
         { status: 403 }

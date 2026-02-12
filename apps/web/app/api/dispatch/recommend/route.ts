@@ -319,9 +319,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only owners and dispatchers can use dispatch recommendations
+    // Only owners and Admins can use dispatch recommendations
     const userRole = session.role?.toUpperCase();
-    if (userRole !== 'OWNER' && userRole !== 'DISPATCHER') {
+    if (userRole !== 'OWNER' && userRole !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'Access denied' },
         { status: 403 }

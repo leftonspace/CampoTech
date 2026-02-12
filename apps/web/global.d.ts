@@ -104,7 +104,7 @@ declare module '@prisma/client' {
   export const UserRole: {
     SUPER_ADMIN: 'SUPER_ADMIN';
     OWNER: 'OWNER';
-    DISPATCHER: 'DISPATCHER';
+    ADMIN: 'ADMIN';
     TECHNICIAN: 'TECHNICIAN';
   };
   export type UserRole = (typeof UserRole)[keyof typeof UserRole];

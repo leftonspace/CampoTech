@@ -119,9 +119,9 @@ export async function PUT(
     // Normalize user role
     const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
 
-    // Only OWNER and DISPATCHER can update other users
+    // Only OWNER and ADMIN can update other users
     const isEditingSelf = session.userId === id;
-    if (!isEditingSelf && !['OWNER', 'DISPATCHER'].includes(userRole)) {
+    if (!isEditingSelf && !['OWNER', 'ADMIN'].includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'Forbidden: insufficient permissions' },
         { status: 403 }
@@ -303,8 +303,8 @@ export async function DELETE(
 
     const { id } = await params;
 
-    // Only OWNER and DISPATCHER can delete users
-    if (!['OWNER', 'DISPATCHER'].includes(session.role)) {
+    // Only OWNER and ADMIN can delete users
+    if (!['OWNER', 'ADMIN'].includes(session.role)) {
       return NextResponse.json(
         { success: false, error: 'Forbidden: insufficient permissions' },
         { status: 403 }

@@ -81,8 +81,8 @@ export async function POST(
       );
     }
 
-    // Only owners and dispatchers can add maintenance
-    if (!['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
+    // Only owners and Admins can add maintenance
+    if (!['OWNER', 'ADMIN'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para esta operación' },
         { status: 403 }

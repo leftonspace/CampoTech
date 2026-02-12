@@ -47,7 +47,7 @@ DRAFT → QUOTED → IN_PROGRESS → PENDING_APPROVAL → FINALIZED
 
 ### Permission Matrix
 
-| State | Dispatcher | Technician | After Invoice |
+| State | ADMIN | Technician | After Invoice |
 |:---|:---:|:---:|:---:|
 | Line Items - Add | ✅ | ✅ (if allowed) | 🔒 |
 | Line Items - Edit | ✅ | ✅ (within limits) | 🔒 |
@@ -128,7 +128,7 @@ pricingMode        JobPricingMode  @default(FIXED_TOTAL)
 defaultVisitRate   Decimal?        @db.Decimal(12, 2)
 
 // JobVisit model (lines 442-462 schema.prisma)
-estimatedPrice      Decimal?   @db.Decimal(12, 2)  // Dispatcher sets
+estimatedPrice      Decimal?   @db.Decimal(12, 2)  // ADMIN sets
 actualPrice         Decimal?   @db.Decimal(12, 2)  // Technician reports
 techProposedPrice   Decimal?   @db.Decimal(12, 2)  // Pending approval
 priceVarianceReason String?    // Required if actual != estimated

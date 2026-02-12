@@ -30,8 +30,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Only OWNER and DISPATCHER can view employee verification status
-    if (!['OWNER', 'DISPATCHER'].includes(session.role?.toUpperCase() || '')) {
+    // Only OWNER and ADMIN can view employee verification status
+    if (!['OWNER', 'ADMIN'].includes(session.role?.toUpperCase() || '')) {
       return NextResponse.json(
         { success: false, error: 'Permisos insuficientes' },
         { status: 403 }

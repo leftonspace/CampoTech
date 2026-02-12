@@ -97,8 +97,8 @@ export async function POST(
       );
     }
 
-    // Only owners and dispatchers can upload documents
-    if (!['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
+    // Only owners and Admins can upload documents
+    if (!['OWNER', 'ADMIN'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para esta operación' },
         { status: 403 }

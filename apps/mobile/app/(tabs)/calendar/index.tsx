@@ -1,5 +1,5 @@
 /**
- * Calendar/Schedule Screen - Enhanced for Dispatchers
+ * Calendar/Schedule Screen - Enhanced for Admins
  * ====================================================
  *
  * Phase 2.4.3: Schedule Overview

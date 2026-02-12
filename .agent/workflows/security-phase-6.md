@@ -53,7 +53,7 @@ Get-ChildItem -Path "d:\projects\CampoTech\apps\web\lib" -Recurse -Filter "*.ts"
 3. View the main access control library:
    - Directory: `d:\projects\CampoTech\apps\web\lib\access-control\`
    - Document: ALL permission definitions
-   - Check: Role hierarchy (OWNER > ADMIN > DISPATCHER > TECHNICIAN)
+   - Check: Role hierarchy (OWNER > ADMIN > ADMIN > TECHNICIAN)
    - Check: Resource-level permissions
 
 4. View field-level permissions registry:
@@ -69,7 +69,7 @@ Get-ChildItem -Path "d:\projects\CampoTech\apps\web\lib" -Recurse -Filter "*.ts"
 
 6. Search for all role definitions:
 ```powershell
-rg "OWNER|ADMIN|DISPATCHER|TECHNICIAN|VIEWER" --type ts -g "!node_modules" -g "lib/access-control/*" -A 2
+rg "OWNER|ADMIN|ADMIN|TECHNICIAN|VIEWER" --type ts -g "!node_modules" -g "lib/access-control/*" -A 2
 ```
 
 ### Step 3: Route Guard Analysis

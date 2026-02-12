@@ -416,7 +416,7 @@ export async function getEmployeesWithVerificationStatus(
   const employees = await prisma.user.findMany({
     where: {
       organizationId,
-      role: { in: ['TECHNICIAN', 'DISPATCHER'] },
+      role: { in: ['TECHNICIAN', 'ADMIN'] },
     },
     select: {
       id: true,

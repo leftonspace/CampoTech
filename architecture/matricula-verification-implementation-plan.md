@@ -65,7 +65,7 @@ This plan outlines the implementation of automatic matrícula verification again
 
 ### Organization-Level Approvals (OWNER approves)
 ```
-Organization Owner/Dispatcher → /dashboard/approvals
+Organization Owner/ADMIN → /dashboard/approvals
 ├── Price changes
 ├── Job modifications  
 ├── Employee attribute changes

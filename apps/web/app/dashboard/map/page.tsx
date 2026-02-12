@@ -431,7 +431,7 @@ export default function LiveMapPage() {
   const [L, setL] = useState<LeafletType | null>(null);
 
   // Role-based access check
-  const allowedRoles = ['OWNER', 'DISPATCHER'];
+  const allowedRoles = ['OWNER', 'ADMIN'];
   const hasAccess = user && allowedRoles.includes(user.role.toUpperCase());
   const isTechnician = user?.role.toUpperCase() === 'TECHNICIAN';
 

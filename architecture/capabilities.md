@@ -466,7 +466,7 @@ FALLBACK BEHAVIOR:
 USER EXPERIENCE:
 - Customer doesn't see real-time location
 - ETA shown as "Approximately X minutes"
-- Dispatchers cannot track technician locations
+- ADMINs cannot track technician locations
 - Route optimization unavailable
 ```
 

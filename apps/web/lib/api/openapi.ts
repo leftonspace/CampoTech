@@ -90,7 +90,7 @@ Rate limit headers are included in all responses:
     tags: [
       { name: 'Jobs', description: 'Gestión de trabajos y órdenes de servicio' },
       { name: 'Customers', description: 'Gestión de clientes' },
-      { name: 'Employees', description: 'Gestión de empleados (técnicos, despachadores)' },
+      { name: 'Employees', description: 'Gestión de empleados (técnicos, Administradores)' },
       { name: 'Invoices', description: 'Facturación y comprobantes AFIP' },
       { name: 'Inventory', description: 'Control de inventario y stock' },
       { name: 'Vehicles', description: 'Gestión de flota de vehículos' },

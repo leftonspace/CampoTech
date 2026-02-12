@@ -6,7 +6,7 @@
  *
  * Tab visibility by role:
  * - OWNER: All tabs (today, jobs, calendar, team, chats, profile)
- * - DISPATCHER: today, jobs, calendar, customers, chats, profile
+ * - ADMIN: today, jobs, calendar, customers, chats, profile
  * - TECHNICIAN: today, inventory, chats, profile
  */
 
@@ -31,7 +31,7 @@ import { useRef, useEffect, useMemo } from 'react';
 import { useAuth } from '../../lib/auth/auth-context';
 import { useSyncStatus } from '../../lib/hooks/use-sync-status';
 
-type UserRole = 'OWNER' | 'DISPATCHER' | 'TECHNICIAN';
+type UserRole = 'OWNER' | 'ADMIN' | 'TECHNICIAN';
 
 export default function TabsLayout() {
   const { user, isLoading } = useAuth();
@@ -41,21 +41,21 @@ export default function TabsLayout() {
   // Get user role with fallback
   const userRole = useMemo(() => {
     const role = user?.role?.toUpperCase();
-    if (role === 'OWNER' || role === 'DISPATCHER' || role === 'TECHNICIAN') {
+    if (role === 'OWNER' || role === 'ADMIN' || role === 'TECHNICIAN') {
       return role as UserRole;
     }
     return 'TECHNICIAN' as UserRole;
   }, [user?.role]);
 
   // Check if user has access to specific tabs
-  const canSeeJobs = userRole === 'OWNER' || userRole === 'DISPATCHER';
-  const canSeeCalendar = userRole === 'OWNER' || userRole === 'DISPATCHER';
+  const canSeeJobs = userRole === 'OWNER' || userrole === 'ADMIN';
+  const canSeeCalendar = userRole === 'OWNER' || userrole === 'ADMIN';
   const canSeeTeam = userRole === 'OWNER';
   const canSeeInvoices = userRole === 'OWNER';
   const canSeeAnalytics = userRole === 'OWNER';
   const canSeeInventory = userRole === 'TECHNICIAN';
   // Phase 5.4: Chats available to all roles (technicians see assigned conversations)
-  const canSeeChats = userRole === 'OWNER' || userRole === 'DISPATCHER' || userRole === 'TECHNICIAN';
+  const canSeeChats = userRole === 'OWNER' || userrole === 'ADMIN' || userRole === 'TECHNICIAN';
 
   // Animate sync icon
   useEffect(() => {
@@ -131,7 +131,7 @@ export default function TabsLayout() {
           }}
         />
 
-        {/* All Jobs - OWNER and DISPATCHER only */}
+        {/* All Jobs - OWNER and ADMIN only */}
         <Tabs.Screen
           name="jobs"
           options={{
@@ -145,7 +145,7 @@ export default function TabsLayout() {
           }}
         />
 
-        {/* Calendar/Agenda - OWNER and DISPATCHER only */}
+        {/* Calendar/Agenda - OWNER and ADMIN only */}
         <Tabs.Screen
           name="calendar"
           options={{

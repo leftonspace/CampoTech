@@ -6,7 +6,7 @@
  * - Assign conversations to team members
  * - Track assignment history
  * - Filter conversations by agent
- * - Role-based visibility (Owner/Dispatcher sees all, Technicians see assigned only)
+ * - Role-based visibility (Owner/ADMIN sees all, Technicians see assigned only)
  * 
  * Use Case: A company has ONE WhatsApp number, but multiple team members
  * need to see and respond to incoming messages.
@@ -24,7 +24,7 @@ type InboxRole = 'owner' | 'admin' | 'agent' | 'viewer';
 // User role to inbox role mapping
 const INBOX_ROLE_MAP: Record<string, InboxRole> = {
     'OWNER': 'owner',
-    'DISPATCHER': 'admin',
+    'ADMIN': 'admin',
     'TECHNICIAN': 'agent',
 };
 

@@ -122,9 +122,9 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Check user role - only OWNER and DISPATCHER can modify
+    // Check user role - only OWNER and ADMIN can modify
     const userRole = session.role?.toUpperCase();
-    if (userRole !== 'OWNER' && userRole !== 'DISPATCHER') {
+    if (userRole !== 'OWNER' && userRole !== 'ADMIN') {
       return NextResponse.json(
         { error: 'No tenés permisos para modificar esta configuración' },
         { status: 403 }

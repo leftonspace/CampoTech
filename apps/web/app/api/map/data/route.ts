@@ -162,8 +162,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Only admins, owners, and dispatchers can view map data
-    if (!['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
+    // Only admins, owners, and Admins can view map data
+    if (!['OWNER', 'ADMIN'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para ver datos del mapa' },
         { status: 403 }

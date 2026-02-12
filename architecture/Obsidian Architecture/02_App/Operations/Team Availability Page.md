@@ -18,7 +18,7 @@ path: apps/web/app/dashboard/team/page.tsx
 
 ## 🎯 Core Philosophy
 
-This module solves a critical operational challenge: **How do dispatchers understand real-time workforce capacity while maintaining the flexibility to handle Argentine labor law complexities?**
+This module solves a critical operational challenge: **How do ADMINs understand real-time workforce capacity while maintaining the flexibility to handle Argentine labor law complexities?**
 
 The solution splits concerns into:
 1. **Horarios Tab** → Read-only weekly overview (The Visualizer)
@@ -358,7 +358,7 @@ export const getBuenosAiresNow = () => {
 | Role | Permissions |
 |:---|:---|
 | OWNER | All schedules, config, exceptions |
-| DISPATCHER | Manage team schedules |
+| ADMIN | Manage team schedules |
 | TECHNICIAN | View own schedule only (read-only) |
 
 ---

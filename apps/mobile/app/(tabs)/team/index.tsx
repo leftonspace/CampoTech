@@ -57,13 +57,13 @@ import { database } from '../../../watermelon/database';
 import { useAuth } from '../../../lib/auth/auth-context';
 
 // Role definitions
-const ROLES = ['OWNER', 'ADMIN', 'DISPATCHER', 'TECHNICIAN', 'VIEWER'] as const;
+const ROLES = ['OWNER', 'ADMIN', 'ADMIN', 'TECHNICIAN', 'VIEWER'] as const;
 type Role = typeof ROLES[number];
 
 const ROLE_LABELS: Record<string, string> = {
   OWNER: 'Dueño',
   ADMIN: 'Administrador',
-  DISPATCHER: 'Despachador',
+  ADMIN: 'Administrador',
   TECHNICIAN: 'Técnico',
   VIEWER: 'Solo lectura',
 };
@@ -166,7 +166,7 @@ const MOCK_TEAM: TeamMember[] = [
     name: 'Diego Martínez',
     phone: '+5491155553456',
     email: 'diego@example.com',
-    role: 'DISPATCHER',
+    role: 'ADMIN',
     specialty: 'Coordinación',
     skillLevel: 'OFICIAL',
     isVerified: true,
@@ -735,7 +735,7 @@ function getRoleBadgeStyle(role: string) {
       return { backgroundColor: '#fef3c7' };
     case 'ADMIN':
       return { backgroundColor: '#dbeafe' };
-    case 'DISPATCHER':
+    case 'ADMIN':
       return { backgroundColor: '#e0e7ff' };
     default:
       return { backgroundColor: '#f3f4f6' };

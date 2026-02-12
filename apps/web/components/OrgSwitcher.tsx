@@ -43,7 +43,7 @@ function getRoleBadge(role: string): { text: string; className: string } {
     switch (role) {
         case 'OWNER':
             return { text: 'Dueño', className: 'bg-amber-100 text-amber-700' };
-        case 'DISPATCHER':
+        case 'ADMIN':
             return { text: 'Admin', className: 'bg-blue-100 text-blue-700' };
         case 'TECHNICIAN':
             return { text: 'Técnico', className: 'bg-gray-100 text-gray-600' };

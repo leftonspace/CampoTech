@@ -229,7 +229,7 @@ New `SyncOperation` model tracks:
    - Enable full database encryption
    - Test migration for existing users
 
-2. **Dispatcher Dashboard** (P3)
+2. **ADMIN Dashboard** (P3)
    - Create sync operations view
    - Add fraud alerting for CRITICAL severity
    - Payment variance reports

@@ -173,9 +173,9 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        // Users can view their own data, or owners/dispatchers can view team data
+        // Users can view their own data, or owners/Admins can view team data
         const isOwnData = session.userId === userId;
-        const canViewTeamData = ['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase());
+        const canViewTeamData = ['OWNER', 'ADMIN'].includes(session.role.toUpperCase());
 
         if (!isOwnData && !canViewTeamData) {
             return NextResponse.json(

@@ -19,7 +19,7 @@ export async function GET(): Promise<NextResponse> {
   try {
     // Verify admin access
     const session = await getSession();
-    if (!session || !['OWNER', 'DISPATCHER'].includes(session.role)) {
+    if (!session || !['OWNER', 'ADMIN'].includes(session.role)) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

@@ -860,7 +860,7 @@ This document contains a complete list of every file in the CampoTech project wi
 | `apps/web/lib/notifications/subscription-notifications.ts` | Source code file or configuration. |
 | `apps/web/lib/notifications/verification-notifications.ts` | Source code file or configuration. |
 | `apps/web/lib/queue/config.ts` | Source code file or configuration. |
-| `apps/web/lib/queue/dispatcher.ts` | Source code file or configuration. |
+| `apps/web/lib/queue/ADMIN.ts` | Source code file or configuration. |
 | `apps/web/lib/queue/dlq.ts` | Source code file or configuration. |
 | `apps/web/lib/queue/index.ts` | Source code file or configuration. |
 | `apps/web/lib/queue/metrics.ts` | Source code file or configuration. |

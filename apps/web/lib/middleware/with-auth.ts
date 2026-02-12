@@ -135,10 +135,10 @@ export function withOwner(handler: StandardHandler): StandardHandler {
 }
 
 /**
- * Wraps an API route handler requiring OWNER or DISPATCHER role
+ * Wraps an API route handler requiring OWNER or ADMIN role
  */
 export function withManagement(handler: StandardHandler): StandardHandler {
-    return withRole(handler, ['OWNER', 'DISPATCHER']);
+    return withRole(handler, ['OWNER', 'ADMIN']);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

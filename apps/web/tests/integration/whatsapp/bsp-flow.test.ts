@@ -415,10 +415,10 @@ describe('WhatsApp BSP Integration Flow', () => {
       const lastReset = new Date('2024-11-01');
       const now = new Date('2024-12-15');
 
-      // Check if new billing cycle
+      // Check if new billing cycle (use UTC to avoid timezone issues)
       const isNewBillingCycle = (lastReset: Date, now: Date) => {
-        return lastReset.getMonth() !== now.getMonth() ||
-          lastReset.getFullYear() !== now.getFullYear();
+        return lastReset.getUTCMonth() !== now.getUTCMonth() ||
+          lastReset.getUTCFullYear() !== now.getUTCFullYear();
       };
 
       expect(isNewBillingCycle(lastReset, now)).toBe(true);

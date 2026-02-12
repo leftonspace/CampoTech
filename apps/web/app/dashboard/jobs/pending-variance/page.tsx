@@ -3,7 +3,7 @@
 /**
  * Pending Variance Page
  * 
- * Dashboard page for dispatchers to review and approve/reject
+ * Dashboard page for Admins to review and approve/reject
  * price variances proposed by technicians.
  */
 

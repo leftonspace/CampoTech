@@ -6,7 +6,7 @@
  *
  * Role-based filtering:
  * - TECHNICIAN: Only sees their assigned jobs
- * - OWNER/DISPATCHER: Sees all organization jobs
+ * - OWNER/ADMIN: Sees all organization jobs
  */
 
 import { useCallback, useMemo, useState, useEffect } from 'react';

@@ -174,12 +174,12 @@ export default function SchedulePage() {
 
   // Determine which user's schedule to show
   const targetUserId = selectedUserId || user?.id;
-  const isOwnerOrDispatcher = user?.role?.toUpperCase() === 'OWNER' || user?.role?.toUpperCase() === 'DISPATCHER';
+  const isOwnerOrAdmin = user?.role?.toUpperCase() === 'OWNER' || user?.role?.toUpperCase() === 'ADMIN';
   const isTechnician = user?.role?.toUpperCase() === 'TECHNICIAN';
   // Technicians can only view their own schedule (read-only)
-  const canEdit = isOwnerOrDispatcher || (isTechnician && targetUserId === user?.id && false); // Technicians can't edit
+  const canEdit = isOwnerOrAdmin || (isTechnician && targetUserId === user?.id && false); // Technicians can't edit
 
-  // Fetch team members if owner/dispatcher
+  // Fetch team members if owner/ADMIN
   const { data: teamData } = useQuery({
     queryKey: ['team-members'],
     queryFn: async () => {
@@ -187,7 +187,7 @@ export default function SchedulePage() {
       if (!res.ok) throw new Error('Error fetching team');
       return res.json();
     },
-    enabled: isOwnerOrDispatcher,
+    enabled: isOwnerOrAdmin,
   });
 
   const teamMembers = teamData?.data || [];
@@ -467,8 +467,8 @@ export default function SchedulePage() {
             </div>
           )}
 
-          {/* Team member selector for owners/dispatchers */}
-          {isOwnerOrDispatcher && teamMembers.length > 0 && (
+          {/* Team member selector for owners/Admins */}
+          {isOwnerOrAdmin && teamMembers.length > 0 && (
             <div className="card p-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Ver horario de:
@@ -483,7 +483,7 @@ export default function SchedulePage() {
                   .filter((m: import('@/types').User) => m.id !== user?.id)
                   .map((member: import('@/types').User) => (
                     <option key={member.id} value={member.id}>
-                      {member.name} ({member.role === 'TECHNICIAN' ? 'Técnico' : member.role === 'DISPATCHER' ? 'Despachador' : 'Propietario'})
+                      {member.name} ({member.role === 'TECHNICIAN' ? 'Técnico' : member.role === 'ADMIN' ? 'Administrador' : 'Propietario'})
                     </option>
                   ))}
               </select>

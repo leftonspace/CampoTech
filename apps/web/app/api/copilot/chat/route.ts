@@ -2,7 +2,7 @@
  * AI Co-Pilot Chat API
  * ====================
  *
- * Handles chat messages between the owner/dispatcher and the AI co-pilot.
+ * Handles chat messages between the owner/ADMIN and the AI co-pilot.
  * The AI can see the current WhatsApp conversation and help with tasks.
  */
 
@@ -19,7 +19,7 @@ const openai = new OpenAI({
 });
 
 // System prompt for the co-pilot
-const SYSTEM_PROMPT = `Eres un asistente de IA que ayuda al dueño/despachador de un negocio de servicios de campo (climatización, plomería, electricidad, etc.) a gestionar sus conversaciones de WhatsApp con clientes.
+const SYSTEM_PROMPT = `Eres un asistente de IA que ayuda al dueño/Administrador de un negocio de servicios de campo (climatización, plomería, electricidad, etc.) a gestionar sus conversaciones de WhatsApp con clientes.
 
 Tu rol es INTERNO - nunca te comunicas directamente con los clientes. Solo ayudas al operador humano.
 
@@ -99,9 +99,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Phase 5.4: Allow OWNER, DISPATCHER, and TECHNICIAN roles
+    // Phase 5.4: Allow OWNER, ADMIN, and TECHNICIAN roles
     const userRole = session.role?.toUpperCase() || '';
-    const allowedRoles = ['OWNER', 'DISPATCHER', 'TECHNICIAN'];
+    const allowedRoles = ['OWNER', 'ADMIN', 'TECHNICIAN'];
     console.log('[COPILOT] Role check:', { userRole, allowed: allowedRoles.includes(userRole) });
     if (!allowedRoles.includes(userRole)) {
       return NextResponse.json(

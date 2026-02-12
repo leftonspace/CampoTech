@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
+    if (!['OWNER', 'ADMIN'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para esta operación' },
         { status: 403 }

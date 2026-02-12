@@ -1,5 +1,5 @@
 /**
- * Live Map Screen (Dispatcher)
+ * Live Map Screen (ADMIN)
  * ============================
  *
  * Phase 2.4.2: Live Map Screen

@@ -529,7 +529,7 @@ export default function TeamCalendar({ canEdit, onOpenScheduleConfig }: TeamCale
                       />
                       <span className="flex-1">{emp.name}</span>
                       <span className="text-xs text-gray-500">
-                        {emp.role === 'TECHNICIAN' ? 'Técnico' : emp.role === 'DISPATCHER' ? 'Desp.' : ''}
+                        {emp.role === 'TECHNICIAN' ? 'Técnico' : emp.role === 'ADMIN' ? 'Desp.' : ''}
                       </span>
                     </label>
                   ))}

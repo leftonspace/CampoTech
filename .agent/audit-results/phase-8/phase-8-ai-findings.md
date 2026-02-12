@@ -176,7 +176,7 @@ if (!session?.organizationId) {
 
 // Role-based access control
 const userRole = session.role?.toUpperCase() || '';
-const allowedRoles = ['OWNER', 'DISPATCHER', 'TECHNICIAN'];
+const allowedRoles = ['OWNER', 'ADMIN', 'TECHNICIAN'];
 if (!allowedRoles.includes(userRole)) {
   return NextResponse.json(
     { success: false, error: 'No tenés permiso para usar el co-pilot' },

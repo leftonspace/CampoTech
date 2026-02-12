@@ -56,7 +56,7 @@ path: apps/web/app/dashboard/layout.tsx
 | Configuración | `/dashboard/settings` | Settings | settings |
 
 ### Access Control
-- **Role-based:** Items filtered by user role (OWNER, DISPATCHER, TECHNICIAN)
+- **Role-based:** Items filtered by user role (OWNER, ADMIN, TECHNICIAN)
 - **Tier-based:** Locked items show 🔒 icon and trigger upgrade modal
 - **View-only:** Items show 👁 icon when access is restricted
 

@@ -54,12 +54,12 @@ export async function GET(request: NextRequest) {
       ? employeeIdsParam.split(',').filter(Boolean)
       : null;
 
-    // Fetch all active employees in the organization (technicians and dispatchers)
+    // Fetch all active employees in the organization (technicians and Admins)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const employeeWhere: any = {
       organizationId: session.organizationId,
       isActive: true,
-      role: { in: ['TECHNICIAN', 'DISPATCHER', 'OWNER'] },
+      role: { in: ['TECHNICIAN', 'ADMIN', 'OWNER'] },
     };
 
     if (employeeIds && employeeIds.length > 0) {

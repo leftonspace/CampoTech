@@ -188,7 +188,7 @@ export default function InviteAcceptScreen() {
   const getRoleDisplay = (role: string) => {
     const roles: Record<string, string> = {
       OWNER: 'Dueño',
-      DISPATCHER: 'Despachador',
+      ADMIN: 'Administrador',
       TECHNICIAN: 'Técnico',
     };
     return roles[role.toUpperCase()] || role;

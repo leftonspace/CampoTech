@@ -175,7 +175,7 @@ export async function PUT(
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const updateData: any = {};
 
-        // Only dispatchers/owners can update estimated price
+        // Only Admins/owners can update estimated price
         if (estimatedPrice !== undefined && session.role !== 'TECHNICIAN') {
             updateData.estimatedPrice = estimatedPrice;
         }
@@ -195,7 +195,7 @@ export async function PUT(
             updateData.priceVarianceReason = priceVarianceReason;
         }
 
-        // Deposit fields (dispatcher only)
+        // Deposit fields (ADMIN only)
         if (session.role !== 'TECHNICIAN') {
             if (requiresDeposit !== undefined) {
                 updateData.requiresDeposit = requiresDeposit;

@@ -70,7 +70,7 @@ References to `DISPATCHER` that need renaming to `ADMIN`:
 |---|---|---|
 | **Prisma Schema** (`schema.prisma`) | 1 enum value | `DISPATCHER` → `ADMIN` in `UserRole` enum |
 | **TypeScript types** (`types/index.ts`) | 1 type member | `'DISPATCHER'` → `'ADMIN'` |
-| **API routes** (`app/api/**`) | ~30 files | Role checks like `role === 'DISPATCHER'` |
+| **API routes** (`app/api/**`) | ~30 files | Role checks like `role === 'ADMIN'` |
 | **Dashboard UI** (`app/dashboard/**`) | ~15 files | Role display, conditional rendering |
 | **Components** (`components/**`) | ~10 files | Team modals, schedule, maps |
 | **Services/Libs** (`lib/**`) | ~10 files | Shared inbox, access control, utils |
@@ -84,7 +84,49 @@ References to `DISPATCHER` that need renaming to `ADMIN`:
 ### Phase 1: DISPATCHER → ADMIN Rename (FOUNDATIONAL)
 **Goal**: Align the codebase naming with user-facing language. Do this FIRST because all subsequent phases should use `ADMIN` instead of `DISPATCHER`.
 
-#### 5.1.1 — Prisma Schema Migration
+---
+
+#### ✅ **PHASE 1 STATUS: 90% COMPLETE** (Updated: 2026-02-11)
+
+**Completed Work:**
+The bulk code rename in `apps/web` has been completed via 6 systematic VS Code find-and-replace operations:
+
+| Search # | Pattern | Scope | Results | Status |
+|----------|---------|-------|---------|--------|
+| **1** | `'DISPATCHER'` → `'ADMIN'` | `apps/web/**/*.{ts,tsx}` | 167 in 63 files | ✅ Done |
+| **2** | TypeScript type union | `apps/web/types/index.ts` | 1 file | ✅ Done |
+| **3** | `\bDISPATCHER\b` → `ADMIN` (regex) | `apps/web/**/*.{ts,tsx,prisma}` | ~40-50 | ✅ Done |
+| **4** | `role === ['"]DISPATCHER['"]` (regex) | `apps/web/**/*.{ts,tsx}` | Covered by #1 | ✅ Done |
+| **5** | `Despachador` → `Administrador` | `apps/web/**/*.{ts,tsx}` | ~8-10 | ✅ Done |
+| **6** | `\bdispatcher\b` (lowercase, manual review) | `apps/web/**/*.{ts,tsx}` | Manual review | ✅ Done |
+
+**Exclusions Applied:**
+- ✅ `**/node_modules/**` excluded
+- ✅ `**/*.md` excluded (docs updated separately)
+- ✅ `**/dispatcher.ts` excluded (job queue, not user role)
+
+**Remaining Work:**
+
+1. ⏳ **Prisma Schema Migration** (Section 5.1.1 below)
+   - Update enum in `schema.prisma`
+   - Create migration: `ALTER TYPE "UserRole" RENAME VALUE 'DISPATCHER' TO 'ADMIN';`
+   - Run `pnpm prisma migrate dev --name rename-dispatcher-to-admin`
+
+2. ⏳ **Mobile App** (`apps/mobile`)
+   - ~5 files need DISPATCHER→ADMIN updates
+   - Tab layouts, team pages, role-based UI
+
+3. ⏳ **Documentation Files** (*.md)
+   - ~15-20 markdown files contain DISPATCHER references
+   - Manual review recommended for context-appropriate updates
+
+4. ✅ **Database Data** - No action needed
+   - Prisma migration will automatically rename enum values
+   - Existing user records will be updated automatically
+
+---
+
+#### 5.1.1 — Prisma Schema Migration ⏳ **PENDING**
 **File**: `apps/web/prisma/schema.prisma` (line 3356-3361)
 
 ```prisma
@@ -110,7 +152,7 @@ enum UserRole {
 ALTER TYPE "UserRole" RENAME VALUE 'DISPATCHER' TO 'ADMIN';
 ```
 
-#### 5.1.2 — TypeScript Types
+#### 5.1.2 — TypeScript Types ✅ **COMPLETED**
 **File**: `apps/web/types/index.ts`
 
 ```typescript
@@ -121,31 +163,33 @@ export type UserRole = 'SUPER_ADMIN' | 'OWNER' | 'DISPATCHER' | 'TECHNICIAN';
 export type UserRole = 'SUPER_ADMIN' | 'OWNER' | 'ADMIN' | 'TECHNICIAN';
 ```
 
-#### 5.1.3 — Spanish Labels
-**Files to update**:
+✅ Updated via Search #1 and #3 (bulk rename operations)
 
-| File | Current | New |
+#### 5.1.3 — Spanish Labels ✅ **COMPLETED**
+**Files updated** via Search #5:
+
+| File | Old | New |
 |---|---|---|
-| `lib/utils.ts` (line 439, 444) | `DISPATCHER: 'Administrador'`, `dispatcher: 'Administrador'` | `ADMIN: 'Administrador'`, `admin: 'Administrador'` |
-| `lib/email.ts` (line 371) | `'DISPATCHER': 'Despachador'` | `'ADMIN': 'Administrador'` |
-| `components/team/TeamMemberDetailModal.tsx` (line 54-57) | `DISPATCHER: { label: 'Despachador' }` | `ADMIN: { label: 'Administrador' }` |
-| `components/team/EmployeeListTab.tsx` (line 29) | `label: 'Despachador'` | `label: 'Administrador'` |
-| `components/team/TeamMemberModal.tsx` (line 568) | `<option value="DISPATCHER">Despachador</option>` | `<option value="ADMIN">Administrador</option>` |
-| `components/verification/EmployeeComplianceTable.tsx` (line 109) | `DISPATCHER: 'Despachador'` | `ADMIN: 'Administrador'` |
-| `components/schedule/ScheduleConfigModal.tsx` (line 868) | `'DISPATCHER' ? 'Despachador'` | `'ADMIN' ? 'Administrador'` |
-| `app/dashboard/schedule/page.tsx` (line 486) | `'DISPATCHER' ? 'Despachador'` | `'ADMIN' ? 'Administrador'` |
-| `app/dashboard/profile/page.tsx` (line 37) | `DISPATCHER: 'Despachador'` | `ADMIN: 'Administrador'` |
+| `lib/utils.ts` | `DISPATCHER: 'Administrador'` | `ADMIN: 'Administrador'` |
+| `lib/email.ts` | `'DISPATCHER': 'Despachador'` | `'ADMIN': 'Administrador'` |
+| `components/team/TeamMemberDetailModal.tsx` | `DISPATCHER: { label: 'Despachador' }` | `ADMIN: { label: 'Administrador' }` |
+| `components/team/EmployeeListTab.tsx` | `label: 'Despachador'` | `label: 'Administrador'` |
+| `components/team/TeamMemberModal.tsx` | `<option value="DISPATCHER">Despachador</option>` | `<option value="ADMIN">Administrador</option>` |
+| `components/verification/EmployeeComplianceTable.tsx` | `DISPATCHER: 'Despachador'` | `ADMIN: 'Administrador'` |
+| `components/schedule/ScheduleConfigModal.tsx` | `'DISPATCHER' ? 'Despachador'` | `'ADMIN' ? 'Administrador'` |
+| `app/dashboard/schedule/page.tsx` | `'DISPATCHER' ? 'Despachador'` | `'ADMIN' ? 'Administrador'` |
+| `app/dashboard/profile/page.tsx` | `DISPATCHER: 'Despachador'` | `ADMIN: 'Administrador'` |
 
-#### 5.1.4 — Bulk Code Rename
-All `'DISPATCHER'` string literals and `=== 'DISPATCHER'` / `role: 'DISPATCHER'` checks across:
-- `apps/web/app/api/**` (~30 files)
-- `apps/web/app/dashboard/**` (~15 files)
-- `apps/web/components/**` (~10 files)
-- `apps/web/lib/**` (~10 files)
-- `apps/web/lib/config/field-permissions.ts` (entire permission map uses `DISPATCHER`)
-- `apps/mobile/**` (~5 files)
+#### 5.1.4 — Bulk Code Rename ✅ **COMPLETED (apps/web)** ⏳ **PENDING (apps/mobile)**
+All `'DISPATCHER'` string literals and `DISPATCHER` enum references updated across:
+- ✅ `apps/web/app/api/**` (~30 files) - Completed via Search #1, #3
+- ✅ `apps/web/app/dashboard/**` (~15 files) - Completed via Search #1, #3
+- ✅ `apps/web/components/**` (~10 files) - Completed via Search #1, #3
+- ✅ `apps/web/lib/**` (~10 files) - Completed via Search #1, #3
+- ✅ `apps/web/lib/config/field-permissions.ts` - All DISPATCHER references updated
+- ⏳ `apps/mobile/**` (~5 files) - **PENDING** (requires separate search in mobile directory)
 
-> **Note**: The `lib/queue/dispatcher.ts` file is a **job queue dispatcher** (not a user role) — its name stays unchanged.
+> **Note**: The `lib/queue/dispatcher.ts` file is a **job queue dispatcher** (not a user role) — its name stays unchanged and was explicitly excluded from searches.
 
 ---
 
@@ -196,6 +240,36 @@ A friendly page with two clear sections:
   - 🚀 **Plan Profesional** — $X/mes → CTA: "Suscribirme" → `/register?plan=profesional`
 - They register as OWNER with the selected plan (or free trial by default)
 - This turns the redirect into a **growth opportunity** — every blocked technician is a potential new business customer.
+
+#### 5.2.4 — Update Welcome Email Templates ✅ **COMPLETED 2026-02-11**
+**File**: `apps/web/lib/email.ts`
+
+Role-specific email templates to set proper expectations during onboarding:
+
+**For TECHNICIAN role:**
+- 📱 **Yellow highlight box**: "Importante para Técnicos" message
+- Clear messaging: Will use the **mobile app** (not web)
+- Status notification: "La app estará disponible próximamente"
+- Updated steps (4 instead of 3):
+  1. WhatsApp OTP verification
+  2. Will receive download instructions when ready
+  3. Activate account in mobile app
+  4. Start receiving jobs on phone
+- **No web login button** (hidden for technicians)
+
+**For OWNER/ADMIN roles:**
+- Web platform focus
+- Steps emphasize web dashboard usage
+- Includes "Ingresar a CampoTech" button with web login URL
+- Management-focused language (dashboard, control panel)
+
+**Implementation:**
+```typescript
+const isTechnician = data.role === 'Técnico';
+// Then conditional template rendering based on role
+```
+
+Both HTML and plain text templates updated with role detection.
 
 ---
 

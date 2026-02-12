@@ -369,7 +369,7 @@ model Job {
   depositPaymentMethod String?   @map("deposit_payment_method") // CASH, TRANSFER, CARD, MERCADOPAGO
 
   // Pricing Totals
-  estimatedTotal    Decimal? @map("estimated_total") @db.Decimal(12, 2) // Quote total set by dispatcher
+  estimatedTotal    Decimal? @map("estimated_total") @db.Decimal(12, 2) // Quote total set by ADMIN
   techProposedTotal Decimal? @map("tech_proposed_total") @db.Decimal(12, 2) // Technician's proposed total (may differ)
   finalTotal        Decimal? @map("final_total") @db.Decimal(12, 2) // Approved final total for invoice
 
@@ -377,7 +377,7 @@ model Job {
   pricingLockedAt   DateTime? @map("pricing_locked_at")
   pricingLockedById String?   @map("pricing_locked_by_id")
 
-  // Variance Approval Audit (tracks dispatcher approval of technician-proposed prices)
+  // Variance Approval Audit (tracks ADMIN approval of technician-proposed prices)
   varianceApprovedAt   DateTime? @map("variance_approved_at")
   varianceApprovedById String?   @map("variance_approved_by_id")
   varianceRejectedAt   DateTime? @map("variance_rejected_at")
@@ -497,7 +497,7 @@ model JobVisit {
   // Only populated when parent Job.pricingMode != FIXED_TOTAL
   // ═══════════════════════════════════════════════════════════════════════════════
 
-  // Estimated price for this specific visit (set by dispatcher)
+  // Estimated price for this specific visit (set by ADMIN)
   estimatedPrice Decimal? @map("estimated_price") @db.Decimal(12, 2)
 
   // Actual price (set by technician after completion, may differ from estimate)
@@ -3357,7 +3357,7 @@ model MarketplaceClick {
 enum UserRole {
   SUPER_ADMIN // CampoTech platform administrator (not tied to any org)
   OWNER
-  DISPATCHER
+  ADMIN
   TECHNICIAN
 }
 
@@ -3874,7 +3874,7 @@ enum PricingModel {
 // Tracks the origin of each line item for pricing transparency and audit
 // ═══════════════════════════════════════════════════════════════════════════════
 enum LineItemSource {
-  QUOTE // Created in original quote by dispatcher
+  QUOTE // Created in original quote by ADMIN
   TECH_ADDED // Added by technician during job
   TECH_ADJUSTED // Modified by technician (tracks original)
   SYSTEM // Auto-generated (e.g., mileage charge, minimum service fee)
@@ -3887,9 +3887,9 @@ enum LineItemSource {
 // Controls when invoices are automatically generated based on job lifecycle
 // ═══════════════════════════════════════════════════════════════════════════════
 enum InvoiceGenerationMode {
-  MANUAL // Dispatcher manually generates invoice
+  MANUAL // ADMIN manually generates invoice
   AUTO_ON_COMPLETION // Auto-generate when job completed
-  AUTO_ON_APPROVAL // Auto-generate when dispatcher approves technician report
+  AUTO_ON_APPROVAL // Auto-generate when ADMIN approves technician report
 
   @@map("invoice_generation_mode")
 }

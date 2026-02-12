@@ -36,7 +36,7 @@ The CampoTech web application demonstrates **strong security posture** with comp
 
 **Implementation:**
 - Multi-tenant isolation via `organizationId` in all database queries
-- Role-based access control (OWNER, DISPATCHER, TECHNICIAN)
+- Role-based access control (OWNER, ADMIN, TECHNICIAN)
 - Session-based authentication with `getSession()` checks on all API routes
 - Field-level filtering based on user role (`filterEntitiesByRole()`)
 - Technicians can only view their own assigned jobs

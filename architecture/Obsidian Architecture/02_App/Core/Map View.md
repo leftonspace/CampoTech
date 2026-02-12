@@ -11,7 +11,7 @@ path: apps/web/app/dashboard/map/page.tsx
 # 🗺️ Map View
 
 > [!INFO] **Purpose**
-> Real-time visualization of technician locations, job sites, and service zones. Enables dispatchers to optimize routing and monitor field operations.
+> Real-time visualization of technician locations, job sites, and service zones. Enables ADMINs to optimize routing and monitor field operations.
 
 ---
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api-client';
@@ -111,7 +111,7 @@ const formatPhoneByCountry = (value: string, countryCode: string): string => {
   }
 };
 
-export default function SignupPage() {
+function SignupFormInternal() {
   const [formData, setFormData] = useState({
     cuit: '',
     businessName: '',
@@ -759,5 +759,19 @@ export default function SignupPage() {
         }}
       />
     </>
+  );
+}
+
+
+// Wrap in Suspense to fix Next.js 15 useSearchParams requirement
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent" />
+      </div>
+    }>
+      <SignupFormInternal />
+    </Suspense>
   );
 }

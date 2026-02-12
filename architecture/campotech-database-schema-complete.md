@@ -2294,7 +2294,7 @@ CREATE POLICY jobs_technician_update ON jobs
         (
             EXISTS (
                 SELECT 1 FROM users u 
-                WHERE u.id = auth.uid() AND u.role IN ('owner', 'admin', 'dispatcher')
+                WHERE u.id = auth.uid() AND u.role IN ('owner', 'admin', 'ADMIN')
             )
             OR
             assigned_to = auth.uid()

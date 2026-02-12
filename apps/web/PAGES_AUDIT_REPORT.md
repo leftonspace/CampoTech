@@ -66,7 +66,7 @@
 
 ### 2. SETTINGS SECTION (14 subdirectories)
 **Purpose:** User/organization configuration
-**Access:** OWNER + some DISPATCHER
+**Access:** OWNER + some ADMIN
 
 | Page | Lines | Status | Notes |
 |------|-------|--------|-------|

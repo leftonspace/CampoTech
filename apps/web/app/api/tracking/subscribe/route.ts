@@ -19,8 +19,8 @@ export async function GET(request: NextRequest) {
     return new Response('Unauthorized', { status: 401 });
   }
 
-  // Only admins, owners, and dispatchers can subscribe to location updates
-  if (!['OWNER', 'DISPATCHER'].includes(session.role.toUpperCase())) {
+  // Only admins, owners, and Admins can subscribe to location updates
+  if (!['OWNER', 'ADMIN'].includes(session.role.toUpperCase())) {
     return new Response('Forbidden', { status: 403 });
   }
 

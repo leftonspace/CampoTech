@@ -578,7 +578,7 @@ Replaces standard auto-responders with a stateful agent:
 - **Autonomous Follow-up**: Proactively asks "Are you still interested?" after 24 hours of silence using an Argentine-tailored tone (customizable by the owner).
 
 ### 2. The AI Copilot (Side Panel)
-Supports human dispatchers in real-time within the Dashboard:
+Supports human ADMINs in real-time within the Dashboard:
 - **Intelligent Suggestion**: Proposes replies based on the conversation context.
 - **Automated Data Entry**: Detects addresses or names and offers one-click CRM updates via a Side Panel interface.
 - **Skill-Based Scheduling**: Automatically checks specific technician calendars based on the service requested (e.g., Gasista vs. Electricista).
@@ -613,7 +613,7 @@ To support production-grade Agentic workflows, the AI logic is hosted as a dedic
    - Distance-optimized slot proposals
 6. Based on confidence level:
    - HIGH confidence → Proposal of valid slots → Creation of job assignment
-   - LOW confidence → Transfer to owner/dispatcher
+   - LOW confidence → Transfer to owner/ADMIN
 
 **Voice Memo Handling:**
 ```
@@ -650,7 +650,7 @@ AI processes text, responds appropriately
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  Organizations (Businesses)                                     │
-│  ├── Users (Owner, Dispatcher, Technician)                     │
+│  ├── Users (Owner, ADMIN, Technician)                     │
 │  ├── Customers                                                  │
 │  ├── Jobs                                                       │
 │  ├── Invoices                                                   │

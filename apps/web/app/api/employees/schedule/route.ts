@@ -24,9 +24,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const targetUserId = searchParams.get('userId') || session.userId;
 
-    // Check permissions: users can only view their own schedule unless owner/dispatcher
+    // Check permissions: users can only view their own schedule unless owner/ADMIN
     const roleUpper = session.role?.toUpperCase();
-    if (targetUserId !== session.userId && roleUpper !== 'OWNER' && roleUpper !== 'DISPATCHER') {
+    if (targetUserId !== session.userId && roleUpper !== 'OWNER' && roleUpper !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para ver este horario' },
         { status: 403 }
@@ -114,7 +114,7 @@ export async function PUT(request: NextRequest) {
 
     // Check permissions
     const roleUpper = session.role?.toUpperCase();
-    if (targetUserId !== session.userId && roleUpper !== 'OWNER' && roleUpper !== 'DISPATCHER') {
+    if (targetUserId !== session.userId && roleUpper !== 'OWNER' && roleUpper !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para modificar este horario' },
         { status: 403 }
@@ -207,7 +207,7 @@ export async function PATCH(request: NextRequest) {
 
     // Check permissions
     const roleUpper = session.role?.toUpperCase();
-    if (targetUserId !== session.userId && roleUpper !== 'OWNER' && roleUpper !== 'DISPATCHER') {
+    if (targetUserId !== session.userId && roleUpper !== 'OWNER' && roleUpper !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para modificar este horario' },
         { status: 403 }

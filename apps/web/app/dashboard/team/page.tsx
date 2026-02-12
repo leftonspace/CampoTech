@@ -38,7 +38,7 @@ export default function TeamPage() {
   const [showInactive, setShowInactive] = useState(false);
 
   const userRole = user?.role?.toUpperCase() || 'TECHNICIAN';
-  const isOwnerOrDispatcher = userRole === 'OWNER' || userRole === 'DISPATCHER';
+  const isOwnerOrAdmin = userRole === 'OWNER' || userRole === 'ADMIN';
   const isTechnician = userRole === 'TECHNICIAN';
 
   // Fetch ALL team members (always include inactive for accurate tab counts)
@@ -158,7 +158,7 @@ export default function TeamPage() {
           <h1 className="page-title">Equipo</h1>
           <p className="page-subtitle">Gestioná tu equipo de trabajo</p>
         </div>
-        {isOwnerOrDispatcher && (
+        {isOwnerOrAdmin && (
           <button
             onClick={() => {
               setEditingMember(null);
@@ -197,7 +197,7 @@ export default function TeamPage() {
         {activeTab === 'employees' && (
           <>
             {/* Archive Filter Toggle */}
-            {isOwnerOrDispatcher && (
+            {isOwnerOrAdmin && (
               <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <button
@@ -233,7 +233,7 @@ export default function TeamPage() {
             <EmployeeListTab
               members={members}
               loading={teamLoading}
-              canEdit={isOwnerOrDispatcher}
+              canEdit={isOwnerOrAdmin}
               onEdit={handleEditMember}
               onDelete={handleDeleteMember}
               onCardClick={handleEditMember}
@@ -242,8 +242,8 @@ export default function TeamPage() {
           </>
         )}
 
-        {activeTab === 'availability' && isOwnerOrDispatcher && (
-          <DisponibilidadTab canEdit={isOwnerOrDispatcher} members={members} />
+        {activeTab === 'availability' && isOwnerOrAdmin && (
+          <DisponibilidadTab canEdit={isOwnerOrAdmin} members={members} />
         )}
 
         {activeTab === 'my-schedule' && isTechnician && (

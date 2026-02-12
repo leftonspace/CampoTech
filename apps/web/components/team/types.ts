@@ -9,7 +9,7 @@ export interface TeamMember {
     name: string;
     phone: string;
     email?: string;
-    role: 'OWNER' | 'DISPATCHER' | 'TECHNICIAN';
+    role: 'OWNER' | 'ADMIN' | 'TECHNICIAN';
     // Legacy single specialty (for backwards compatibility)
     specialty?: string;
     matricula?: string;

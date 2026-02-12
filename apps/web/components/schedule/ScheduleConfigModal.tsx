@@ -865,7 +865,7 @@ export default function ScheduleConfigModal({
                         >
                             {members.map(member => (
                                 <option key={member.id} value={member.id}>
-                                    {member.name} - {member.role === 'TECHNICIAN' ? 'Técnico' : member.role === 'DISPATCHER' ? 'Despachador' : member.role}
+                                    {member.name} - {member.role === 'TECHNICIAN' ? 'Técnico' : member.role === 'ADMIN' ? 'Administrador' : member.role}
                                 </option>
                             ))}
                         </select>

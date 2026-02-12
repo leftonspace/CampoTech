@@ -436,12 +436,12 @@ export const USER_ROLE_LABELS: Record<string, string> = {
   // Database enum values (uppercase)
   SUPER_ADMIN: 'Super Admin',
   OWNER: 'Propietario',
-  DISPATCHER: 'Administrador',
+  ADMIN: 'Administrador',
   TECHNICIAN: 'Técnico',
   // Lowercase keys for backwards compatibility
   super_admin: 'Super Admin',
   owner: 'Propietario',
-  dispatcher: 'Administrador',
+  admin: 'Administrador',
   technician: 'Técnico',
 };
 

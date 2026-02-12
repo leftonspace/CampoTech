@@ -27,7 +27,7 @@ describe('Field Permissions', () => {
         const field = ORGANIZATION_FIELDS.cuit;
         expect(field.status).toBe('locked');
         expect(field.visibleTo).toContain('OWNER');
-        expect(field.visibleTo).toContain('DISPATCHER');
+        expect(field.visibleTo).toContain('ADMIN');
         expect(field.visibleTo).toContain('TECHNICIAN');
         expect(field.editableBy).toHaveLength(0);
       });
@@ -92,17 +92,17 @@ describe('Field Permissions', () => {
       expect(CUSTOMER_FIELDS.cuit.status).toBe('locked');
     });
 
-    it('Customer name should be editable by OWNER and DISPATCHER', () => {
+    it('Customer name should be editable by OWNER and ADMIN', () => {
       const field = CUSTOMER_FIELDS.name;
       expect(field.editableBy).toContain('OWNER');
-      expect(field.editableBy).toContain('DISPATCHER');
+      expect(field.editableBy).toContain('ADMIN');
       expect(field.editableBy).not.toContain('TECHNICIAN');
     });
 
     it('Customer phone should be editable by all roles', () => {
       const field = CUSTOMER_FIELDS.phone;
       expect(field.editableBy).toContain('OWNER');
-      expect(field.editableBy).toContain('DISPATCHER');
+      expect(field.editableBy).toContain('ADMIN');
       expect(field.editableBy).toContain('TECHNICIAN');
     });
   });
@@ -119,7 +119,7 @@ describe('Field Permissions', () => {
     it('Job status should be editable by all roles', () => {
       const field = JOB_FIELDS.status;
       expect(field.editableBy).toContain('OWNER');
-      expect(field.editableBy).toContain('DISPATCHER');
+      expect(field.editableBy).toContain('ADMIN');
       expect(field.editableBy).toContain('TECHNICIAN');
     });
 
@@ -127,7 +127,7 @@ describe('Field Permissions', () => {
       const field = JOB_FIELDS.resolution;
       expect(field.editableBy).toContain('TECHNICIAN');
       expect(field.editableBy).not.toContain('OWNER');
-      expect(field.editableBy).not.toContain('DISPATCHER');
+      expect(field.editableBy).not.toContain('ADMIN');
     });
   });
 });
@@ -142,7 +142,7 @@ describe('Permission Helper Functions', () => {
 
     const allRolesField: FieldPermission = {
       status: 'editable',
-      visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+      visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
       editableBy: ['OWNER'],
     };
 
@@ -150,13 +150,13 @@ describe('Permission Helper Functions', () => {
       expect(canViewField(ownerOnlyField, 'OWNER')).toBe(true);
     });
 
-    it('DISPATCHER should not be able to view owner-only fields', () => {
-      expect(canViewField(ownerOnlyField, 'DISPATCHER')).toBe(false);
+    it('ADMIN should not be able to view owner-only fields', () => {
+      expect(canViewField(ownerOnlyField, 'ADMIN')).toBe(false);
     });
 
     it('All roles should be able to view public fields', () => {
       expect(canViewField(allRolesField, 'OWNER')).toBe(true);
-      expect(canViewField(allRolesField, 'DISPATCHER')).toBe(true);
+      expect(canViewField(allRolesField, 'ADMIN')).toBe(true);
       expect(canViewField(allRolesField, 'TECHNICIAN')).toBe(true);
     });
 
@@ -179,29 +179,29 @@ describe('Permission Helper Functions', () => {
     it('Nobody can edit locked fields', () => {
       const lockedField: FieldPermission = {
         status: 'locked',
-        visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+        visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
         editableBy: [],
       };
       expect(canEditField(lockedField, 'OWNER')).toBe(false);
-      expect(canEditField(lockedField, 'DISPATCHER')).toBe(false);
+      expect(canEditField(lockedField, 'ADMIN')).toBe(false);
       expect(canEditField(lockedField, 'TECHNICIAN')).toBe(false);
     });
 
     it('Only authorized roles can edit editable fields', () => {
       const ownerEditableField: FieldPermission = {
         status: 'editable',
-        visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+        visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
         editableBy: ['OWNER'],
       };
       expect(canEditField(ownerEditableField, 'OWNER')).toBe(true);
-      expect(canEditField(ownerEditableField, 'DISPATCHER')).toBe(false);
+      expect(canEditField(ownerEditableField, 'ADMIN')).toBe(false);
       expect(canEditField(ownerEditableField, 'TECHNICIAN')).toBe(false);
     });
 
     it('Nobody can edit readonly fields', () => {
       const readonlyField: FieldPermission = {
         status: 'readonly',
-        visibleTo: ['OWNER', 'DISPATCHER', 'TECHNICIAN'],
+        visibleTo: ['OWNER', 'ADMIN', 'TECHNICIAN'],
         editableBy: [],
       };
       expect(canEditField(readonlyField, 'OWNER')).toBe(false);
@@ -217,17 +217,17 @@ describe('Permission Helper Functions', () => {
       expect(canAccessModule('analytics', 'OWNER')).toBe(true);
     });
 
-    it('DISPATCHER should not have access to billing modules', () => {
-      expect(canAccessModule('invoices', 'DISPATCHER')).toBe(false);
-      expect(canAccessModule('payments', 'DISPATCHER')).toBe(false);
-      expect(canAccessModule('settings', 'DISPATCHER')).toBe(false);
+    it('ADMIN should not have access to billing modules', () => {
+      expect(canAccessModule('invoices', 'ADMIN')).toBe(false);
+      expect(canAccessModule('payments', 'ADMIN')).toBe(false);
+      expect(canAccessModule('settings', 'ADMIN')).toBe(false);
     });
 
-    it('DISPATCHER should have access to operations modules', () => {
-      expect(canAccessModule('jobs', 'DISPATCHER')).toBe(true);
-      expect(canAccessModule('customers', 'DISPATCHER')).toBe(true);
-      expect(canAccessModule('calendar', 'DISPATCHER')).toBe(true);
-      expect(canAccessModule('whatsapp', 'DISPATCHER')).toBe(true);
+    it('ADMIN should have access to operations modules', () => {
+      expect(canAccessModule('jobs', 'ADMIN')).toBe(true);
+      expect(canAccessModule('customers', 'ADMIN')).toBe(true);
+      expect(canAccessModule('calendar', 'ADMIN')).toBe(true);
+      expect(canAccessModule('whatsapp', 'ADMIN')).toBe(true);
     });
 
     it('TECHNICIAN should have limited access', () => {
@@ -242,13 +242,13 @@ describe('Permission Helper Functions', () => {
   describe('getModuleAccess', () => {
     it('should return correct access levels', () => {
       expect(getModuleAccess('dashboard', 'OWNER')).toBe('full');
-      expect(getModuleAccess('dashboard', 'DISPATCHER')).toBe('limited');
+      expect(getModuleAccess('dashboard', 'ADMIN')).toBe('limited');
       expect(getModuleAccess('dashboard', 'TECHNICIAN')).toBe('own');
     });
 
     it('should return hidden for non-accessible modules', () => {
       expect(getModuleAccess('invoices', 'TECHNICIAN')).toBe('hidden');
-      expect(getModuleAccess('settings', 'DISPATCHER')).toBe('hidden');
+      expect(getModuleAccess('settings', 'ADMIN')).toBe('hidden');
     });
   });
 
@@ -300,7 +300,7 @@ describe('Permission Helper Functions', () => {
 
 describe('Module Access Configuration', () => {
   it('should have correct module access for all 3 roles', () => {
-    const roles: UserRole[] = ['OWNER', 'DISPATCHER', 'TECHNICIAN'];
+    const roles: UserRole[] = ['OWNER', 'ADMIN', 'TECHNICIAN'];
 
     for (const module of Object.keys(MODULE_ACCESS)) {
       for (const role of roles) {
@@ -313,7 +313,7 @@ describe('Module Access Configuration', () => {
 
   it('Schedule module should be accessible with correct levels', () => {
     expect(MODULE_ACCESS.schedule.OWNER).toBe('full');
-    expect(MODULE_ACCESS.schedule.DISPATCHER).toBe('full');
+    expect(MODULE_ACCESS.schedule.ADMIN).toBe('full');
     expect(MODULE_ACCESS.schedule.TECHNICIAN).toBe('own');
   });
 

@@ -34,7 +34,7 @@ This plan introduces a **hybrid pricing mode** that allows business owners to ch
 
 ## 🎯 Success Criteria
 
-- [ ] Dispatchers can create multi-visit jobs with per-visit pricing
+- [ ] ADMINs can create multi-visit jobs with per-visit pricing
 - [ ] Total job price auto-calculates from visit prices
 - [ ] Technicians can report actual prices per visit (within limits)
 - [ ] Invoice generation respects per-visit pricing mode
@@ -78,7 +78,7 @@ model JobVisit {
   // Only populated when parent Job.pricingMode != FIXED_TOTAL
   // ═══════════════════════════════════════════════════════════════════════════
   
-  // Estimated price for this specific visit (set by dispatcher)
+  // Estimated price for this specific visit (set by ADMIN)
   estimatedPrice      Decimal?   @db.Decimal(12, 2) @map("estimated_price")
   
   // Actual price (set by technician after completion, may differ from estimate)

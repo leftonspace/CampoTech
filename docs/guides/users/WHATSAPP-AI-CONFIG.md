@@ -162,7 +162,7 @@ Podés agregar o quitar palabras según tu negocio.
 
 Seleccioná quién recibirá notificaciones cuando la IA transfiera una conversación:
 - El dueño de la cuenta
-- Un dispatcher específico
+- Un ADMIN específico
 - Cualquier usuario con rol de atención
 
 ### Instrucciones Personalizadas

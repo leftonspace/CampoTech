@@ -133,7 +133,7 @@ export async function PUT(
     }
 
     const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
-    if (!['OWNER', 'DISPATCHER'].includes(userRole)) {
+    if (!['OWNER', 'ADMIN'].includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para esta operación' },
         { status: 403 }

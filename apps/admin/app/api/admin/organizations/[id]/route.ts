@@ -40,7 +40,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         },
         users: {
           where: {
-            role: { in: ['DISPATCHER', 'TECHNICIAN'] },
+            role: { in: ['ADMIN', 'TECHNICIAN'] },
           },
           select: {
             id: true,

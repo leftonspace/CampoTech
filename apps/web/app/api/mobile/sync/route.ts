@@ -598,7 +598,7 @@ async function processPaymentSync(
     console.warn(
       `[Payment Sync] ⚠️ PARTIAL PAYMENT for job ${jobId}: ` +
       `Collected $${clientPaymentAmount} of $${remainingBalance.toFixed(2)} owed. ` +
-      `userId=${userId}. Flagging for dispatcher review.`
+      `userId=${userId}. Flagging for ADMIN review.`
     );
 
     // Log partial payment

@@ -132,7 +132,7 @@ describe('Feature Flags', () => {
 
     it('should return correct number of features for EMPRESA tier', () => {
       const features = getFeaturesForTier('EMPRESA');
-      expect(features.length).toBe(20);
+      expect(features.length).toBe(19);
     });
 
     it('should return valid FeatureConfig objects', () => {

@@ -36,21 +36,21 @@ describe('AFIP Client', () => {
   describe('CUIT Validation', () => {
     describe('validateCUIT', () => {
       it('should validate correct CUIT for persona jurídica', () => {
-        const result = validateCUIT('30-71659554-9');
+        const result = validateCUIT('30-71659554-0');
 
         expect(result.valid).toBe(true);
         expect(result.type).toBe('persona_juridica');
       });
 
       it('should validate correct CUIT for persona física', () => {
-        const result = validateCUIT('20-12345678-3');
+        const result = validateCUIT('20-12345678-6');
 
         expect(result.valid).toBe(true);
         expect(result.type).toBe('persona_fisica');
       });
 
       it('should accept CUIT without dashes', () => {
-        const result = validateCUIT('30716595549');
+        const result = validateCUIT('30716595540');
 
         expect(result.valid).toBe(true);
       });
@@ -59,7 +59,7 @@ describe('AFIP Client', () => {
         const result = validateCUIT('30-1234567-9');
 
         expect(result.valid).toBe(false);
-        expect(result.error).toContain('11 dígitos');
+        expect(result.error).toContain('11 digitos');
       });
 
       it('should reject CUIT with invalid prefix', () => {
@@ -73,33 +73,33 @@ describe('AFIP Client', () => {
         const result = validateCUIT('30-71659554-8'); // Wrong check digit
 
         expect(result.valid).toBe(false);
-        expect(result.error).toContain('dígito verificador');
+        expect(result.error).toContain('digito verificador');
       });
 
       it('should handle CUIT with spaces', () => {
-        const result = validateCUIT('30 71659554 9');
+        const result = validateCUIT('30 71659554 0');
 
         expect(result.valid).toBe(true);
       });
 
       it('should return formatted CUIT', () => {
-        const result = validateCUIT('30716595549');
+        const result = validateCUIT('30716595540');
 
-        expect(result.formatted).toBe('30-71659554-9');
+        expect(result.formatted).toBe('30-71659554-0');
       });
     });
 
     describe('formatCUIT', () => {
       it('should format raw CUIT with dashes', () => {
-        const formatted = formatCUIT('30716595549');
+        const formatted = formatCUIT('30716595540');
 
-        expect(formatted).toBe('30-71659554-9');
+        expect(formatted).toBe('30-71659554-0');
       });
 
       it('should handle already formatted CUIT', () => {
-        const formatted = formatCUIT('30-71659554-9');
+        const formatted = formatCUIT('30-71659554-0');
 
-        expect(formatted).toBe('30-71659554-9');
+        expect(formatted).toBe('30-71659554-0');
       });
 
       it('should return empty string for invalid input', () => {
@@ -130,11 +130,11 @@ describe('AFIP Client', () => {
   describe('AFIP API Responses', () => {
     describe('mockAFIPResponses.cuitValid', () => {
       it('should return valid CUIT data structure', () => {
-        const response = mockAFIPResponses.cuitValid('30-71659554-9');
+        const response = mockAFIPResponses.cuitValid('30-71659554-0');
 
         expect(response.success).toBe(true);
         expect(response.data).toBeDefined();
-        expect(response.data.cuit).toBe('30716595549');
+        expect(response.data.cuit).toBe('30716595540');
         expect(response.data.denominacion).toBeDefined();
         expect(response.data.tipoPersona).toBeDefined();
         expect(response.data.estadoClave).toBe('ACTIVO');
@@ -328,17 +328,17 @@ describe('AFIP Client', () => {
 
   describe('CUIT Type Detection', () => {
     it('should detect persona física for 20 prefix', () => {
-      const result = validateCUIT('20-12345678-3');
+      const result = validateCUIT('20-12345678-6');
       expect(result.type).toBe('persona_fisica');
     });
 
     it('should detect persona física for 23 prefix', () => {
-      const result = validateCUIT('23-12345678-9');
+      const result = validateCUIT('23-12345678-5');
       expect(result.type).toBe('persona_fisica');
     });
 
     it('should detect persona física for 24 prefix', () => {
-      const result = validateCUIT('24-12345678-6');
+      const result = validateCUIT('24-12345678-1');
       expect(result.type).toBe('persona_fisica');
     });
 
@@ -348,17 +348,17 @@ describe('AFIP Client', () => {
     });
 
     it('should detect persona jurídica for 30 prefix', () => {
-      const result = validateCUIT('30-12345678-5');
+      const result = validateCUIT('30-12345678-1');
       expect(result.type).toBe('persona_juridica');
     });
 
     it('should detect persona jurídica for 33 prefix', () => {
-      const result = validateCUIT('33-12345678-8');
+      const result = validateCUIT('33-12345678-0');
       expect(result.type).toBe('persona_juridica');
     });
 
     it('should detect persona jurídica for 34 prefix', () => {
-      const result = validateCUIT('34-12345678-5');
+      const result = validateCUIT('34-12345678-7');
       expect(result.type).toBe('persona_juridica');
     });
   });

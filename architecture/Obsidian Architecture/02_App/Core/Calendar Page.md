@@ -11,7 +11,7 @@ path: apps/web/app/dashboard/calendar/page.tsx
 # 📅 Calendar / Agenda
 
 > [!INFO] **Purpose**
-> Visual scheduling interface for managing work orders across days, weeks, and months. Core tool for dispatchers and technicians to manage their time.
+> Visual scheduling interface for managing work orders across days, weeks, and months. Core tool for ADMINs and technicians to manage their time.
 
 ---
 

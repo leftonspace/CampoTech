@@ -192,7 +192,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const session = await getSession();
     const { id } = await params;
 
-    if (!session || session.role !== 'OWNER' && session.role !== 'DISPATCHER') {
+    if (!session || session.role !== 'OWNER' && session.role !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'Unauthorized' },
         { status: 403 }
