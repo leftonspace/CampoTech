@@ -37,7 +37,7 @@
     "@upstash/ratelimit": "^2.0.7",
     "@upstash/redis": "^1.34.3",
     "ansi-styles": "^6.2.3",
-    "axios": "^1.13.2",
+    "axios": "^1.13.5",
     "bcryptjs": "^2.4.3",
     "bullmq": "^5.1.0",
     "clsx": "^2.1.0",
