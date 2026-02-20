@@ -858,8 +858,19 @@ export class JobService {
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '');
 
-        // Build entity filter if specified
-        const entityFilter = entityType ? `AND entity_type = '${entityType}'` : '';
+        // Whitelist valid entity types to prevent injection
+        const VALID_ENTITIES = ['jobs', 'customers', 'team', 'vehicles', 'inventory', 'invoices', 'payments'];
+        const safeEntityType = entityType && VALID_ENTITIES.includes(entityType) ? entityType : undefined;
+
+        // Build parameterized query — entity filter uses $3 placeholder when present
+        const params: (string | number)[] = [orgId, normalizedQuery];
+        let entityFilter = '';
+        if (safeEntityType) {
+            entityFilter = 'AND entity_type = $3';
+            params.push(safeEntityType);
+        }
+        const limitParam = `$${params.length + 1}`;
+        params.push(limit);
 
         const results = await prisma.$queryRawUnsafe<GlobalSearchResult[]>(`
             SELECT 
@@ -886,8 +897,8 @@ export class JobService {
                     WHEN 'payments' THEN 7
                 END,
                 sort_date DESC NULLS LAST
-            LIMIT $3
-        `, orgId, normalizedQuery, limit);
+            LIMIT ${limitParam}
+        `, ...params);
 
         return results;
     }

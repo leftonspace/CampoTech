@@ -695,6 +695,8 @@ export const MODULE_ACCESS: Record<string, Record<UserRole, ModuleAccess>> = {
   invoices: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'hidden', TECHNICIAN: 'hidden' },
   // Payments: SUPER_ADMIN/Owner only (billing access)
   payments: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'hidden', TECHNICIAN: 'hidden' },
+  // Billing Hub (unified invoices + payments): SUPER_ADMIN/Owner only
+  billing: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'hidden', TECHNICIAN: 'hidden' },
   // Fleet: SUPER_ADMIN/Owner manages vehicles, ADMIN views, Technician sees assigned vehicle
   fleet: { SUPER_ADMIN: 'full', OWNER: 'full', ADMIN: 'view', TECHNICIAN: 'own' },
   // Inventory: SUPER_ADMIN/Owner manages, ADMIN views stock, Technician logs usage

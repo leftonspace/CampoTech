@@ -497,6 +497,7 @@ export const ALWAYS_AVAILABLE_MODULES: string[] = [
   'jobs',
   'customers',
   'invoices',
+  'billing',
   'settings',
 ];
 
@@ -552,8 +553,7 @@ export const DASHBOARD_NAV: NavItem[] = [
   { id: 'jobs', label: 'Trabajos', href: '/dashboard/jobs', icon: 'wrench' },
   { id: 'customers', label: 'Clientes', href: '/dashboard/customers', icon: 'users' },
   { id: 'calendar', label: 'Calendario', href: '/dashboard/calendar', icon: 'calendar', feature: 'calendar_view' },
-  { id: 'invoices', label: 'Facturas', href: '/dashboard/invoices', icon: 'file-text' },
-  { id: 'payments', label: 'Pagos', href: '/dashboard/payments', icon: 'credit-card', feature: 'mercado_pago' },
+  { id: 'billing', label: 'Facturación', href: '/dashboard/billing', icon: 'file-text' },
   { id: 'fleet', label: 'Flota', href: '/dashboard/fleet', icon: 'truck', feature: 'fleet_management' },
   { id: 'inventory', label: 'Inventario', href: '/dashboard/inventory', icon: 'package', feature: 'inventory_management' },
   { id: 'dispatch', label: 'Despacho', href: '/dashboard/dispatch', icon: 'map-pin', feature: 'live_tracking' },

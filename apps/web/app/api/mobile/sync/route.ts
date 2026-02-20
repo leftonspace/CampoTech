@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { tryAutoInvoice } from '@/lib/services/auto-invoicing.service';
 
 /**
  * Mobile Sync API
@@ -565,6 +566,11 @@ async function processPaymentSync(
 
     console.log(`[Payment Sync] ✅ Payment processed for job ${jobId}: $${clientPaymentAmount}`);
 
+    // Phase 2: Auto-invoicing trigger (fire-and-forget)
+    tryAutoInvoice(jobId, organizationId, userId).catch((err) => {
+      console.error(`[AutoInvoice] Error after payment sync for job ${jobId}:`, err);
+    });
+
     // Log successful payment
     await logSyncOperation(auditContext, {
       operationType: 'payment_sync',
@@ -667,6 +673,11 @@ async function processPaymentSync(
         resolution: `PAYMENT_VARIANCE: Client claimed $${clientPaymentAmount}, server balance was $${remainingBalance.toFixed(2)}`,
         updatedAt: new Date(),
       },
+    });
+
+    // Phase 2: Auto-invoicing trigger even for variance cases (fire-and-forget)
+    tryAutoInvoice(jobId, organizationId, userId).catch((err) => {
+      console.error(`[AutoInvoice] Error after variance payment for job ${jobId}:`, err);
     });
 
     return {

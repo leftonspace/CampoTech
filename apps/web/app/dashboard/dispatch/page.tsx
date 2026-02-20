@@ -20,6 +20,7 @@ import {
   X,
 } from 'lucide-react';
 import { Job, User as UserType } from '@/types';
+import TechnicianRouteWidget from '@/components/dispatch/TechnicianRouteWidget';
 
 const PRIORITY_COLORS: Record<string, string> = {
   low: 'border-l-gray-400',
@@ -270,6 +271,12 @@ function DispatchContent() {
                     </p>
                   </div>
                 </div>
+                <TechnicianRouteWidget
+                  technicianId={tech.id}
+                  technicianName={tech.name}
+                  date={dateStr}
+                  jobCount={byTechnician[tech.id]?.length || 0}
+                />
               </div>
               <div
                 className={cn(

@@ -24,7 +24,6 @@ import {
     Loader2,
     Car,
     Package,
-    CreditCard,
     Filter,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -37,8 +36,7 @@ const CATEGORIES = [
     { value: 'team', label: 'Equipo', icon: UsersRound, pathMatch: '/dashboard/team' },
     { value: 'vehicles', label: 'Vehículos', icon: Car, pathMatch: '/dashboard/fleet' },
     { value: 'inventory', label: 'Inventario', icon: Package, pathMatch: '/dashboard/inventory' },
-    { value: 'invoices', label: 'Facturas', icon: FileText, pathMatch: '/dashboard/invoices' },
-    { value: 'payments', label: 'Pagos', icon: CreditCard, pathMatch: '/dashboard/payments' },
+    { value: 'billing', label: 'Facturación', icon: FileText, pathMatch: '/dashboard/billing' },
 ] as const;
 
 // Page-specific filter configurations
@@ -74,27 +72,9 @@ const PAGE_FILTERS: Record<string, PageFilterConfig> = {
         // Inventory uses category filter
         categoryParamName: 'categoryId',
     },
-    invoices: {
-        statusOptions: [
-            { value: '', label: 'Todos los estados' },
-            { value: 'draft', label: 'Borrador' },
-            { value: 'pending_cae', label: 'Pendiente CAE' },
-            { value: 'issued', label: 'Emitida' },
-            { value: 'sent', label: 'Enviada' },
-            { value: 'paid', label: 'Pagada' },
-            { value: 'overdue', label: 'Vencida' },
-        ],
-        statusParamName: 'status',
-    },
-    payments: {
-        statusOptions: [
-            { value: '', label: 'Todos los estados' },
-            { value: 'pending', label: 'Pendiente' },
-            { value: 'approved', label: 'Aprobado' },
-            { value: 'rejected', label: 'Rechazado' },
-            { value: 'refunded', label: 'Reembolsado' },
-        ],
-        statusParamName: 'status',
+    billing: {
+        // Billing inline search filters items by customer name
+        // Pipeline stages act as the filter via URL stage param
     },
 };
 
@@ -130,6 +110,9 @@ export function GlobalSearch() {
     const searchParams = useSearchParams();
     const inputRef = useRef<HTMLInputElement>(null);
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const categoryBtnRef = useRef<HTMLButtonElement>(null);
+    const hasSyncedFromUrl = useRef(false);
+    const [categoryBtnWidth, setCategoryBtnWidth] = useState(80);
 
     const [query, setQuery] = useState('');
     const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -138,6 +121,18 @@ export function GlobalSearch() {
     const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
     const [showMoreFilters, setShowMoreFilters] = useState(false);
+
+    // Measure category button width to position clear × button and input padding
+    useEffect(() => {
+        const measure = () => {
+            if (categoryBtnRef.current) {
+                setCategoryBtnWidth(categoryBtnRef.current.offsetWidth + 8);
+            }
+        };
+        measure();
+        const timer = setTimeout(measure, 100);
+        return () => clearTimeout(timer);
+    }, [selectedCategory]);
 
     // Detect current page category
     const currentPageCategory = useMemo(() => {
@@ -155,8 +150,8 @@ export function GlobalSearch() {
 
     // Determine if we're searching in the current page's category (inline mode)
     const isInlineMode = useMemo(() => {
-        return currentPageCategory !== null && selectedCategory === currentPageCategory;
-    }, [currentPageCategory, selectedCategory]);
+        return currentPageCategory !== null && selectedCategory === currentPageCategory && !!currentFilterConfig;
+    }, [currentPageCategory, selectedCategory, currentFilterConfig]);
 
     // Get current filter values from URL
     const currentStatusFilter = searchParams.get(currentFilterConfig?.statusParamName || 'status') || '';
@@ -174,17 +169,20 @@ export function GlobalSearch() {
         setQuery('');
         setDebouncedQuery('');
         setShowMoreFilters(false);
+        hasSyncedFromUrl.current = false; // Allow re-sync on next page change
     }, [currentPageCategory]);
 
-    // Sync query from URL search param (for inline mode)
+    // Sync query from URL search param (for inline mode) — only on page navigation, not on every URL change.
+    // This prevents a feedback loop: user deletes text → query empties → stale URL restores it.
     useEffect(() => {
-        if (isInlineMode) {
+        if (isInlineMode && !hasSyncedFromUrl.current) {
             const urlSearch = searchParams.get('search') || '';
-            if (urlSearch && !query) {
+            if (urlSearch) {
                 setQuery(urlSearch);
             }
+            hasSyncedFromUrl.current = true;
         }
-    }, [searchParams, isInlineMode, query]);
+    }, [isInlineMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Debounce search query
     useEffect(() => {
@@ -389,19 +387,27 @@ export function GlobalSearch() {
                     }}
                     onKeyDown={handleKeyDown}
                     placeholder={isInlineMode ? `Buscar en ${currentCategoryLabel}...` : 'Buscar...'}
-                    className="w-full pl-10 pr-28 h-10 bg-secondary border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    className="w-full pl-10 h-10 bg-secondary border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    style={{ paddingRight: categoryBtnWidth + (query ? 28 : 12) }}
                 />
 
                 {/* Category Selector Button */}
                 <button
-                    onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2 py-1 rounded-md bg-muted hover:bg-muted/80 text-xs font-medium text-muted-foreground"
+                    ref={categoryBtnRef}
+                    onClick={() => {
+                        setShowCategoryDropdown(!showCategoryDropdown);
+                        // Measure on click too in case font loaded late
+                        if (categoryBtnRef.current) {
+                            setCategoryBtnWidth(categoryBtnRef.current.offsetWidth + 8);
+                        }
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2 py-1 rounded-md bg-muted hover:bg-muted/80 text-xs font-medium text-muted-foreground whitespace-nowrap"
                 >
                     {currentCategoryLabel}
                     <ChevronDown className="w-3 h-3" />
                 </button>
 
-                {/* Clear button */}
+                {/* Clear button — positioned dynamically to the left of category button */}
                 {query && (
                     <button
                         onClick={() => {
@@ -409,7 +415,8 @@ export function GlobalSearch() {
                             setIsOpen(false);
                             inputRef.current?.focus();
                         }}
-                        className="absolute right-24 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted"
+                        className="absolute top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted"
+                        style={{ right: categoryBtnWidth + 4 }}
                     >
                         <X className="w-3 h-3 text-muted-foreground" />
                     </button>

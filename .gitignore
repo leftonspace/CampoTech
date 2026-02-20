@@ -55,3 +55,6 @@ build-errors.txt
 
 # Expo
 .expo/
+
+# Gemini CLI task delegation
+Gemini_CLI_Interactions/

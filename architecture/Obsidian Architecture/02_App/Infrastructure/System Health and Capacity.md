@@ -237,6 +237,8 @@ Your current architecture IS designed to scale. The patterns are correct:
 | Read replica support | ✅ | Code exists, not deployed |
 | Background jobs | ✅ | Cron-based |
 | Multi-tenant isolation | ✅ | organizationId on all tables |
+| **Spatial extensions** | ✅ | `cube` + `earthdistance` for marketplace 1,000+ org queries |
+| **Composite indexes** | ✅ | `technician_locations`, `employee_schedules`, `schedule_exceptions` |
 
 **What's needed for 100k organizations:**
 1. ✅ Upgrade service tiers (infrastructure)

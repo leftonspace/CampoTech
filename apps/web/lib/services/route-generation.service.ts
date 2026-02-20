@@ -41,6 +41,8 @@ interface DirectionsResponse {
         legs: Array<{
             distance: { value: number };
             duration: { value: number };
+            /** Traffic-aware duration (only when departure_time is set) */
+            duration_in_traffic?: { value: number };
         }>;
         waypoint_order?: number[];
     }>;
@@ -133,8 +135,9 @@ class RouteGenerationService {
                             (sum, leg) => sum + leg.distance.value,
                             0
                         ) || 0;
+                        // Prefer traffic-aware duration when available
                         durationSeconds = routeData.routes?.[0]?.legs.reduce(
-                            (sum, leg) => sum + leg.duration.value,
+                            (sum, leg) => sum + (leg.duration_in_traffic?.value ?? leg.duration.value),
                             0
                         ) || 0;
                         optimizedOrder = routeData.routes?.[0]?.waypoint_order;
@@ -194,8 +197,9 @@ class RouteGenerationService {
                         (sum, leg) => sum + leg.distance.value,
                         0
                     ) || 0;
+                    // Prefer traffic-aware duration when available
                     durationSeconds = routeData.routes?.[0]?.legs.reduce(
-                        (sum, leg) => sum + leg.duration.value,
+                        (sum, leg) => sum + (leg.duration_in_traffic?.value ?? leg.duration.value),
                         0
                     ) || 0;
                     optimizedOrder = routeData.routes?.[0]?.waypoint_order;
@@ -313,7 +317,10 @@ class RouteGenerationService {
             ? `&waypoints=optimize:true|${waypoints.map((w) => encodeURIComponent(w)).join('|')}`
             : '';
 
-        const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${waypointsParam}&mode=${GOOGLE_MAPS_CONFIG.defaults.travelMode}&language=${GOOGLE_MAPS_CONFIG.defaults.language}&region=${GOOGLE_MAPS_CONFIG.defaults.region}&key=${apiKey}`;
+        // departure_time=now enables traffic-aware duration and route optimization
+        const trafficParams = `&departure_time=now&traffic_model=best_guess`;
+
+        const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}${waypointsParam}&mode=${GOOGLE_MAPS_CONFIG.defaults.travelMode}&language=${GOOGLE_MAPS_CONFIG.defaults.language}&region=${GOOGLE_MAPS_CONFIG.defaults.region}${trafficParams}&key=${apiKey}`;
 
         try {
             const response = await fetch(url);

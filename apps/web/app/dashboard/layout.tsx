@@ -64,8 +64,7 @@ const allNavigation: NavItemDef[] = [
   { name: 'Equipo', href: '/dashboard/team', icon: UsersRound, module: 'team' },
   { name: 'Vehículos', href: '/dashboard/fleet', icon: Truck, module: 'fleet' },
   { name: 'Inventario', href: '/dashboard/inventory', icon: Package, module: 'inventory' },
-  { name: 'Facturas', href: '/dashboard/invoices', icon: FileText, module: 'invoices' },
-  { name: 'Pagos', href: '/dashboard/payments', icon: CreditCard, module: 'payments' },
+  { name: 'Facturación', href: '/dashboard/billing', icon: FileText, module: 'invoices' },
   { name: 'Análisis', href: '/dashboard/analytics/overview', icon: BarChart3, module: 'analytics' },
   { name: 'WhatsApp', href: '/dashboard/whatsapp', icon: MessageCircle, module: 'whatsapp' },
 ];

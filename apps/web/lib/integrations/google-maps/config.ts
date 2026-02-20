@@ -36,6 +36,26 @@ export const GOOGLE_MAPS_CONFIG = {
         maxWaypoints: 10, // Google Maps allows max 10 waypoints per request
         maxJobsBeforeSegment: 10, // Create new segment after 10 jobs
     },
+
+    // Distance Matrix API limits
+    distanceMatrix: {
+        /** Max origins per single API call */
+        maxOriginsPerRequest: 25,
+        /** Max total elements (origins × destinations) per request */
+        maxElementsPerRequest: 100,
+        /** Free tier monthly quota */
+        freeMonthlyElements: 40_000,
+        /** Traffic model for ETA accuracy */
+        trafficModel: 'best_guess' as const,
+    },
+
+    // Multi-modal support for Buenos Aires
+    multiModal: {
+        /** Modes relevant for AR field service (transit = subte/tren/colectivo where available) */
+        supportedModes: ['driving', 'bicycling', 'transit'] as const,
+        /** Include transit for completeness (rarely used by technicians) */
+        allModes: ['driving', 'bicycling', 'transit', 'walking'] as const,
+    },
 };
 
 /**

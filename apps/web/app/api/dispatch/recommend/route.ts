@@ -19,6 +19,13 @@ import {
   JobContext,
   AIDispatchResult,
 } from '@/lib/services/ai-dispatch';
+import {
+  haversineDistanceKm,
+  getBatchDistances,
+  getBuenosAiresTrafficContext,
+  compareMultiModal,
+  type TravelMode,
+} from '@/lib/integrations/google-maps/distance-matrix';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -52,6 +59,10 @@ interface TechnicianRecommendation {
   currentStatus: string;
   distanceKm: number;
   etaMinutes: number;
+  /** Human-readable ETA string from Distance Matrix (e.g. "23 min") */
+  etaText: string;
+  /** True if ETA comes from real Distance Matrix API with live traffic data */
+  isRealEta: boolean;
   score: number;
   confidenceLevel: 'high' | 'medium' | 'low';
   reasons: string[];
@@ -90,38 +101,34 @@ const URGENCY_DISTANCE_PENALTY = 0.5; // Extra weight on distance for urgent job
 // HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function calculateDistance(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLng / 2) *
-    Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
+// NOTE: calculateDistance and estimateETA have been replaced by imports from
+// distance-matrix.ts — haversineDistanceKm for pre-filtering, and real
+// Distance Matrix API calls for actual travel time with live traffic.
 
-function estimateETA(distanceKm: number): number {
+function estimateETAFallback(distanceKm: number): number {
+  // Simple fallback — only used when Distance Matrix API is unavailable
   const avgSpeedKmh = 30;
   return Math.round((distanceKm / avgSpeedKmh) * 60);
 }
 
-function calculateProximityScore(distanceKm: number, isUrgent: boolean): number {
+/**
+ * Calculate proximity score using real ETA (minutes) instead of distance.
+ * This is the Phase 1 key upgrade: score based on actual travel time,
+ * not straight-line distance.
+ */
+function calculateProximityScore(
+  etaMinutes: number,
+  distanceKm: number,
+  isUrgent: boolean,
+): number {
   if (distanceKm > MAX_DISTANCE_KM) return 0;
 
-  // Linear decay from 100 (0km) to 0 (MAX_DISTANCE_KM)
-  let score = 100 * (1 - distanceKm / MAX_DISTANCE_KM);
+  // ETA-based scoring (max 60 min considered, then 0)
+  const MAX_ETA_MINUTES = 60;
+  let score = 100 * Math.max(0, 1 - etaMinutes / MAX_ETA_MINUTES);
 
-  // For urgent jobs, penalize distance more heavily
-  if (isUrgent && distanceKm > 5) {
+  // For urgent jobs, penalize long ETAs more heavily
+  if (isUrgent && etaMinutes > 15) {
     score *= URGENCY_DISTANCE_PENALTY;
   }
 
@@ -418,20 +425,72 @@ export async function POST(request: NextRequest) {
     // Calculate scores and build recommendations
     const recommendations: TechnicianRecommendation[] = [];
 
+    // ─── Phase 1: Batch Distance Matrix ────────────────────────────────
+    // Pre-filter candidates by Haversine, then get real ETAs via Distance Matrix
+    const trafficContext = getBuenosAiresTrafficContext();
+
+    interface TechWithLocation {
+      tech: typeof technicians[number];
+      techLat: number;
+      techLng: number;
+      haversineKm: number;
+      hasLocation: boolean;
+    }
+
+    const candidatesForMatrix: TechWithLocation[] = [];
+
     for (const tech of technicians) {
-      // Skip if no location data
-      const hasLocation = tech.currentLocation?.latitude && tech.currentLocation?.longitude;
+      const hasLocation = !!(tech.currentLocation?.latitude && tech.currentLocation?.longitude);
       const techLat = hasLocation ? Number(tech.currentLocation!.latitude) : null;
       const techLng = hasLocation ? Number(tech.currentLocation!.longitude) : null;
 
-      // Calculate distance (use large default if no location)
-      const distanceKm =
+      // Pre-filter by Haversine distance
+      const haversineKm =
         techLat !== null && techLng !== null
-          ? calculateDistance(techLat, techLng, jobLocation.lat, jobLocation.lng)
+          ? haversineDistanceKm(techLat, techLng, jobLocation.lat, jobLocation.lng)
           : MAX_DISTANCE_KM;
 
-      // Skip if too far
-      if (distanceKm > MAX_DISTANCE_KM) continue;
+      if (haversineKm > MAX_DISTANCE_KM) continue;
+
+      candidatesForMatrix.push({
+        tech,
+        techLat: techLat ?? 0,
+        techLng: techLng ?? 0,
+        haversineKm,
+        hasLocation,
+      });
+    }
+
+    // Call Distance Matrix API for all candidates → job location
+    const matrixOrigins = candidatesForMatrix
+      .filter((c) => c.hasLocation)
+      .map((c) => ({
+        id: c.tech.id,
+        location: `${c.techLat},${c.techLng}`,
+      }));
+
+    const destinationStr = `${jobLocation.lat},${jobLocation.lng}`;
+    const batchResult = await getBatchDistances(matrixOrigins, destinationStr, 'driving');
+
+    // Build a map of tech ID → real ETA/distance
+    const matrixMap = new Map<string, { distanceKm: number; etaMinutes: number; etaText: string; isRealEta: boolean }>();
+    for (let i = 0; i < matrixOrigins.length; i++) {
+      const result = batchResult.results.find((r) => r.originIndex === i);
+      if (result) {
+        matrixMap.set(matrixOrigins[i].id, {
+          distanceKm: result.element.distanceMeters / 1000,
+          etaMinutes: Math.ceil(result.effectiveEtaSeconds / 60),
+          etaText: result.element.durationInTrafficText ?? result.element.durationText,
+          isRealEta: result.element.durationInTrafficSeconds !== null,
+        });
+      }
+    }
+
+    // ─── Score each candidate ────────────────────────────────────────────
+    for (const { tech, techLat, techLng, haversineKm, hasLocation } of candidatesForMatrix) {
+      const matrixData = matrixMap.get(tech.id);
+      const distanceKm = matrixData?.distanceKm ?? haversineKm;
+      const etaMinutes = matrixData?.etaMinutes ?? estimateETAFallback(haversineKm);
 
       // ═══════════════════════════════════════════════════════════════════════════════
       // SPECIALTY FILTERING (Optional convenience feature)
@@ -468,8 +527,8 @@ export async function POST(request: NextRequest) {
         else status = 'disponible';
       }
 
-      // Calculate individual scores
-      const proximityScore = calculateProximityScore(distanceKm, isUrgent);
+      // Calculate individual scores (using real ETA for proximity!)
+      const proximityScore = calculateProximityScore(etaMinutes, distanceKm, isUrgent);
       const availabilityScore = calculateAvailabilityScore(
         status,
         currentJob?.startedAt || null
@@ -505,8 +564,6 @@ export async function POST(request: NextRequest) {
         specialtyBonus // Extra boost for matching specialty
       );
 
-      const etaMinutes = estimateETA(distanceKm);
-
       recommendations.push({
         id: tech.id,
         name: tech.name,
@@ -517,6 +574,8 @@ export async function POST(request: NextRequest) {
         currentStatus: status,
         distanceKm: Math.round(distanceKm * 10) / 10,
         etaMinutes,
+        etaText: matrixData?.etaText ?? `~${etaMinutes} min`,
+        isRealEta: matrixData?.isRealEta ?? false,
         score: Math.round(totalScore),
         confidenceLevel: getConfidenceLevel(totalScore),
         reasons: generateReasons(
@@ -627,6 +686,21 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ─── Phase 2: Multi-Modal Comparison (rush hour) ──────────────────
+    let multiModalData = null;
+    if (trafficContext.isRushHour && topRecommendations.length > 0) {
+      // Compare driving vs moto/bici for the top candidate
+      const topRec = topRecommendations[0];
+      if (topRec.currentLocation) {
+        const topOrigin = `${topRec.currentLocation.lat},${topRec.currentLocation.lng}`;
+        multiModalData = await compareMultiModal(
+          topOrigin,
+          destinationStr,
+          ['driving', 'bicycling', 'transit'] as TravelMode[],
+        );
+      }
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -642,6 +716,14 @@ export async function POST(request: NextRequest) {
         aiAvailable,
         aiSummary: aiResult?.summary || null,
         aiAlternativeStrategy: aiResult?.alternativeStrategy || null,
+        // Buenos Aires traffic intelligence (Phase 2)
+        traffic: {
+          context: trafficContext,
+          multiModal: multiModalData,
+          modeRecommendation: multiModalData?.fastestMode !== 'driving'
+            ? `En hora pico, ${multiModalData?.fastestMode === 'bicycling' ? 'moto/bici' : 'transporte público'} llegaría en ${multiModalData?.fastestEtaText}`
+            : null,
+        },
       },
     });
   } catch (error) {

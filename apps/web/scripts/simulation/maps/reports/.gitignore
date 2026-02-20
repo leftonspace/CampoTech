@@ -1,0 +1,4 @@
+# Generated reports — don't commit (each run generates a new one)
+*
+!.gitkeep
+!.gitignore

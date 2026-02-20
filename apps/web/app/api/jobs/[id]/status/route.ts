@@ -6,6 +6,7 @@ import { randomUUID } from 'crypto';
 import { JobService } from '@/src/services/job.service';
 import { jobRouteIntegrationService } from '@/lib/services/job-route-integration.service';
 import { validateBody, jobStatusSchema } from '@/lib/validation/api-schemas';
+import { tryAutoInvoice } from '@/lib/services/auto-invoicing.service';
 
 type JobStatus = 'PENDING' | 'SCHEDULED' | 'ASSIGNED' | 'EN_ROUTE' | 'ARRIVED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
 
@@ -113,6 +114,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       if (newStatus === 'COMPLETED') {
         jobRouteIntegrationService.onJobCompleted(id).catch((err) => {
           console.error('Route regeneration error:', err);
+        });
+
+        // Phase 2 Billing Hub: Auto-invoicing trigger (non-blocking)
+        tryAutoInvoice(id, session.organizationId, session.userId).catch((err) => {
+          console.error('Auto-invoicing error:', err);
         });
       }
     }

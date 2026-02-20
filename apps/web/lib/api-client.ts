@@ -313,6 +313,53 @@ export const api = {
       apiRequest<unknown[]>(`/jobs/calendar?start=${start}&end=${end}`),
   },
 
+  // Routes (Phase 2.3 - Multi-Stop Navigation)
+  routes: {
+    getToday: (technicianId?: string) => {
+      const query = technicianId ? `?technicianId=${technicianId}` : '';
+      return apiRequest<{
+        segments: Array<{
+          segmentNumber: number;
+          jobIds: string[];
+          origin: string;
+          destination: string;
+          waypoints: string[];
+          url: string;
+          distanceMeters: number;
+          durationSeconds: number;
+        }>;
+        totalJobs: number;
+        totalDistance: number;
+        totalDuration: number;
+        primaryUrl: string;
+        totalSegments: number;
+      } | null>(`/routes${query}`);
+    },
+    generate: (technicianId: string, date?: string) =>
+      apiRequest<{
+        segments: Array<{
+          segmentNumber: number;
+          jobIds: string[];
+          url: string;
+          distanceMeters: number;
+          durationSeconds: number;
+        }>;
+        totalJobs: number;
+        totalDistance: number;
+        totalDuration: number;
+        primaryUrl: string;
+        totalSegments: number;
+      }>('/routes', {
+        method: 'POST',
+        body: { technicianId, date },
+      }),
+    invalidate: (technicianId: string, date?: string) => {
+      const params = new URLSearchParams({ technicianId });
+      if (date) params.set('date', date);
+      return apiRequest(`/routes?${params}`, { method: 'DELETE' });
+    },
+  },
+
   // Invoices
   invoices: {
     list: (params?: Record<string, string>) => {
@@ -346,6 +393,19 @@ export const api = {
       apiRequest(`/payments/${id}/refund`, { method: 'POST', body: { amount } }),
     reconciliation: () => apiRequest<unknown>('/payments/reconciliation'),
     disputes: () => apiRequest<unknown[]>('/payments/disputes'),
+  },
+
+  // Billing Hub (Unified Pipeline)
+  billing: {
+    pipeline: (params?: Record<string, string>) => {
+      const query = params ? `?${new URLSearchParams(params)}` : '';
+      return apiRequest<unknown>(`/billing/pipeline${query}`);
+    },
+    settings: {
+      get: () => apiRequest<unknown>('/billing/settings'),
+      update: (data: Record<string, unknown>) =>
+        apiRequest('/billing/settings', { method: 'PUT', body: data }),
+    },
   },
 
   // Dashboard

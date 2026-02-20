@@ -2,37 +2,27 @@
  * Find Nearest Technicians API Route
  * GET /api/tracking/nearest
  *
- * Returns technicians ranked by distance/ETA to a job location
+ * Phase 2.4: Upgraded with real Distance Matrix API + BA traffic intelligence.
+ *
+ * Returns technicians ranked by ACTUAL travel time (with live traffic),
+ * not straight-line distance. Also provides multi-modal comparison
+ * during rush hours.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import {
+  haversineDistanceKm,
+  getBatchDistances,
+  compareMultiModal,
+  getBuenosAiresTrafficContext,
+  estimateEtaFallback,
+  type TravelMode,
+} from '@/lib/integrations/google-maps/distance-matrix';
 
-function haversineDistance(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number
-): number {
-  const R = 6371; // Earth's radius in km
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLng / 2) *
-    Math.sin(dLng / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-}
-
-function estimateETA(distanceKm: number, mode: string = 'driving'): number {
-  // Estimate ETA in minutes based on Buenos Aires traffic conditions
-  const avgSpeedKmh = mode === 'walking' ? 5 : 25; // Conservative urban speed
-  return Math.ceil((distanceKm / avgSpeedKmh) * 60);
-}
+// Max straight-line distance for pre-filtering (km)
+const HAVERSINE_PREFILTER_KM = 50;
 
 export async function GET(request: NextRequest) {
   try {
@@ -45,7 +35,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Only admins, owners, and Admins can find nearest technicians
+    // Only admins, owners can find nearest technicians
     if (!['OWNER', 'ADMIN'].includes(session.role.toUpperCase())) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para esta operación' },
@@ -60,14 +50,15 @@ export async function GET(request: NextRequest) {
     const specialty = searchParams.get('specialty');
     const limit = parseInt(searchParams.get('limit') || '10');
     const availableOnly = searchParams.get('availableOnly') !== 'false';
+    const includeMultiModal = searchParams.get('multiModal') === 'true';
 
     // Get destination coordinates
     let destLat: number | null = null;
     let destLng: number | null = null;
+    let destAddress: string | null = null;
     let jobDetails = null;
 
     if (jobId) {
-      // Get job location
       const job = await prisma.job.findUnique({
         where: { id: jobId },
         include: {
@@ -92,7 +83,6 @@ export async function GET(request: NextRequest) {
         address: job.customer?.address,
       };
 
-      // Extract coordinates from customer address
       const address = job.customer?.address as Record<string, unknown> | null;
       if (address) {
         if (typeof address.lat === 'number' && typeof address.lng === 'number') {
@@ -104,6 +94,12 @@ export async function GET(request: NextRequest) {
             destLat = coords.lat;
             destLng = coords.lng;
           }
+        }
+        // Extract string address for Distance Matrix
+        if (typeof address.formatted === 'string') {
+          destAddress = address.formatted;
+        } else if (typeof address.street === 'string') {
+          destAddress = `${address.street}, Buenos Aires, Argentina`;
         }
       }
     } else if (!isNaN(lat) && !isNaN(lng)) {
@@ -118,7 +114,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Calculate online threshold (5 minutes ago)
+    const destinationStr = destAddress || `${destLat},${destLng}`;
+
+    // Online threshold (5 minutes)
     const onlineThreshold = new Date(Date.now() - 5 * 60 * 1000);
 
     // Get all technicians with their locations
@@ -152,59 +150,120 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Calculate distances and filter
-    const techniciansWithDistance = technicians
-      .map((tech: typeof technicians[number]) => {
-        const location = tech.currentLocation;
-        const isOnline = location && location.lastSeen > onlineThreshold;
-        const isAvailable = tech.assignedJobs.length === 0;
-        const isBusy = tech.assignedJobs.some(
-          (j: typeof tech.assignedJobs[number]) => j.status === 'EN_ROUTE' || j.status === 'IN_PROGRESS'
-        );
+    // ─── STEP 1: Haversine Pre-Filter ───────────────────────────────────
+    // Fast geometric filter to eliminate technicians that are obviously too far
+    type TechCandidate = typeof technicians[number] & {
+      haversineKm: number;
+      techLat: number;
+      techLng: number;
+      isOnline: boolean;
+      isAvailable: boolean;
+      isBusy: boolean;
+    };
 
-        // Skip if we want available only and technician is busy
-        if (availableOnly && isBusy) {
-          return null;
-        }
+    const candidates: TechCandidate[] = [];
 
-        // Skip if technician has no location
-        if (!location) {
-          return null;
-        }
+    for (const tech of technicians) {
+      const location = tech.currentLocation;
+      const isOnline = !!(location && location.lastSeen > onlineThreshold);
+      const isBusy = tech.assignedJobs.some(
+        (j: typeof tech.assignedJobs[number]) => j.status === 'EN_ROUTE' || j.status === 'IN_PROGRESS'
+      );
+      const isAvailable = tech.assignedJobs.length === 0;
 
-        const techLat = Number(location.latitude);
-        const techLng = Number(location.longitude);
-        const distance = haversineDistance(techLat, techLng, destLat!, destLng!);
-        const etaMinutes = estimateETA(distance);
+      if (availableOnly && isBusy) continue;
+      if (!location) continue;
 
-        return {
-          id: tech.id,
-          name: tech.name,
-          phone: tech.phone,
-          avatar: tech.avatar,
-          specialty: tech.specialty,
-          skillLevel: tech.skillLevel,
-          isOnline,
-          isAvailable,
-          isBusy,
-          location: {
-            lat: techLat,
-            lng: techLng,
-          },
-          distance: Math.round(distance * 100) / 100, // Round to 2 decimal places
-          etaMinutes,
-          currentJobCount: tech.assignedJobs.length,
-        };
-      })
-      .filter(Boolean)
-      .sort((a: typeof technicians[number], b: typeof technicians[number]) => {
-        // Sort by availability first, then by distance
-        if (a!.isAvailable !== b!.isAvailable) {
-          return a!.isAvailable ? -1 : 1;
-        }
-        return a!.distance - b!.distance;
-      })
-      .slice(0, limit);
+      const techLat = Number(location.latitude);
+      const techLng = Number(location.longitude);
+      const haversineKm = haversineDistanceKm(techLat, techLng, destLat, destLng);
+
+      // Pre-filter: skip if straight-line distance > threshold
+      if (haversineKm > HAVERSINE_PREFILTER_KM) continue;
+
+      candidates.push({
+        ...tech,
+        haversineKm,
+        techLat,
+        techLng,
+        isOnline,
+        isAvailable,
+        isBusy,
+      });
+    }
+
+    // ─── STEP 2: Real Distance Matrix ───────────────────────────────────
+    // Call Google Distance Matrix API for actual travel times with live traffic
+    const trafficContext = getBuenosAiresTrafficContext();
+
+    const origins = candidates.map((c) => ({
+      id: c.id,
+      location: `${c.techLat},${c.techLng}`,
+    }));
+
+    const batchResult = await getBatchDistances(origins, destinationStr, 'driving');
+
+    // ─── STEP 3: Build Results ──────────────────────────────────────────
+    const techniciansWithDistance = candidates.map((tech, index) => {
+      const matrixResult = batchResult.results.find((r) => r.originIndex === index);
+      const distanceKm = matrixResult
+        ? matrixResult.element.distanceMeters / 1000
+        : tech.haversineKm;
+      const etaMinutes = matrixResult
+        ? Math.ceil(matrixResult.effectiveEtaSeconds / 60)
+        : estimateEtaFallback(tech.haversineKm).etaMinutes;
+      const isRealEta = matrixResult?.element.durationInTrafficSeconds !== null;
+
+      return {
+        id: tech.id,
+        name: tech.name,
+        phone: tech.phone,
+        avatar: tech.avatar,
+        specialty: tech.specialty,
+        skillLevel: tech.skillLevel,
+        isOnline: tech.isOnline,
+        isAvailable: tech.isAvailable,
+        isBusy: tech.isBusy,
+        location: {
+          lat: tech.techLat,
+          lng: tech.techLng,
+        },
+        // Real driving distance (from Distance Matrix, not Haversine)
+        distance: Math.round(distanceKm * 100) / 100,
+        haversineKm: Math.round(tech.haversineKm * 100) / 100,
+        // Real ETA with live traffic
+        etaMinutes,
+        etaText: matrixResult?.element.durationInTrafficText
+          ?? matrixResult?.element.durationText
+          ?? `~${etaMinutes} min`,
+        isRealEta,
+        currentJobCount: tech.assignedJobs.length,
+      };
+    });
+
+    // Sort by availability first, then by ETA (not distance!)
+    techniciansWithDistance.sort((a, b) => {
+      if (a.isAvailable !== b.isAvailable) {
+        return a.isAvailable ? -1 : 1;
+      }
+      return a.etaMinutes - b.etaMinutes;
+    });
+
+    const topResults = techniciansWithDistance.slice(0, limit);
+
+    // ─── STEP 4 (Optional): Multi-Modal Comparison ──────────────────────
+    // During rush hour, show if moto/bici would be faster for the top candidate
+    let multiModalData = null;
+    if (includeMultiModal && topResults.length > 0 && trafficContext.isRushHour) {
+      const topTech = topResults[0];
+      const topOrigin = `${topTech.location.lat},${topTech.location.lng}`;
+
+      multiModalData = await compareMultiModal(
+        topOrigin,
+        destinationStr,
+        ['driving', 'bicycling', 'transit'] as TravelMode[],
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -214,8 +273,14 @@ export async function GET(request: NextRequest) {
           lng: destLng,
           ...(jobDetails ? { job: jobDetails } : {}),
         },
-        technicians: techniciansWithDistance,
-        count: techniciansWithDistance.length,
+        technicians: topResults,
+        count: topResults.length,
+        totalCandidates: candidates.length,
+        // Buenos Aires traffic intelligence
+        traffic: {
+          context: trafficContext,
+          multiModal: multiModalData,
+        },
       },
     });
   } catch (error) {
@@ -226,3 +291,4 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+
