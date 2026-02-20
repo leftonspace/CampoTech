@@ -285,10 +285,11 @@ async function runDispatchSimulation(): Promise<DispatchResult[]> {
             }
 
             // Calculate haversine distances for each worker
+            type Worker = typeof workers[number];
             const start = Date.now();
             const scored = workers
-                .filter((w) => w.currentLocation)
-                .map((w) => {
+                .filter((w: Worker) => w.currentLocation)
+                .map((w: Worker) => {
                     const wLat = Number(w.currentLocation!.latitude);
                     const wLng = Number(w.currentLocation!.longitude);
                     const dLat = job.lat - wLat;
@@ -326,9 +327,9 @@ async function runDispatchSimulation(): Promise<DispatchResult[]> {
                         warnings: haversineKm > 20 ? [`Distancia considerable`] : [],
                     };
                 })
-                .sort((a, b) => b.score - a.score);
+                .sort((a: { score: number }, b: { score: number }) => b.score - a.score);
 
-            scored.forEach((s, i) => (s.rank = i + 1));
+            scored.forEach((s: { rank: number }, i: number) => (s.rank = i + 1));
             const responseTimeMs = Date.now() - start;
 
             results.push({

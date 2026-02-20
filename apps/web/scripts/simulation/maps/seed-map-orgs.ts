@@ -59,7 +59,7 @@ async function cleanSimulationData(): Promise<void> {
         return;
     }
 
-    const orgIds = simOrgs.map((o) => o.id);
+    const orgIds = simOrgs.map((o: { id: string }) => o.id);
 
     // Delete in correct order (respecting foreign keys)
     // 1. TechnicianLocations (via users)
@@ -67,7 +67,7 @@ async function cleanSimulationData(): Promise<void> {
         where: { organizationId: { in: orgIds } },
         select: { id: true },
     });
-    const userIds = simUsers.map((u) => u.id);
+    const userIds = simUsers.map((u: { id: string }) => u.id);
 
     if (userIds.length > 0) {
         const locResult = await prisma.technicianLocation.deleteMany({

@@ -90,7 +90,7 @@ interface PipelineSummary {
 // STAGE DETERMINATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function getHumanStatusMessage(stage: PipelineStage, invoice: any): { message: string; detail?: string } {
+function getHumanStatusMessage(stage: PipelineStage, invoice: { afipCae?: string | null } | null): { message: string; detail?: string } {
     switch (stage) {
         case 'COBRADO':
             return {
@@ -157,7 +157,7 @@ export async function GET(request: NextRequest) {
         const dateTo = searchParams.get('to');
 
         // Build date range
-        const dateFilter: any = {};
+        const dateFilter: Record<string, Date> = {};
         if (dateFrom) dateFilter.gte = new Date(dateFrom);
         if (dateTo) dateFilter.lte = new Date(dateTo);
         const hasDateFilter = Object.keys(dateFilter).length > 0;
@@ -289,8 +289,8 @@ export async function GET(request: NextRequest) {
         // Stages 2-5: Invoice-based stages
         for (const invoice of invoicesWithDetails) {
             const totalPaid = invoice.payments
-                .filter((p: any) => p.status === 'COMPLETED')
-                .reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+                .filter((p: { status: string }) => p.status === 'COMPLETED')
+                .reduce((sum: number, p: { amount: unknown }) => sum + Number(p.amount), 0);
             const total = Number(invoice.total);
             const balance = total - totalPaid;
 
@@ -343,7 +343,7 @@ export async function GET(request: NextRequest) {
                 afipCaeExpiry: invoice.afipCaeExpiry?.toISOString() || null,
                 afipQrCode: invoice.afipQrCode,
                 paymentMethod: invoice.payments[0]?.method || null,
-                payments: invoice.payments.map((p: any) => ({
+                payments: invoice.payments.map((p: { id: string; amount: unknown; method: string; status: string; paidAt: Date | null }) => ({
                     id: p.id,
                     amount: Number(p.amount),
                     method: p.method,

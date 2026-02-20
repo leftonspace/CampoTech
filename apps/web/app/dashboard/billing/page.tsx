@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { apiRequest } from '@/lib/api-client';
-import { cn, formatCurrency, formatDate, formatRelativeTime } from '@/lib/utils';
+import { cn, formatCurrency, formatRelativeTime } from '@/lib/utils';
 import {
     Banknote,
     FileText,
@@ -227,7 +227,7 @@ function PipelineHeader({
         <div className="flex items-stretch gap-0 overflow-x-auto">
             {STAGES.map((stage, index) => {
                 const config = STAGE_CONFIG[stage];
-                const { count, total } = stageCounts[stage];
+                const { count: _count, total } = stageCounts[stage];
                 const isActive = activeStage === stage;
                 const Icon = config.icon;
 
@@ -289,7 +289,7 @@ function PipelineCard({
     isSelected: boolean;
 }) {
     const config = STAGE_CONFIG[item.stage];
-    const Icon = config.icon;
+    const _Icon = config.icon;
     const isUrgent = item.timeInStage > 1000 * 60 * 60 * 48; // > 48 hours
 
     return (
@@ -980,7 +980,7 @@ export default function BillingHubPage() {
     }, [data?.items, activeStage, searchQuery, sortBy]);
 
     // Group items by stage for column view
-    const groupedItems = useMemo(() => {
+    const _groupedItems = useMemo(() => {
         const groups: Record<PipelineStage, PipelineItem[]> = {
             COBRADO: [], FACTURAR: [], EN_AFIP: [], ENVIADA: [], CERRADO: [],
         };

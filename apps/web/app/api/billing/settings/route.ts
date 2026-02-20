@@ -15,6 +15,7 @@ import { prisma } from '@/lib/prisma';
 import {
     getAutoInvoiceSettings,
     updateAutoInvoiceSettings,
+    type AutoInvoiceSettings,
 } from '@/lib/services/auto-invoicing.service';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -177,7 +178,7 @@ export async function PUT(request: NextRequest) {
             );
         }
 
-        const newSettings = await updateAutoInvoiceSettings(session.organizationId, updates as any);
+        const newSettings = await updateAutoInvoiceSettings(session.organizationId, updates as Partial<AutoInvoiceSettings>);
 
         console.log(
             `[AutoInvoice Settings] Updated for org=${session.organizationId}:`,

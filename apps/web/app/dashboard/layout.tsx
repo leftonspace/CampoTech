@@ -19,7 +19,6 @@ import {
   Briefcase,
   Users,
   FileText,
-  CreditCard,
   Settings,
   LogOut,
   Menu,
