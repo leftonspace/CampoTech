@@ -18,6 +18,7 @@ const FOREVER_FREE_PATHS = [
     '/auth/',         // Authentication pages
     '/register/',     // Registration flow
     '/blocked',       // Status information page
+    '/mobile-only',   // Technician mobile-only redirect (Phase 2.3)
     '/api/auth/',     // Auth API
     '/api/public/',   // Public API
     '/api/webhooks/', // Webhooks

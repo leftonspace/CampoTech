@@ -22,17 +22,7 @@ EXCEPTION WHEN duplicate_object THEN null;
 END $$;
 
 DO $$ BEGIN
-    ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'DISPATCHER';
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
     ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'TECHNICIAN';
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-    ALTER TYPE "UserRole" ADD VALUE IF NOT EXISTS 'VIEWER';
 EXCEPTION WHEN duplicate_object THEN null;
 END $$;
 

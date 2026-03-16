@@ -7,6 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { assertUserRole } from '@/lib/middleware/field-filter';
 import { UserRole } from '@/lib/config/field-permissions';
 import { validateBody } from '@/lib/validation/api-schemas';
 import { z } from 'zod';
@@ -22,7 +23,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Only OWNER can view change requests
     if (!['OWNER'].includes(userRole)) {

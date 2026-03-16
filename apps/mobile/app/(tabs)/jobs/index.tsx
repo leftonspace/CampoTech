@@ -31,22 +31,19 @@ import { Job } from '../../../watermelon/models';
 import { performSync, enqueueOperation } from '../../../lib/sync/sync-engine';
 import { useSyncStatus } from '../../../lib/hooks/use-sync-status';
 import { useAuth } from '../../../lib/auth/auth-context';
+import { useTeamMembers } from '../../../lib/hooks/use-team-members';
 import JobCard from '../../../components/job/JobCard';
 
 type StatusFilter = 'all' | 'pending' | 'active' | 'completed' | 'unassigned';
 
-// Mock technicians - in production from API
-const MOCK_TECHNICIANS = [
-  { id: 'tech-1', name: 'Carlos Rodriguez' },
-  { id: 'tech-2', name: 'María García' },
-  { id: 'tech-3', name: 'Juan Pérez' },
-];
+
 
 function JobsManagementScreen({ jobs }: { jobs: Job[] }) {
   const router = useRouter();
   const { user } = useAuth();
   const syncStatus = useSyncStatus();
   const isSyncing = syncStatus.isSyncing;
+  const { teamMembers, isLoading: isLoadingTeam } = useTeamMembers();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [technicianFilter, setTechnicianFilter] = useState<string | null>(null);
@@ -190,7 +187,7 @@ function JobsManagementScreen({ jobs }: { jobs: Job[] }) {
     </TouchableOpacity>
   );
 
-  const selectedTechnician = MOCK_TECHNICIANS.find((t) => t.id === technicianFilter);
+  const selectedTechnician = teamMembers.find((t) => t.id === technicianFilter);
 
   return (
     <SafeAreaView style={styles.container} edges={[]}>
@@ -316,21 +313,31 @@ function JobsManagementScreen({ jobs }: { jobs: Job[] }) {
               <Text style={styles.pickerOptionText}>Todos los técnicos</Text>
               {!technicianFilter && <Feather name="check" size={18} color="#16a34a" />}
             </TouchableOpacity>
-            {MOCK_TECHNICIANS.map((tech) => (
-              <TouchableOpacity
-                key={tech.id}
-                style={styles.pickerOption}
-                onPress={() => {
-                  setTechnicianFilter(tech.id);
-                  setShowTechnicianPicker(false);
-                }}
-              >
-                <Text style={styles.pickerOptionText}>{tech.name}</Text>
-                {technicianFilter === tech.id && (
-                  <Feather name="check" size={18} color="#16a34a" />
-                )}
-              </TouchableOpacity>
-            ))}
+            {isLoadingTeam ? (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <Text style={{ color: '#9ca3af' }}>Cargando equipo...</Text>
+              </View>
+            ) : teamMembers.length === 0 ? (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <Text style={{ color: '#9ca3af' }}>No hay técnicos en el equipo</Text>
+              </View>
+            ) : (
+              teamMembers.map((tech) => (
+                <TouchableOpacity
+                  key={tech.id}
+                  style={styles.pickerOption}
+                  onPress={() => {
+                    setTechnicianFilter(tech.id);
+                    setShowTechnicianPicker(false);
+                  }}
+                >
+                  <Text style={styles.pickerOptionText}>{tech.name}</Text>
+                  {technicianFilter === tech.id && (
+                    <Feather name="check" size={18} color="#16a34a" />
+                  )}
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -353,21 +360,31 @@ function JobsManagementScreen({ jobs }: { jobs: Job[] }) {
             <Text style={styles.assignModalSubtitle}>
               Seleccioná un técnico para este trabajo
             </Text>
-            {MOCK_TECHNICIANS.map((tech) => (
-              <TouchableOpacity
-                key={tech.id}
-                style={styles.technicianOption}
-                onPress={() => handleConfirmAssign(tech.id, tech.name)}
-              >
-                <View style={styles.technicianAvatar}>
-                  <Text style={styles.technicianAvatarText}>
-                    {tech.name.charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-                <Text style={styles.technicianName}>{tech.name}</Text>
-                <Feather name="chevron-right" size={20} color="#9ca3af" />
-              </TouchableOpacity>
-            ))}
+            {isLoadingTeam ? (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <Text style={{ color: '#9ca3af' }}>Cargando equipo...</Text>
+              </View>
+            ) : teamMembers.length === 0 ? (
+              <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                <Text style={{ color: '#9ca3af' }}>No hay técnicos disponibles</Text>
+              </View>
+            ) : (
+              teamMembers.map((tech) => (
+                <TouchableOpacity
+                  key={tech.id}
+                  style={styles.technicianOption}
+                  onPress={() => handleConfirmAssign(tech.id, tech.name)}
+                >
+                  <View style={styles.technicianAvatar}>
+                    <Text style={styles.technicianAvatarText}>
+                      {tech.name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.technicianName}>{tech.name}</Text>
+                  <Feather name="chevron-right" size={20} color="#9ca3af" />
+                </TouchableOpacity>
+              ))
+            )}
           </View>
         </View>
       </Modal>

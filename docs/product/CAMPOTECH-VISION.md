@@ -100,7 +100,7 @@ CampoTech is a field service management platform targeting service businesses in
 **Business Dashboard (`/dashboard`):**
 - Jobs management (create, assign, track, complete)
 - Customer database with personalized service history
-- Team management (3 roles: Owner, Despachador, Técnico)
+- Team management (3 roles: Owner, Administrador, Técnico)
 - Invoices with AFIP integration and job-level financing toggles
 - **Tactical Map (Live Path)**:
     - Real-time technician tracking with 60s updates (transit) or 200m displacement triggers (at job).

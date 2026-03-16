@@ -120,7 +120,7 @@ interface GoogleDistanceMatrixResponse {
  *
  * The Distance Matrix API with departure_time=now handles this automatically,
  * but we add our own context layer for:
- * 1. Informing dispatchers about traffic conditions
+ * 1. Informing admins about traffic conditions
  * 2. Fallback ETA adjustments when API is unavailable
  * 3. Mode recommendations (moto may be better during rush)
  */
@@ -538,7 +538,7 @@ export async function getBatchDistances(
 /**
  * Compare travel times across multiple modes for a single O/D pair.
  *
- * Perfect for informing dispatchers: "Driving would take 45 min in rush hour,
+ * Perfect for informing admins: "Driving would take 45 min in rush hour,
  * but a moto would take only 15 min."
  *
  * Note: Only driving and bicycling are commonly relevant for BA field service.

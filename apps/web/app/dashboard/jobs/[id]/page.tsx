@@ -580,7 +580,7 @@ export default function JobDetailPage() {
               {job.customer?.phone && (
                 <a
                   href={`https://wa.me/${job.customer.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(
-                    `Hola ${job.customer.name}, le escribimos de CampoTech respecto al trabajo ${job.jobNumber} programado para el ${job.scheduledDate ? formatDate(job.scheduledDate) : 'próximamente'}.`
+                    `Hola ${job.customer.name}, le escribimos de CampoTech respecto al trabajo ${job.jobNumber}${job.scheduledDate ? ` programado para el ${formatDate(job.scheduledDate)}` : ''}.`
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -601,7 +601,7 @@ export default function JobDetailPage() {
               </button>
 
               <Link
-                href="/dashboard/jobs"
+                href={`/dashboard/jobs?newJob=${job.customerId}`}
                 className="btn-outline w-full justify-center"
               >
                 <Plus className="mr-2 h-4 w-4" />

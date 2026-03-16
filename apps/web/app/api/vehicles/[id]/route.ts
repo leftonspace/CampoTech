@@ -14,6 +14,7 @@ import {
   filterEntityByRole,
   getEntityFieldMetadata,
   validateEntityUpdate,
+  assertUserRole,
   UserRole,
 } from '@/lib/middleware/field-filter';
 
@@ -167,7 +168,13 @@ export async function GET(
     });
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Build vehicle data with compliance info
     const vehicleData = {
@@ -211,7 +218,13 @@ export async function PUT(
     }
 
     // Normalize user role
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     if (!['OWNER'].includes(userRole)) {
       return NextResponse.json(

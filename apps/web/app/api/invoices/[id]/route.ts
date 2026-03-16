@@ -13,6 +13,7 @@ import {
   getEntityFieldMetadata,
   validateInvoiceUpdate,
   canAccessModule,
+  assertUserRole,
   UserRole,
 } from '@/lib/middleware/field-filter';
 import { parseDateTimeAsArgentina } from '@/lib/timezone';
@@ -32,7 +33,13 @@ export async function GET(
     }
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Check module access
     if (!canAccessModule('invoices', userRole)) {
@@ -109,7 +116,13 @@ export async function PUT(
     }
 
     // Normalize user role
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Only OWNER can update invoices
     if (!['OWNER'].includes(userRole)) {
@@ -207,7 +220,13 @@ export async function DELETE(
     }
 
     // Normalize user role
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Only OWNER can delete invoices
     if (!['OWNER'].includes(userRole)) {

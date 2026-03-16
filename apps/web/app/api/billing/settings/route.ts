@@ -10,7 +10,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { canAccessModule, UserRole } from '@/lib/middleware/field-filter';
+import { canAccessModule, assertUserRole,
+  UserRole } from '@/lib/middleware/field-filter';
 import { prisma } from '@/lib/prisma';
 import {
     getAutoInvoiceSettings,
@@ -33,7 +34,13 @@ export async function GET() {
             );
         }
 
-        const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+        const userRole = assertUserRole(session.role);
+        if (!userRole) {
+            return NextResponse.json(
+                { success: false, error: 'Role not found in session' },
+                { status: 401 }
+            );
+        }
         if (!canAccessModule('invoices', userRole)) {
             return NextResponse.json(
                 { success: false, error: 'No tienes permiso para ver configuración de facturación' },
@@ -104,7 +111,13 @@ export async function PUT(request: NextRequest) {
             );
         }
 
-        const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+        const userRole = assertUserRole(session.role);
+        if (!userRole) {
+            return NextResponse.json(
+                { success: false, error: 'Role not found in session' },
+                { status: 401 }
+            );
+        }
         if (!canAccessModule('invoices', userRole)) {
             return NextResponse.json(
                 { success: false, error: 'Solo el dueño puede cambiar la configuración de facturación' },

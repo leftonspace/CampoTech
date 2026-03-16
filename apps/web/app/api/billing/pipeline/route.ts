@@ -18,7 +18,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { canAccessModule, UserRole } from '@/lib/middleware/field-filter';
+import { canAccessModule, assertUserRole,
+  UserRole } from '@/lib/middleware/field-filter';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -139,7 +140,13 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+        const userRole = assertUserRole(session.role);
+        if (!userRole) {
+            return NextResponse.json(
+                { success: false, error: 'Role not found in session' },
+                { status: 401 }
+            );
+        }
 
         // Check module access — billing is Owner-only (same as invoices/payments)
         if (!canAccessModule('invoices', userRole)) {

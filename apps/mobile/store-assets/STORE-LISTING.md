@@ -69,7 +69,7 @@ Gestión de servicios en campo
 • Analytics avanzados
 • Facturación integrada
 
-⭐ PARA DESPACHADORES
+⭐ PARA ADMINISTRADORES
 • Asignación rápida de trabajos
 • Vista de calendario y mapa
 • Seguimiento de técnicos

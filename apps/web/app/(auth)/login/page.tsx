@@ -191,7 +191,13 @@ export default function LoginPage() {
     const result = await login(fullPhone, otp);
 
     if (result.success) {
-      router.push('/dashboard');
+      // Phase 2.1: Redirect technicians directly to /mobile-only
+      // instead of /dashboard to avoid a redirect flash via middleware.
+      if (result.role?.toUpperCase() === 'TECHNICIAN') {
+        router.push('/mobile-only');
+      } else {
+        router.push('/dashboard');
+      }
     } else {
       setError(result.error || 'Código incorrecto');
     }

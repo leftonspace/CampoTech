@@ -8,6 +8,9 @@
 import { Model } from '@nozbe/watermelondb';
 import { field, date, children, relation } from '@nozbe/watermelondb/decorators';
 
+/** 21% IVA — Argentine standard tax rate (AFIP) */
+const IVA_RATE_ARGENTINA = 0.21;
+
 export default class Job extends Model {
   static table = 'jobs';
 
@@ -90,31 +93,31 @@ export default class Job extends Model {
   }
 
   get isPending(): boolean {
-    return this.status === 'pending';
+    return this.status === 'PENDING';
   }
 
   get isScheduled(): boolean {
-    return this.status === 'scheduled';
+    return this.status === 'ASSIGNED';
   }
 
   get isInProgress(): boolean {
-    return this.status === 'en_camino' || this.status === 'working';
+    return this.status === 'EN_ROUTE' || this.status === 'IN_PROGRESS';
   }
 
   get isCompleted(): boolean {
-    return this.status === 'completed';
+    return this.status === 'COMPLETED';
   }
 
   get isCancelled(): boolean {
-    return this.status === 'cancelled';
+    return this.status === 'CANCELLED';
   }
 
   get canStart(): boolean {
-    return this.status === 'scheduled';
+    return this.status === 'ASSIGNED';
   }
 
   get canComplete(): boolean {
-    return this.status === 'working';
+    return this.status === 'IN_PROGRESS';
   }
 
   // Per-visit pricing computed properties (Phase 1 - Jan 2026)
@@ -133,7 +136,7 @@ export default class Job extends Model {
   // Status transition methods
   async startJob() {
     await this.update((job) => {
-      job.status = 'en_camino';
+      job.status = 'EN_ROUTE';
       job.actualStart = Date.now();
       job.isDirty = true;
     });
@@ -141,7 +144,7 @@ export default class Job extends Model {
 
   async arriveAtJob() {
     await this.update((job) => {
-      job.status = 'working';
+      job.status = 'IN_PROGRESS';
       job.isDirty = true;
     });
   }
@@ -163,11 +166,11 @@ export default class Job extends Model {
     }
   ) {
     const subtotal = materials.reduce((sum, m) => sum + m.quantity * m.price, 0);
-    const tax = subtotal * 0.21; // 21% IVA
+    const tax = subtotal * IVA_RATE_ARGENTINA;
     const total = subtotal + tax;
 
     await this.update((job) => {
-      job.status = 'completed';
+      job.status = 'COMPLETED';
       job.actualEnd = Date.now();
       job.completionNotes = notes;
       job.materialsUsed = JSON.stringify(materials);
@@ -191,7 +194,7 @@ export default class Job extends Model {
 
   async cancelJob(reason: string) {
     await this.update((job) => {
-      job.status = 'cancelled';
+      job.status = 'CANCELLED';
       job.completionNotes = reason;
       job.isDirty = true;
     });

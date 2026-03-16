@@ -11,6 +11,7 @@ import {
   filterEntityByRole,
   getEntityFieldMetadata,
   validateEntityUpdate,
+  assertUserRole,
   UserRole,
 } from '@/lib/middleware/field-filter';
 
@@ -42,7 +43,13 @@ export async function GET() {
       : organization.settings || {};
 
     // Normalize user role to uppercase for permission checking
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Build organization data object
     const orgData = {
@@ -101,7 +108,13 @@ export async function PUT(request: NextRequest) {
     }
 
     // Normalize user role
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Only admins and owners can update organization
     if (!['OWNER'].includes(userRole)) {

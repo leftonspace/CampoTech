@@ -202,6 +202,33 @@ export function createFilteredArrayResponse<T extends Record<string, unknown>>(
   };
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROLE VALIDATION UTILITY
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const VALID_ROLES: readonly UserRole[] = ['SUPER_ADMIN', 'OWNER', 'ADMIN', 'TECHNICIAN'];
+
+/**
+ * Safely extract and validate a UserRole from a session.
+ * Returns the validated UserRole or null if the role is missing/invalid.
+ *
+ * Usage in API routes:
+ * ```ts
+ * const userRole = assertUserRole(session.role);
+ * if (!userRole) {
+ *   return NextResponse.json({ error: 'Role not found in session' }, { status: 401 });
+ * }
+ * ```
+ */
+export function assertUserRole(role: string | undefined | null): UserRole | null {
+  if (!role) return null;
+  const normalized = role.toUpperCase();
+  if (VALID_ROLES.includes(normalized as UserRole)) {
+    return normalized as UserRole;
+  }
+  return null;
+}
+
 // Re-export types for convenience
 export type { UserRole, FieldPermission } from '@/lib/config/field-permissions';
 

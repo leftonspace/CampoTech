@@ -38,7 +38,7 @@ Un cliente potencial contacta a la empresa para solicitar la instalación de un 
    - ¿La unidad exterior iría en balcón o fachada?
    - ¿Tenés ya el equipo o necesitás que lo consigamos?
    ```
-3. El despachador aprueba o edita la respuesta y la envía
+3. El administrador aprueba o edita la respuesta y la envía
 
 #### 1.2 Recopilación de Información
 
@@ -46,7 +46,7 @@ Un cliente potencial contacta a la empresa para solicitar la instalación de un 
 - Juan responde: *"Es un 5to piso, la externa va en el balcón. Ya tengo el equipo, es un BGH de 3000 frigorías."*
 
 **En el sistema:**
-1. El despachador abre el panel de cliente (o crea uno nuevo si no existe)
+1. El administrador abre el panel de cliente (o crea uno nuevo si no existe)
 2. Registra la dirección: `Av. Corrientes 1234, 5° B, CABA`
 3. Agrega notas: "Cliente tiene equipo BGH 3000f. Instalación en balcón."
 
@@ -118,7 +118,7 @@ Un cliente potencial contacta a la empresa para solicitar la instalación de un 
    El trabajo demora aproximadamente 3-4 horas.
    ¿Te queda bien para agendar?
    ```
-3. El despachador envía el mensaje
+3. El administrador envía el mensaje
 
 **En la vida real:**
 - Juan recibe el WhatsApp, consulta con su pareja
@@ -127,7 +127,7 @@ Un cliente potencial contacta a la empresa para solicitar la instalación de un 
 #### 1.5 Confirmación y Programación
 
 **En el sistema:**
-1. El despachador abre el trabajo
+1. El administrador abre el trabajo
 2. Click en `Editar` → Sección **Programación de visitas**:
    - **Fecha:** Sábado 01/02/2026
    - **Hora inicio:** 09:00
@@ -234,7 +234,7 @@ Un cliente reporta que su calefón no enciende. Se agenda una visita de diagnós
 - María González llama: *"Mi calefón no prende, sale la chispa pero no agarra la llama"*
 
 **En el sistema:**
-1. Despachador crea trabajo:
+1. administrador crea trabajo:
    - **Título:** Revisión calefón - No enciende
    - **Tipo:** GAS
    - **Descripción:** "Cliente reporta que el calefón hace chispa pero no enciende. Posible problema de válvula o sensor."
@@ -289,7 +289,7 @@ Un cliente reporta que su calefón no enciende. Se agenda una visita de diagnós
 #### 2.3 Comunicación del Nuevo Presupuesto
 
 **En el sistema (Dashboard Web):**
-El despachador ve que el trabajo tiene items actualizados:
+El administrador ve que el trabajo tiene items actualizados:
 
 ```
 PRESUPUESTO ACTUALIZADO - Trabajo #JOB-2026-0892
@@ -336,7 +336,7 @@ Total: $77.440
 #### 2.4 Segunda Visita - Reparación
 
 **En el sistema:**
-1. Despachador agenda segunda visita para mañana 14:00-17:00
+1. administrador agenda segunda visita para mañana 14:00-17:00
 2. Asigna al mismo técnico (Martín)
 3. Estado: **ASIGNADO**
 
@@ -369,7 +369,7 @@ Un cliente necesita remodelar completamente el baño. El trabajo requiere múlti
 - Roberto Sánchez contacta: *"Quiero hacer el baño completo de nuevo. Cambiar todo: inodoro, bidet, vanitory, ducha. Y las cañerías tienen 40 años, hay que cambiarlas."*
 
 **En el sistema:**
-1. Despachador crea trabajo con:
+1. administrador crea trabajo con:
    - **Modo de precio:** HÍBRIDO (combina total fijo + por visita)
    - **Tipo de duración:** MULTI_VISITA
    - **Descripción detallada:** "Remodelación completa de baño. Incluye demolición, cambio de cañerías PPF, instalación de sanitarios nuevos."
@@ -381,7 +381,7 @@ Un cliente necesita remodelar completamente el baño. El trabajo requiere múlti
 2. Técnico visita, toma medidas, evalúa estado
 
 **En el sistema (Post-visita):**
-Despachador arma presupuesto detallado por visitas:
+administrador arma presupuesto detallado por visitas:
 
 ```
 ═══════════════════════════════════════════════════════
@@ -440,7 +440,7 @@ TOTAL PRESUPUESTO:                               $266.805
 - Transfiere la seña de $80.041
 
 **En el sistema:**
-1. Despachador registra el depósito:
+1. administrador registra el depósito:
    - En el trabajo → `Información de Precios`
    - **Seña Recibida:** $80.041
    - **Método:** Transferencia
@@ -474,7 +474,7 @@ TOTAL PRESUPUESTO:                               $266.805
    - "Cañerías PPF instaladas. Prueba de presión OK. Desagües con pendiente correcta."
 
 **Comunicación con cliente:**
-El despachador envía WhatsApp con fotos:
+El administrador envía WhatsApp con fotos:
 ```
 📸 Actualización de obra - Día 3
 
@@ -526,7 +526,7 @@ Domingo 22:30 - Una clienta llama desesperada porque su termotanque está perdie
 - "¡Por favor necesito ayuda! Mi termotanque está perdiendo un montón de agua, está todo inundado la cocina!"
 
 **En el sistema:**
-1. Despachador de guardia crea trabajo URGENTE:
+1. administrador de guardia crea trabajo URGENTE:
    - **Prioridad:** URGENTE 🔴
    - **Título:** EMERGENCIA - Pérdida termotanque
    - **Descripción:** "Pérdida de agua activa. Cliente indica inundación en cocina. Requiere atención inmediata."
@@ -585,7 +585,7 @@ Pedro te llama cuando esté llegando.
 - Prueba funcionamiento
 
 **En el sistema (Dashboard):**
-Despachador agrega items del catálogo:
+administrador agrega items del catálogo:
 ```
 ITEMS AGREGADOS:
 ─────────────────────────────────────────────
@@ -812,7 +812,7 @@ Subtotal:                                   $25.500
 
 2. Completa el trabajo con firma del cliente
 
-#### 6.4 Vista del Despachador
+#### 6.4 Vista del administrador
 
 **En el sistema (Dashboard):**
 El trabajo aparece con indicador de variación:
@@ -836,7 +836,7 @@ El trabajo aparece con indicador de variación:
 #### 6.5 Decisión y Comunicación
 
 **En el sistema:**
-1. Despachador clickea `Aprobar precio propuesto`
+1. administrador clickea `Aprobar precio propuesto`
 2. `finalTotal` se actualiza a $25.500 + IVA = $30.855
 
 **WhatsApp al cliente:**
@@ -881,14 +881,14 @@ Si el técnico hubiera encontrado un problema peor (compresor dañado), el siste
 [Contactar cliente primero] [Aprobar] [Rechazar]
 ```
 
-El despachador contacta al cliente antes de aprobar un aumento significativo.
+El administrador contacta al cliente antes de aprobar un aumento significativo.
 
 ---
 
 ## Escenario 7: Búsqueda en Catálogo por Especialidad
 
 ### Contexto
-Un despachador nuevo necesita armar un presupuesto para un trabajo de refrigeración comercial, pero no conoce los nombres exactos de los items.
+Un administrador nuevo necesita armar un presupuesto para un trabajo de refrigeración comercial, pero no conoce los nombres exactos de los items.
 
 ### Paso a Paso Completo
 
@@ -896,7 +896,7 @@ Un despachador nuevo necesita armar un presupuesto para un trabajo de refrigerac
 
 **En la vida real:**
 - Cliente tiene una heladera comercial que no enfría bien
-- Despachador no es técnico, no sabe qué servicios aplican
+- administrador no es técnico, no sabe qué servicios aplican
 
 #### 7.2 Búsqueda Inteligente
 
@@ -983,14 +983,14 @@ TOTAL:                                     $198.440
 
 3. **Búsqueda por código:**
    Si el técnico dice "Necesitamos el REFRI-DIAG-001":
-   - Despachador busca "REFRI-DIAG-001"
+   - administrador busca "REFRI-DIAG-001"
    - Encuentra exactamente ese item
 
 ---
 
 ## Resumen: Funcionalidades del Sistema por Rol
 
-### Despachador (Dashboard Web)
+### administrador (Dashboard Web)
 
 | Función | Ubicación | Uso |
 |---------|-----------|-----|

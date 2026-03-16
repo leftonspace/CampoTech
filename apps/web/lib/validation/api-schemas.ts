@@ -524,7 +524,6 @@ export const scheduledReportSchema = z.object({
 // WhatsApp Conversation
 export const whatsappConversationSchema = z.object({
     status: z.enum(['OPEN', 'CLOSED', 'PENDING']).optional(),
-    assignedTo: z.string().uuid().optional().nullable(),
     notes: z.string().max(1000).optional(),
 });
 

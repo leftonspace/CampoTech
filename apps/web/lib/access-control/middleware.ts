@@ -124,11 +124,17 @@ export function withAccessControl(
       }
 
       // Build context
+      if (!session.role) {
+        return NextResponse.json(
+          { success: false, error: 'Role not found in session', code: 'missing_role' },
+          { status: 401 }
+        );
+      }
       const context: AccessControlContext = {
         session: {
           id: session.id,
           email: session.email,
-          role: session.role || 'TECHNICIAN',
+          role: session.role,
           organizationId: session.organizationId,
         },
         accessStatus,

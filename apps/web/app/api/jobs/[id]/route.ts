@@ -4,6 +4,7 @@ import {
   filterEntityByRole,
   getEntityFieldMetadata,
   validateEntityUpdate,
+  assertUserRole,
   UserRole,
 } from '@/lib/middleware/field-filter';
 import { JobService } from '@/src/services/job.service';
@@ -47,7 +48,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // For technicians, only show their own jobs or jobs they are assigned to
     const isAssigned = job.technicianId === session.userId ||
@@ -120,7 +127,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     // Normalize user role
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Prepare update data
     const updateData: Record<string, unknown> = {

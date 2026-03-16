@@ -67,7 +67,6 @@ interface ConversationUpdatedData {
   changes: {
     unreadCount?: number;
     status?: string;
-    assignedToId?: string;
     lastMessageAt?: string;
     lastMessagePreview?: string;
   };

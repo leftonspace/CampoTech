@@ -1,128 +1,32 @@
-'use client';
-
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import { useAuth } from '@/lib/auth-context';
 import { Search, Calendar, Clock, Users, X, Check, Wrench, Repeat, Plus, Truck, DollarSign, CreditCard, Package, Layers } from 'lucide-react';
-import AddressAutocomplete, { ParsedAddress } from '@/components/ui/AddressAutocomplete';
+import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
 import NewCustomerModal from '@/app/dashboard/customers/NewCustomerModal';
 import { AssignmentConflictBanner } from '@/components/schedule/AssignmentConflictBanner';
 import EmployeeDayModal from '@/components/schedule/EmployeeDayModal';
-import type { ValidationWarning } from '@/hooks/useAssignmentValidation';
 import { cn } from '@/lib/utils';
+import {
+  type Customer,
+  type PricingMode,
+  CUSTOMER_TYPE_LABELS,
+  RECURRENCE_PATTERNS,
+  createEmptyVisit,
+  expandDateRange,
+  convertTo24h,
+} from '@/components/jobs/job-form-shared';
+import { useJobFormVisits } from '@/components/jobs/useJobFormVisits';
 
-// Modal props interface
+// NewJobModal-specific props
 interface NewJobModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess?: () => void;
   preselectedCustomerId?: string | null;
 }
-
-// Customer type with address
-interface CustomerAddress {
-  street?: string;
-  city?: string;
-  state?: string;
-  postalCode?: string;
-  fullAddress?: string;
-}
-
-interface Customer {
-  id: string;
-  name: string;
-  phone: string;
-  address?: CustomerAddress;
-  customerType?: string;
-}
-
-// Customer type labels for display
-const CUSTOMER_TYPE_LABELS: Record<string, string> = {
-  PARTICULAR: 'Particular',
-  CONSORCIO: 'Consorcio',
-  COUNTRY: 'Country',
-  COMERCIO: 'Comercio',
-  INDUSTRIAL: 'Industrial',
-  INSTITUCIONAL: 'Institucional',
-  ADMINISTRADORA: 'Administradora',
-  CONSTRUCTORA: 'Constructora',
-};
-
-// Visit structure for multi-visit jobs
-interface JobVisit {
-  id: string;
-  date: string;
-  endDate: string; // Optional: if set, creates visits for each day in range
-  timeStart: string;
-  timeEnd: string;
-  timePeriodStart: 'AM' | 'PM';
-  timePeriodEnd: 'AM' | 'PM';
-  technicianIds: string[];
-  vehicleId: string | null; // Legacy - kept for compatibility
-  vehicleAssignments: { vehicleId: string; driverIds: string[] }[]; // Multiple vehicles with drivers
-  // Recurrence settings per visit
-  isRecurring: boolean;
-  recurrencePattern: string;
-  recurrenceCount: number;
-  // Per-visit pricing (Phase 1 - Jan 2026)
-  estimatedPrice: string;
-  requiresDeposit: boolean;
-  depositAmount: string;
-}
-
-// Pricing mode type (Phase 1 - Jan 2026)
-type PricingMode = 'FIXED_TOTAL' | 'PER_VISIT' | 'HYBRID';
-
-const createEmptyVisit = (): JobVisit => ({
-  id: Math.random().toString(36).substring(7),
-  date: '',
-  endDate: '',
-  timeStart: '',
-  timeEnd: '',
-  timePeriodStart: 'AM',
-  timePeriodEnd: 'PM',
-  technicianIds: [],
-  vehicleId: null,
-  vehicleAssignments: [],
-  isRecurring: false,
-  recurrencePattern: 'MONTHLY',
-  recurrenceCount: 6,
-  // Per-visit pricing (Phase 1 - Jan 2026)
-  estimatedPrice: '',
-  requiresDeposit: false,
-  depositAmount: '',
-});
-
-// Helper to expand a date range into individual dates
-const expandDateRange = (startDate: string, endDate: string): string[] => {
-  const dates: string[] = [];
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  // Ensure we don't create too many dates (max 30 days)
-  const maxDays = 30;
-  const current = new Date(start);
-  let count = 0;
-
-  while (current <= end && count < maxDays) {
-    dates.push(current.toISOString().split('T')[0]);
-    current.setDate(current.getDate() + 1);
-    count++;
-  }
-
-  return dates;
-};
-
-const RECURRENCE_PATTERNS = [
-  { value: 'WEEKLY', label: 'Semanal' },
-  { value: 'BIWEEKLY', label: 'Quincenal' },
-  { value: 'MONTHLY', label: 'Mensual' },
-  { value: 'QUARTERLY', label: 'Trimestral' },
-  { value: 'BIANNUAL', label: 'Semestral' },
-  { value: 'ANNUAL', label: 'Anual' },
-];
 
 export default function NewJobModal({
   isOpen,
@@ -135,31 +39,51 @@ export default function NewJobModal({
   const [mounted, setMounted] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [customerSearch, setCustomerSearch] = useState('');
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-  const [useCustomerAddress, setUseCustomerAddress] = useState(true);
-
-  // Service type creation state
-  const [showCreateServiceType, setShowCreateServiceType] = useState(false);
-  const [newServiceTypeName, setNewServiceTypeName] = useState('');
-  const [isCreatingServiceType, setIsCreatingServiceType] = useState(false);
-
-  // New customer modal state
-  const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
-
-  // Expandable description state
-  const [isDescriptionExpanded, setIsDescriptionExpanded] = useState(false);
-  const descriptionRef = useRef<HTMLDivElement>(null);
 
   // Per-visit pricing mode (Phase 1 - Jan 2026)
   const [pricingMode, setPricingMode] = useState<PricingMode>('FIXED_TOTAL');
   const [defaultVisitRate, setDefaultVisitRate] = useState('');
 
-  // Reset form when modal opens (to clear any stale data from previous sessions)
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    address: '',
+    serviceType: '',
+    priority: 'normal',
+    // Pricing fields (Phase 1.11)
+    estimatedTotal: '',
+    depositAmount: '',
+  });
+
+  // ── Shared hook for visits, conflicts, vehicles, service types, customers, team ──
+  const {
+    visits, setVisits,
+    activeVisitDropdown, setActiveVisitDropdown, dropdownRef,
+    addVisit, removeVisit, updateVisit, toggleVisitTechnician,
+    vehicleAssignmentVisitId, setVehicleAssignmentVisitId,
+    selectedDriverIds, setSelectedDriverIds,
+    selectedVehicleId, setSelectedVehicleId,
+    defaultVehicles, setDefaultVehicles, vehiclesData,
+    visitConflicts, isValidatingConflicts, hasUnresolvedConflicts,
+    handleConflictAction, conflictModalData, setConflictModalData,
+    validateVisitAssignments,
+    customerSearch, setCustomerSearch,
+    selectedCustomer, setSelectedCustomer,
+    useCustomerAddress, setUseCustomerAddress,
+    customers, showNewCustomerModal, setShowNewCustomerModal,
+    handleAddressSelect,
+    SERVICE_TYPES, showCreateServiceType, setShowCreateServiceType,
+    newServiceTypeName, setNewServiceTypeName, isCreatingServiceType,
+    handleCreateServiceType,
+    isDescriptionExpanded, setIsDescriptionExpanded, descriptionRef,
+    teamMembers, availabilityMap,
+    error, setError,
+    resetVisitState,
+  } = useJobFormVisits({ isOpen, formData, setFormData });
+
+  // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      // Reset all form state when modal opens
       setFormData({
         title: '',
         description: '',
@@ -169,24 +93,11 @@ export default function NewJobModal({
         estimatedTotal: '',
         depositAmount: '',
       });
-      setSelectedCustomer(null);
-      setCustomerSearch('');
-      setVisits([createEmptyVisit()]);
-      setError('');
-      setShowCreateServiceType(false);
-      setNewServiceTypeName('');
-      setUseCustomerAddress(true);
-      setVehicleAssignmentVisitId(null);
-      setSelectedDriverIds([]);
-      setSelectedVehicleId('');
-      setVisitConflicts({});
-      setIsDescriptionExpanded(false);
-      setDefaultVehicles({});
-      // Reset pricing mode (Phase 1 - Jan 2026)
+      resetVisitState();
       setPricingMode('FIXED_TOTAL');
       setDefaultVisitRate('');
     }
-  }, [isOpen]);
+  }, [isOpen, resetVisitState]);
 
   // Mount and animation effect
   useEffect(() => {
@@ -222,422 +133,7 @@ export default function NewJobModal({
       setSelectedCustomer(preselectedCustomerData.data as Customer);
       setUseCustomerAddress(true);
     }
-  }, [preselectedCustomerData, selectedCustomer]);
-
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    address: '',
-    serviceType: '',
-    priority: 'normal',
-    // Pricing fields (Phase 1.11)
-    estimatedTotal: '',
-    depositAmount: '',
-  });
-
-  // Multi-visit support - each visit has its own date, time, and technicians
-  const [visits, setVisits] = useState<JobVisit[]>([createEmptyVisit()]);
-  const [activeVisitDropdown, setActiveVisitDropdown] = useState<string | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Vehicle assignment popup state
-  const [vehicleAssignmentVisitId, setVehicleAssignmentVisitId] = useState<string | null>(null);
-  const [selectedDriverIds, setSelectedDriverIds] = useState<string[]>([]);
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('');
-
-  // Default vehicles for technicians (from VehicleSchedule - PERMANENT assignments)
-  // Map: technicianId -> { vehicle, matchType }
-  const [defaultVehicles, setDefaultVehicles] = useState<Record<string, {
-    vehicle: { id: string; plateNumber: string; make: string; model: string };
-    matchType: 'permanent' | 'date_range' | 'recurring';
-  } | null>>({});
-
-  // Assignment conflict tracking
-  const [visitConflicts, setVisitConflicts] = useState<Record<string, ValidationWarning[]>>({});
-  const [isValidatingConflicts, setIsValidatingConflicts] = useState(false);
-  const [conflictModalData, setConflictModalData] = useState<{
-    isOpen: boolean;
-    technicianId: string;
-    technicianName: string;
-    date: Date;
-    visitId: string;
-  } | null>(null);
-
-  // Fetch available vehicles
-  const { data: vehiclesData } = useQuery({
-    queryKey: ['vehicles-for-job'],
-    queryFn: async () => {
-      const response = await fetch('/api/vehicles');
-      if (!response.ok) throw new Error('Failed to fetch vehicles');
-      const data = await response.json();
-      return data.data?.vehicles || [];
-    },
-    enabled: isOpen,
-    staleTime: 1000 * 60 * 5,
-  });
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setActiveVisitDropdown(null);
-      }
-    };
-
-    if (activeVisitDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [activeVisitDropdown]);
-
-  // Fetch default vehicles for technicians when they are assigned to visits
-  useEffect(() => {
-    const fetchDefaultVehicles = async () => {
-      // Collect all technician IDs that need default vehicles fetched
-      const techsToFetch: { techId: string; date: string }[] = [];
-
-      for (const visit of visits) {
-        if (!visit.date || visit.technicianIds.length === 0) continue;
-
-        for (const techId of visit.technicianIds) {
-          // Skip if already in our fetch list
-          if (techsToFetch.some(t => t.techId === techId)) continue;
-          // Skip if we already have cached data
-          if (defaultVehicles[techId] !== undefined) continue;
-          // Skip if this technician has an explicit vehicle assignment
-          const hasExplicitVehicle = visit.vehicleAssignments.some(
-            va => va.driverIds && va.driverIds.includes(techId)
-          );
-          if (hasExplicitVehicle) continue;
-
-          techsToFetch.push({ techId, date: visit.date });
-        }
-      }
-
-      if (techsToFetch.length === 0) return;
-
-      // Fetch all in parallel
-      const results = await Promise.all(
-        techsToFetch.map(async ({ techId, date }) => {
-          try {
-            const response = await fetch(
-              `/api/scheduling/vehicle-for-job?technicianId=${techId}&date=${date}`
-            );
-            if (response.ok) {
-              const result = await response.json();
-              if (result.success && result.vehicle) {
-                return {
-                  techId,
-                  data: {
-                    vehicle: {
-                      id: result.vehicle.id,
-                      plateNumber: result.vehicle.plateNumber,
-                      make: result.vehicle.make,
-                      model: result.vehicle.model,
-                    },
-                    matchType: result.matchType as 'permanent' | 'date_range' | 'recurring',
-                  },
-                };
-              }
-            }
-            return { techId, data: null };
-          } catch (err) {
-            console.error('[NewJobModal] Error fetching default vehicle for technician:', techId, err);
-            return { techId, data: null };
-          }
-        })
-      );
-
-      // Build the new defaults map
-      const newDefaults: typeof defaultVehicles = {};
-      for (const result of results) {
-        newDefaults[result.techId] = result.data;
-      }
-
-      if (Object.keys(newDefaults).length > 0) {
-        setDefaultVehicles(prev => ({ ...prev, ...newDefaults }));
-      }
-    };
-
-    fetchDefaultVehicles();
-  }, [visits, defaultVehicles]);
-
-
-  // Fetch service types from API (configurable by business owner)
-  const { data: serviceTypesData } = useQuery({
-    queryKey: ['service-types'],
-    queryFn: async () => {
-      const res = await fetch('/api/settings/service-types');
-      return res.json();
-    },
-  });
-
-  // Use fetched service types - only show what the business has created
-  // Always include "Otro" as a fallback option (if not already present)
-  const businessServiceTypes = serviceTypesData?.data?.map((st: { code: string; name: string }) => ({
-    value: st.code,
-    label: st.name,
-  })) || [];
-
-  // Only add OTRO if it's not already in the list
-  const hasOtro = businessServiceTypes.some((st: { value: string }) => st.value === 'OTRO');
-  const SERVICE_TYPES = hasOtro
-    ? businessServiceTypes
-    : [...businessServiceTypes, { value: 'OTRO', label: 'Otro' }];
-
-  // Create service type mutation
-  const handleCreateServiceType = async () => {
-    if (!newServiceTypeName.trim()) return;
-
-    setIsCreatingServiceType(true);
-    try {
-      const res = await fetch('/api/settings/service-types', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          code: newServiceTypeName.toUpperCase().replace(/\s+/g, '_'),
-          name: newServiceTypeName.trim(),
-        }),
-      });
-      const data = await res.json();
-
-      if (data.success) {
-        // Refresh service types and select the new one
-        await queryClient.invalidateQueries({ queryKey: ['service-types'] });
-        setFormData({ ...formData, serviceType: data.data.code });
-        setShowCreateServiceType(false);
-        setNewServiceTypeName('');
-      } else {
-        setError(data.error || 'Error creando tipo de servicio');
-      }
-    } catch (_err) {
-      setError('Error creando tipo de servicio');
-    } finally {
-      setIsCreatingServiceType(false);
-    }
-  };
-
-  // Convert 12h to 24h format for API
-  const convertTo24h = (time12h: string, period: 'AM' | 'PM'): string => {
-    if (!time12h) return '';
-    // Handle flexible input: "1", "11", "1:30", "11:30"
-    const parts = time12h.split(':');
-    let hours = parseInt(parts[0]) || 0;
-    const minutes = parts[1] ? parseInt(parts[1]) || 0 : 0;
-
-    // Normalize hours > 12 to valid 12h format (e.g., 15 -> 3)
-    // This handles cases where user types in 24h format by mistake
-    if (hours > 12) {
-      hours = hours % 12 || 12;
-    }
-
-    let h = hours;
-    if (period === 'PM' && hours !== 12) h += 12;
-    if (period === 'AM' && hours === 12) h = 0;
-    return `${String(h).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-  };
-
-  // Visit management functions
-  const addVisit = () => {
-    setVisits([...visits, createEmptyVisit()]);
-  };
-
-  const removeVisit = (visitId: string) => {
-    if (visits.length > 1) {
-      setVisits(visits.filter(v => v.id !== visitId));
-    }
-  };
-
-  const updateVisit = (visitId: string, field: keyof JobVisit, value: string | string[] | boolean | number | null | { vehicleId: string; driverIds: string[] }[]) => {
-    setVisits(visits.map(v =>
-      v.id === visitId ? { ...v, [field]: value } : v
-    ));
-  };
-
-  const toggleVisitTechnician = (visitId: string, techId: string) => {
-    setVisits(visits.map(v => {
-      if (v.id !== visitId) return v;
-      const isSelected = v.technicianIds.includes(techId);
-      return {
-        ...v,
-        technicianIds: isSelected
-          ? v.technicianIds.filter(id => id !== techId)
-          : [...v.technicianIds, techId]
-      };
-    }));
-  };
-
-  // Validate technicians for scheduling conflicts
-  const validateVisitAssignments = useCallback(async (visit: JobVisit) => {
-    if (!visit.date || visit.technicianIds.length === 0) {
-      setVisitConflicts(prev => ({ ...prev, [visit.id]: [] }));
-      return;
-    }
-
-    setIsValidatingConflicts(true);
-    const allWarnings: ValidationWarning[] = [];
-
-    // Helper to convert 12h to 24h format
-    const to24h = (time: string, period: 'AM' | 'PM'): string | null => {
-      if (!time) return null;
-      const hour = parseInt(time.split(':')[0]);
-      const min = time.split(':')[1] || '00';
-      let h24 = hour;
-      if (period === 'PM' && hour !== 12) h24 = hour + 12;
-      if (period === 'AM' && hour === 12) h24 = 0;
-      return `${h24}:${min}`;
-    };
-
-    const timeStart = to24h(visit.timeStart, visit.timePeriodStart);
-    const timeEnd = to24h(visit.timeEnd, visit.timePeriodEnd);
-
-    for (const techId of visit.technicianIds) {
-      try {
-        const response = await fetch('/api/employees/schedule/validate-assignment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            technicianId: techId,
-            scheduledDate: visit.date,
-            scheduledTimeStart: timeStart,
-            scheduledTimeEnd: timeEnd,
-          }),
-        });
-        const data = await response.json();
-        if (data.success && data.data?.warnings) {
-          allWarnings.push(...data.data.warnings);
-        }
-      } catch (error) {
-        console.error('Error validating technician:', error);
-      }
-    }
-
-    setVisitConflicts(prev => ({ ...prev, [visit.id]: allWarnings }));
-    setIsValidatingConflicts(false);
-  }, []);
-
-  // Re-validate when visits change (technicians or date)
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      visits.forEach(visit => {
-        if (visit.date && visit.technicianIds.length > 0) {
-          validateVisitAssignments(visit);
-        }
-      });
-    }, 300); // Debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [visits, validateVisitAssignments]);
-
-  // Check if any visit has unresolved conflicts
-  const hasUnresolvedConflicts = Object.values(visitConflicts).some(warnings => warnings.length > 0);
-
-  // Handle conflict action (change date, remove technician, modify exception)
-  const handleConflictAction = (
-    action: 'change_date' | 'remove_technician' | 'modify_exception' | 'modify_schedule',
-    warning: ValidationWarning,
-    visitId: string
-  ) => {
-    if (action === 'remove_technician') {
-      toggleVisitTechnician(visitId, warning.details.technicianId);
-    } else if (action === 'modify_exception' && warning.details.exceptionDate) {
-      // Open the EmployeeDayModal to modify the exception
-      setConflictModalData({
-        isOpen: true,
-        technicianId: warning.details.technicianId,
-        technicianName: warning.details.technicianName,
-        date: new Date(warning.details.exceptionDate),
-        visitId,
-      });
-    } else if (action === 'change_date') {
-      // Focus the date input (scroll into view)
-      const dateInput = document.querySelector(`input[type="date"]`) as HTMLInputElement;
-      if (dateInput) {
-        dateInput.focus();
-        dateInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    } else if (action === 'modify_schedule') {
-      // Redirect to team schedule page
-      window.open(`/dashboard/settings/team?employee=${warning.details.technicianId}&tab=schedule`, '_blank');
-    }
-  };
-
-  // Auto-fill address when customer is selected
-  useEffect(() => {
-    if (selectedCustomer && useCustomerAddress) {
-      const customerAddress = selectedCustomer.address;
-      if (customerAddress) {
-        // Use fullAddress if available, otherwise build from parts
-        const addressString = customerAddress.fullAddress ||
-          [customerAddress.street, customerAddress.city, customerAddress.state, customerAddress.postalCode]
-            .filter(Boolean)
-            .join(', ');
-        setFormData((prev) => ({ ...prev, address: addressString }));
-      }
-    }
-  }, [selectedCustomer, useCustomerAddress]);
-
-  // Handle address selection from autocomplete
-  const handleAddressSelect = (parsed: ParsedAddress) => {
-    setFormData((prev) => ({ ...prev, address: parsed.fullAddress }));
-    setUseCustomerAddress(false);
-  };
-
-  const { data: customersData } = useQuery({
-    queryKey: ['customers-search', customerSearch],
-    queryFn: () => api.customers.search(customerSearch),
-    enabled: customerSearch.length > 2 && !selectedCustomer,
-  });
-
-  // Fetch all team members (admins and technicians)
-  const { data: usersData } = useQuery({
-    queryKey: ['users-all'],
-    queryFn: () => api.users.list(),
-  });
-
-  // Fetch availability when first visit date is selected
-  const firstVisit = visits[0];
-  const { data: availabilityData } = useQuery({
-    queryKey: ['employee-availability', firstVisit?.date, convertTo24h(firstVisit?.timeStart || '', firstVisit?.timePeriodStart || 'AM')],
-    queryFn: async () => {
-      const params = new URLSearchParams({ date: firstVisit?.date || '' });
-      const timeStr = convertTo24h(firstVisit?.timeStart || '', firstVisit?.timePeriodStart || 'AM');
-      if (timeStr) params.append('time', timeStr);
-      const res = await fetch(`/api/employees/availability?${params}`);
-      return res.json();
-    },
-    enabled: !!firstVisit?.date,
-  });
-
-  const customers = customersData?.data as Customer[] | undefined;
-  const teamMembers = usersData?.data as Array<{ id: string; name: string; role: string }> | undefined;
-
-  // Build availability map for quick lookup
-  interface AvailableEmployee {
-    id: string;
-    name: string;
-    isAvailable: boolean;
-    currentJobCount: number;
-  }
-  const availabilityMap = new Map<string, AvailableEmployee>();
-  if (availabilityData?.data?.employees) {
-    (availabilityData.data.employees as AvailableEmployee[]).forEach((emp) => {
-      availabilityMap.set(emp.id, emp);
-    });
-  }
-
-  // Get availability status for a team member
-  const _getAvailabilityStatus = (memberId: string) => {
-    const avail = availabilityMap.get(memberId);
-    if (!avail) return null;
-    return {
-      isAvailable: avail.isAvailable,
-      jobCount: avail.currentJobCount,
-    };
-  };
+  }, [preselectedCustomerData, selectedCustomer, setSelectedCustomer, setUseCustomerAddress]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -730,12 +226,8 @@ export default function NewJobModal({
       urgent: 'URGENTE',
     };
 
-    // Valid service type enum values (database constraint)
-    const validServiceTypes = [
-      'INSTALACION_SPLIT', 'REPARACION_SPLIT', 'MANTENIMIENTO_SPLIT',
-      'INSTALACION_CALEFACTOR', 'REPARACION_CALEFACTOR', 'MANTENIMIENTO_CALEFACTOR',
-      'OTRO'
-    ];
+    // Valid service type check — use dynamically fetched types from the hook
+    const validServiceTypes = SERVICE_TYPES.map((st: { value: string }) => st.value);
     // Default to OTRO if custom service type isn't in the enum
     const serviceType = validServiceTypes.includes(formData.serviceType)
       ? formData.serviceType
@@ -773,16 +265,21 @@ export default function NewJobModal({
       defaultVisitRate: defaultVisitRate ? parseFloat(defaultVisitRate) : undefined,
     };
 
-    const response = await api.jobs.create(jobData);
+    try {
+      const response = await api.jobs.create(jobData);
 
-    if (response.success) {
-      onSuccess?.();
-      handleClose();
-    } else {
-      setError(response.error?.message || 'Error al crear el trabajo');
+      if (response.success) {
+        onSuccess?.();
+        handleClose();
+      } else {
+        setError(response.error?.message || 'Error al crear el trabajo');
+      }
+    } catch (err) {
+      console.error('[NewJobModal] Submit error:', err);
+      setError('Error de conexión. Intentá de nuevo.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setIsSubmitting(false);
   };
 
   // Don't render until mounted (SSR safety)
@@ -1153,10 +650,10 @@ export default function NewJobModal({
                         id="estimatedTotal"
                         type="number"
                         min="0"
-                        step="0.01"
+                        step="1"
                         value={formData.estimatedTotal}
                         onChange={(e) => setFormData({ ...formData, estimatedTotal: e.target.value })}
-                        placeholder="0.00"
+                        placeholder="0"
                         className="input pl-8"
                       />
                     </div>
@@ -1172,10 +669,10 @@ export default function NewJobModal({
                         id="depositAmount"
                         type="number"
                         min="0"
-                        step="0.01"
+                        step="1"
                         value={formData.depositAmount}
                         onChange={(e) => setFormData({ ...formData, depositAmount: e.target.value })}
-                        placeholder="0.00"
+                        placeholder="0"
                         className="input pl-10"
                       />
                     </div>
@@ -1199,10 +696,10 @@ export default function NewJobModal({
                             id="defaultVisitRate"
                             type="number"
                             min="0"
-                            step="0.01"
+                            step="1"
                             value={defaultVisitRate}
                             onChange={(e) => setDefaultVisitRate(e.target.value)}
-                            placeholder="0.00"
+                            placeholder="0"
                             className="input pl-8"
                           />
                         </div>
@@ -1220,10 +717,10 @@ export default function NewJobModal({
                             id="defaultVisitRate"
                             type="number"
                             min="0"
-                            step="0.01"
+                            step="1"
                             value={defaultVisitRate}
                             onChange={(e) => setDefaultVisitRate(e.target.value)}
-                            placeholder="0.00"
+                            placeholder="0"
                             className="input pl-8"
                           />
                         </div>
@@ -1240,10 +737,10 @@ export default function NewJobModal({
                           id="depositAmountPerVisit"
                           type="number"
                           min="0"
-                          step="0.01"
+                          step="1"
                           value={formData.depositAmount}
                           onChange={(e) => setFormData({ ...formData, depositAmount: e.target.value })}
-                          placeholder="0.00"
+                          placeholder="0"
                           className="input pl-10"
                         />
                       </div>
@@ -1707,7 +1204,7 @@ export default function NewJobModal({
                             total += parseFloat(defaultVisitRate) || 0;
                           }
                         });
-                        return total.toLocaleString('es-AR', { minimumFractionDigits: 2 });
+                        return total.toLocaleString('es-AR', { minimumFractionDigits: 0 });
                       })()}
                     </span>
                   </div>
@@ -1727,7 +1224,7 @@ export default function NewJobModal({
                             }
                           });
                           const deposit = parseFloat(formData.depositAmount) || 0;
-                          return (total - deposit).toLocaleString('es-AR', { minimumFractionDigits: 2 });
+                          return (total - deposit).toLocaleString('es-AR', { minimumFractionDigits: 0 });
                         })()}
                       </span>
                     </div>

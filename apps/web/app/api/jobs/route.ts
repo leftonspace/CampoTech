@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import {
   filterEntitiesByRole,
   getEntityFieldMetadata,
+  assertUserRole,
   UserRole,
 } from '@/lib/middleware/field-filter';
 import { JobService } from '@/src/services/job.service';
@@ -57,7 +58,13 @@ export async function GET(request: NextRequest) {
     });
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Transform scheduledTimeSlot to separate fields for frontend compatibility
     const transformedJobs = result.items.map(transformJobTimeSlot);

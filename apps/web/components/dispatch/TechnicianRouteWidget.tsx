@@ -7,7 +7,7 @@
  * Phase 2.3 Task 2.3.6: Dashboard Route Visualization
  *
  * Shows the optimized route for a technician in the dispatch board.
- * Allows dispatchers to:
+ * Allows admins to:
  * - View current route summary (distance, duration, segments)
  * - Generate/regenerate routes for a technician
  * - Open the route in Google Maps (new tab)

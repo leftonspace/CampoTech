@@ -160,6 +160,48 @@ async function processOperation(
           updateData.completedAt = new Date(data.actualEnd as string);
         }
 
+        // ═══════════════════════════════════════════════════════════════════
+        // MATERIALS & SIGNATURE (from mobile completion flow)
+        // ═══════════════════════════════════════════════════════════════════
+        if (data.materialsUsed) {
+          updateData.materialsUsed = data.materialsUsed;
+        }
+        if (data.signatureUrl) {
+          updateData.customerSignature = data.signatureUrl as string;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // PRICE VARIANCE (technician proposes different price)
+        // For FIXED_TOTAL: techProposedTotal is sent directly
+        // For PER_VISIT/HYBRID: visitActualPrice maps to techProposedTotal
+        // ═══════════════════════════════════════════════════════════════════
+        if (data.techProposedTotal !== undefined) {
+          // Direct proposed total (FIXED_TOTAL mode)
+          updateData.techProposedTotal = Number(data.techProposedTotal);
+        } else if (data.visitActualPrice !== undefined) {
+          // Per-visit actual price → treat as job-level proposed total
+          updateData.techProposedTotal = Number(data.visitActualPrice);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // ON-SITE PAYMENT COLLECTION (Step 4 - Cobro)
+        // Writes payment data collected by technician at job site
+        // ═══════════════════════════════════════════════════════════════════
+        if (data.paymentMethod) {
+          // Normalize to uppercase (mobile sends lowercase: 'cash', 'mercadopago', 'transfer')
+          updateData.paymentMethod = (data.paymentMethod as string).toUpperCase();
+        }
+        if (data.paymentAmount !== undefined) {
+          updateData.paymentAmount = Number(data.paymentAmount);
+        }
+        if (data.paymentCollectedAt) {
+          updateData.paymentCollectedAt = new Date(data.paymentCollectedAt as string);
+        }
+        // The technician who synced is the one who collected payment
+        if (data.paymentMethod) {
+          updateData.paymentCollectedById = session.userId;
+        }
+
         await prisma.job.update({
           where: { id: data.serverId as string },
           data: updateData,

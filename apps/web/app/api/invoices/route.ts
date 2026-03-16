@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import {
   filterEntitiesByRole,
   getEntityFieldMetadata,
+  assertUserRole,
   UserRole,
   canAccessModule,
 } from '@/lib/middleware/field-filter';
@@ -32,7 +33,13 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20');
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Check module access - invoices are hidden from TECHNICIAN
     if (!canAccessModule('invoices', userRole)) {

@@ -86,7 +86,7 @@ References to `DISPATCHER` that need renaming to `ADMIN`:
 
 ---
 
-#### ✅ **PHASE 1 STATUS: 90% COMPLETE** (Updated: 2026-02-11)
+#### ✅ **PHASE 1 STATUS: 100% COMPLETE** (Updated: 2026-03-14)
 
 **Completed Work:**
 The bulk code rename in `apps/web` has been completed via 6 systematic VS Code find-and-replace operations:
@@ -105,20 +105,24 @@ The bulk code rename in `apps/web` has been completed via 6 systematic VS Code f
 - ✅ `**/*.md` excluded (docs updated separately)
 - ✅ `**/dispatcher.ts` excluded (job queue, not user role)
 
-**Remaining Work:**
+**Remaining Work:** ✅ ALL COMPLETE
 
-1. ⏳ **Prisma Schema Migration** (Section 5.1.1 below)
-   - Update enum in `schema.prisma`
-   - Create migration: `ALTER TYPE "UserRole" RENAME VALUE 'DISPATCHER' TO 'ADMIN';`
-   - Run `pnpm prisma migrate dev --name rename-dispatcher-to-admin`
+1. ✅ **Prisma Schema Migration** (Section 5.1.1 below)
+   - Schema already uses `ADMIN` — verified no DISPATCHER in `.prisma` files
+   - ⚠️ **Migration history fix (2026-03-14)**: Migration `20260105031407_rename_admin_to_dispatcher` originally
+     renamed ADMIN→DISPATCHER, which was later reversed via untracked `db push`. The migration SQL has been
+     neutralized to a no-op (`SELECT 1;`) to prevent drift on fresh databases.
 
-2. ⏳ **Mobile App** (`apps/mobile`)
-   - ~5 files need DISPATCHER→ADMIN updates
-   - Tab layouts, team pages, role-based UI
+2. ✅ **Mobile App** (`apps/mobile`)
+   - Verified clean — zero DISPATCHER references in mobile source code
+   - Deleted stale `lint-report.json` artifact that contained cached DISPATCHER references
 
-3. ⏳ **Documentation Files** (*.md)
-   - ~15-20 markdown files contain DISPATCHER references
-   - Manual review recommended for context-appropriate updates
+3. ✅ **Documentation Files** (*.md) — Completed 2026-03-14
+   - Updated 14 files across docs/, architecture/, services/ai/, GEMINI.md, and store assets
+   - Bulk-replaced ~20 "despachador" references in PRICEBOOK_SCENARIOS.md
+   - Updated Mermaid diagrams, role tables, and permission matrices
+   - Updated AI support bot FAQ answers
+   - Cleaned fix-user-role-enum.sql utility script
 
 4. ✅ **Database Data** - No action needed
    - Prisma migration will automatically rename enum values
@@ -126,7 +130,7 @@ The bulk code rename in `apps/web` has been completed via 6 systematic VS Code f
 
 ---
 
-#### 5.1.1 — Prisma Schema Migration ⏳ **PENDING**
+#### 5.1.1 — Prisma Schema Migration ✅ **COMPLETE**
 **File**: `apps/web/prisma/schema.prisma` (line 3356-3361)
 
 ```prisma
@@ -180,29 +184,35 @@ export type UserRole = 'SUPER_ADMIN' | 'OWNER' | 'ADMIN' | 'TECHNICIAN';
 | `app/dashboard/schedule/page.tsx` | `'DISPATCHER' ? 'Despachador'` | `'ADMIN' ? 'Administrador'` |
 | `app/dashboard/profile/page.tsx` | `DISPATCHER: 'Despachador'` | `ADMIN: 'Administrador'` |
 
-#### 5.1.4 — Bulk Code Rename ✅ **COMPLETED (apps/web)** ⏳ **PENDING (apps/mobile)**
+#### 5.1.4 — Bulk Code Rename ✅ **COMPLETED (apps/web + apps/mobile + docs)**
 All `'DISPATCHER'` string literals and `DISPATCHER` enum references updated across:
 - ✅ `apps/web/app/api/**` (~30 files) - Completed via Search #1, #3
 - ✅ `apps/web/app/dashboard/**` (~15 files) - Completed via Search #1, #3
 - ✅ `apps/web/components/**` (~10 files) - Completed via Search #1, #3
 - ✅ `apps/web/lib/**` (~10 files) - Completed via Search #1, #3
 - ✅ `apps/web/lib/config/field-permissions.ts` - All DISPATCHER references updated
-- ⏳ `apps/mobile/**` (~5 files) - **PENDING** (requires separate search in mobile directory)
+- ✅ `apps/mobile/**` (~5 files) — **VERIFIED CLEAN** (no DISPATCHER references found)
+- ✅ `docs/**`, `architecture/**`, `services/ai/**` — **COMPLETED 2026-03-14**
+- ✅ `apps/mobile/store-assets/**` — **COMPLETED 2026-03-14**
+- ✅ `apps/web/prisma/fix-user-role-enum.sql` — Removed stale DISPATCHER/VIEWER enum values
 
 > **Note**: The `lib/queue/dispatcher.ts` file is a **job queue dispatcher** (not a user role) — its name stays unchanged and was explicitly excluded from searches.
 
 ---
 
 ### Phase 2: Hard Block Web Login (CRITICAL)
+
+#### ✅ **PHASE 2 STATUS: 100% COMPLETE** (Updated: 2026-03-14)
+
 **Goal**: Prevent technicians from accessing the web dashboard entirely. Show a friendly redirect page.
 
-#### 5.2.1 — Edge Middleware: Block Dashboard Access
+#### 5.2.1 — Edge Middleware: Block Dashboard Access ✅ **COMPLETED 2026-03-14**
 **File**: `apps/web/middleware.ts`
 
-Add a check after token verification (~line 445) that rejects `TECHNICIAN` role from accessing `/dashboard` routes:
+Added TECHNICIAN role check after token verification (line ~450). Redirects to `/mobile-only`:
 
 ```typescript
-// After payload verification succeeds:
+// Phase 2.1: Block TECHNICIAN role from accessing web dashboard
 if (payload.role === 'TECHNICIAN' && pathname.startsWith('/dashboard')) {
   const url = request.nextUrl.clone();
   url.pathname = '/mobile-only';
@@ -210,36 +220,56 @@ if (payload.role === 'TECHNICIAN' && pathname.startsWith('/dashboard')) {
 }
 ```
 
-#### 5.2.2 — ProtectedRoute Component: Enforce on Client
+Also added `/mobile-only` to `FOREVER_FREE_PATHS` in `middleware/subscription-guard.ts` so technicians with expired org subscriptions can still reach the redirect page.
+
+#### 5.2.2 — ProtectedRoute Component: Enforce on Client ✅ **COMPLETED 2026-03-14**
 **File**: `apps/web/lib/auth-context.tsx` → `ProtectedRoute` function
 
-Currently `ProtectedRoute` checks `allowedRoles` only when explicitly passed. The `DashboardLayout` does NOT pass `allowedRoles`, so technicians pass through.
+**Changes made:**
+1. `DashboardLayout` (`apps/web/app/dashboard/layout.tsx`) now uses `<ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'SUPER_ADMIN']}>` — previously had no `allowedRoles`.
+2. `ProtectedRoute` redirect logic updated: TECHNICIAN users are redirected to `/mobile-only` instead of `/dashboard` when they fail the role check.
 
-**Change**: The `DashboardLayout` (`apps/web/app/dashboard/layout.tsx` line 240) currently uses `<ProtectedRoute>` without `allowedRoles`. Update to:
+This provides defense-in-depth: the Edge middleware (5.2.1) blocks server-side, and ProtectedRoute (5.2.2) blocks client-side.
 
-```tsx
-<ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'SUPER_ADMIN']}>
-```
-
-#### 5.2.3 — Create "Mobile Only" Landing Page
+#### 5.2.3 — Create "Mobile Only" Landing Page ✅ **COMPLETED 2026-03-14**
 **File**: `apps/web/app/mobile-only/page.tsx` (NEW)
 
-A friendly page with two clear sections:
+Created a responsive landing page with two clear sections:
 
 **Section 1 — Acceso Técnico (primary message)**
-- **"CampoTech para técnicos está disponible en la app móvil"**
-- Download links for iOS/Android
-- **"Si sos propietario o administrador, iniciá sesión aquí"** (link to `/login`)
+- "CampoTech para técnicos está disponible en la app móvil"
+- App Store and Google Play download buttons (placeholder links until app is live)
+- "¿Sos propietario o administrador? Iniciá sesión aquí" (link to `/login`)
 
 **Section 2 — Upsell to Own Business (conversion funnel)**
-- **"¿Querés gestionar tu propio negocio?"**
-- Brief value proposition: "Conseguí nuevos clientes, gestioná trabajos, cobrá online"
-- **Show subscription tiers inline** — pull from existing plan config:
-  - 🆓 **Prueba Gratis** — 21 días sin compromiso → CTA: "Empezar gratis" → `/register`
-  - 💼 **Plan Inicial** — $X/mes → CTA: "Suscribirme" → `/register?plan=inicial`
-  - 🚀 **Plan Profesional** — $X/mes → CTA: "Suscribirme" → `/register?plan=profesional`
-- They register as OWNER with the selected plan (or free trial by default)
-- This turns the redirect into a **growth opportunity** — every blocked technician is a potential new business customer.
+- "¿Querés gestionar tu propio negocio?"
+- Value proposition: "Conseguí nuevos clientes, gestioná trabajos, cobrá online"
+- Subscription tiers pulled from `TIER_CONFIGS` in `lib/config/tier-limits.ts`:
+  - 🆓 **Prueba Gratis** — 21 días sin compromiso → CTA: "Empezar gratis" → `/signup`
+  - 💼 **Plan Inicial** — $25/mes → CTA: "Suscribirme" → `/signup?plan=inicial`
+  - 🚀 **Plan Profesional** — $55/mes → CTA: "Suscribirme" → `/signup?plan=profesional`
+- Benefits summary grid showing features included in all plans
+
+**SEO Metadata** (added 2026-03-14):
+- ✅ Created `apps/web/app/mobile-only/layout.tsx` with `Metadata` export
+- Title: "Acceso para Técnicos — CampoTech"
+- Description: App download CTA for technicians
+- `robots: { index: false, follow: false }` — redirect page shouldn't be indexed
+
+#### 5.2.5 — Login Redirect Flash Fix ✅ **COMPLETED 2026-03-14**
+**Files**: `apps/web/app/(auth)/login/page.tsx`, `apps/web/lib/auth-context.tsx`
+
+**Problem**: After successful OTP login, the login page always redirected to `/dashboard`. For technicians, the middleware then intercepted the `/dashboard` navigation and redirected to `/mobile-only` — but the technician briefly sees a flash of the loading/success state before the redirect.
+
+**Fix**: The `login()` function in `auth-context.tsx` now returns the user's `role` on success. The login page checks this role immediately and redirects TECHNICIAN users directly to `/mobile-only`:
+```typescript
+if (result.role?.toUpperCase() === 'TECHNICIAN') {
+  router.push('/mobile-only');
+} else {
+  router.push('/dashboard');
+}
+```
+This eliminates the redirect flash entirely. The middleware block (5.2.1) remains as defense-in-depth.
 
 #### 5.2.4 — Update Welcome Email Templates ✅ **COMPLETED 2026-02-11**
 **File**: `apps/web/lib/email.ts`
@@ -274,7 +304,18 @@ Both HTML and plain text templates updated with role detection.
 ---
 
 ### Phase 3: Module Access Config Cleanup
+
+#### ✅ **PHASE 3 STATUS: 100% COMPLETE** (Updated: 2026-03-14)
+
 **Goal**: Make the config source-of-truth reflect reality.
+
+**Completed Work:**
+- ✅ All 15 MODULE_ACCESS entries for TECHNICIAN set to `'hidden'` (was `'own'` for 8 modules)
+- ✅ Removed `'TECHNICIAN'` from all `visibleTo` arrays across 6 field config groups (~50 fields)
+- ✅ Removed `'TECHNICIAN'` from all `editableBy` arrays (web-only config; mobile APIs have own role checks)
+- ✅ Added clarifying comments: "TECHNICIAN edits via mobile app API, not web config"
+- ✅ Updated `tests/unit/permissions.test.ts` — all 7 affected test cases updated to reflect new config
+- ✅ TypeScript compilation passes with zero errors
 
 #### 5.3.1 — Update MODULE_ACCESS
 **File**: `apps/web/lib/config/field-permissions.ts` (line 687-716)
@@ -372,49 +413,29 @@ This replaces any concept of "assigned conversations" for technicians.
 ### Phase 5: Role Change Warning in Equipo (Team) Section
 **Goal**: Allow owners to change roles with full awareness of implications.
 
-#### 5.5.1 — Add Warning Modal to TeamMemberModal
-**File**: `apps/web/components/team/TeamMemberModal.tsx` (around line 556-584)
+#### ✅ **PHASE 5 STATUS: 100% COMPLETE** (Updated: 2026-03-14)
 
-When the role `<select>` changes, intercept the change and show a confirmation modal:
+**Completed Work:**
+- ✅ Role `<select>` onChange intercepted — TECHNICIAN↔ADMIN changes trigger a confirmation modal
+- ✅ Warning modal shows role-specific implications (gains vs. losses)
+- ✅ Role change only applies after explicit "Confirmar Cambio" click
+- ✅ Option labels updated: `Técnico (solo app móvil)` / `Administrador (acceso web)`
+- ✅ Modal uses `AlertTriangle` icon, z-[110] overlay (above parent modal), backdrop blur
+- ✅ TypeScript compilation passes with zero errors
 
-**TECHNICIAN → ADMIN**:
-```
-⚠️ Cambio de Rol: Técnico → Administrador
+#### 5.5.1 — Warning Modal Added to TeamMemberModal ✅ **COMPLETED 2026-03-14**
+**File**: `apps/web/components/team/TeamMemberModal.tsx`
 
-Este cambio tiene las siguientes implicaciones:
-• El usuario tendrá acceso al panel web (dashboard)
-• Podrá ver y gestionar clientes, trabajos, y equipo
-• Podrá asignar y reasignar trabajos
-• Ya no aparecerá como técnico de campo
+When the role `<select>` changes between TECHNICIAN↔ADMIN, the change is intercepted and a confirmation modal is shown:
 
-¿Estás seguro de que querés hacer este cambio?
-[Cancelar] [Confirmar Cambio]
-```
+**TECHNICIAN → ADMIN** (promotion): Shows green checkmarks for gained access (web dashboard, manage clients/jobs/team, assign jobs) and amber warning about no longer appearing as field tech.
 
-**ADMIN → TECHNICIAN**:
-```
-⚠️ Cambio de Rol: Administrador → Técnico
+**ADMIN → TECHNICIAN** (demotion): Shows red crosses for lost access (web dashboard, client/team management) and amber warnings about mobile-only + assigned-jobs-only visibility.
 
-Este cambio tiene las siguientes implicaciones:
-• El usuario perderá acceso al panel web (dashboard)
-• Solo podrá usar la app móvil
-• Solo verá los trabajos que le fueron asignados
-• No podrá gestionar clientes ni equipo
-
-¿Estás seguro de que querés hacer este cambio?
-[Cancelar] [Confirmar Cambio]
-```
-
-#### 5.5.2 — Update Role Options Label
-**File**: `apps/web/components/team/TeamMemberModal.tsx` (line 567-569)
+#### 5.5.2 — Role Options Labels Updated ✅ **COMPLETED 2026-03-14**
+**File**: `apps/web/components/team/TeamMemberModal.tsx`
 
 ```tsx
-// BEFORE:
-<option value="TECHNICIAN">Técnico</option>
-<option value="DISPATCHER">Despachador</option>
-{isOwner && <option value="OWNER">Dueño</option>}
-
-// AFTER:
 <option value="TECHNICIAN">Técnico (solo app móvil)</option>
 <option value="ADMIN">Administrador (acceso web)</option>
 {isOwner && <option value="OWNER">Dueño</option>}
@@ -423,45 +444,44 @@ Este cambio tiene las siguientes implicaciones:
 ---
 
 ### Phase 6: Default Role Fallback Audit
+
+#### ✅ **PHASE 6 STATUS: FULLY COMPLETED** (Cleaned: 2026-03-14)
+
 **Goal**: Stop masking bugs by defaulting unknown roles to `TECHNICIAN`.
 
-#### 5.6.1 — Dangerous Pattern Found (25+ instances)
-Throughout the codebase, this pattern appears:
+#### 5.6.1 — Dangerous `|| 'TECHNICIAN'` Auth Fallback — ✅ **ELIMINATED**
 
+The original pattern (`session.role?.toUpperCase() || 'TECHNICIAN'`) has been **removed from all auth/RBAC paths**.
+
+#### 5.6.2 — Remaining `|| 'TECHNICIAN'` Instances — ✅ **INTENTIONAL (Form Defaults)**
+
+Two instances remain as **form data defaults** (not auth checks):
+
+| File | Line | Usage | Verdict |
+|------|------|-------|---------|
+| `components/team/TeamMemberModal.tsx` | 77 | `role: member?.role \|\| 'TECHNICIAN'` | Form initializer — new team members default to TECHNICIAN role |
+| `app/api/users/route.ts` | 245 | `role: body.role \|\| 'TECHNICIAN'` | POST handler — API default when role not specified in body |
+
+#### 5.6.3 — Unsafe `as UserRole` Cast — ✅ **FULLY CLEANED**
+
+Created `assertUserRole()` utility in `lib/middleware/field-filter.ts` that validates the role string against known `UserRole` values before returning. All 18 API routes and 2 dashboard client components now use validated role assertions:
+
+**Server-side (API routes) — `assertUserRole(session.role)`:**
+All 29 occurrences across 18 files replaced. Pattern:
 ```typescript
-const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
-```
-
-**Problem**: If `session.role` is ever `null`/`undefined` due to a bug, the system silently downgrades to `TECHNICIAN` instead of failing. With our new model, this would cause an immediate redirect to `/mobile-only`.
-
-**Recommended Fix**: Change default to cause explicit failure:
-
-```typescript
-const userRole = session.role?.toUpperCase() as UserRole;
+import { assertUserRole } from '@/lib/middleware/field-filter';
+const userRole = assertUserRole(session.role);
 if (!userRole) {
     return NextResponse.json({ error: 'Role not found in session' }, { status: 401 });
 }
 ```
 
-**Files with this pattern** (approx. 25):
-- `apps/web/app/api/vehicles/route.ts` (line 164)
-- `apps/web/app/api/vehicles/[id]/route.ts` (lines 170, 214)
-- `apps/web/app/api/users/[id]/route.ts` (lines 58, 120)
-- `apps/web/app/api/users/route.ts` (line 140)
-- `apps/web/app/api/users/me/profile/route.ts` (lines 58, 92)
-- `apps/web/app/api/organization/route.ts` (lines 45, 104)
-- `apps/web/app/api/invoices/route.ts` (line 35)
-- `apps/web/app/api/invoices/[id]/route.ts` (lines 35, 112, 210)
-- `apps/web/app/api/jobs/[id]/route.ts` (lines 50, 123)
-- `apps/web/app/api/jobs/route.ts` (line 60)
-- `apps/web/app/api/jobs/v2/route.ts` (line 117)
-- `apps/web/app/api/customers/[id]/route.ts` (lines 39, 77)
-- `apps/web/app/api/customers/route.ts` (line 56)
-- `apps/web/app/api/inventory/items/[id]/route.ts` (lines 103, 135)
-- `apps/web/app/dashboard/layout.tsx` (line 127)
-- `apps/web/app/dashboard/settings/organization/page.tsx` (line 80)
-- `apps/web/app/dashboard/team/page.tsx` (line 40)
-- `apps/web/lib/access-control/middleware.ts` (line 131)
+**Client-side (dashboard) — `validRoles.includes()` check:**
+- ✅ `lib/hooks/useFieldPermissions.ts` — Validates against known roles before casting
+- ✅ `app/dashboard/layout.tsx` — Validates then casts with throw guard
+- ✅ `app/dashboard/settings/organization/page.tsx` — Validates then casts with throw guard
+
+**Zero instances of unvalidated `as UserRole` cast remain in the codebase.**
 
 ---
 

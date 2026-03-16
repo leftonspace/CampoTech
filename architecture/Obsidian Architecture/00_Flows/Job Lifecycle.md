@@ -39,8 +39,8 @@ CANCELLED         CANCELLED          IN_PROGRESS
 
 | Step | Actor | Action | Systems Involved |
 |:---|:---|:---|:---|
-| **1. Crear Trabajo** | Dispatcher (web) | Create job with customer, category, schedule | [[New Job Page]] |
-| **2. Asignar Técnico** | Dispatcher (web) | Assign via AI dispatch or manual | [[Dispatch System]] |
+| **1. Crear Trabajo** | Admin (web) | Create job with customer, category, schedule | [[New Job Page]] |
+| **2. Asignar Técnico** | Admin (web) | Assign via AI dispatch or manual | [[Dispatch System]] |
 | **3. En Camino** | Technician (mobile) | Start route, GPS tracking begins | [[Mobile App Architecture]] |
 | **4. Confirmación** | Both | 4-digit mutual code exchange | [[Technician Verification Security]] |
 | **5. En Progreso** | Technician (mobile) | Execute work, capture photos | [[Mobile Job Execution]] |

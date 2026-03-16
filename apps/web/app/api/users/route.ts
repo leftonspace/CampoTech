@@ -11,6 +11,7 @@ import { requestOTP } from '@/lib/otp';
 import {
   filterEntitiesByRole,
   getEntityFieldMetadata,
+  assertUserRole,
   UserRole,
 } from '@/lib/middleware/field-filter';
 
@@ -137,7 +138,13 @@ export async function GET(request: NextRequest) {
     });
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Filter data based on user role
     const filteredUsers = filterEntitiesByRole(usersWithStats, 'user', userRole);

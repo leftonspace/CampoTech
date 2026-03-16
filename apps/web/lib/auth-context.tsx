@@ -20,7 +20,7 @@ interface AuthContextValue {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (phone: string, code: string) => Promise<{ success: boolean; error?: string }>;
+  login: (phone: string, code: string) => Promise<{ success: boolean; error?: string; role?: string }>;
   register: (phone: string, code: string) => Promise<{ success: boolean; error?: string; registrationTicket?: string }>;
   logout: () => Promise<void>;
   requestOtp: (phone: string) => Promise<{ success: boolean; error?: string }>;
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const login = useCallback(async (phone: string, code: string) => {
+  const login = useCallback(async (phone: string, code: string): Promise<{ success: boolean; error?: string; role?: string }> => {
     const response = await api.auth.verifyOtp(phone, code);
 
     console.log('Login response:', JSON.stringify(response, null, 2));
@@ -106,6 +106,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const storedToken = localStorage.getItem('accessToken');
       console.log('Stored token length:', storedToken?.length);
 
+      // Capture role from login response before async /me call
+      const loginRole = data.user?.role;
+
       // Fetch full user data (including subscriptionTier) from /api/auth/me
       try {
         const meResponse = await api.auth.me();
@@ -121,7 +124,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
       }
 
-      return { success: true };
+      return { success: true, role: loginRole };
     }
 
     return {
@@ -213,7 +216,14 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
 
     if (!isLoading && isAuthenticated && allowedRoles && user) {
       if (!hasAllowedRole(user.role, allowedRoles)) {
-        router.push('/dashboard');
+        // Phase 2.2: Technicians get redirected to /mobile-only
+        // instead of /dashboard (which they can't access anyway)
+        const userRoleUpper = user.role?.toUpperCase();
+        if (userRoleUpper === 'TECHNICIAN') {
+          router.push('/mobile-only');
+        } else {
+          router.push('/dashboard');
+        }
       }
     }
   }, [isLoading, isAuthenticated, user, allowedRoles, router]);

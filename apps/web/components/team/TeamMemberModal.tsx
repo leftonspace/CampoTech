@@ -16,6 +16,7 @@ import {
     Calendar,
     Star,
     Briefcase,
+    AlertTriangle,
 } from 'lucide-react';
 import PhoneInput from '@/components/ui/PhoneInput';
 import type { TeamMember, TradeCertification } from './types';
@@ -102,11 +103,15 @@ export function TeamMemberModal({ member, currentUserId, currentUserRole, onClos
     // Lightbox state for photo preview
     const [lightboxImage, setLightboxImage] = useState<{ src: string; alt: string } | null>(null);
 
+    // Role change warning modal state
+    const [pendingRoleChange, setPendingRoleChange] = useState<{ from: string; to: string } | null>(null);
+
     const isOwner = member?.role === 'OWNER';
     const isEditing = !!member;
 
     // ACCESS CONTROL: Determine if user can edit or just view
-    const normalizedRole = currentUserRole?.toUpperCase() || 'TECHNICIAN';
+    const normalizedRole = currentUserRole?.toUpperCase();
+    if (!normalizedRole) throw new Error('Current user role missing — session may be corrupted');
     const isEditingSelf = member?.id === currentUserId;
     const canEdit = isEditingSelf || ['OWNER', 'ADMIN'].includes(normalizedRole);
     const isViewOnly = isEditing && !canEdit;
@@ -560,12 +565,24 @@ export function TeamMemberModal({ member, currentUserId, currentUserRole, onClos
                                     </label>
                                     <select
                                         value={formData.role}
-                                        onChange={(e) => setFormData({ ...formData, role: e.target.value as TeamMember['role'] })}
+                                        onChange={(e) => {
+                                            const newRole = e.target.value as TeamMember['role'];
+                                            const oldRole = formData.role;
+                                            // Intercept TECHNICIAN <-> ADMIN changes to show warning
+                                            const isCriticalChange =
+                                                (oldRole === 'TECHNICIAN' && newRole === 'ADMIN') ||
+                                                (oldRole === 'ADMIN' && newRole === 'TECHNICIAN');
+                                            if (isCriticalChange) {
+                                                setPendingRoleChange({ from: oldRole, to: newRole });
+                                            } else {
+                                                setFormData({ ...formData, role: newRole });
+                                            }
+                                        }}
                                         className="input w-full h-10"
                                         disabled={isOwner}
                                     >
-                                        <option value="TECHNICIAN">Técnico</option>
-                                        <option value="ADMIN">Administrador</option>
+                                        <option value="TECHNICIAN">Técnico (solo app móvil)</option>
+                                        <option value="ADMIN">Administrador (acceso web)</option>
                                         {isOwner && <option value="OWNER">Dueño</option>}
                                     </select>
                                     {/* Active checkbox - under Rol for alignment */}
@@ -1098,6 +1115,109 @@ export function TeamMemberModal({ member, currentUserId, currentUserRole, onClos
                         <p className="text-center text-white/80 text-sm mt-3">
                             {lightboxImage.alt}
                         </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Role Change Warning Modal */}
+            {pendingRoleChange && (
+                <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                    <div
+                        className="fixed inset-0 bg-black/60 backdrop-blur-[2px]"
+                        onClick={() => setPendingRoleChange(null)}
+                        aria-hidden="true"
+                    />
+                    <div className="relative bg-white rounded-xl shadow-2xl max-w-md w-full p-6 animate-in zoom-in-95 duration-200">
+                        {/* Header */}
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                                <AlertTriangle className="h-5 w-5 text-amber-600" />
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                    Cambio de Rol
+                                </h3>
+                                <p className="text-sm text-gray-500">
+                                    {pendingRoleChange.from === 'TECHNICIAN' ? 'Técnico' : 'Administrador'}
+                                    {' → '}
+                                    {pendingRoleChange.to === 'TECHNICIAN' ? 'Técnico' : 'Administrador'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Implications */}
+                        <div className="mb-6">
+                            <p className="text-sm font-medium text-gray-700 mb-2">
+                                Este cambio tiene las siguientes implicaciones:
+                            </p>
+                            <ul className="space-y-2">
+                                {pendingRoleChange.from === 'TECHNICIAN' && pendingRoleChange.to === 'ADMIN' ? (
+                                    <>
+                                        <li className="flex items-start gap-2 text-sm text-gray-600">
+                                            <span className="mt-0.5 text-green-500">✓</span>
+                                            El usuario tendrá acceso al panel web (dashboard)
+                                        </li>
+                                        <li className="flex items-start gap-2 text-sm text-gray-600">
+                                            <span className="mt-0.5 text-green-500">✓</span>
+                                            Podrá ver y gestionar clientes, trabajos, y equipo
+                                        </li>
+                                        <li className="flex items-start gap-2 text-sm text-gray-600">
+                                            <span className="mt-0.5 text-green-500">✓</span>
+                                            Podrá asignar y reasignar trabajos
+                                        </li>
+                                        <li className="flex items-start gap-2 text-sm text-gray-600">
+                                            <span className="mt-0.5 text-amber-500">⚠</span>
+                                            Ya no aparecerá como técnico de campo
+                                        </li>
+                                    </>
+                                ) : (
+                                    <>
+                                        <li className="flex items-start gap-2 text-sm text-gray-600">
+                                            <span className="mt-0.5 text-red-500">✕</span>
+                                            El usuario perderá acceso al panel web (dashboard)
+                                        </li>
+                                        <li className="flex items-start gap-2 text-sm text-gray-600">
+                                            <span className="mt-0.5 text-amber-500">⚠</span>
+                                            Solo podrá usar la app móvil
+                                        </li>
+                                        <li className="flex items-start gap-2 text-sm text-gray-600">
+                                            <span className="mt-0.5 text-amber-500">⚠</span>
+                                            Solo verá los trabajos que le fueron asignados
+                                        </li>
+                                        <li className="flex items-start gap-2 text-sm text-gray-600">
+                                            <span className="mt-0.5 text-red-500">✕</span>
+                                            No podrá gestionar clientes ni equipo
+                                        </li>
+                                    </>
+                                )}
+                            </ul>
+                        </div>
+
+                        {/* Confirmation question */}
+                        <p className="text-sm font-medium text-gray-800 mb-4">
+                            ¿Estás seguro de que querés hacer este cambio?
+                        </p>
+
+                        {/* Actions */}
+                        <div className="flex justify-end gap-3">
+                            <button
+                                type="button"
+                                onClick={() => setPendingRoleChange(null)}
+                                className="btn-outline"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setFormData({ ...formData, role: pendingRoleChange.to as TeamMember['role'] });
+                                    setPendingRoleChange(null);
+                                }}
+                                className="btn-primary"
+                            >
+                                Confirmar Cambio
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

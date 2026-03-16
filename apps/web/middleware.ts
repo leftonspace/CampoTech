@@ -447,6 +447,17 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
       identifier = `org:${organizationId}`;
       tier = (payload.subscriptionTier as SubscriptionTier) || 'FREE';
 
+      // Phase 2.1: Block TECHNICIAN role from accessing web dashboard
+      // Technicians should use the mobile app exclusively.
+      if (
+        payload.role === 'TECHNICIAN' &&
+        pathname.startsWith('/dashboard')
+      ) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/mobile-only';
+        return NextResponse.redirect(url);
+      }
+
       // Phase 2.5: Subscription Guard
       const guardResponse = await subscriptionGuard(request, payload);
       if (guardResponse) {

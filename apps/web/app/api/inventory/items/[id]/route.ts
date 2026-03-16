@@ -5,6 +5,7 @@ import {
   filterEntityByRole,
   getEntityFieldMetadata,
   validateEntityUpdate,
+  assertUserRole,
   UserRole,
 } from '@/lib/middleware/field-filter';
 
@@ -100,7 +101,13 @@ export async function GET(
       })),
     };
 
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
     const filteredData = filterEntityByRole(mappedProduct, 'product', userRole);
     const fieldMeta = getEntityFieldMetadata('product', userRole);
 
@@ -132,7 +139,13 @@ export async function PUT(
       );
     }
 
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
     if (!['OWNER', 'ADMIN'].includes(userRole)) {
       return NextResponse.json(
         { success: false, error: 'No tienes permiso para esta operación' },

@@ -3,6 +3,7 @@ import { getSession } from '@/lib/auth';
 import {
   filterEntitiesByRole,
   getEntityFieldMetadata,
+  assertUserRole,
   UserRole,
 } from '@/lib/middleware/field-filter';
 import { CustomerService } from '@/services/customer.service';
@@ -53,7 +54,13 @@ export async function GET(request: NextRequest) {
     });
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Filter data based on user role
     const filteredCustomers = filterEntitiesByRole(result.items, 'customer', userRole);

@@ -182,9 +182,9 @@ export const VARIABLE_NAME = {
 - **Presupuesto** = Quote/estimate (Spanish term used in codebase)
 - **Cobro** = Payment collection (cash, MercadoPago, transfer)
 - **Técnico** = Technician / field worker
-- **Despachador** = Dispatcher (office role)
+- **Administrador** = Admin (office role, web dashboard access)
 - **CUIT** = Argentine tax ID (validated with Mod-11 algorithm)
-- **RBAC** = Role-Based Access Control (OWNER, ADMIN, DISPATCHER, TECHNICIAN)
+- **RBAC** = Role-Based Access Control (OWNER, ADMIN, TECHNICIAN)
 - **Terminal states** = COMPLETED and CANCELLED — immutable, cannot be modified
 
 ---
@@ -197,7 +197,7 @@ export const VARIABLE_NAME = {
 - Use v2 API standard for new endpoints (SQL views, <200ms latency target)
 
 ### Frontend
-- Persona-based navigation: Dispatcher vs. Technician views
+- Persona-based navigation: Admin vs. Technician views
 - React Query v5 for data fetching
 - Accent-insensitive search for Argentine names/addresses
 

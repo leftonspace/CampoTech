@@ -35,6 +35,9 @@ import VoiceInput from '../../../components/voice/VoiceInput';
 import { PricebookSearch, type SelectedPriceItem } from '../../../components/pricebook';
 import { useAuth } from '../../../lib/auth/auth-context';
 
+/** 21% IVA — Argentine standard tax rate (AFIP) */
+const IVA_RATE_ARGENTINA = 0.21;
+
 type Step = 'notes' | 'photos' | 'signature' | 'payment';
 
 interface Material {
@@ -161,17 +164,26 @@ export default function CompleteJobScreen() {
     }
   };
 
-  // Load job pricing data (Phase 1 - Jan 2026)
+  // Load job pricing data (Phase 1 - Jan 2026, extended Feb 2026 for FIXED_TOTAL)
   const loadJobPricingData = useCallback(async () => {
     if (!id) return;
     try {
       const job = await jobsCollection.find(id) as Job;
       if (job) {
-        setJobPricingMode(job.pricingMode);
-        setVisitEstimatedPrice(job.visitEstimatedPrice);
-        // Pre-fill actual price with estimated if available
-        if (job.visitEstimatedPrice !== null) {
-          setVisitActualPrice(job.visitEstimatedPrice.toString());
+        setJobPricingMode(job.pricingMode || 'FIXED_TOTAL');
+
+        if (job.pricingMode === 'PER_VISIT' || job.pricingMode === 'HYBRID') {
+          // Per-visit: use visit-level estimated price
+          setVisitEstimatedPrice(job.visitEstimatedPrice);
+          if (job.visitEstimatedPrice !== null) {
+            setVisitActualPrice(job.visitEstimatedPrice.toString());
+          }
+        } else {
+          // FIXED_TOTAL: use job-level estimatedTotal
+          setVisitEstimatedPrice(job.estimatedTotal);
+          if (job.estimatedTotal !== null) {
+            setVisitActualPrice(job.estimatedTotal.toString());
+          }
         }
       }
     } catch (error) {
@@ -314,8 +326,12 @@ export default function CompleteJobScreen() {
       // Get the job
       const job = (await jobsCollection.find(id)) as Job;
 
-      // Build per-visit pricing data (Phase 1 - Jan 2026)
-      const visitPricing = job.isPerVisitPricing && visitActualPrice
+      // Build pricing variance data (supports ALL pricing modes)
+      const hasPriceChanged = visitActualPrice &&
+        visitEstimatedPrice !== null &&
+        parseFloat(visitActualPrice) !== visitEstimatedPrice;
+
+      const visitPricing = (job.isPerVisitPricing && visitActualPrice)
         ? {
           actualPrice: parseFloat(visitActualPrice),
           priceVarianceReason: priceVarianceReason || undefined,
@@ -338,7 +354,7 @@ export default function CompleteJobScreen() {
         }
       });
 
-      // Queue for sync - include per-visit pricing (Phase 1 - Jan 2026)
+      // Queue for sync
       const syncPayload: Record<string, any> = {
         status: 'completed',
         completionNotes: notes,
@@ -347,10 +363,18 @@ export default function CompleteJobScreen() {
         actualEnd: Date.now(),
       };
 
-      // Add per-visit pricing to sync payload
-      if (visitPricing) {
-        syncPayload.visitActualPrice = visitPricing.actualPrice;
-        syncPayload.priceVarianceReason = visitPricing.priceVarianceReason;
+      // Price variance — send proposed total for ALL pricing modes
+      if (hasPriceChanged) {
+        if (job.pricingMode === 'PER_VISIT' || job.pricingMode === 'HYBRID') {
+          // Per-visit: server maps visitActualPrice → techProposedTotal
+          syncPayload.visitActualPrice = parseFloat(visitActualPrice);
+        } else {
+          // FIXED_TOTAL: send techProposedTotal directly
+          syncPayload.techProposedTotal = parseFloat(visitActualPrice);
+        }
+        if (priceVarianceReason) {
+          syncPayload.priceVarianceReason = priceVarianceReason;
+        }
       }
 
       // Add payment data (Step 4 - Feb 2026)
@@ -390,7 +414,7 @@ export default function CompleteJobScreen() {
 
   const calculateTotal = () => {
     const subtotal = materials.reduce((sum, m) => sum + m.quantity * m.price, 0);
-    const tax = subtotal * 0.21;
+    const tax = subtotal * IVA_RATE_ARGENTINA;
     return { subtotal, tax, total: subtotal + tax };
   };
 
@@ -620,10 +644,12 @@ export default function CompleteJobScreen() {
                 </View>
               )}
 
-              {/* Per-Visit Pricing Section (Phase 1 - Jan 2026) */}
-              {jobPricingMode && jobPricingMode !== 'FIXED_TOTAL' && (
+              {/* Pricing Section — ALL modes including FIXED_TOTAL */}
+              {visitEstimatedPrice !== null && visitEstimatedPrice > 0 && (
                 <View style={styles.pricingSection}>
-                  <Text style={styles.sectionTitle}>Precio de esta visita</Text>
+                  <Text style={styles.sectionTitle}>
+                    {jobPricingMode === 'FIXED_TOTAL' ? 'Presupuesto' : 'Precio de esta visita'}
+                  </Text>
 
                   <View style={styles.priceRow}>
                     <Text style={styles.priceLabel}>Estimado:</Text>

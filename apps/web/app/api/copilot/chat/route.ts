@@ -99,9 +99,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Phase 5.4: Allow OWNER, ADMIN, and TECHNICIAN roles
+    // Only OWNER and ADMIN can use the co-pilot (manages the org's WhatsApp inbox)
     const userRole = session.role?.toUpperCase() || '';
-    const allowedRoles = ['OWNER', 'ADMIN', 'TECHNICIAN'];
+    const allowedRoles = ['OWNER', 'ADMIN'];
     console.log('[COPILOT] Role check:', { userRole, allowed: allowedRoles.includes(userRole) });
     if (!allowedRoles.includes(userRole)) {
       return NextResponse.json(
@@ -121,24 +121,6 @@ export async function POST(request: NextRequest) {
         { success: false, error: rateLimit.error || 'Rate limit exceeded' },
         { status: 429, headers: getRateLimitHeaders(rateLimit) }
       );
-    }
-
-    // Phase 5.4: For TECHNICIAN role, verify they are assigned to the conversation
-    if (userRole === 'TECHNICIAN' && conversationId) {
-      const conversation = await prisma.waConversation.findFirst({
-        where: {
-          id: conversationId,
-          organizationId: session.organizationId,
-          assignedToId: session.userId,
-        },
-      });
-
-      if (!conversation) {
-        return NextResponse.json(
-          { success: false, error: 'No estás asignado a esta conversación' },
-          { status: 403 }
-        );
-      }
     }
 
     if (!message) {

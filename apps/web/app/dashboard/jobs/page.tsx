@@ -141,12 +141,13 @@ export default function JobsPage() {
   const [cancelConfirmJob, setCancelConfirmJob] = useState<Job | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [isNewJobModalOpen, setIsNewJobModalOpen] = useState(false);
+  const [preselectedCustomerId, setPreselectedCustomerId] = useState<string | null>(null);
   const [page, setPage] = useState(1); // Pagination state for v2 API
 
   // Reset page to 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [search, statusFilter, technicianFilter, durationTypeFilter, activeTab]);
+  }, [search, statusFilter, priorityFilter, technicianFilter, durationTypeFilter, activeTab]);
 
   // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
   // GLOBAL SEARCH INTEGRATION
@@ -171,6 +172,17 @@ export default function JobsPage() {
       // Clean up URL after opening (remove the job param, keep search)
       const url = new URL(window.location.href);
       url.searchParams.delete('job');
+      router.replace(url.pathname + (url.searchParams.toString() ? `?${url.searchParams}` : ''), { scroll: false });
+    }
+
+    // Handle newJob param (pre-filled customer from job detail page)
+    const newJobCustomerId = searchParams.get('newJob');
+    if (newJobCustomerId) {
+      setPreselectedCustomerId(newJobCustomerId);
+      setIsNewJobModalOpen(true);
+      // Clean up URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('newJob');
       router.replace(url.pathname + (url.searchParams.toString() ? `?${url.searchParams}` : ''), { scroll: false });
     }
   }, [searchParams, router]);
@@ -201,6 +213,7 @@ export default function JobsPage() {
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
     queryKey: ['jobs-v2', {
       status: statusFilter,
+      priority: priorityFilter, // Client-side filter — included for cache key correctness
       durationType: durationTypeFilter,
       technician: technicianFilter,
       search, // Server-side search
@@ -973,11 +986,15 @@ export default function JobsPage() {
       {/* New Job Modal */}
       <NewJobModal
         isOpen={isNewJobModalOpen}
-        onClose={() => setIsNewJobModalOpen(false)}
+        onClose={() => {
+          setIsNewJobModalOpen(false);
+          setPreselectedCustomerId(null);
+        }}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ['jobs'] });
           queryClient.invalidateQueries({ queryKey: ['jobs-stats'] });
         }}
+        preselectedCustomerId={preselectedCustomerId}
       />
     </div>
   );

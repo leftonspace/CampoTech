@@ -76,8 +76,14 @@ export default function OrganizationSettingsPage() {
   const [success, setSuccess] = useState('');
 
   // Get user role for field permissions
-  const userRole = useMemo(() => {
-    return (user?.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+  const userRole = useMemo((): UserRole => {
+    const rawRole = user?.role?.toUpperCase();
+    if (!rawRole) throw new Error('User role missing — session may be corrupted');
+    const validRoles: UserRole[] = ['SUPER_ADMIN', 'OWNER', 'ADMIN', 'TECHNICIAN'];
+    if (!validRoles.includes(rawRole as UserRole)) {
+      throw new Error(`Unknown user role "${rawRole}"`);
+    }
+    return rawRole as UserRole;
   }, [user?.role]);
 
   // Get field metadata based on user role

@@ -44,16 +44,16 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "02_App/Financial/Unified Billing Hub — Design Proposal.md",
+                "file": "2026-03-15.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Unified Billing Hub — Design Proposal"
+              "title": "2026-03-15"
             }
           }
         ],
-        "currentTab": 2
+        "currentTab": 1
       }
     ],
     "direction": "vertical"
@@ -188,13 +188,13 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "Pages/App Onboarding.md",
+                "file": "Sitemap.canvas",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Outline of App Onboarding"
+              "title": "Outline of Sitemap"
             }
           },
           {
@@ -208,7 +208,7 @@
             }
           }
         ],
-        "currentTab": 5
+        "currentTab": 4
       }
     ],
     "direction": "horizontal",
@@ -225,11 +225,13 @@
       "bases:Create new base": false
     }
   },
-  "active": "fb4e88e5451ca4f4",
+  "active": "f48d3605ffb5866b",
   "lastOpenFiles": [
+    "2026-03-15.md",
+    "Untitled.canvas",
+    "02_App/Financial/Unified Billing Hub — Design Proposal.md",
     "02_App/Financial/Inflation-Aware Billing Analytics — Architecture Proposal.md",
     "02_App/Marketplace/Marketplace Smart Matching.md",
-    "02_App/Financial/Unified Billing Hub — Design Proposal.md",
     "02_App/Financial/Facturas Pagos AFIP - How They Work Together.md",
     "02_App/Operations/Technician Verification Security.md",
     "02_App/AI/AI Architecture Deep Dive.md",
@@ -252,7 +254,6 @@
     "02_App/CRM/Profile Page.md",
     "02_App/Operations/Team Availability Page.md",
     "02_App/Operations/New Job Page.md",
-    "02_App/Operations/Locations Page.md",
     "Sitemap.canvas",
     "02_App/Communication",
     "02_App/Admin",
@@ -272,7 +273,6 @@
     "assets/landing-demo.png",
     "assets/landing-pricing.png",
     "assets/landing-features.png",
-    "assets/landing-hero.png",
-    "Untitled.canvas"
+    "assets/landing-hero.png"
   ]
 }

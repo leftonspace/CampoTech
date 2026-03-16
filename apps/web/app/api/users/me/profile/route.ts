@@ -11,6 +11,7 @@ import {
   filterEntityByRole,
   getEntityFieldMetadata,
   validateEntityUpdate,
+  assertUserRole,
   UserRole,
 } from '@/lib/middleware/field-filter';
 
@@ -55,7 +56,13 @@ export async function GET() {
     }
 
     // Normalize user role for permission checking
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Filter data based on user role (isSelf = true since viewing own profile)
     const filteredData = filterEntityByRole(user, 'user', userRole, true);
@@ -89,7 +96,13 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
 
     // Normalize user role
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Validate that user can edit the fields they're trying to update (isSelf = true)
     const validation = validateEntityUpdate(body, 'user', userRole, true);

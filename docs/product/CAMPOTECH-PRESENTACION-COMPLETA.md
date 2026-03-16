@@ -119,7 +119,7 @@ CampoTech resuelve estos problemas con una plataforma integral:
 │                                                                         │
 │  👷 EQUIPO            📦 INVENTARIO       🚗 FLOTA                     │
 │  - Técnicos           - Stock             - Vehículos                   │
-│  - Despachadores      - Escaneo código    - Asignación horaria          │
+│  - Administradores    - Escaneo código    - Asignación horaria          │
 │  - Permisos           - Deducción auto    - Mantenimiento               │
 │                                                                         │
 │  💬 WHATSAPP + IA     📊 ANALYTICS        ⚙️ CONFIGURACIÓN            │
@@ -263,7 +263,7 @@ CampoTech resuelve estos problemas con una plataforma integral:
 
 ---
 
-### 3. Despachadores (ADMIN)
+### 3. Administradores (ADMIN)
 
 **Rol**: Personal de oficina que coordina trabajos
 
@@ -361,7 +361,7 @@ CampoTech consiste en **5 aplicaciones** que trabajan juntas:
 
 **URL**: campotech.com.ar
 
-**Usuarios**: Dueños, Despachadores
+**Usuarios**: Dueños, Administradores
 
 **Tecnología**: Next.js 14, React, Tailwind CSS
 
@@ -667,7 +667,7 @@ CICLO DE VIDA DE UN TRABAJO
    └── Datos: cliente, dirección, servicio, fecha/hora
 
 2. ASIGNACIÓN
-   └── Dueño/Despachador asigna técnico
+   └── Dueño/Administrador asigna técnico
    └── Técnico recibe notificación push
    └── Trabajo aparece en su app
 
@@ -844,11 +844,11 @@ IA analiza mensaje y calcula CONFIANZA
         ├── ALTA CONFIANZA (ej: "Necesito plomero mañana a las 10")
         │   └── IA responde y agenda automáticamente
         │   └── Crea trabajo en el sistema
-        │   └── Notifica a dueño/despachador
+        │   └── Notifica a dueño/administrador
         │
         └── BAJA CONFIANZA (ej: "Cuánto sale arreglar X cosa?")
             └── IA escala a humano
-            └── Dueño/Despachador ve conversación
+            └── Dueño/Administrador ve conversación
             └── Continúa atención manual
 
 MANEJO DE AUDIOS
@@ -1048,7 +1048,7 @@ BAJA (< 50%): IA escala a humano
 ├── Mensajes confusos
 ├── Reclamos o quejas
 ├── Negociación de precios
-└── Acción: Notifica a dueño/despachador
+└── Acción: Notifica a dueño/administrador
 ```
 
 ### Asistente Admin (Tu Chatbot)

@@ -4,7 +4,7 @@
  *
  * Get/update a specific conversation.
  * GET: Get conversation details
- * PATCH: Update conversation (assign, close, archive)
+ * PATCH: Update conversation (close, archive, spam, markRead)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -63,7 +63,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { action, assignToId } = body;
+    const { action } = body;
 
     // Verify conversation belongs to organization
     const conversation = await prisma.waConversation.findFirst({
@@ -82,13 +82,6 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     // Handle different actions
     switch (action) {
-      case 'assign':
-        await prisma.waConversation.update({
-          where: { id },
-          data: { assignedToId: assignToId || null },
-        });
-        break;
-
       case 'close':
         await prisma.waConversation.update({
           where: { id },

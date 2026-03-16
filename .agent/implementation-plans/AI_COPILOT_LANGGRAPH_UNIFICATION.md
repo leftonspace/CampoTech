@@ -35,40 +35,69 @@ Transform the AI Copilot from a **reactive assistant** to a **proactive agent** 
 
 ### Architecture Overview
 
+> 📌 **DESIGN DECISION (2026-02-21):** The architecture has TWO distinct layers:
+> - **System Layer** (deterministic, code-only, ~10ms) — runs DURING debounce wait, resolves identity, pre-fetches all context
+> - **AI Layer** (LLM-powered, judgment-based, ~400ms-2s) — receives pre-loaded context, focuses on intent understanding + response crafting
+>
+> This separation reduces LLM calls by ~83% and ensures the AI never starts blind.
+
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│                 ORCHESTRATOR + SUB-AGENT ARCHITECTURE                        │
+│           SYSTEM LAYER + AI LAYER ARCHITECTURE (v5.0)                        │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
-│  ENTRY POINTS                   ORCHESTRATOR (Lightweight)                   │
-│  ────────────                   ──────────────────────────                   │
-│  • WhatsApp Webhook             ┌──────────────────────────┐                │
-│  • Dashboard CopilotPanel       │  1. INTAKE (Working Mem) │                │
-│  • Voice Messages               │  2. CLASSIFY INTENT      │                │
-│  • Scheduled Proactive          │  3. ROUTE TO SUB-AGENT   │                │
-│          │                      │  4. FORMAT RESPONSE      │                │
-│          ▼                      └────────────┬─────────────┘                │
-│  ┌──────────────────────┐                    │                              │
-│  │ NEXT.JS (TS Proxy)   │                    ▼                              │
-│  │ Hybrid Classifier    │     ┌──────────────────────────────┐              │
-│  └──────────┬───────────┘     │       SUB-AGENT ROUTER       │              │
-│             │                 │    (Intent → Category Map)   │              │
-│             ▼                 └───┬──────┬──────┬──────┬─────┘              │
-│  ┌──────────────────────┐        │      │      │      │                    │
-│  │ PYTHON AI SERVICE    │        ▼      ▼      ▼      ▼                    │
-│  │ (LangGraph)          │   ┌──────┐ ┌─────┐ ┌─────┐ ┌──────┐             │
-│  │                      │   │SCHED │ │CUST │ │FINAN│ │FLEET │  ...more    │
-│  │ Sub-Agent Registry   │   │Agent │ │Agent│ │Agent│ │Agent │             │
-│  │ maps intents to      │   └──┬───┘ └──┬──┘ └──┬──┘ └──┬───┘             │
-│  │ domain specialists   │      │        │       │       │                  │
-│  │                      │      ▼        ▼       ▼       ▼                  │
-│  │ Each sub-agent has:  │   ┌──────────────────────────────────┐           │
-│  │ • Own system prompt  │   │   SHARED RESPONSE GENERATOR      │           │
-│  │ • Own tool subset    │   │   (Style adapt + Memory update)  │           │
-│  │ • Own model choice   │   └──────────────────────────────────┘           │
-│  │ • Own eval dataset   │                                                  │
-│  └──────────────────────┘   MEMORY: PostgreSQL + Redis                     │
-│                              OBSERVABILITY: LangSmith per sub-agent         │
+│  ENTRY POINTS                                                                │
+│  ────────────                                                                │
+│  • WhatsApp Webhook              ┌─────────────────────────────────────┐    │
+│  • Dashboard CopilotPanel        │  ⚡ SYSTEM LAYER (Deterministic)     │    │
+│  • Voice Messages                │  No LLM. Pure code. ~10ms total.    │    │
+│  • Scheduled Proactive           │                                     │    │
+│          │                       │  1. Redis lock + debounce start     │    │
+│          ▼                       │  2. ∥ PARALLEL: (during debounce)   │    │
+│  ┌──────────────────────┐        │     a) Phone→Profile lookup (DB)    │    │
+│  │ NEXT.JS (TS Proxy)   │        │        → exists? load it            │    │
+│  │ Webhook Handler      │───────▶│        → not found? AUTO-CREATE     │    │
+│  └──────────────────────┘        │     b) Active job pre-fetch          │    │
+│                                  │     c) Org AI config (cached)        │    │
+│                                  │     d) v_customer_360 summary        │    │
+│                                  │     e) Voice memo → Whisper (async)  │    │
+│                                  │  3. Debounce expires → ALL ready     │    │
+│                                  └──────────────┬──────────────────────┘    │
+│                                                 │                            │
+│                                    Pre-loaded context passed down            │
+│                                                 │                            │
+│                                                 ▼                            │
+│                                  ┌─────────────────────────────────────┐    │
+│                                  │  🧠 AI LAYER (LangGraph)            │    │
+│                                  │  LLM for judgment. ~400ms-2s.       │    │
+│  ┌──────────────────────┐        │                                     │    │
+│  │ PYTHON AI SERVICE    │        │  1. CREATE WORKING MEMORY (LLM)     │    │
+│  │ (LangGraph)          │        │  2. CLASSIFY INTENT                 │    │
+│  │                      │        │  3. ROUTE TO SUB-AGENT              │    │
+│  │ Receives pre-loaded: │        │  4. FORMAT RESPONSE                 │    │
+│  │ • Profile (or new)   │        └────────────┬────────────────────────┘    │
+│  │ • Active job         │                     │                              │
+│  │ • Org config         │                     ▼                              │
+│  │ • 360 summary        │      ┌──────────────────────────────┐              │
+│  │ • is_new_contact     │      │       SUB-AGENT ROUTER       │              │
+│  │                      │      │    (Intent → Category Map)   │              │
+│  │ AI only does:        │      └───┬──────┬──────┬──────┬─────┘              │
+│  │ • Intent detection   │          │      │      │      │                    │
+│  │ • Tool calls         │          ▼      ▼      ▼      ▼                    │
+│  │ • Response crafting  │     ┌──────┐ ┌─────┐ ┌─────┐ ┌──────┐             │
+│  └──────────────────────┘     │SCHED │ │CUST │ │FINAN│ │FLEET │  ...more    │
+│                               │Agent │ │Agent│ │Agent│ │Agent │             │
+│                               └──┬───┘ └──┬──┘ └──┬──┘ └──┬───┘             │
+│                                  │        │       │       │                  │
+│                                  ▼        ▼       ▼       ▼                  │
+│                               ┌──────────────────────────────────┐           │
+│                               │   SHARED RESPONSE GENERATOR      │           │
+│                               │   (Style adapt + Memory update)  │           │
+│                               └──────────────────────────────────┘           │
+│                                                                              │
+│  IDENTITY: Phone + OrgId → CustomerAIProfile (auto-created, always exists)  │
+│  MEMORY: PostgreSQL + Redis                                                  │
+│  OBSERVABILITY: LangSmith per sub-agent                                      │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -98,10 +127,12 @@ Design the **Orchestrator + Domain Sub-Agent** pattern before building the unifi
 
 > ⚠️ **Note:** Individual workflow logic (node sequences, prompts, tool calls) will be defined once CampoTech's feature set is finalized. This section defines the **categories, routing boundaries, and infrastructure** only.
 
+> 📌 **DESIGN DECISION (2026-02-21):** Identity resolution (phone → profile) is now handled by the **System Layer** before any sub-agent activates. The `CustomerAgent` no longer searches/creates customers for identity purposes — that's deterministic. Its role is now **profile enrichment and updates** requested by dispatchers or when the AI detects missing fields (e.g., CUIT validation for invoicing). The `create_customer` intent now means "promote a contact to a formal Customer entity" (with CUIT, address, billing info), not "figure out who this person is."
+
 | Category | Sub-Agent Name | Example Intents | Model | Complexity | Tool Families |
 |----------|----------------|-----------------|-------|------------|---------------|
 | **Scheduling** | `SchedulingAgent` | `book_job`, `reschedule`, `cancel_job`, `check_availability` | gpt-4o-mini | Medium | `query_schedule`, `create_job`, `reschedule_job` |
-| **Customer Mgmt** | `CustomerAgent` | `create_customer`, `search_customer`, `update_customer`, `validate_cuit` | gpt-4o-mini | Low | `create_customer`, `search_customer`, `validate_cuit` |
+| **Customer Mgmt** | `CustomerAgent` | `promote_contact`, `update_customer`, `validate_cuit`, `enrich_profile` | gpt-4o-mini | Low | `promote_to_customer`, `update_profile`, `validate_cuit` |
 | **Invoicing & Quotes** | `FinancialAgent` | `generate_quote`, `generate_invoice`, `payment_status`, `cobro` | gpt-4o | High | `gen_quote_pdf`, `gen_invoice`, `check_payment` |
 | **Fleet & Dispatch** | `FleetAgent` | `assign_vehicle`, `technician_sick`, `bulk_reschedule`, `dispatch` | gpt-4o | High | `query_fleet`, `reassign_jobs`, `check_conflicts` |
 | **Complaints & Escalation** | `EscalationAgent` | `complaint`, `emergency`, `frustration_detected`, `escalate` | gpt-4o | Medium | `create_ticket`, `escalate_to_human`, `priority_flag` |
@@ -140,13 +171,18 @@ SUBAGENT_REGISTRY: dict[str, SubAgentConfig] = {
         requires_approval_for=["create_job", "reschedule_job", "cancel_job"],
         system_prompt_path="prompts/scheduling.md",
     ),
+    # NOTE (v5.0): CustomerAgent no longer handles identity resolution.
+    # Phone → Profile lookup is done by the System Layer (deterministic, no LLM).
+    # CustomerAgent now handles profile ENRICHMENT and PROMOTION to formal Customer.
+    # "promote_contact" = create a Customer entity with CUIT, address, billing info
+    #                     from an existing CustomerAIProfile (which always exists).
     "customer": SubAgentConfig(
         name="CustomerAgent",
         category="customer",
-        intents=["create_customer", "search_customer", "update_customer", "validate_cuit"],
+        intents=["promote_contact", "update_customer", "validate_cuit", "enrich_profile"],
         model="gpt-4o-mini",
-        tools=["create_customer", "search_customer", "validate_cuit"],
-        requires_approval_for=["create_customer"],
+        tools=["promote_to_customer", "update_profile", "validate_cuit"],
+        requires_approval_for=["promote_to_customer"],
         system_prompt_path="prompts/customer.md",
     ),
     "financial": SubAgentConfig(
@@ -217,19 +253,27 @@ from .registry import SUBAGENT_REGISTRY, get_subagent_for_intent
 def build_orchestrator():
     """Build the master orchestrator graph.
     
+    NOTE (v5.0): The orchestrator RECEIVES pre-loaded context from the System Layer.
+    Identity resolution, active job lookup, org config, and v_customer_360 summary
+    are all done deterministically during debounce — BEFORE this graph runs.
+    
     The orchestrator handles:
-    1. Intake — load session, create working memory
-    2. Classify — detect ALL intents, build dependency-sorted chain
+    1. Intake — RECEIVE pre-loaded context from System Layer, create working memory
+       (System already resolved: profile, active_job, org_config, is_new_contact)
+    2. Classify — detect ALL intents, simplify chain if identity already resolved
     3. Route — pick the next sub-agent from the chain (or yield/escalate)
     4. [Sub-Agent] — execute domain logic, emit context mutations
     5. Respond — format response, advance chain, loop back if more steps
     
     Supports multi-intent chaining, sub-agent yield, and context mutations.
-    It does NOT contain any domain-specific logic.
+    It does NOT contain any domain-specific logic or identity resolution.
     """
     graph = StateGraph(CopilotState)
     
     # Shared infrastructure nodes
+    # NOTE: intake_node no longer does DB lookups — it receives pre-loaded context
+    # from the System Layer via state fields (pre_loaded_profile, pre_loaded_job, etc.)
+    # and only performs LLM summarization to create working_memory.
     graph.add_node("intake", intake_node)
     graph.add_node("classify", classify_intents_node)     # Plural — detects ALL intents
     graph.add_node("route", route_node)                    # Chain-aware router
@@ -260,13 +304,27 @@ def build_orchestrator():
 async def classify_intents_node(state: CopilotState) -> CopilotState:
     """Detect ALL intents, ordered by logical dependency.
     
-    Example: "Crear cliente Juan y agendarle mañana"
-           → ["create_customer", "book_job"]  (create BEFORE book)
+    v5.0 NOTE: The System Layer has already resolved identity:
+    - state["is_new_contact"] tells us if this is a first-ever message
+    - state["pre_loaded_profile"] contains the profile (auto-created if new)
+    - state["pre_loaded_active_job"] has the active job (if any)
     
-    The dependency sort ensures entity IDs exist before they're referenced.
+    This means the classifier can SIMPLIFY chains:
+    - Old: "Crear cliente Juan y agendarle" → ["create_customer", "book_job"]
+    - New: System already created the profile. If phone maps to known customer,
+           drop "create_customer" entirely → ["book_job"]
+    - New: If is_new_contact=True, AI surfaces opportunity card to dispatcher
+           instead of running a full CustomerAgent chain.
+    
+    The dependency sort still applies for remaining multi-intent chains.
     """
     intents = await detect_intents(state["input_content"])
     # Prompt: "Identify ALL intents. Return JSON list ordered by dependency."
+    
+    # v5.0: Simplify chain based on system-layer pre-loaded context
+    if not state.get("is_new_contact"):
+        # Known contact — remove identity-related intents (system already resolved)
+        intents = [i for i in intents if i not in ("promote_contact", "search_customer")]
     
     return {
         **state,
@@ -526,6 +584,16 @@ class CopilotState(TypedDict):
     session_id: str
     organization_id: str
     conversation_id: Optional[str]
+    phone: str                           # v5.0: Primary identity token from webhook
+    
+    # SYSTEM-LAYER PRE-LOADED CONTEXT (v5.0 — populated BEFORE AI wakes up)
+    # These fields are set by the System Layer during debounce. The AI layer
+    # NEVER does DB lookups for these — they arrive ready in the state.
+    is_new_contact: bool                 # True = first-ever message from this phone
+    pre_loaded_profile: dict             # CustomerAIProfile (auto-created if new)
+    pre_loaded_active_job: Optional[dict]  # Active job for this customer (if any)
+    pre_loaded_org_config: dict          # AIConfiguration (cached in Redis)
+    pre_loaded_360_summary: Optional[str]  # v_customer_360 pre-computed summary (~100 tokens)
     
     # Input
     input_type: Literal["text", "voice", "action", "image"]
@@ -533,6 +601,8 @@ class CopilotState(TypedDict):
     image_urls: Optional[list[str]]  # For multi-modal
     
     # WORKING MEMORY (lightweight - passed to all nodes)
+    # v5.0: Created by intake_node from pre-loaded context (1 LLM call)
+    # NOT from DB queries — those were already done by System Layer.
     working_memory: str              # Summarized context (~200 tokens)
     current_context: str             # Last 3 messages formatted
     
@@ -547,7 +617,7 @@ class CopilotState(TypedDict):
     current_step: int
     
     # INTENT CHAINING (multi-domain requests — v4.1)
-    intent_chain: list[str]            # ["create_customer", "book_job"] — dependency-sorted
+    intent_chain: list[str]            # ["promote_contact", "book_job"] — dependency-sorted
     current_chain_index: int           # Which step in the chain is executing
     chain_results: dict[str, Any]      # Results keyed by intent from completed steps
     
@@ -600,24 +670,81 @@ def resolve_customer_from_chain(state: CopilotState) -> str | None:
     return None
 ```
 
+#### What's Loaded Per Request (4 Layers)
+
+> 📌 **v5.0 CHANGE:** Layer 0 (System Layer) is new. It runs deterministically during debounce, BEFORE the AI wakes up. Layer 1 is now the AI's intake step that creates working memory FROM the pre-loaded data.
+
+**Layer 0 — SYSTEM LAYER (deterministic, during debounce, no LLM):**
+
+| Data | Source | Latency | Notes |
+|------|--------|---------|-------|
+| CustomerAIProfile | `SELECT ... WHERE phone + orgId` (indexed) | ~5ms | **Auto-created on first contact.** Phone + orgId = guaranteed unique identity. 0 LLM calls. |
+| Active Job | `Job` WHERE `customerId` AND non-terminal status | ~3ms (parallel) | Pre-fetched during debounce. If no linked Customer yet, returns null. |
+| Org AI Configuration | `AIConfiguration` (Redis-cached) | ~1ms (parallel) | Business hours, services, FAQs, tone setting. Cache hit rate ~99%. |
+| v_customer_360 summary | Pre-computed SQL view column | ~5ms (parallel) | Invoices, complaints, preferred tech — already summarized to ~100 tokens. No LLM summarization needed. |
+| is_new_contact flag | Result of profile lookup | ~0ms | `true` if profile was just auto-created. Surfaces opportunity card to dispatcher. |
+| Voice transcription | Whisper API (async parallel) | ~1.5s (parallel during debounce) | If voice memo, transcription starts immediately and completes during debounce wait. |
+
+**Layer 1 — AI INTAKE (working memory creation, 1 LLM call):**
+
+| Data | Source | Size | Notes |
+|------|--------|------|-------|
+| Working Memory | LLM summary of **pre-loaded context** | ~200 tokens | Created from `pre_loaded_profile` + `pre_loaded_360_summary` + session messages. One LLM call, ~100ms. |
+| Current Session Messages | `WaMessage` WHERE `sessionId` = current | ~500-1500 tokens (last 15 messages max) | Only messages from THIS session, never from previous sessions |
+
+**Layer 2 — ON-DEMAND (loaded by specific sub-agents via tool calls when needed):**
+
+| Data | Loaded By | When | Notes |
+|------|-----------|------|-------|
+| Past job history | SchedulingAgent, CustomerAgent | Booking request, customer lookup | `SELECT last 5 jobs` — structured data, not raw messages |
+| Past complaints | EscalationAgent | Complaint detected | Last 3 complaints with resolution status |
+| Invoice history | FinancialAgent | Payment/quote request | Outstanding invoices, payment patterns |
+| Service frequency | ProactiveAgent | Maintenance reminder | Last N services by type + dates |
+| Previous session summaries | Any agent (rare) | Complex dispute, context needed | Stored as structured JSON, not raw messages |
+
+**Layer 3 — NEVER loaded into AI context:**
+
+| Data | Why Not |
+|------|---------|
+| Raw messages from previous sessions | Too large, irrelevant, confuses the model, expensive |
+| Full conversation thread (months/years of messages) | Would blow out context window — a 6-month thread could be 50K+ tokens |
+| Other customers' data | Tenant isolation — the AI only sees data for the current customer + org |
+| Internal dashboard actions by the owner/admin | The AI sees WhatsApp messages only, not dashboard clicks |
+| Deleted or archived messages | Once removed, they don't exist for the AI |
+
+
 **Working Memory Pattern (Token Optimization):**
 ```python
 async def context_loader_node(state: CopilotState) -> CopilotState:
-    """First node - creates compact working memory from full context."""
+    """Intake node — creates compact working memory from PRE-LOADED context.
     
-    history = await fetch_conversation_history(state["conversation_id"])
-    profile = await fetch_customer_profile(state.get("customer_id"))
+    v5.0: This node NO LONGER does DB queries for profile/job/config.
+    Those are already in the state, populated by the System Layer during debounce.
+    This node only does:
+    1. Fetch session messages (from DB or Redis session cache)
+    2. One LLM call to create working_memory summary (~100ms)
+    """
+    
+    # Profile and context are already pre-loaded by System Layer
+    profile = state["pre_loaded_profile"]           # Already in state — no DB call
+    active_job = state["pre_loaded_active_job"]     # Already in state — no DB call
+    summary_360 = state["pre_loaded_360_summary"]   # Already in state — no DB call
+    
+    # Only DB call: fetch current session messages
+    history = await fetch_session_messages(state["session_id"])
     
     # Create compact summary (one LLM call, ~100ms)
-    working_memory = await summarize_context(history[-10:], profile)
-    # Output: "María García, cliente frecuente (8 trabajos). Último: AC hace 6 meses.
-    #          Prefiere mañanas, estilo formal. Contexto: preguntó sobre mantenimiento."
+    working_memory = await summarize_context(history[-10:], profile, summary_360)
+    # Output for known contact:
+    #   "María García, contacto frecuente (score: 0.85). Último: AC hace 6 meses.
+    #    Prefiere mañanas, estilo formal. Contexto: preguntó sobre mantenimiento."
+    # Output for new contact (is_new_contact=True):
+    #   "Nuevo contacto (+54 9 11 1234-5678). Primera interacción. Sin historial."
     
     return {
         **state,
         "working_memory": working_memory,  # ~200 tokens
         "current_context": format_last_messages(history[-3:]),  # ~100 tokens
-        # Raw data stored but NOT passed to most nodes
         "_raw_history": history,
         "_raw_profile": profile,
     }
@@ -628,6 +755,20 @@ async def context_loader_node(state: CopilotState) -> CopilotState:
 |----------|----------------|-------------|
 | Full history to all nodes | ~10,000 | $$$$ |
 | Working memory pattern | ~500 | $ |
+
+#### Hard Limits
+
+| Limit | Value | Rationale |
+|-------|-------|-----------|
+| Max messages per session in context | **15** | Beyond 15, use working memory summary. Prevents context window bloat. |
+| Max tokens for conversation context | **2,000** | System prompt (~800) + context (2,000) + response (1,000) = ~3,800 total, well within gpt-4o-mini's 128K but keeps costs per-request under ~$0.002 |
+| Max tokens for working memory summary | **300** | Compact summary refreshed periodically within the session |
+| Max single message length | **4,000 chars** | Via `prompt-sanitizer.ts` — truncates with `[contenido truncado]` |
+| Max session duration | **4 hours** | Safety cap — auto-close and fresh session |
+| Session inactivity timeout | **30 minutes** (configurable per org) | Balance between keeping context alive and preventing stale sessions |
+| Max profile size | **500 tokens** | CustomerAIProfile summary — compact structured data |
+
+
 
 **Files to Create:**
 | File | Purpose |
@@ -825,39 +966,151 @@ Enable cross-session learning through customer profiles and conversation memory.
 
 ### B1: Customer AI Profile Schema
 
+> 📌 **DESIGN DECISION (2026-02-21):** `CustomerAIProfile` is the AI's **memory notebook** for a phone number, NOT a business entity. It is:
+> - **Keyed by `phone + organizationId`** (not `customerId`)
+> - **Auto-created on first-ever message** from any phone number — no approval needed
+> - **Exists for ALL contacts** — even spam, wrong numbers, one-time inquiries (~1KB per record)
+> - **Optionally linked to a Customer** entity when the contact is "promoted" to a formal customer
+>
+> The existence/non-existence of a profile IS the identity check:
+> - Profile exists → AI has full memory.
+> - Profile not found → First-ever message from this number. Auto-create NOW.
+
 ```prisma
 model CustomerAIProfile {
   id                     String   @id @default(cuid())
-  customerId             String   @unique
+  
+  // ═══ PRIMARY IDENTITY (phone + org = unique contact) ═══
+  phone                  String                        // +54 9 11 1234-5678 — the guaranteed identity
   organizationId         String
   
-  // Communication style (learned from messages)
+  // Optional link to formal Customer (set when contact is "promoted")
+  customerId             String?  @unique              // null until dispatcher creates a Customer entity
+  customer               Customer? @relation(fields: [customerId], references: [id])
+  
+  // ═══ CONTACT LIFECYCLE ═══
+  status                 String   @default("contact")  // "contact" → "lead" → "customer"
+  displayName            String?                        // Extracted from messages: "María", "Juan"
+  firstContactAt         DateTime @default(now())       // When this phone first messaged this org
+  
+  // ═══ AI DISCLOSURE & CONSENT ═══
+  aiDisclosureSentAt     DateTime?                      // When first-contact AI disclosure was sent
+  aiCommunicationOptOut  Boolean  @default(false)       // Level 2: never respond with AI
+  aiTrainingOptOut       Boolean  @default(false)       // Level 3: exclude from training data
+  
+  // ═══ COMMUNICATION STYLE (learned from messages) ═══
   preferredFormality     String?  // "formal" | "casual" | "mixed"
   typicalMessageLength   String?  // "brief" | "detailed"
   responseUrgency        Float?   // 0-1 scale (how fast they expect replies)
   emojiUsage             Boolean  @default(false)
   preferredContactTimes  Json?    // { morning: true, evening: false }
   
-  // Relationship metrics
-  relationshipScore      Float    @default(0.5)  // 0 = new, 1 = loyal
+  // ═══ RELATIONSHIP METRICS ═══
+  relationshipScore      Float    @default(0.0)  // 0 = brand new contact, 1 = loyal customer
   totalInteractions      Int      @default(0)
   positiveInteractions   Int      @default(0)
   
-  // Preferences (learned from history)
+  // ═══ PREFERENCES (learned from history) ═══
   preferredTechnicians   String[] @default([])
   preferredServices      String[] @default([])
   priceAversion          Float?   // 0 = price-insensitive, 1 = very sensitive
   
-  // Timestamps
+  // ═══ TIMESTAMPS ═══
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
   
-  customer               Customer @relation(fields: [customerId], references: [id])
-  
+  @@unique([phone, organizationId])  // ONE profile per phone per org
   @@index([organizationId])
+  @@index([organizationId, status])  // Fast filtering by lifecycle stage
   @@map("customer_ai_profiles")
 }
 ```
+
+**System-Level Auto-Creation (no LLM, no approval):**
+```python
+# services/ai/app/system/identity_resolver.py
+# This runs in the SYSTEM LAYER during debounce — BEFORE AI wakes up.
+
+async def resolve_or_create_profile(
+    phone: str, organization_id: str, message_text: str
+) -> tuple[CustomerAIProfile, bool]:
+    """Resolve phone to profile, or auto-create on first contact.
+    
+    Returns: (profile, is_new_contact)
+    Cost: ~5ms (indexed DB query) or ~8ms (query + insert)
+    LLM calls: 0
+    """
+    profile = await prisma.customeraiprofile.find_unique(
+        where={"phone_organizationId": {"phone": phone, "organizationId": organization_id}}
+    )
+    
+    if profile:
+        # Known contact — AI has full memory
+        return (profile, False)
+    
+    # First-ever message from this phone number!
+    # Auto-create profile immediately — no approval needed.
+    display_name = extract_name_from_message(message_text)  # Simple regex, not LLM
+    
+    new_profile = await prisma.customeraiprofile.create(
+        data={
+            "phone": phone,
+            "organizationId": organization_id,
+            "displayName": display_name,
+            "status": "contact",
+            "relationshipScore": 0.0,
+        }
+    )
+    
+    return (new_profile, True)
+```
+
+#### How the AI References Past Interactions
+
+**The AI NEVER loads raw messages from previous sessions.** Instead, it uses two mechanisms:
+
+**1. Profile-based context (automatic, every request):**
+The `CustomerAIProfile` contains learned facts that the AI uses naturally.
+
+For a **known contact** (has history):
+```
+"María García, clienta frecuente (12 trabajos, 2 años). Último servicio: AC split
+ hace 4 meses. Prefiere mañanas, tono formal. Score: 0.85 (excelente).
+ Técnico preferido: Carlos. Servicios frecuentes: AC, electricidad."
+```
+This lets the AI say "¡Hola María! ¿Cómo anduvo el AC que arreglamos en octubre?" without loading October's messages.
+
+For a **new contact** (first-ever message, auto-created profile):
+```
+"Nuevo contacto (+54 9 11 1234-5678). Primera interacción. Sin historial.
+ Status: contact. Nombre detectado: 'Juan' (del mensaje). Score: 0.0."
+```
+The AI still responds intelligently using org config (services, hours, pricing) even with zero contact history.
+
+**2. On-demand database queries (via sub-agent tools, when needed):**
+If the customer asks "¿cuándo fue la última vez que vinieron?" or there's a dispute about past work, the sub-agent can call a tool like `query_job_history` which returns structured data:
+```json
+{
+  "lastJobs": [
+    {"date": "2025-10-15", "service": "AC Split - Mantenimiento", "tech": "Carlos", "status": "COMPLETED", "rating": 5},
+    {"date": "2025-06-20", "service": "Electricidad - Tablero", "tech": "Pedro", "status": "COMPLETED", "rating": 4}
+  ]
+}
+```
+This is **structured data from the database**, not raw WhatsApp messages. It's cheaper, more reliable, and doesn't pollute the context window.
+
+**What this means in practice:**
+
+| Scenario | How AI handles it |
+|----------|-------------------|
+| **First-ever message from unknown number** | System auto-creates `CustomerAIProfile` with phone+orgId. AI greets: "¡Hola! Soy el asistente de [Empresa]. ¿En qué te puedo ayudar?" Profile starts at score 0.0, status "contact". |
+| Customer returns after 6 months | New session. AI greets using profile: "¡Hola María! Hace un tiempo que no nos escribías. ¿En qué te puedo ayudar?" |
+| Customer asks about a past job | Sub-agent queries `Job` table, returns structured data. AI responds with facts from DB, not from recalled messages. |
+| Customer is angry about unresolved issue | EscalationAgent loads last 3 complaints from DB. Profile shows low relationship score. AI adapts tone. |
+| Customer has been chatting for 20 messages in current session | Working memory is refreshed (re-summarized). Only last 15 raw messages in context. Older session messages are summarized. |
+| Customer messages after job completion | Previous session is closed. New session starts with updated profile (includes the completed job's data). |
+
+
 
 ### B2: Two-Tier Learning (Real-Time + Intent-Based Extraction)
 
@@ -903,6 +1156,23 @@ async def detect_signals_node(state: CopilotState) -> CopilotState:
 
 **Tier 2: Intent-Based Profile Extraction (Not Cron)**
 
+#### Profile Update Triggers
+
+The `CustomerAIProfile` is the AI's permanent memory. It's updated at specific lifecycle moments, NOT on every message (that would be expensive and noisy). **Exception:** auto-creation on first-ever message is instant and deterministic (no LLM call).
+
+| Trigger | What's Updated | How |
+|---------|---------------|-----|
+| **First message from unknown phone** | `phone`, `organizationId`, `displayName`, `firstContactAt`, `status:"contact"` | **Deterministic system-level INSERT** (no LLM needed). Auto-created by System Layer during debounce. Cost: ~8ms. |
+| **Session close (any reason)** | `preferredFormality`, `typicalMessageLength`, `emojiUsage`, `relationshipScore` | LLM summarization of session → profile delta extraction. Single LLM call (~100ms, ~$0.0005) |
+| **Job completed** | `preferredTechnicians`, `preferredServices`, relationship score boost | Deterministic update from job data (no LLM needed) |
+| **Job cancelled** | Relationship score adjustment | Small negative adjustment (configurable weight) |
+| **Complaint resolved** | `positiveInteractions` or `totalInteractions` | Deterministic |
+| **Explicit positive feedback** | `relationshipScore` boost | Deterministic — "excelente servicio" → +0.1 |
+| **Contact promoted to Customer** | `customerId`, `status:"customer"` | Deterministic — links profile to new Customer entity |
+| **Inactivity fallback (cron)** | Same as session close | Safety net — runs every 30 min for sessions with no explicit close. Catches edge cases where the customer just stops replying mid-conversation. |
+
+
+
 > 💡 **Better than 30-min gap:** Trigger on "goodbye" intent within the workflow itself.
 
 > ⚠️ **v4.0 Note:** The old flat `route_by_intent()` below is **superseded** by the Phase A0
@@ -940,7 +1210,7 @@ async def summarize_and_extract_node(state: CopilotState) -> CopilotState:
     Conversation: {state.get('_raw_history', [])}
     """)
     
-    await update_customer_profile(state["conversation_id"], analysis)
+    await update_customer_profile(state["pre_loaded_profile"]["id"], analysis)
     
     # Generate closing response
     response = "¡Perfecto! Si necesitás algo más, escribime. ¡Buen día!"
@@ -967,7 +1237,73 @@ async def summarize_and_extract_node(state: CopilotState) -> CopilotState:
 | `services/ai/app/workflows/nodes/signal_detector.py` | Real-time urgency/sentiment |
 | `services/ai/app/workflows/nodes/session_summarizer.py` | Intent-based extraction |
 
-### B3: Session Context & WhatsApp Message Locking
+### B3: Session Management & WhatsApp Infrastructure
+
+> 📌 **DESIGN DECISION (2026-02-21):** WhatsApp conversations between an org and a customer can span months or years in a single chat thread (same phone number). The AI cannot load years of raw message history — it would blow out the context window, cost a fortune in tokens, and confuse the model with irrelevant past interactions. Instead, the AI operates on **sessions** within conversations, with a **persistent profile** that acts as its long-term memory.
+
+#### Core Concepts
+
+| Concept | Scope | Lifespan | Purpose |
+|---------|-------|----------|---------|
+| **Conversation** | 1 phone number × 1 org (the WhatsApp thread) | Permanent — never deleted or reset | The persistent "channel." Contains ALL messages ever exchanged. Used for dashboard display and audit logs, NOT for AI context. |
+| **Session** | One "interaction burst" within a conversation | Active while the customer is engaged. Closes on inactivity timeout or job lifecycle event. | The AI's working context window. Contains only the messages exchanged during this session. |
+| **CustomerAIProfile** | **One phone number × one org** | Permanent — **auto-created on first message**, updated at session close | The AI's "memory." Keyed by `phone + organizationId`. Exists for ALL contacts from first message. Optionally linked to a formal Customer entity when promoted. Learned preferences, communication style, relationship score. |
+
+#### Session Lifecycle
+
+```
+Customer sends message
+        │
+        ▼
+┌─ Is there an active session? ─────────────────────────────────┐
+│                                                                │
+│  NO (first contact or session expired)                        │
+│    → Create NEW session                                        │
+│    → Load or AUTO-CREATE CustomerAIProfile (by phone + orgId)  │
+│    → Pre-fetch: active job (if any) + org config (System Layer) │
+│    → Session starts with this message as message #1            │
+│    → If AI is enabled + within response window: self-identify  │
+│    → If is_new_contact: include AI disclosure footer (once)     │
+│                                                                │
+│  YES (session still active)                                    │
+│    → Append message to current session                         │
+│    → Load: session messages + working memory + profile         │
+│    → No self-identification needed (already greeted)           │
+└────────────────────────────────────────────────────────────────┘
+        │
+        ▼
+   AI processes within configured permissions
+        │
+        ▼
+┌─ Session close triggers ──────────────────────────────────────┐
+│                                                                │
+│  1. INACTIVITY TIMEOUT (default: 30 min, configurable per org) │
+│     → Customer stops messaging for >30 minutes                 │
+│     → Session closes silently (no goodbye message)             │
+│     → Profile update triggered                                 │
+│                                                                │
+│  2. JOB LIFECYCLE EVENT                                        │
+│     → Job reaches terminal state (COMPLETED or CANCELLED)      │
+│     → Session closes — next message starts fresh session        │
+│     → Profile update triggered (includes job outcome data)     │
+│                                                                │
+│  3. EXPLICIT FAREWELL                                          │
+│     → Customer says "gracias", "chau", "listo"                 │
+│     → AI responds with farewell                                │
+│     → Session closes after farewell response                   │
+│     → Profile update triggered                                 │
+│                                                                │
+│  4. HUMAN HANDOFF                                              │
+│     → Escalation to human takes over the conversation          │
+│     → AI session pauses (not closed)                           │
+│     → Resumes if human clicks "Return to AI" in dashboard      │
+│                                                                │
+│  5. MAX SESSION DURATION (safety cap: 4 hours)                 │
+│     → Prevents runaway sessions from accumulating              │
+│       unbounded context                                        │
+│     → Auto-closes and starts fresh if customer continues       │
+└────────────────────────────────────────────────────────────────┘
+```
 
 > ⚠️ **Critical for WhatsApp:** Redis IS required for message locking to prevent race conditions.
 > For session caching, PostgreSQL is sufficient initially.
@@ -979,6 +1315,192 @@ async def summarize_and_extract_node(state: CopilotState) -> CopilotState:
 | **WhatsApp message locking** | **REQUIRED** | Prevents race conditions |
 | Rate limiting | Optional | Can use database counter |
 | Pending approvals | Optional | Database with TTL column |
+
+#### Message Burst Handling & Debounce
+
+> 📌 **DESIGN DECISION (2026-02-21):** WhatsApp customers commonly send 2-5+ messages in rapid succession — a greeting, then the problem description, then a voice memo, then a photo. If the AI responds to "Hola" immediately, it looks dumb when the actual request arrives 3 seconds later. The solution is a **debounce timer at the infrastructure level** — NO LLM calls happen during the wait, so there is ZERO token consumption while buffering.
+
+**The Problem:**
+```
+14:05:01 → "Hola"                              ← AI should NOT respond here
+14:05:03 → "Necesito un plomero"                ← Still building request
+14:05:08 → "Se me rompió la canilla de cocina"  ← Still building request
+14:05:12 → 🎤 [voice memo - 15 seconds]         ← Transcription starts in parallel
+14:05:15 → 📷 [photo of broken faucet]           ← Final piece
+14:05:23 → (8 seconds of silence)               ← NOW the AI processes everything
+```
+
+**The Flow:**
+
+```
+  WhatsApp Webhook receives message
+           │
+           ▼
+  ┌─ Message Buffer (Redis) ──────────────────────────────────────┐
+  │                                                                │
+  │  1. Store message in buffer list                               │
+  │     Key: wa:buffer:{conversationId}                            │
+  │     Value: RPUSH message JSON (ordered list)                   │
+  │     TTL: 5 minutes (safety — auto-cleanup if never processed)  │
+  │                                                                │
+  │  2. If voice memo → kick off async transcription               │
+  │     Key: wa:transcription:{messageId} = "PENDING"              │
+  │     Whisper runs in parallel, updates to "DONE:{text}"         │
+  │                                                                │
+  │  3. Set/reset debounce timer                                   │
+  │     Key: wa:debounce:{conversationId}                          │
+  │     Mechanism: Redis EXPIRE or scheduled task (see below)      │
+  │     Duration: adaptive (see timing table)                      │
+  │                                                                │
+  │  4. If AI enabled → send "typing" indicator to customer        │
+  │     (WhatsApp "..." bubble — shows the business is active)     │
+  │                                                                │
+  │  5. Return 200 OK to webhook IMMEDIATELY                       │
+  │     ⚠️ NO LLM call. NO token consumption. Pure infrastructure. │
+  └────────────────────────────────────────────────────────────────┘
+           │
+           │  Debounce timer fires (no new message for N seconds)
+           ▼
+  ┌─ Batch Processor ─────────────────────────────────────────────┐
+  │                                                                │
+  │  1. Acquire Redis concurrency lock (existing NX pattern)       │
+  │     Key: wa:lock:{conversationId}, TTL: 30s                    │
+  │     If locked → re-queue (another batch is in flight)          │
+  │                                                                │
+  │  2. Read ALL messages from wa:buffer:{conversationId}          │
+  │     Typically 1-5 messages                                     │
+  │                                                                │
+  │  3. Check pending transcriptions                               │
+  │     For each voice memo in buffer:                             │
+  │       - Read wa:transcription:{messageId}                      │
+  │       - If still PENDING → wait up to 15s more (polling 1s)    │
+  │       - If timed out → use placeholder "[Audio no transcripto]"│
+  │     This is the ONLY wait that might happen — and it's rare    │
+  │                                                                │
+  │  4. Compose unified input                                      │
+  │     Concatenate all text messages + transcriptions + captions   │
+  │     into a single context block (see format below)             │
+  │                                                                │
+  │  4.5. SYSTEM LAYER: Deterministic pre-fetch (v5.0)            │
+  │     ∥ PARALLEL (all execute simultaneously, ~5-8ms total):     │
+  │       a) resolve_or_create_profile(phone, orgId, message)      │
+  │          → Returns (profile, is_new_contact)                   │
+  │          → Auto-creates on first-ever message (0 LLM calls)    │
+  │       b) pre_fetch_active_job(profile.customerId)              │
+  │       c) load_org_config(orgId)  // Redis-cached, ~1ms          │
+  │       d) fetch_360_summary(profile.customerId)                 │
+  │     Result: pre-loaded context ready for AI pipeline            │
+  │                                                                │
+  │  5. Process through AI pipeline (NOW the LLM is called)        │
+  │     → Session lookup/creation                                  │
+  │     → Receive pre-loaded context from System Layer (step 4.5)  │
+  │     → Create working memory (1 LLM call)                       │
+  │     → Classify intent + route to sub-agent                     │
+  │     → Single response generated                                │
+  │                                                                │
+  │  6. Send ONE response to customer                              │
+  │     (Not 5 responses for 5 messages — one comprehensive reply) │
+  │                                                                │
+  │  7. Clear buffer + delete debounce key                         │
+  │     LRANGE + DEL on wa:buffer:{conversationId}                 │
+  └────────────────────────────────────────────────────────────────┘
+```
+
+**Composed Input Format (what the LLM sees):**
+```
+[Mensaje 1, 14:05:01]: Hola
+[Mensaje 2, 14:05:03]: Necesito un plomero
+[Mensaje 3, 14:05:08]: Se me rompió la canilla de cocina
+[Mensaje 4, 14:05:12, audio transcripto]: Mirá, el problema es que la canilla
+  de la cocina pierde agua todo el tiempo, ya probé apretar la llave de paso
+  pero sigue goteando. Necesito que vengan lo antes posible.
+[Mensaje 5, 14:05:15, imagen]: [Cliente envió una foto]
+```
+The LLM receives all messages as a single batch with timestamps, so it can understand the full context and respond once comprehensively.
+
+**Adaptive Debounce Timing:**
+
+| Scenario | Timer Duration | Rationale |
+|----------|---------------|-----------|
+| **First message of new session** | **8 seconds** | Customer is likely composing their full request. Give them time to type it all out. |
+| **First message contains voice memo** | **12 seconds** | Voice memos take longer. Customer might follow up with text or photos after recording. Also gives Whisper time to transcribe. |
+| **First message contains image/photo** | **10 seconds** | Photos are usually followed by a caption or description message. |
+| **Mid-conversation reply** (AI already responded) | **5 seconds** | Customer is responding to a question — shorter burst expected. |
+| **After AI asked a yes/no question** | **4 seconds** | Expected reply is short ("sí", "dale"). Quick turnaround. |
+| **Single word/emoji message** ("ok", "👍") | **3 seconds** | Acknowledgement — probably no follow-up coming. |
+
+**How the Timer Doesn't Consume Tokens:**
+
+This is the critical point — the debounce is **pure infrastructure**:
+
+```
+              NO LLM INVOLVEMENT
+┌──────────────────────────────────────────────┐
+│                                              │
+│   Webhook → Redis RPUSH → Redis EXPIRE       │
+│                                              │
+│   That's it. Three Redis commands.           │
+│   Cost: ~0.001ms per message.                │
+│   Token cost: $0.00                          │
+│                                              │
+│   The LLM is only called ONCE after the      │
+│   debounce timer fires and processes the     │
+│   full batch.                                │
+│                                              │
+└──────────────────────────────────────────────┘
+```
+
+- **No "thinking" state.** The AI is not loaded, not running, not consuming anything during the wait.
+- **No "waiting" state.** There's no open connection to OpenAI. The timer is a Redis TTL or a scheduled task — passive, cost-free.
+- **The customer sees a "typing" indicator** (WhatsApp's native `...` bubble), so they know the business received their messages. This is a simple API call to Meta, not an AI operation.
+
+**Voice Memo Handling (Parallel Transcription):**
+
+```
+Message arrives: 🎤 voice memo (15 seconds)
+         │
+         ├──→ [Buffer] Add to wa:buffer:{conversationId}
+         │             (body: "<audio_url>", type: "voice")
+         │
+         └──→ [Async] Kick off Whisper transcription
+                       Key: wa:transcription:{messageId} = "PENDING"
+                       Whisper processes audio → ~3-5 seconds
+                       Key: wa:transcription:{messageId} = "DONE:Mirá, el problema es..."
+                       
+When debounce timer fires:
+  → Batch processor reads buffer
+  → Finds voice message → checks wa:transcription:{messageId}
+  → If "DONE:{text}" → uses transcription
+  → If "PENDING" → polls for up to 15s
+  → If timeout → "[Audio no pudo ser transcripto — se requiere atención humana]"
+```
+
+This means transcription runs **in parallel** with the debounce timer. By the time the timer fires (8 seconds), a 15-second voice memo's transcription is usually already complete or nearly done.
+
+**Edge Case: Customer Sends Messages 3+ Minutes Apart**
+
+```
+14:05:00 → "Hola"           → Buffer + debounce (8s)
+14:05:08 → Timer fires      → AI processes "Hola" → responds
+14:05:30 → Customer reads response
+14:08:45 → "¿Cuánto sale?"  → Buffer + debounce (5s — mid-conversation)
+14:08:50 → Timer fires      → AI processes "¿Cuánto sale?" → responds
+```
+
+This is NOT a burst — it's a normal conversation. The debounce timer fires after 8 seconds with a single message, the AI processes it, and the session continues. The 3-minute gap is just idle time where **nothing is running** — no timers, no AI, no tokens. The session remains ACTIVE (inactivity timeout is 30 minutes, not 3 minutes), so the next message is processed within the existing session context.
+
+**Relationship to Redis Concurrency Lock:**
+
+| Mechanism | Purpose | When |
+|-----------|---------|------|
+| **Debounce timer** (NEW) | Wait for message burst to complete before processing | Before any AI processing — prevents premature responses |
+| **Concurrency lock** (EXISTING) | Prevent two batch processors from running simultaneously for the same conversation | After debounce — prevents race conditions if two timers fire close together |
+
+These work in sequence:
+```
+Webhook → Buffer + Debounce → [timer fires] → Acquire Lock → Process Batch → Release Lock
+```
+
 
 **The WhatsApp Race Condition Problem:**
 ```
@@ -1033,16 +1555,39 @@ async def process_whatsapp_message(message: WhatsAppMessage):
 REDIS_URL=redis://default:xxx@xxx.upstash.io:6379
 ```
 
-**Phase B3a: PostgreSQL-Only (Dashboard Copilot)**
-```python
-# Works fine for dashboard - no burst messages
-async def load_session_context(conversation_id: str) -> dict:
-    return await prisma.aiconversationlog.find_many(
-        where={"conversationId": conversation_id},
-        take=20,
-        order={"createdAt": "desc"}
-    )
+#### Session Storage Schema
+
+```prisma
+model AISession {
+  id               String    @id @default(cuid())
+  conversationId   String    // FK to WaConversation
+  organizationId   String
+  customerId       String?   // FK to Customer (if identified)
+  profileId        String?   // v5.0: FK to CustomerAIProfile (always exists after first message)
+
+  status           String    @default("ACTIVE")  // ACTIVE, CLOSED, PAUSED (human handoff)
+  closeReason      String?   // INACTIVITY, JOB_COMPLETED, FAREWELL, HUMAN_HANDOFF, MAX_DURATION, JOB_CANCELLED
+
+  // Working memory
+  workingMemory    String?   // Compact summary, refreshed periodically
+  messageCount     Int       @default(0)
+
+  // Timestamps
+  startedAt        DateTime  @default(now())
+  lastActivityAt   DateTime  @default(now())
+  closedAt         DateTime?
+
+  // Profile snapshot at close (for audit)
+  profileDeltaJson Json?     // What changed in CustomerAIProfile at session close
+
+  @@index([conversationId, status])
+  @@index([organizationId, lastActivityAt])
+  @@index([profileId])  // v5.0: lookup sessions by profile
+  @@map("ai_sessions")
+}
 ```
+
+
 
 **Phase B3b: Redis Enhancement (When Needed)**
 ```python
@@ -1054,7 +1599,265 @@ REDIS_KEYS = {
 }
 ```
 
-### B4: Communication Style Adaptation
+#### Relationship to Existing Infrastructure
+
+| Existing Component | How It Interacts with Sessions |
+|-------------------|-------------------------------|
+| `WaConversation` | 1 conversation → many sessions. The conversation is the permanent thread; sessions are bounded windows within it. |
+| `WaMessage` | Messages belong to conversations (existing). Sessions are identified by timestamp range, not by a FK on each message (avoids migration on millions of rows). |
+| `CustomerAIProfile` | **Auto-created on first-ever message** from this phone number for this org. Read at session start (by System Layer). Updated at session close. This is the bridge between sessions — the AI's "long-term memory." |
+| `AIConversationLog` | Existing logging continues as-is. Session ID can be added as optional field for traceability. |
+| Redis concurrency lock | Lock key remains `whatsapp:lock:{conversationId}` — unchanged. Session lookup happens after lock acquisition. |
+| `prompt-sanitizer.ts` | Hard limits still apply as a safety net. Session-based context loading operates within these limits. |
+
+
+```
+
+#### Adaptive Debounce Learning (Per-Customer)
+
+> 📌 **DESIGN DECISION (2026-02-21):** The static debounce timers (8s, 5s, etc.) are good defaults for unknown customers. But they'll be wrong for a customer who always sends 3 voice memos with 20-second gaps, or a grandmother who types one word per minute across 6 messages. The system must **learn each customer's messaging rhythm** and adjust automatically — reducing interruptions over time to near zero.
+
+**The Problem with Static Timers:**
+```
+Customer "Doña Rosa" (types slowly, always sends 4-6 short messages):
+
+14:05:00 → "Hola"
+14:05:09 → "Tengo"                ← 9 seconds gap (static 8s timer would fire HERE)
+14:05:17 → "un problema"          ← AI already responded to "Hola" — INTERRUPTION
+14:05:25 → "con la canilla"
+14:05:33 → "de la cocina"
+
+Static 8s debounce: 60% interruption rate for this customer
+After learning (debounce = 12s): 5% interruption rate
+```
+
+**Architecture Split:**
+
+| System | Role | Data Lifespan |
+|--------|------|---------------|
+| **Redis** | Track real-time timestamps during current session. Calculate gaps on-the-fly. | Ephemeral — cleared after batch processing |
+| **PostgreSQL (`CustomerAIProfile`)** | Store learned burst patterns, calibrated debounce value, interruption history | Permanent — improves over time |
+| **Admin Dashboard** | View interruption rates per org/customer. Manual flag interruptions. Verify system is working. | Read-only analytics surface |
+
+**How It Works — The Learning Loop:**
+
+```
+┌─ STEP 1: Record (every message) ─────────────────────────────────┐
+│                                                                    │
+│  On each incoming message:                                         │
+│    → RPUSH wa:timestamps:{conversationId} {timestamp_ms}           │
+│    → RPUSH wa:msg_types:{conversationId} {type: text|voice|image}  │
+│                                                                    │
+│  Redis now holds the exact timing of every message in this burst.  │
+│  Cost: 2 Redis commands, ~0.01ms.                                  │
+└────────────────────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─ STEP 2: Calculate (when batch processor runs) ──────────────────┐
+│                                                                    │
+│  When debounce fires and batch processor starts:                   │
+│    → Read wa:timestamps:{conversationId}                           │
+│    → Calculate inter-message gaps:                                 │
+│      [14:05:00, 14:05:09, 14:05:17, 14:05:25, 14:05:33]           │
+│                            ↓                                       │
+│      gaps = [9000ms, 8000ms, 8000ms, 8000ms]                       │
+│      maxGap = 9000ms                                               │
+│      avgGap = 8250ms                                               │
+│      burstSize = 5 messages                                        │
+│      burstDuration = 33000ms                                       │
+│      hasVoice = false                                              │
+│                                                                    │
+│  Store in session-scoped variable (not DB yet — wait for close).   │
+└────────────────────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─ STEP 3: Aggregate (on session close) ──────────────────────────┐
+│                                                                    │
+│  When session closes → update CustomerAIProfile:                   │
+│                                                                    │
+│  Exponential Moving Average (EMA) with α = 0.3:                    │
+│    (gives 70% weight to history, 30% to this session)              │
+│                                                                    │
+│  profile.avgBurstGapMs =                                           │
+│    (0.7 × profile.avgBurstGapMs) + (0.3 × session.avgGapMs)       │
+│                                                                    │
+│  profile.maxBurstGapMs =                                           │
+│    max(profile.maxBurstGapMs × 0.9, session.maxGapMs)              │
+│    (slight decay so outliers don't anchor forever)                  │
+│                                                                    │
+│  profile.avgBurstSize =                                            │
+│    (0.7 × profile.avgBurstSize) + (0.3 × session.burstSize)       │
+│                                                                    │
+│  profile.totalBursts += 1                                          │
+│                                                                    │
+│  After 3+ sessions → profile.learnedDebounceMs is calculated:     │
+│    (before 3 sessions, use static defaults — not enough data)      │
+└────────────────────────────────────────────────────────────────────┘
+         │
+         ▼
+┌─ STEP 4: Apply (next session) ──────────────────────────────────┐
+│                                                                    │
+│  When customer sends first message of new session:                 │
+│    → Load CustomerAIProfile (always exists — auto-created on       │
+│      first contact by System Layer)                               │
+│    → If profile.learnedDebounceMs exists (≥3 past sessions):       │
+│        debounceTimer = profile.learnedDebounceMs                   │
+│    → Else:                                                         │
+│        debounceTimer = STATIC_DEFAULT (8 seconds)                  │
+│                                                                    │
+│  The learned value overrides the static default.                   │
+│  Static defaults are ONLY for brand-new contacts (≤3 sessions).   │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+**The Debounce Calibration Formula:**
+
+```
+learnedDebounceMs = clamp(
+    floor  = MIN_DEBOUNCE_MS,          // 3000 (never less than 3 seconds)
+    ceiling = MAX_DEBOUNCE_MS,         // 20000 (never more than 20 seconds)
+    value  = maxBurstGapMs × 1.5       // 150% of their longest within-burst gap
+)
+
+// Why 1.5×?
+// If Doña Rosa's longest gap between messages is 9 seconds,
+// setting debounce to 9s would catch exactly 50% of bursts.
+// 1.5× (13.5s) gives comfortable margin → catches ~95% of bursts.
+```
+
+**Debounce Floor/Ceiling Rationale:**
+
+| Limit | Value | Why |
+|-------|-------|-----|
+| **Floor** | 3 seconds | Even the fastest typer benefits from a brief buffer to catch "Hola" + "necesito plomero" combos |
+| **Ceiling** | 20 seconds | Beyond 20s, the customer is probably done and would feel ignored. If they aren't done, they can still continue after the AI responds — it's a conversation, not a one-shot. |
+| **Mid-conversation override** | `max(3s, learnedDebounceMs × 0.6)` | Once the conversation is flowing, the customer is in "response mode" — shorter gaps expected, so use 60% of their learned value |
+
+**Interruption Detection (Automatic):**
+
+An "interruption" is when the AI responded too early — the customer wasn't done with their burst:
+
+```
+┌─ Interruption Detection Logic ──────────────────────────────────┐
+│                                                                    │
+│  TRIGGER: Customer sends a message within 10 seconds of            │
+│           receiving an AI response                                 │
+│                                                                    │
+│  CLASSIFICATION:                                                   │
+│                                                                    │
+│  IS an interruption if:                                            │
+│    • Message starts with continuation markers:                     │
+│      "y también", "ah y", "otra cosa", "además", "aparte",        │
+│      "me olvidé", "y otra cosa", "también"                         │
+│    • OR message is clearly a continuation (same topic/entity)      │
+│    • OR message is a voice memo (customer was recording,           │
+│      AI jumped in before they could send it)                       │
+│                                                                    │
+│  NOT an interruption if:                                           │
+│    • Message is a direct response to the AI's question             │
+│      ("sí", "no", "dale", "perfecto", a date, an address)         │
+│    • Message starts a new topic                                    │
+│    • Time gap > 10 seconds (they read the AI response first)       │
+│                                                                    │
+│  WHEN DETECTED:                                                    │
+│    1. Log: AIInterruptionEvent in PostgreSQL                       │
+│    2. Increment: profile.interruptionCount += 1                    │
+│    3. Adjust: increase learnedDebounceMs by 15%                    │
+│       (immediate correction — don't wait for session close)        │
+│    4. Flag: conversation gets "⚡ Interrupted" badge in dashboard  │
+│                                                                    │
+│  SELF-HEALING:                                                     │
+│    If interruptionRate drops below 5% over 10+ bursts → stable.    │
+│    No further upward adjustments until a new interruption.         │
+│    Debounce slowly decays (−2% per session close) toward the       │
+│    calculated optimal, preventing permanent over-correction.       │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+**Org Manual Feedback (from Dashboard):**
+
+In addition to automatic detection, the org's dispatchers/owners can manually flag interruptions from the WhatsApp conversation view in the dashboard:
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  WhatsApp Chat View (Dashboard)                          │
+│                                                          │
+│  Cliente: "Hola, necesito"                    14:05:01   │
+│  AI: "¡Hola! ¿En qué te puedo ayudar?"       14:05:09   │
+│  Cliente: "un plomero para mañana"            14:05:11   │
+│                                                          │
+│  [⚡ Auto-detected: Possible interruption]               │
+│                                                          │
+│  Dispatcher sees this and can:                           │
+│    [✅ Confirm Interruption]  [❌ Not an interruption]    │
+│                                                          │
+│  If confirmed → same correction logic as auto-detection  │
+│  If dismissed → auto-detection fine-tuned (false positive │
+│                 logged for system improvement)            │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Schema Additions for Learning:**
+
+```prisma
+// Add to existing CustomerAIProfile (phone+orgId keyed, v5.0):
+// NOTE: These fields extend the phone-keyed profile, NOT the Customer entity.
+model CustomerAIProfile {
+  // ... existing fields ...
+
+  // Messaging Behavior (learned from burst patterns)
+  avgBurstGapMs      Int?      // EMA of average gap between messages in a burst
+  maxBurstGapMs      Int?      // Longest observed gap within a burst (with decay)
+  avgBurstSize       Float?    // EMA of messages per burst
+  learnedDebounceMs  Int?      // Calibrated debounce timer (null = use static default)
+  totalBursts        Int       @default(0)  // Total bursts processed (need 3+ to learn)
+
+  // Interruption tracking
+  interruptionCount  Int       @default(0)  // Total AI interruptions
+  recentInterruptions Int      @default(0)  // Interruptions in last 10 bursts (rolling)
+}
+
+// New model: per-event interruption log
+model AIInterruptionEvent {
+  id               String   @id @default(cuid())
+  organizationId   String
+  conversationId   String
+  sessionId        String?  // FK to AISession
+  customerId       String?
+
+  // What happened
+  aiResponseAt     DateTime          // When AI responded
+  customerMessageAt DateTime         // When customer sent follow-up
+  gapMs            Int               // Time between AI response and customer message
+  customerMessage  String            // The message that was classified as interrupted
+
+  // Classification
+  detectedBy       String            // "AUTO" or "MANUAL"
+  isConfirmed      Boolean?          // null = pending, true = confirmed, false = dismissed
+  confirmedBy      String?           // userId who confirmed/dismissed (for manual)
+
+  // Correction applied
+  previousDebounceMs Int?            // What debounce was before correction
+  newDebounceMs      Int?            // What debounce was adjusted to
+
+  createdAt        DateTime @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([customerId])
+  @@map("ai_interruption_events")
+}
+```
+
+**Admin Analytics Surface (apps/admin + per-org dashboard):**
+
+> 📌 **DESIGN DECISION (2026-02-21):** The analytics surface has THREE distinct access tiers with different privacy requirements:
+> - **Tier A** — Per-Org Dashboard (org sees their OWN data) → No extra consent needed — they own it
+> - **Tier B** — CampoTech Platform Analytics (you as platform owner) → Aggregated/anonymized only by default
+> - **Tier C** — Full Message Access for AI Improvement (you as platform owner) → Requires explicit opt-in consent
+
+---
+
+### B5: Communication Style Adaptation
 
 **Pattern:**
 ```python
@@ -1069,6 +1872,539 @@ async def adapt_response_style(response: str, profile: CustomerAIProfile) -> str
     
     return response
 ```
+
+---
+
+#### Privacy & Data Access Legal Framework (Ley 25.326 + AAIP)
+
+> ⚖️ **CRITICAL LEGAL CONTEXT:** Under Argentine law, CampoTech is a **Data Processor** — the organizations (tenants) are the **Data Controllers**. The end customers are the **Data Subjects**. This tri-party relationship creates specific rules about who can see what.
+
+**The CampoTech Data Access Hierarchy:**
+
+```
+┌────────────────────────────────────────────────────────────────────┐
+│                   WHO CAN ACCESS WHAT?                              │
+│                                                                    │
+│  DATA SUBJECT (end customer)                                       │
+│    → Can see/delete their own data (ARCO rights — already built)   │
+│    → Can withdraw consent at any time                              │
+│                                                                    │
+│  DATA CONTROLLER (organization / tenant)                           │
+│    → Full access to their own customers' conversation data         │
+│    → Can assign dispatchers to read/respond to conversations       │
+│    → Already covered by the org's own privacy policy               │
+│    → They ARE the business — these are their business messages     │
+│                                                                    │
+│  DATA PROCESSOR (CampoTech — you)                                  │
+│    → Can process data ONLY as instructed by the Data Controller    │
+│    → Default: aggregated metrics only (no message content)         │
+│    → With org opt-in: anonymized samples for AI improvement        │
+│    → With org + customer opt-in: full message access               │
+│    → Must have a Data Processing Agreement (DPA) with each org    │
+│    → Must register the database with AAIP (DNPDP)                 │
+└────────────────────────────────────────────────────────────────────┘
+```
+
+**Can you (CampoTech owner) read customer messages?**
+
+| Scenario | Legal? | Requirement |
+|----------|--------|-------------|
+| **Aggregated metrics** (interruption rate, avg response time, debounce values — no message content) | ✅ YES — always | Standard DPA with org. No PII exposed. |
+| **Anonymized conversation samples** (messages with names/phones/addresses stripped) | ✅ YES — with org consent | Org opts in to "AI Improvement Program." Anonymization must be irreversible. |
+| **Full message content** (raw conversations with PII) | ⚠️ CONDITIONAL | Requires: (1) Org opts in, (2) End customer is informed via org's privacy policy, (3) Specific purpose stated, (4) DPA covers this use case. |
+| **Using messages to train AI models** | ⚠️ CONDITIONAL — ChatGPT model | Same as above PLUS separate explicit consent for AI training use. Customer must be able to opt out at any time. |
+| **Sharing data with third parties** | ❌ NO | Not without explicit consent from both org and customer. |
+
+**The ChatGPT-Style Opt-In Model for CampoTech:**
+
+This is the industry standard approach (used by ChatGPT, Zendesk, Intercom, HubSpot):
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│           AI IMPROVEMENT OPT-IN (3 LAYERS)                       │
+│                                                                   │
+│  LAYER 1: Organization Opt-In (during onboarding or in Settings) │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │  ⚙️ Configuración de IA                                  │    │
+│  │                                                           │    │
+│  │  ☐ Programa de Mejora de IA                               │    │
+│  │    "Permitir que CampoTech utilice datos anónimos de      │    │
+│  │     conversaciones para mejorar la calidad del asistente  │    │
+│  │     de IA. Los datos son anonimizados (sin nombres,       │    │
+│  │     teléfonos ni direcciones) antes de ser procesados.    │    │
+│  │     Podés desactivar esta opción en cualquier momento."   │    │
+│  │                                                           │    │
+│  │  ☐ Acceso a conversaciones para soporte técnico           │    │
+│  │    "Permitir que el equipo de CampoTech acceda a          │    │
+│  │     conversaciones específicas cuando sea necesario       │    │
+│  │     para resolver problemas técnicos o verificar el       │    │
+│  │     correcto funcionamiento del asistente de IA.          │    │
+│  │     Nombre de la organización y datos de clientes         │    │
+│  │     pueden ser visibles. Solo accesible por personal      │    │
+│  │     autorizado bajo acuerdo de confidencialidad."         │    │
+│  │                                                           │    │
+│  │  [Guardar Cambios]                                        │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                                                                   │
+│  LAYER 2: End Customer Consent (HOW it actually works)           │
+│                                                                   │
+│  The org (Data Controller) is legally responsible for informing   │
+│  their customers. CampoTech makes this effortless with 4         │
+│  automatic mechanisms:                                            │
+│                                                                   │
+│  MECHANISM A — WhatsApp Business Profile (passive, always-on)    │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │  When the org connects their WhatsApp number, CampoTech  │    │
+│  │  auto-populates the WhatsApp Business profile with:       │    │
+│  │                                                           │    │
+│  │  📋 Descripción del negocio:                              │    │
+│  │  "[Nombre Empresa] utiliza inteligencia artificial para    │    │
+│  │   agilizar la atención al cliente. Política de privacidad:│    │
+│  │   [link autogenerado]"                                    │    │
+│  │                                                           │    │
+│  │  This is visible BEFORE the customer sends their first    │    │
+│  │  message — they see it when they open the chat profile.   │    │
+│  │  WhatsApp Business API allows setting this programmatically│   │
+│  │  via the Business Profile API endpoint.                   │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                                                                   │
+│  MECHANISM B — AI First-Contact Disclosure (one-time, automatic) │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │  The FIRST TIME the AI responds to a new customer (not    │    │
+│  │  the org's human staff), the response includes a brief    │    │
+│  │  footer disclosure. This is appended ONCE — never again.  │    │
+│  │                                                           │    │
+│  │  Example AI response:                                     │    │
+│  │  "¡Hola! 👋 Soy el asistente virtual de [Empresa].       │    │
+│  │   ¿En qué te puedo ayudar?                               │    │
+│  │                                                           │    │
+│  │   ℹ️ Este chat utiliza inteligencia artificial.            │    │
+│  │   Tus derechos:                                           │    │
+│  │   • Escribí 'hablar con alguien' para hablar con una      │    │
+│  │     persona en cualquier momento                          │    │
+│  │   • Más info sobre privacidad y tus datos: [link]"        │    │
+│  │                                                           │    │
+│  │  WHY THIS WORDING:                                        │    │
+│  │  • Tells them AI is being used (mandatory disclosure)     │    │
+│  │  • Gives ONE clear action ("hablar con alguien")          │    │
+│  │  • Links to privacy page for full details                 │    │
+│  │  • Does NOT overwhelm with legal jargon — keep it short   │    │
+│  │  • In Argentine voseo ("Escribí" not "Escriba")           │    │
+│  │                                                           │    │
+│  │  Tracked via: CustomerAIProfile.aiDisclosureSentAt (v5.0)  │    │
+│  │  If null → include disclosure. If set → never again.      │    │
+│  │  Uses phone+orgId profile (exists for ALL contacts).       │    │
+│  │  The customer continuing the conversation = implicit       │    │
+│  │  consent for AI-assisted communication (Ley 25.326 Art.5) │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                                                                   │
+│  MECHANISM C — Privacy Policy Page (auto-generated, org-edited)  │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │  CampoTech auto-generates a privacy policy page for each │    │
+│  │  org at: campotech.com.ar/privacidad/[org-slug]           │    │
+│  │                                                           │    │
+│  │  The page includes (all in Spanish):                      │    │
+│  │  ┌─────────────────────────────────────────────────┐      │    │
+│  │  │ 🔒 Política de Privacidad — [Nombre Empresa]   │      │    │
+│  │  │                                                 │      │    │
+│  │  │ § Qué datos recopilamos                         │      │    │
+│  │  │   Nombre, teléfono, y mensajes de WhatsApp     │      │    │
+│  │  │                                                 │      │    │
+│  │  │ § Cómo los usamos                               │      │    │
+│  │  │   Para gestionar tu solicitud de servicio.      │      │    │
+│  │  │   Este chat es asistido por inteligencia        │      │    │
+│  │  │   artificial para agilizar la atención.         │      │    │
+│  │  │                                                 │      │    │
+│  │  │ § Mejora de IA (solo si la empresa participó)   │      │    │
+│  │  │   Tus conversaciones pueden ser utilizadas de   │      │    │
+│  │  │   forma anónima para mejorar la calidad del     │      │    │
+│  │  │   asistente. Podés excluirte escribiendo "no    │      │    │
+│  │  │   usen mis datos" en el chat o contactándonos.  │      │    │
+│  │  │                                                 │      │    │
+│  │  │ § Tus derechos                                  │      │    │
+│  │  │   • Pedir hablar con una persona real            │      │    │
+│  │  │   • Desactivar el asistente virtual              │      │    │
+│  │  │   • Excluir tus datos del programa de mejora IA │      │    │
+│  │  │   • Pedir la eliminación de todos tus datos     │      │    │
+│  │  │   Podés ejercer estos derechos escribiendo en   │      │    │
+│  │  │   el chat o contactando a [org email/phone].    │      │    │
+│  │  │                                                 │      │    │
+│  │  │ § Contacto: [org email] | [org phone]           │      │    │
+│  │  └─────────────────────────────────────────────────┘      │    │
+│  │                                                           │    │
+│  │  WHERE THE ORG EDITS THIS:                                │    │
+│  │  Dashboard → Settings → Legal y Privacidad                │    │
+│  │  (NOT under AI settings — privacy is a broader concern)   │    │
+│  │                                                           │    │
+│  │  What they CAN customize:                                 │    │
+│  │    ✅ Business contact info (email, phone)                │    │
+│  │    ✅ Additional clauses (e.g., industry-specific)        │    │
+│  │    ✅ Business description                                │    │
+│  │    ✅ Logo and branding                                   │    │
+│  │                                                           │    │
+│  │  What they CANNOT remove (locked sections):               │    │
+│  │    🔒 Data collection disclosure                          │    │
+│  │    🔒 AI usage disclosure                                 │    │
+│  │    🔒 Customer rights (ARCO)                              │    │
+│  │    🔒 AI training opt-out instructions                    │    │
+│  │    🔒 Data deletion process                               │    │
+│  │                                                           │    │
+│  │  These locked sections update automatically when:         │    │
+│  │    • Org toggles AI Improvement Program on/off            │    │
+│  │    • Org enables/disables AI auto-responder               │    │
+│  │    • CampoTech updates platform-wide privacy terms        │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                                                                   │
+│  MECHANISM D — Natural Language Opt-Out (via WhatsApp itself)    │
+│                                                                   │
+│  The customer doesn't need to know exact phrases. The AI uses    │
+│  INTENT DETECTION (not just regex matching) to understand what   │
+│  they want. There are 4 distinct levels of opt-out:              │
+│                                                                   │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │  LEVEL 1: "HABLAR CON ALGUIEN" (Human Escalation)        │    │
+│  │  ───────────────────────────────────────────────────────  │    │
+│  │  Intent: Customer wants a human for THIS conversation     │    │
+│  │                                                           │    │
+│  │  Triggers (intent detection, not exact match):            │    │
+│  │    "hablar con alguien", "quiero una persona",            │    │
+│  │    "dejá de hablar", "sos un robot?", "necesito un        │    │
+│  │    humano", "pasame con alguien de verdad",               │    │
+│  │    "esto no me sirve, pasame con otro"                    │    │
+│  │                                                           │    │
+│  │  What happens:                                            │    │
+│  │    → AI: "Perfecto, te comunico con [Nombre/equipo].      │    │
+│  │      Puede tardar unos minutos."                          │    │
+│  │    → Session flagged as HUMAN_HANDOFF                     │    │
+│  │    → Dispatcher notified in dashboard                     │    │
+│  │    → AI STOPS responding in this conversation             │    │
+│  │                                                           │    │
+│  │  Scope: THIS CONVERSATION ONLY                           │    │
+│  │  AI can respond again in future conversations unless      │    │
+│  │  Level 2 is triggered.                                    │    │
+│  │  Duration: Until dispatcher clicks "Return to AI" or      │    │
+│  │  next session starts.                                     │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                                                                   │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │  LEVEL 2: "NO QUIERO IA" (Permanent AI Communication Off) │    │
+│  │  ───────────────────────────────────────────────────────  │    │
+│  │  Intent: Customer NEVER wants AI to respond to them       │    │
+│  │                                                           │    │
+│  │  Triggers:                                                │    │
+│  │    "no quiero IA", "no quiero robot", "no quiero que me   │    │
+│  │    atienda una máquina", "desactivar asistente virtual",  │    │
+│  │    "siempre quiero hablar con personas"                   │    │
+│  │                                                           │    │
+│  │  What happens:                                            │    │
+│  │    → AI: "Entendido. A partir de ahora siempre vas a      │    │
+│  │      ser atendido/a por una persona. Si en algún          │    │
+│  │      momento querés reactivar el asistente, escribí       │    │
+│  │      'activar asistente'."                                │    │
+│  │    → Sets CustomerAIProfile.aiCommunicationOptOut = true    │    │
+│  │      (v5.0: on profile, not Customer — profile always      │    │
+│  │       exists; Customer entity may not exist yet)           │    │
+│  │    → ALL future messages go directly to dispatcher queue  │    │
+│  │    → AI NEVER auto-responds to this customer again        │    │
+│  │                                                           │    │
+│  │  Scope: PERMANENT (until customer re-opts in)             │    │
+│  │  AI training can still use their past data (if org opted  │    │
+│  │  in and customer didn't trigger Level 3)                  │    │
+│  │  Reversible: Customer says "activar asistente" or         │    │
+│  │  "quiero que me atienda el asistente"                     │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                                                                   │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │  LEVEL 3: "NO USEN MIS DATOS" (AI Training Opt-Out)       │    │
+│  │  ───────────────────────────────────────────────────────  │    │
+│  │  Intent: Customer doesn't want data used for AI training  │    │
+│  │                                                           │    │
+│  │  Triggers:                                                │    │
+│  │    "no usen mis datos", "no quiero que entrenen con mis   │    │
+│  │    mensajes", "excluirme", "mis datos son privados",      │    │
+│  │    "no compartan mi información"                          │    │
+│  │                                                           │    │
+│  │  What happens:                                            │    │
+│  │    → AI: "Listo. Tus conversaciones no serán utilizadas   │    │
+│  │      para mejorar el asistente de IA. El servicio sigue   │    │
+│  │      funcionando igual para vos — solo cambia que tus     │    │
+│  │      datos no se usan para entrenamiento."                │    │
+│  │    → Sets CustomerAIProfile.aiTrainingOptOut = true         │    │
+│  │      (v5.0: on profile; also set on Customer entity if     │    │
+│  │       one exists for this contact)                         │    │
+│  │    → Logged in UserConsentLog                             │    │
+│  │                                                           │    │
+│  │  Scope: AI TRAINING ONLY                                  │    │
+│  │  AI STILL works for them normally (responds, schedules,   │    │
+│  │  etc.) — their messages are just excluded from Tier C      │    │
+│  │  platform-level analytics and training datasets.          │    │
+│  │  Reversible: "Podés usar mis datos" or org toggles back   │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                                                                   │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │  LEVEL 4: "BORRAR MIS DATOS" (Full Data Deletion — ARCO)  │    │
+│  │  ───────────────────────────────────────────────────────  │    │
+│  │  Intent: Customer wants all their data erased              │    │
+│  │                                                           │    │
+│  │  Triggers:                                                │    │
+│  │    "borrar mis datos", "eliminar mi cuenta",              │    │
+│  │    "quiero que borren todo", "derecho al olvido"          │    │
+│  │                                                           │    │
+│  │  What happens:                                            │    │
+│  │    → AI: "Entendido. Para eliminar tus datos, necesitamos │    │
+│  │      verificar tu identidad. Podés iniciar el proceso     │    │
+│  │      en [link a /data-request?org=XXX] o te podemos       │    │
+│  │      enviar un enlace por este mismo chat."               │    │
+│  │    → Triggers existing ARCO data request flow             │    │
+│  │    → 30-day waiting period (already implemented)          │    │
+│  │    → Full anonymization per existing AccountDeletionService│   │
+│  │                                                           │    │
+│  │  Scope: EVERYTHING — irreversible after 30 days           │    │
+│  │  This is NOT handled by the AI alone — requires identity  │    │
+│  │  verification (DNI) through the existing ARCO portal.     │    │
+│  │  AI just initiates the process and provides the link.     │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                                                                   │
+│  SUMMARY TABLE — What Each Level Affects:                        │
+│                                                                   │
+│  Level │ AI Responds? │ AI Trains? │ Data Stored? │ Reversible?  │
+│  ──────┼──────────────┼────────────┼──────────────┼──────────────│
+│  1     │ No (this     │ Yes        │ Yes          │ Auto (next   │
+│        │ convo only)  │            │              │ session)     │
+│  2     │ NEVER        │ Yes        │ Yes          │ Yes (say     │
+│        │              │            │              │ "activar")   │
+│  3     │ Yes (normal) │ NEVER      │ Yes          │ Yes (say     │
+│        │              │            │              │ "usar datos")│
+│  4     │ N/A          │ N/A        │ DELETED      │ No (after    │
+│        │              │            │              │ 30 days)     │
+│                                                                   │
+│  HOW DOES THE CUSTOMER DISCOVER THEIR RIGHTS?                    │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │  4 touchpoints where rights are communicated:             │    │
+│  │                                                           │    │
+│  │  1. WhatsApp Business Profile (Mechanism A)               │    │
+│  │     → Customer sees AI disclosure + privacy link BEFORE   │    │
+│  │       their first message (in the chat profile header)    │    │
+│  │                                                           │    │
+│  │  2. First-Contact Disclosure (Mechanism B)                │    │
+│  │     → First AI reply says: "Escribí 'hablar con alguien'  │    │
+│  │       para hablar con una persona" + links to privacy     │    │
+│  │                                                           │    │
+│  │  3. Privacy Policy Page (Mechanism C)                     │    │
+│  │     → Lists ALL 4 levels in plain Spanish with examples   │    │
+│  │       of what to say in the chat                          │    │
+│  │                                                           │    │
+│  │  4. The AI itself (Mechanism D)                           │    │
+│  │     → If a customer seems frustrated or asks about        │    │
+│  │       privacy, the AI proactively explains their options  │    │
+│  │     → Example: customer says "quién lee esto?"            │    │
+│  │       AI: "Soy un asistente virtual. Tus mensajes son     │    │
+│  │       procesados por IA para darte mejor atención. Podés  │    │
+│  │       pedir hablar con una persona, desactivar el         │    │
+│  │       asistente, o excluir tus datos del entrenamiento    │    │
+│  │       de IA. ¿Querés saber más? [link]"                   │    │
+│  │                                                           │    │
+│  │  KEY PRINCIPLE: The customer should NEVER need to know    │    │
+│  │  exact phrases. They express themselves naturally, and     │    │
+│  │  the AI detects their intent. The privacy page has        │    │
+│  │  example phrases for reference, but the AI understands    │    │
+│  │  "dejá de hablar robot" just as well as "no quiero IA".   │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                                                                   │
+│  LAYER 3: Consent Storage & Enforcement                          │
+│  ┌──────────────────────────────────────────────────────────┐    │
+│  │  How consent state is tracked per contact:                 │    │
+│  │                                                           │    │
+│  │  CustomerAIProfile record (v5.0 — always exists):         │    │
+│  │    aiDisclosureSentAt:      DateTime? // Mechanism B sent  │    │
+│  │    aiCommunicationOptOut:   Boolean   // Level 2 — no AI  │    │
+│  │    aiTrainingOptOut:        Boolean   // Level 3 — no train│   │
+│  │    aiOptOutTimestamp:       DateTime? // When opted out    │    │
+│  │    aiOptOutMethod:          String?   // "WHATSAPP_CHAT" | │    │
+│  │                                       // "ARCO_REQUEST" |  │    │
+│  │                                       // "ORG_MANUAL"      │    │
+│  │                                                           │    │
+│  │  Enforcement:                                             │    │
+│  │    → aiCommunicationOptOut = true:                        │    │
+│  │      All messages go to dispatcher queue, AI never fires  │    │
+│  │    → aiTrainingOptOut = true:                             │    │
+│  │      Tier C queries auto-filter: WHERE NOT aiTrainingOptOut│   │
+│  │      Anonymization pipeline skips this customer           │    │
+│  │    → Audit log records EVERY consent change               │    │
+│  │    → Opt-out is INSTANT — no waiting period               │    │
+│  │    → Opt-in again is possible via chat or org toggle      │    │
+│  └──────────────────────────────────────────────────────────┘    │
+│                                                                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Schema Additions for Consent:**
+
+```prisma
+// Add to Organization model (settings JSON or dedicated fields):
+model Organization {
+  // ... existing fields ...
+
+  // AI Improvement Program consent
+  aiImprovementOptIn       Boolean   @default(false)  // Org consents to anonymized data use
+  aiSupportAccessOptIn     Boolean   @default(false)  // Org consents to CampoTech support access
+  aiConsentTimestamp        DateTime?                  // When consent was granted
+  aiConsentGrantedBy        String?                    // userId who toggled it
+}
+
+// Add to Customer model (for contacts that have been promoted):
+model Customer {
+  // ... existing fields ...
+
+  // AI training exclusion (customer opt-out via ARCO "O" right)
+  // NOTE (v5.0): These fields are ALSO on CustomerAIProfile for contacts
+  // that haven't been promoted to Customer yet. When a contact is promoted,
+  // the profile flags are copied to the Customer entity for consistency.
+  aiTrainingOptOut         Boolean   @default(false)
+  aiOptOutTimestamp         DateTime?
+}
+```
+
+**What Each Tier Can See:**
+
+---
+
+**Tier A — Per-Org Dashboard (the organization sees their OWN metrics):**
+
+No extra consent needed — this is their data, their customers, their business.
+
+| Metric | What It Shows | Location |
+|--------|--------------|----------|
+| **Interruption Rate** | % of AI responses that were interruptions (last 30 days) | Dashboard → AI Settings → Analytics tab |
+| **Trend Line** | Interruption rate over time — should decrease as system learns | Same tab, line chart |
+| **Top Interrupted Customers** | Which customers get interrupted most (might need manual debounce override) | Same tab, table |
+| **Avg Response Time** | Average time from first message to AI response (debounce + processing) | Same tab, KPI card |
+| **Manual Flags Pending** | Conversations with auto-detected interruptions awaiting confirmation | Dashboard notification badge |
+| **Full Conversations** | Complete message history with customer names, phones, content | WhatsApp hub (existing feature) |
+
+---
+
+**Tier B — CampoTech Platform Analytics (you — always available, no PII):**
+
+This is what you see by default in `apps/admin`. NO message content. NO customer names. NO phone numbers. Pure aggregate metrics.
+
+| Metric | What It Shows | Purpose | Contains PII? |
+|--------|--------------|---------|---------------|
+| **Global Interruption Rate** | Platform-wide % across all orgs | Verify the adaptive system is working | ❌ No |
+| **Learning Curve** | Avg sessions until interruptions < 5% | Tune the EMA α coefficient | ❌ No |
+| **False Positive Rate** | % of auto-detected interruptions dismissed by orgs | Tune continuation markers | ❌ No |
+| **Debounce Distribution** | Histogram of learnedDebounceMs across all customers | Detect if defaults are too aggressive | ❌ No |
+| **AI Response Quality Score** | Aggregated satisfaction per org (from org feedback) | Identify orgs that need attention | ❌ No |
+| **Token Usage & Cost** | LLM tokens consumed per org/day/month | Pricing and capacity planning | ❌ No |
+| **Session Metrics** | Avg session duration, messages per session, close reasons | UX optimization | ❌ No |
+
+---
+
+**Tier C — CampoTech AI Improvement Access (you — opt-in orgs only):**
+
+Only available for organizations that toggled `aiImprovementOptIn = true`.
+
+| Access Level | What You See | When | Requirement |
+|-------------|-------------|------|-------------|
+| **Anonymized Conversations** | Messages with PII stripped: names → "[CLIENTE]", phones → "[TELÉFONO]", addresses → "[DIRECCIÓN]", CUIT → "[CUIT]" | AI improvement research, prompt tuning, evaluation datasets | Org opted in. Customer NOT opted out. |
+| **Anonymized Interruption Samples** | The exact message sequence that caused an interruption (anonymized) | Debug false positives, tune continuation markers | Same as above |
+| **Full Conversation Access** | Raw messages with all data visible | Technical support escalation (specific conversation, time-bounded) | Org opted in to `aiSupportAccessOptIn`. Logged in audit trail. Time-limited access window (e.g., 24h). |
+
+**Anonymization Pipeline (for Tier C):**
+
+```
+Raw message: "Hola, soy María García. Mi teléfono es 11-5555-1234.
+              Vivo en Av. Corrientes 1234, necesito un plomero."
+
+                    ↓ Anonymization engine ↓
+
+Anonymized: "Hola, soy [CLIENTE]. Mi teléfono es [TELÉFONO].
+             Vivo en [DIRECCIÓN], necesito un plomero."
+
+Rules:
+  • Customer names → [CLIENTE]
+  • Phone numbers → [TELÉFONO]  (regex: +54, 011, 11-, etc.)
+  • Addresses → [DIRECCIÓN]     (regex: Av., Calle, Nº, piso, depto)
+  • CUIT/DNI → [DOCUMENTO]      (regex: XX-XXXXXXXX-X)
+  • Email → [EMAIL]             (regex: standard email)
+  • Organization name → [EMPRESA]
+  • Technician names → [TÉCNICO]
+  • Job IDs remain (non-PII, useful for debugging)
+  • Timestamps remain (non-PII, essential for timing analysis)
+```
+
+**Data Processing Agreement (DPA) — Required:**
+
+Under Ley 25.326, CampoTech must have a written DPA with every organization. This is standard in SaaS. The DPA must state:
+
+```
+┌─ DPA Key Clauses ───────────────────────────────────────────────┐
+│                                                                  │
+│  1. CampoTech processes data ONLY per the org's instructions     │
+│  2. CampoTech will NOT sell, share, or transfer data to third    │
+│     parties without explicit consent                             │
+│  3. CampoTech implements AES-256-GCM encryption at rest and      │
+│     TLS 1.3 in transit                                           │
+│  4. CampoTech will notify the org within 72 hours of any         │
+│     data breach (AAIP requirement)                               │
+│  5. The org retains full ownership of their data                 │
+│  6. CampoTech will delete all org data within 30 days of         │
+│     contract termination                                         │
+│  7. AI Improvement Program participation is optional and         │
+│     revocable at any time                                        │
+│  8. CampoTech's DNPDP database registration number: [TBD]       │
+│                                                                  │
+│  Location: Legal document + embedded in Terms of Service         │
+│  Implementation: Accept during onboarding, stored in             │
+│  Organization.settings.dpa with timestamp and IP                 │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Industry Reference (how others do it):**
+
+| Platform | Approach | Opt-in/Out |
+|----------|----------|------------|
+| **ChatGPT** (OpenAI) | Conversations used for training by default. Users can opt OUT via settings. Business/API plans: opted out by default. | Opt-out (consumer), Opt-in (business) |
+| **Zendesk** | "AI Data Retention" setting per account. Aggregated data always. Message content only with consent. | Opt-in for message content |
+| **Intercom** | "Help improve Intercom" checkbox. Uses anonymized conversation data. | Opt-out |
+| **HubSpot** | "Data enrichment" opt-in. Customer conversations visible to HubSpot support with explicit permission. | Opt-in |
+| **CampoTech** (our approach) | **Conservative / Argentine-compliant.** Nothing by default. Org must explicitly opt in. Customer can opt out. Full audit trail. | **Double opt-in** (org + customer right to oppose) |
+
+> **Why double opt-in?** Argentina's PDPL (Ley 25.326) requires "free, express, and informed consent." The AAIP's 2024 AI transparency guide (Resolution 161/2023) specifically calls out AI training as a distinct processing purpose requiring its own consent. By being conservative, we avoid regulatory risk AND build trust — "CampoTech no lee tus mensajes" is a strong market differentiator in Argentina where data privacy concerns are high.
+
+---
+
+**Lifecycle Summary:**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                   ADAPTIVE DEBOUNCE LIFECYCLE                    │
+│                                                                  │
+│  NEW CUSTOMER (first 3 sessions):                                │
+│    → Static defaults (8s new session, 5s mid-convo)              │
+│    → Record all burst patterns silently                          │
+│    → No learned debounce applied yet                             │
+│                                                                  │
+│  LEARNING CUSTOMER (sessions 3-10):                              │
+│    → learnedDebounceMs calculated and applied                    │
+│    → Interruption detection active                               │
+│    → Each interruption → +15% debounce correction                │
+│    → Each clean session → −2% decay toward optimal               │
+│                                                                  │
+│  STABLE CUSTOMER (10+ sessions, <5% interruption rate):          │
+│    → Learned debounce is well-calibrated                         │
+│    → Minimal adjustments (only if behavior changes)              │
+│    → Org can see stable green status in analytics                │
+│                                                                  │
+│  BEHAVIOR CHANGE DETECTION:                                      │
+│    → If a stable customer suddenly gets 2+ interruptions         │
+│      in 3 sessions → learning rate increases temporarily         │
+│      (α bumps to 0.5 for faster adaptation)                     │
+│    → Possible causes: new phone, typing injury, dictation mode   │
+│    → System re-stabilizes within 3-5 sessions                    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 
 ---
 
@@ -1641,7 +2977,7 @@ async def generate_quote_pdf(quote_data: dict) -> str:
 | `AIEvaluationRun` | A | Evaluation runs |
 | `AIConfidenceCalibration` | A | Calibration tracking |
 | `AIABTest` | A | A/B testing |
-| `CustomerAIProfile` | B | Customer learning |
+| `CustomerAIProfile` | B | Contact memory (phone-keyed, auto-created on first message) |
 | `AIPendingApproval` | C | TTL-enforced approval queue |
 | `AIToolCategory` | C | Tool categories |
 | `AITool` | C | Tool definitions |
@@ -1658,7 +2994,7 @@ async def generate_quote_pdf(quote_data: dict) -> str:
 | A3 | 5 | Migration + Feature Flag | TS→Python proxy |
 | A4 | 6 | LangSmith Observability | Full tracing |
 | A-Eval | 7-12 | Evaluation System | Dataset, batch eval, calibration, A/B |
-| B | 13-16 | Memory & Profiles | CustomerAIProfile, Redis, style adaptation |
+| B | 13-16 | Memory & Profiles | CustomerAIProfile (phone-keyed), phone-based identity resolution, system-layer pre-fetch, Redis, style adaptation |
 | C | 17-20 | Planning & Tools | Multi-step, approval gates, tool whitelist |
 | D | 21-24 | Proactive & Multi-Modal | Suggestions, images, PDFs |
 
@@ -1667,7 +3003,7 @@ async def generate_quote_pdf(quote_data: dict) -> str:
 ## Key Principles
 
 1. **Orchestrator + Sub-Agents**: Domain logic lives in isolated sub-agents, not a monolithic graph
-2. **Deterministic Routing**: Intent → Category mapping is explicit, not emergent — predictable for business-critical WhatsApp
+2. **Deterministic Routing**: Intent → Category mapping is explicit, not emergent. Identity resolution is also deterministic (phone → profile via DB index) — predictable for business-critical WhatsApp
 3. **Frozen Sub-Agent Prompts**: Each sub-agent has a focused 200-300 token domain prompt — prevents prompt drift
 4. **Lazy Activation**: Only the relevant sub-agent's context and tools are loaded per request
 5. **Hybrid Routing**: Simple requests stay in TypeScript (fast), complex go to Python (powerful)
@@ -1684,6 +3020,8 @@ async def generate_quote_pdf(quote_data: dict) -> str:
 16. **Intent Chaining**: Multi-intent messages are dependency-sorted and executed sequentially through the chain
 17. **Context Mutations over Text**: Sub-agents emit structured `ContextMutation` payloads, not free-text memory appends
 18. **Yield-to-Orchestrator with Guard**: Sub-agents yield on low confidence; max 2 reroutes before human escalation
+19. **System-Layer Pre-Fetch**: Identity resolution and context loading happen deterministically during debounce, before AI wakes up — zero LLM calls for lookups
+20. **Phone-Keyed Auto-Created Profiles**: CustomerAIProfile exists for every phone number that contacts the org, created on first message with no approval needed
 
 ---
 
@@ -1744,7 +3082,7 @@ Each sub-agent needs its internal LangGraph node sequence defined:
 | Sub-Agent | Needs |
 |-----------|-------|
 | `SchedulingAgent` | Calendar conflict detection logic, technician matching algorithm, time slot suggestion strategy |
-| `CustomerAgent` | CUIT validation flow integration, customer type classification, onboarding flow steps |
+| `CustomerAgent` | Profile enrichment (v5.0: no longer handles identity resolution — that's System Layer), CUIT validation for invoicing, contact promotion to formal Customer entity |
 | `FinancialAgent` | Presupuesto → Factura pipeline, IVA calculation integration, MercadoPago payment status checks |
 | `FleetAgent` | Vehicle-technician matching optimization, bulk reschedule algorithm, sick-day redistribution logic |
 | `EscalationAgent` | Frustration threshold tuning, human handoff protocol, ticket creation rules |
@@ -1762,8 +3100,8 @@ Each `.md` prompt file in `services/ai/app/prompts/` needs content written in es
 
 The current intent list per sub-agent is preliminary. Final taxonomy requires:
 - Exhaustive mapping of all user intents from WhatsApp conversation logs
-- Ambiguity resolution (e.g., "Quiero agendar" — Scheduling or Customer creation?)
-- Cross-domain intent chains (e.g., "Crear cliente y agendar trabajo" spans Customer + Scheduling)
+- Ambiguity resolution (e.g., "Quiero agendar" — less ambiguous in v5.0 since system already resolved if customer exists)
+- Cross-domain intent chains (e.g., "Crear cliente y agendar trabajo" spans Customer + Scheduling — simplified in v5.0 since identity is pre-resolved)
 
 ### 4. Cross-Domain Orchestration
 
@@ -1774,7 +3112,7 @@ The current intent list per sub-agent is preliminary. Final taxonomy requires:
 - ~~**Context passing between agents**~~ → **Designed** (ContextMutation protocol)
 - **Parallel execution**: Fleet + Scheduling simultaneously → Still needs design (LangGraph `Send` API)
 - **Conflict resolution**: What if Fleet and Scheduling sub-agents disagree on availability?
-- **Dependency sorting algorithm**: Auto-reorder `["book_job", "create_customer"]` → `["create_customer", "book_job"]`
+- **Dependency sorting algorithm**: Auto-reorder `["book_job", "promote_contact"]` → `["promote_contact", "book_job"]` (v5.0: simplified since system already resolved identity — `promote_contact` is only needed when dispatcher explicitly requests formal Customer creation)
 
 ### 5. Per-Sub-Agent Evaluation Datasets
 
@@ -1814,8 +3152,9 @@ The `AISubAgentExecution` tracking table enables per-domain dashboards:
 | **4.0** | **2026-02-08** | **Orchestrator + Domain Sub-Agent architecture (Phase A0), workflow categories, sub-agent registry, Kimi-K2.5 inspiration analysis, md5→sha256 fix, async tool registry fix, What's Still Needed section** |
 | **4.1** | **2026-02-08** | **Multi-intent chaining (intent_chain + chain loop-back), ContextMutation protocol for cross-domain data flow, yield-to-orchestrator with reroute guard (max 2), confidence_gate in sub-agent template, tool filter bug fix, stray brace fix** |
 | **4.2** | **2026-02-08** | **Configurable per-agent min_confidence in SubAgentConfig, Redis key org-prefix consistency fix, lock heartbeat for long chains, intermediate_responses for partial chain success, created AI_SUBAGENT_DESIGN_WORKSHOP.md** |
+| **5.0** | **2026-02-21** | **System Layer + AI Layer separation (deterministic pre-fetch during debounce), phone-keyed CustomerAIProfile (auto-created on first message), optional customerId, 4-layer context loading, Batch Processor step 4.5, consent fields moved to profile, CustomerAgent scope reduced to enrichment/promotion, 2 new Key Principles (#19, #20)** |
 
 ---
 
-*Version 4.2 - 2026-02-08*
-*Minor: Per-agent configurable confidence thresholds (FinancialAgent/FleetAgent at 0.6, others at 0.4). Redis WhatsApp keys now consistently prefixed with org_id for tenant isolation. Lock heartbeat pattern for multi-intent chains exceeding 30s TTL. intermediate_responses field for partial chain success composition. Created companion document [AI_SUBAGENT_DESIGN_WORKSHOP.md](./AI_SUBAGENT_DESIGN_WORKSHOP.md) for sub-agent content definition.*
+*Version 5.0 - 2026-02-21*
+*Major: Architecture split into System Layer (deterministic, ~10ms) and AI Layer (LLM-powered, ~400ms-2s). CustomerAIProfile now keyed by phone+organizationId (not customerId), auto-created on first-ever message from any phone number. customerId is optional — profile exists for ALL contacts. Consent and disclosure tracking moved from Customer to CustomerAIProfile. CustomerAgent scope reduced from identity resolution to profile enrichment and formal Customer promotion. Batch Processor gained step 4.5 (parallel system pre-fetch). Context loading restructured from 3 to 4 layers (Layer 0 = System Layer). classify_intents_node simplified to drop identity intents when system already resolved. 35 coordinated changes across the document.*

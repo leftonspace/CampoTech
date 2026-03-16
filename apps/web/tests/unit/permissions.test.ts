@@ -23,12 +23,12 @@ import type { UserRole, FieldPermission } from '@/lib/config/field-permissions';
 describe('Field Permissions', () => {
   describe('Organization Fields', () => {
     describe('Locked Fields (AFIP/Legal)', () => {
-      it('CUIT should be locked and visible to all roles', () => {
+      it('CUIT should be locked and visible to web roles only', () => {
         const field = ORGANIZATION_FIELDS.cuit;
         expect(field.status).toBe('locked');
         expect(field.visibleTo).toContain('OWNER');
         expect(field.visibleTo).toContain('ADMIN');
-        expect(field.visibleTo).toContain('TECHNICIAN');
+        expect(field.visibleTo).not.toContain('TECHNICIAN'); // TECHNICIAN accesses via mobile API
         expect(field.editableBy).toHaveLength(0);
       });
 
@@ -99,11 +99,11 @@ describe('Field Permissions', () => {
       expect(field.editableBy).not.toContain('TECHNICIAN');
     });
 
-    it('Customer phone should be editable by all roles', () => {
+    it('Customer phone should be editable by web roles (OWNER + ADMIN)', () => {
       const field = CUSTOMER_FIELDS.phone;
       expect(field.editableBy).toContain('OWNER');
       expect(field.editableBy).toContain('ADMIN');
-      expect(field.editableBy).toContain('TECHNICIAN');
+      expect(field.editableBy).not.toContain('TECHNICIAN'); // TECHNICIAN edits via mobile app API
     });
   });
 
@@ -116,18 +116,16 @@ describe('Field Permissions', () => {
       expect(JOB_FIELDS.customerSignature.status).toBe('locked');
     });
 
-    it('Job status should be editable by all roles', () => {
+    it('Job status should be editable by web roles (OWNER + ADMIN)', () => {
       const field = JOB_FIELDS.status;
       expect(field.editableBy).toContain('OWNER');
       expect(field.editableBy).toContain('ADMIN');
-      expect(field.editableBy).toContain('TECHNICIAN');
+      expect(field.editableBy).not.toContain('TECHNICIAN'); // TECHNICIAN transitions via mobile app API
     });
 
-    it('Resolution should only be editable by TECHNICIAN', () => {
+    it('Resolution should not be web-editable (TECHNICIAN submits via mobile API)', () => {
       const field = JOB_FIELDS.resolution;
-      expect(field.editableBy).toContain('TECHNICIAN');
-      expect(field.editableBy).not.toContain('OWNER');
-      expect(field.editableBy).not.toContain('ADMIN');
+      expect(field.editableBy).toHaveLength(0); // Web config has no editors; mobile API handles this
     });
   });
 });
@@ -230,12 +228,15 @@ describe('Permission Helper Functions', () => {
       expect(canAccessModule('whatsapp', 'ADMIN')).toBe(true);
     });
 
-    it('TECHNICIAN should have limited access', () => {
-      expect(canAccessModule('jobs', 'TECHNICIAN')).toBe(true);
-      expect(canAccessModule('customers', 'TECHNICIAN')).toBe(true);
+    it('TECHNICIAN should have no web access (mobile-only)', () => {
+      expect(canAccessModule('dashboard', 'TECHNICIAN')).toBe(false);
+      expect(canAccessModule('jobs', 'TECHNICIAN')).toBe(false);
+      expect(canAccessModule('customers', 'TECHNICIAN')).toBe(false);
       expect(canAccessModule('invoices', 'TECHNICIAN')).toBe(false);
       expect(canAccessModule('settings', 'TECHNICIAN')).toBe(false);
       expect(canAccessModule('analytics', 'TECHNICIAN')).toBe(false);
+      expect(canAccessModule('calendar', 'TECHNICIAN')).toBe(false);
+      expect(canAccessModule('schedule', 'TECHNICIAN')).toBe(false);
     });
   });
 
@@ -243,7 +244,7 @@ describe('Permission Helper Functions', () => {
     it('should return correct access levels', () => {
       expect(getModuleAccess('dashboard', 'OWNER')).toBe('full');
       expect(getModuleAccess('dashboard', 'ADMIN')).toBe('limited');
-      expect(getModuleAccess('dashboard', 'TECHNICIAN')).toBe('own');
+      expect(getModuleAccess('dashboard', 'TECHNICIAN')).toBe('hidden'); // Mobile-only
     });
 
     it('should return hidden for non-accessible modules', () => {
@@ -267,10 +268,11 @@ describe('Permission Helper Functions', () => {
       expect(filtered.cbu).toBe('1234567890');
     });
 
-    it('TECHNICIAN should not see restricted fields like CBU', () => {
+    it('TECHNICIAN should not see any org fields on web (mobile-only role)', () => {
       const filtered = filterSensitiveFields(testData, ORGANIZATION_FIELDS, 'TECHNICIAN');
-      expect(filtered.name).toBe('Test Org');
-      expect(filtered.cuit).toBe('30-12345678-9');
+      // TECHNICIAN is no longer in any visibleTo arrays — web config excludes them
+      expect(filtered.name).toBeUndefined();
+      expect(filtered.cuit).toBeUndefined();
       expect(filtered.cbu).toBeUndefined();
     });
   });
@@ -314,10 +316,12 @@ describe('Module Access Configuration', () => {
   it('Schedule module should be accessible with correct levels', () => {
     expect(MODULE_ACCESS.schedule.OWNER).toBe('full');
     expect(MODULE_ACCESS.schedule.ADMIN).toBe('full');
-    expect(MODULE_ACCESS.schedule.TECHNICIAN).toBe('own');
+    expect(MODULE_ACCESS.schedule.TECHNICIAN).toBe('hidden'); // Mobile-only
   });
 
-  it('WhatsApp module should be hidden from TECHNICIAN', () => {
-    expect(MODULE_ACCESS.whatsapp.TECHNICIAN).toBe('hidden');
+  it('All modules should be hidden from TECHNICIAN (mobile-only)', () => {
+    for (const module of Object.keys(MODULE_ACCESS)) {
+      expect(MODULE_ACCESS[module].TECHNICIAN).toBe('hidden');
+    }
   });
 });

@@ -5,6 +5,7 @@ import {
   filterEntityByRole,
   getEntityFieldMetadata,
   validateEntityUpdate,
+  assertUserRole,
   UserRole,
 } from '@/lib/middleware/field-filter';
 
@@ -54,8 +55,13 @@ export async function GET(
       );
     }
 
-    // Normalize user role and check if viewing self
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
     const isSelf = session.userId === id;
 
     // Filter data based on user role
@@ -117,7 +123,13 @@ export async function PUT(
     }
 
     // Normalize user role
-    const userRole = (session.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+    const userRole = assertUserRole(session.role);
+    if (!userRole) {
+      return NextResponse.json(
+        { success: false, error: 'Role not found in session' },
+        { status: 401 }
+      );
+    }
 
     // Only OWNER and ADMIN can update other users
     const isEditingSelf = session.userId === id;

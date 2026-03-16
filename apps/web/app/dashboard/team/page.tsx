@@ -37,7 +37,8 @@ export default function TeamPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
 
-  const userRole = user?.role?.toUpperCase() || 'TECHNICIAN';
+  const userRole = user?.role?.toUpperCase();
+  if (!userRole) throw new Error('User role missing — session may be corrupted');
   const isOwnerOrAdmin = userRole === 'OWNER' || userRole === 'ADMIN';
   const isTechnician = userRole === 'TECHNICIAN';
 

@@ -92,9 +92,18 @@ export function useFieldPermissions(
 ): UseFieldPermissionsResult {
   const { user } = useAuth();
 
-  // Get user role, defaulting to TECHNICIAN
-  const userRole = useMemo(() => {
-    return (user?.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+  // Get user role — must exist if user is authenticated
+  const userRole = useMemo((): UserRole => {
+    const rawRole = user?.role?.toUpperCase();
+    if (!rawRole) {
+      throw new Error('User role missing — useFieldPermissions requires an authenticated user');
+    }
+    // Validate against known roles before casting
+    const validRoles: UserRole[] = ['SUPER_ADMIN', 'OWNER', 'ADMIN', 'TECHNICIAN'];
+    if (!validRoles.includes(rawRole as UserRole)) {
+      throw new Error(`Unknown user role "${rawRole}" — expected one of: ${validRoles.join(', ')}`);
+    }
+    return rawRole as UserRole;
   }, [user?.role]);
 
   // Generate all field metadata

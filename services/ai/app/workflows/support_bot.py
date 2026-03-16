@@ -263,7 +263,7 @@ FAQ_DATABASE: dict[str, list[dict[str, str]]] = {
         },
         {
             "q": "¿Cómo agrego un técnico a mi equipo?",
-            "a": "Andá a Configuración > Equipo > Invitar miembro. Ingresá el email y seleccioná el rol (Técnico o Despachador)."
+            "a": "Andá a Configuración > Equipo > Invitar miembro. Ingresá el email y seleccioná el rol (Técnico o Administrador)."
         },
         {
             "q": "¿Puedo tener múltiples organizaciones?",

@@ -358,7 +358,7 @@ flowchart TB
     subgraph USERS["👥 USER ACTORS"]
         direction TB
         OWNER["🏢 OWNER<br/>(Dueño)<br/>Full Access"]
-        DISPATCH["📋 ADMIN<br/>(Despachador)<br/>Ops Management"]
+        DISPATCH["📋 ADMIN<br/>(Administrador)<br/>Ops Management"]
         TECH["🔧 TECHNICIAN<br/>(Técnico)<br/>Field Work"]
         CONSUMER["🛒 CONSUMER<br/>(Marketplace)<br/>Booking & Reviews"]
     end
@@ -4043,12 +4043,12 @@ Deep linking:
 | Role | Spanish | Description |
 |------|---------|-------------|
 | `OWNER` | Dueño | **Full platform access** including billing, subscription management, and team invites. |
-| `ADMIN` | Despachador | **Operations management** (jobs, customers, team schedules) but **NO access** to billing or subscription settings. |
+| `ADMIN` | Administrador | **Operations management** (jobs, customers, team schedules) but **NO access** to billing or subscription settings. |
 | `TECHNICIAN` | Técnico | **Field worker** with mobile-first access. Restricted to assigned jobs and inventory usage. |
 
 #### Permissions Matrix
 
-| Feature | Owner | Despachador | Técnico |
+| Feature | Owner | Administrador | Técnico |
 |---------|:-----:|:-----------:|:-------:|
 | View all jobs | ✅ | ✅ | ❌ |
 | View assigned jobs | ✅ | ✅ | ✅ |

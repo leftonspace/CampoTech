@@ -121,8 +121,14 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
-  const userRole = useMemo(() => {
-    return (user?.role?.toUpperCase() || 'TECHNICIAN') as UserRole;
+  const userRole = useMemo((): UserRole => {
+    const rawRole = user?.role?.toUpperCase();
+    if (!rawRole) throw new Error('User role missing — session may be corrupted');
+    const validRoles: UserRole[] = ['SUPER_ADMIN', 'OWNER', 'ADMIN', 'TECHNICIAN'];
+    if (!validRoles.includes(rawRole as UserRole)) {
+      throw new Error(`Unknown user role "${rawRole}"`);
+    }
+    return rawRole as UserRole;
   }, [user?.role]);
 
   const subscriptionTier = useMemo(() => {
@@ -235,7 +241,7 @@ export default function DashboardLayout({
   };
 
   return (
-    <ProtectedRoute>
+    <ProtectedRoute allowedRoles={['OWNER', 'ADMIN', 'SUPER_ADMIN']}>
       <div className="min-h-screen flex w-full bg-background">
         {/* Mobile sidebar overlay */}
         {sidebarOpen && (

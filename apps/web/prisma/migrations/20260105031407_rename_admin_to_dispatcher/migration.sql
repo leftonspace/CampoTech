@@ -1,16 +1,13 @@
-/*
-  Warnings:
-
-  - The values [ADMIN] on the enum `UserRole` will be removed. If these variants are still used in the database, this will fail.
-
-*/
--- AlterEnum
-BEGIN;
-CREATE TYPE "UserRole_new" AS ENUM ('OWNER', 'DISPATCHER', 'TECHNICIAN');
-ALTER TABLE "users" ALTER COLUMN "role" DROP DEFAULT;
-ALTER TABLE "users" ALTER COLUMN "role" TYPE "UserRole_new" USING ("role"::text::"UserRole_new");
-ALTER TYPE "UserRole" RENAME TO "UserRole_old";
-ALTER TYPE "UserRole_new" RENAME TO "UserRole";
-DROP TYPE "UserRole_old";
-ALTER TABLE "users" ALTER COLUMN "role" SET DEFAULT 'TECHNICIAN';
-COMMIT;
+-- ═══════════════════════════════════════════════════════════════════════════════
+-- CORRECTED: This migration originally renamed ADMIN → DISPATCHER in UserRole.
+-- That rename was later reversed (DISPATCHER → ADMIN) via an untracked db push.
+-- To fix the migration history inconsistency, this file has been neutralized
+-- to a no-op. The UserRole enum with ADMIN is already established by migration
+-- 20251230202424_old_roles_deletion_update.
+--
+-- History:
+--   Original SQL: CREATE TYPE "UserRole_new" AS ENUM ('OWNER', 'DISPATCHER', 'TECHNICIAN')
+--   Revert: untracked db push renamed DISPATCHER back to ADMIN
+--   Fix (2026-03-14): Neutralized to prevent drift on fresh databases
+-- ═══════════════════════════════════════════════════════════════════════════════
+SELECT 1; -- no-op
