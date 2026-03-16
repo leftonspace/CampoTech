@@ -13,7 +13,7 @@ import {
   filterEntitiesByRole,
   getEntityFieldMetadata,
   assertUserRole,
-  UserRole,
+
 } from '@/lib/middleware/field-filter';
 import { createVehicleWarehouse } from '@/lib/services/vehicle-storage';
 

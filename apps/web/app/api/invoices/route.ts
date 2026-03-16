@@ -4,7 +4,7 @@ import {
   filterEntitiesByRole,
   getEntityFieldMetadata,
   assertUserRole,
-  UserRole,
+
   canAccessModule,
 } from '@/lib/middleware/field-filter';
 import { onInvoiceCreated } from '@/src/modules/whatsapp/notification-triggers.service';

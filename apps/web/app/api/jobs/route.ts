@@ -4,7 +4,7 @@ import {
   filterEntitiesByRole,
   getEntityFieldMetadata,
   assertUserRole,
-  UserRole,
+
 } from '@/lib/middleware/field-filter';
 import { JobService } from '@/src/services/job.service';
 import { jobRouteIntegrationService } from '@/lib/services/job-route-integration.service';

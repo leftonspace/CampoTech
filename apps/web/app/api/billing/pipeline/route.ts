@@ -18,8 +18,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
-import { canAccessModule, assertUserRole,
-  UserRole } from '@/lib/middleware/field-filter';
+import { canAccessModule, assertUserRole } from '@/lib/middleware/field-filter';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES

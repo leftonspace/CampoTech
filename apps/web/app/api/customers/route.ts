@@ -4,7 +4,7 @@ import {
   filterEntitiesByRole,
   getEntityFieldMetadata,
   assertUserRole,
-  UserRole,
+
 } from '@/lib/middleware/field-filter';
 import { CustomerService } from '@/services/customer.service';
 

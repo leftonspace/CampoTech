@@ -6,7 +6,7 @@ import {
   getEntityFieldMetadata,
   validateEntityUpdate,
   assertUserRole,
-  UserRole,
+
 } from '@/lib/middleware/field-filter';
 
 export async function GET(

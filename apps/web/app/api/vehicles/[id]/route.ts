@@ -15,7 +15,7 @@ import {
   getEntityFieldMetadata,
   validateEntityUpdate,
   assertUserRole,
-  UserRole,
+
 } from '@/lib/middleware/field-filter';
 
 // Check if error is related to missing table

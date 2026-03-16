@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
@@ -14,7 +14,7 @@ import {
   type PricingMode,
   CUSTOMER_TYPE_LABELS,
   RECURRENCE_PATTERNS,
-  createEmptyVisit,
+
   expandDateRange,
   convertTo24h,
 } from '@/components/jobs/job-form-shared';
@@ -57,26 +57,26 @@ export default function NewJobModal({
 
   // ── Shared hook for visits, conflicts, vehicles, service types, customers, team ──
   const {
-    visits, setVisits,
+    visits, setVisits: _setVisits,
     activeVisitDropdown, setActiveVisitDropdown, dropdownRef,
     addVisit, removeVisit, updateVisit, toggleVisitTechnician,
     vehicleAssignmentVisitId, setVehicleAssignmentVisitId,
     selectedDriverIds, setSelectedDriverIds,
     selectedVehicleId, setSelectedVehicleId,
-    defaultVehicles, setDefaultVehicles, vehiclesData,
+    defaultVehicles, setDefaultVehicles: _setDefaultVehicles, vehiclesData,
     visitConflicts, isValidatingConflicts, hasUnresolvedConflicts,
     handleConflictAction, conflictModalData, setConflictModalData,
     validateVisitAssignments,
     customerSearch, setCustomerSearch,
     selectedCustomer, setSelectedCustomer,
-    useCustomerAddress, setUseCustomerAddress,
+    useCustomerAddress: _useCustomerAddress, setUseCustomerAddress,
     customers, showNewCustomerModal, setShowNewCustomerModal,
     handleAddressSelect,
     SERVICE_TYPES, showCreateServiceType, setShowCreateServiceType,
     newServiceTypeName, setNewServiceTypeName, isCreatingServiceType,
     handleCreateServiceType,
     isDescriptionExpanded, setIsDescriptionExpanded, descriptionRef,
-    teamMembers, availabilityMap,
+    teamMembers, availabilityMap: _availabilityMap,
     error, setError,
     resetVisitState,
   } = useJobFormVisits({ isOpen, formData, setFormData });

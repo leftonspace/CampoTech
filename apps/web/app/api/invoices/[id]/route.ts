@@ -14,7 +14,7 @@ import {
   validateInvoiceUpdate,
   canAccessModule,
   assertUserRole,
-  UserRole,
+
 } from '@/lib/middleware/field-filter';
 import { parseDateTimeAsArgentina } from '@/lib/timezone';
 

@@ -9,7 +9,7 @@
  * service types, customer search, and availability lookups.
  */
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api-client';
 import type { ParsedAddress } from '@/components/ui/AddressAutocomplete';
@@ -46,12 +46,13 @@ interface AvailableEmployee {
 interface UseJobFormVisitsOptions {
     isOpen: boolean;
     formData: { address: string; serviceType: string;[key: string]: unknown };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setFormData: React.Dispatch<React.SetStateAction<any>>;
 }
 
 // ─── Hook ────────────────────────────────────────────────────────
 
-export function useJobFormVisits({ isOpen, formData, setFormData }: UseJobFormVisitsOptions) {
+export function useJobFormVisits({ isOpen, formData: _formData, setFormData }: UseJobFormVisitsOptions) {
     const queryClient = useQueryClient();
 
     // ── Visit State ──────────────────────────────────────────────

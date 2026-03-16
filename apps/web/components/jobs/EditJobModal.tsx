@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/lib/api-client';
+
 import { useAuth } from '@/lib/auth-context';
 import { Search, Calendar, Clock, Users, X, Check, Wrench, Repeat, Plus, Truck, MessageCircle, XCircle, Lock, DollarSign, CreditCard } from 'lucide-react';
 import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
@@ -13,7 +13,7 @@ import EmployeeDayModal from '@/components/schedule/EmployeeDayModal';
 import { cn } from '@/lib/utils';
 import { PricebookLineItems } from '@/components/jobs/PricebookLineItems';
 import {
-  type Customer,
+
   RECURRENCE_PATTERNS,
   createEmptyVisit,
   expandDateRange,
@@ -65,20 +65,20 @@ export default function EditJobModal({
     vehicleAssignmentVisitId, setVehicleAssignmentVisitId,
     selectedDriverIds, setSelectedDriverIds,
     selectedVehicleId, setSelectedVehicleId,
-    defaultVehicles, setDefaultVehicles, vehiclesData,
+    defaultVehicles, setDefaultVehicles: _setDefaultVehicles, vehiclesData,
     visitConflicts, isValidatingConflicts, hasUnresolvedConflicts,
     handleConflictAction, conflictModalData, setConflictModalData,
     validateVisitAssignments,
     customerSearch, setCustomerSearch,
     selectedCustomer, setSelectedCustomer,
-    useCustomerAddress, setUseCustomerAddress,
+    useCustomerAddress: _useCustomerAddress, setUseCustomerAddress,
     customers, showNewCustomerModal, setShowNewCustomerModal,
     handleAddressSelect,
     SERVICE_TYPES, showCreateServiceType, setShowCreateServiceType,
     newServiceTypeName, setNewServiceTypeName, isCreatingServiceType,
     handleCreateServiceType,
     isDescriptionExpanded, setIsDescriptionExpanded, descriptionRef,
-    teamMembers, availabilityMap,
+    teamMembers, availabilityMap: _availabilityMap,
     error, setError,
     resetVisitState,
   } = useJobFormVisits({ isOpen, formData, setFormData });
